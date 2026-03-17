@@ -27,6 +27,10 @@ export async function runGraphQL<T = unknown>(
   operation: string,
   variables?: Record<string, unknown>
 ): Promise<GraphQLResponse<T>> {
+  // 45s timeout to tolerate cold starts / Render restarts on auth flows
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45_000);
+
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -34,17 +38,40 @@ export async function runGraphQL<T = unknown>(
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const endpoint = getGraphQLEndpoint();
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ query: operation, variables }),
-  });
-
-  if (!res.ok) {
-    throw new Error('Request failed');
+  let res: Response;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query: operation, variables }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
   }
 
-  return res.json();
+  const rawText = await res.text();
+
+  if (!res.ok) {
+    // Try to surface GraphQL-style error message if present
+    try {
+      const parsed = rawText ? (JSON.parse(rawText) as GraphQLResponse<T>) : undefined;
+      const message = parsed?.errors?.[0]?.message;
+      throw new Error(message || `Request failed with status ${res.status}`);
+    } catch {
+      throw new Error(`Request failed with status ${res.status}`);
+    }
+  }
+
+  if (!rawText) {
+    throw new Error('Empty response from server while processing your request.');
+  }
+
+  try {
+    return JSON.parse(rawText) as GraphQLResponse<T>;
+  } catch {
+    throw new Error('Failed to parse server response as JSON.');
+  }
 }
 
 export function getUserId(): string | null {
