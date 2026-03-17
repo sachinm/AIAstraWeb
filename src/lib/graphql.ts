@@ -6,9 +6,11 @@ function getGraphQLEndpoint(): string {
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   const mode = import.meta.env.MODE; // 'development' | 'production' | 'test'
 
-  const hostWithPort = mode === 'local' ? `${host}:3000` : host;
-  console.log('GraphQL endpoint: ', `http://${hostWithPort}/graphql`);
-  return `http://${hostWithPort}/graphql`;
+  const isLocal = mode === 'local' || mode === 'development';
+  const hostWithPort = isLocal ? `${host}:3000` : host;
+  const protocol = isLocal ? 'http' : 'https';
+
+  return `${protocol}://${hostWithPort}/graphql`;
 }
 
 const getToken = (): string | null => {
