@@ -12,7 +12,6 @@ import { User } from './App';
 interface AppRoutesProps {
   user: User | null;
   isAuthenticated: boolean;
-  onSignUp: () => void;
   handleSignIn: (userData?: User) => void;
   handleSignUp: (userData: User) => void;
   handleLogout: () => void;
@@ -21,7 +20,6 @@ interface AppRoutesProps {
 const AppRoutes: React.FC<AppRoutesProps> = ({
   user,
   isAuthenticated,
-  onSignUp,
   handleSignIn,
   handleSignUp,
   handleLogout,

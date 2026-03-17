@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import AppRoutes from './routes';
 import AuthProvider from './Auth/AuthProvider';
@@ -15,6 +15,28 @@ export interface User {
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const handleSignIn = (userData?: User) => {
+    if (userData) {
+      setUser(userData);
+      localStorage.setItem('astroUser', JSON.stringify(userData));
+    }
+    setIsAuthenticated(true);
+  };
+
+  const handleSignUp = (userData: User) => {
+    setUser(userData);
+    setIsAuthenticated(true);
+    localStorage.setItem('astroUser', JSON.stringify(userData));
+    localStorage.setItem('isAuthenticated', 'true');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('astroUser');
+    localStorage.removeItem('isAuthenticated');
+  };
 
   useEffect(() => {
     const savedUser = localStorage.getItem('astroUser');
@@ -45,7 +67,13 @@ const App = () => {
             isAuthenticated={isAuthenticated}
             setIsAuthenticated={setIsAuthenticated}
           >
-            <AppRoutes />
+            <AppRoutes
+              user={user}
+              isAuthenticated={isAuthenticated}
+              handleSignIn={handleSignIn}
+              handleSignUp={handleSignUp}
+              handleLogout={handleLogout}
+            />
           </AuthProvider>
         </Router>
       </div>
