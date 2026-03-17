@@ -3,11 +3,11 @@
  */
 
 function getGraphQLEndpoint(): string {
-  if (typeof window === 'undefined') {
-    return (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GRAPHQL_ENDPOINT) || 'http://localhost:3000/graphql';
-  }
-  // In dev (including dev:network), use same host so GraphQL is reachable from any LAN IP
-  return `http://${import.meta.env?.VITE_GRAPHQL_BASE}/${import.meta.env?.VITE_GRAPHQL_ENDPOINT}`;
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const mode = import.meta.env.MODE; // 'development' | 'production' | 'test'
+
+  const hostWithPort = mode === 'local' ? `${host}:3000` : host;
+  return `http://${hostWithPort}/graphql`;
 }
 
 const getToken = (): string | null => {
