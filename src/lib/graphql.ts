@@ -40,6 +40,11 @@ export async function runGraphQL<T = unknown>(
   const endpoint = getGraphQLEndpoint();
   let res: Response;
   try {
+    console.log('[GraphQL] request', {
+      endpoint,
+      hasToken: Boolean(token),
+      variablesKeys: variables ? Object.keys(variables) : [],
+    });
     res = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -51,6 +56,11 @@ export async function runGraphQL<T = unknown>(
   }
 
   const rawText = await res.text();
+  console.log('[GraphQL] response meta', {
+    ok: res.ok,
+    status: res.status,
+    contentLength: rawText.length,
+  });
 
   if (!res.ok) {
     // Try to surface GraphQL-style error message if present
@@ -64,12 +74,14 @@ export async function runGraphQL<T = unknown>(
   }
 
   if (!rawText) {
+    console.error('[GraphQL] empty response body');
     throw new Error('Empty response from server while processing your request.');
   }
 
   try {
     return JSON.parse(rawText) as GraphQLResponse<T>;
   } catch {
+    console.error('[GraphQL] JSON parse failed, rawText snippet:', rawText.slice(0, 200));
     throw new Error('Failed to parse server response as JSON.');
   }
 }
