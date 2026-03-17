@@ -7,6 +7,7 @@ function getGraphQLEndpoint(): string {
   const mode = import.meta.env.MODE; // 'development' | 'production' | 'test'
 
   const hostWithPort = mode === 'local' ? `${host}:3000` : host;
+  console.log('GraphQL endpoint: ', `http://${hostWithPort}/graphql`);
   return `http://${hostWithPort}/graphql`;
 }
 
