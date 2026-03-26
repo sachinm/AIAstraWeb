@@ -3,14 +3,16 @@
  */
 
 function getGraphQLEndpoint(): string {
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const mode = import.meta.env.MODE; // 'development' | 'production' | 'test'
+  const apiBase = import.meta.env.VITE_API_BASE || import.meta.env.VITE_GRAPHQL_BASE;
+  const graphqlEndpoint = import.meta.env.VITE_GRAPHQL_ENDPOINT || '/graphql';
 
-  const isLocal = mode === 'local' || mode === 'development';
-  const hostWithPort = isLocal ? `${host}:3000` : host;
-  const protocol = isLocal ? 'http' : 'https';
+  if (apiBase) {
+    const normalizedBase = apiBase.replace(/\/+$/, '');
+    const normalizedEndpoint = graphqlEndpoint.startsWith('/') ? graphqlEndpoint : `/${graphqlEndpoint}`;
+    return `${normalizedBase}${normalizedEndpoint}`;
+  }
 
-  return `${protocol}://${hostWithPort}/graphql`;
+  return graphqlEndpoint;
 }
 
 const getToken = (): string | null => {
