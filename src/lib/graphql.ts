@@ -88,6 +88,40 @@ export async function runGraphQL<T = unknown>(
   }
 }
 
+export async function checkGraphQLStartupHealth(): Promise<void> {
+  if (import.meta.env.MODE === 'test') return;
+
+  const endpoint = getGraphQLEndpoint();
+  console.info('[GraphQL] startup health check started', { endpoint });
+
+  try {
+    const result = await runGraphQL<{ __typename?: string }>(
+      `
+      query StartupHealthCheck {
+        __typename
+      }
+      `
+    );
+
+    const firstError = result.errors?.[0]?.message;
+    if (firstError) {
+      throw new Error(firstError);
+    }
+
+    console.info('[GraphQL] startup health check passed', {
+      endpoint,
+      typename: result.data?.__typename ?? 'unknown',
+    });
+  } catch (err) {
+    console.error('[GraphQL] startup health check failed', {
+      endpoint,
+      error: (err as Error)?.message || String(err),
+      apiBase: import.meta.env.VITE_API_BASE,
+      graphqlEndpointEnv: import.meta.env.VITE_GRAPHQL_ENDPOINT,
+    });
+  }
+}
+
 export function getUserId(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('userId');
