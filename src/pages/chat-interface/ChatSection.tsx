@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ChatSidebar from './ChatSidebar';
 import { sendChatMessage, fetchUserDetails, createChat } from '../UserData';
+import ChatRightSidebar from './ChatRightSidebar';
 import { useSpeechRecognition } from './useSpeechRecognition';
 
 interface User {
@@ -527,6 +528,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           </div>
         </div>
       </div>
+      <ChatRightSidebar
+        isOpen={isRightSidebarOpen}
+        onOpenChange={setIsRightSidebarOpen}
+      />
     </div>
   );
 };

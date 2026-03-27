@@ -22,6 +22,33 @@ export interface BiodataResponse {
   };
 }
 
+const MY_KUNDLI_DISPLAY_DATA = `
+  query MyKundliDisplayData {
+    myKundliDisplayData {
+      success
+      error
+      biodata
+      d1
+      d7
+      d9
+      d10
+      vimsottari_dasa
+      narayana_dasa
+    }
+  }
+`;
+export interface KundliDisplayDataResponse {
+  success: boolean;
+  biodata: unknown | null;
+  d1: unknown | null;
+  d7: unknown | null;
+  d9: unknown | null;
+  d10: unknown | null;
+  vimsottari_dasa: unknown | null;
+  narayana_dasa: unknown | null;
+  message?: string;
+}
+
 export interface UserContentResponse {
   success: boolean;
   data?: unknown;
@@ -164,3 +191,51 @@ export const fetchUserContent = async (): Promise<UserContentResponse> => {
   const content = result.content ? JSON.parse(result.content) : null;
   return { success: true, data: content };
 };
+
+export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataResponse> => {
+  const details = await fetchUserDetails();
+  if (!details.success) {
+    throw new Error(details.message || 'Failed to fetch user details');
+  }
+
+  const { data, errors } = await runGraphQL<{
+    myKundliDisplayData: {
+      success: boolean;
+      error: string | null;
+      biodata: string | null;
+      d1: string | null;
+      d7: string | null;
+      d9: string | null;
+      d10: string | null;
+      vimsottari_dasa: string | null;
+      narayana_dasa: string | null;
+    };
+  }>(MY_KUNDLI_DISPLAY_DATA);
+
+  if (errors?.length) throw new Error(errors[0].message || 'Failed to fetch Kundli display data');
+
+  const result = data?.myKundliDisplayData;
+  if (!result?.success) {
+    throw new Error(result?.error || 'Invalid Kundli display response');
+  }
+
+  const safeParse = (value: string | null): unknown | null => {
+    if (!value) return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  };
+
+  return {
+    success: true,
+    biodata: safeParse(result.biodata),
+    d1: safeParse(result.d1),
+    d7: safeParse(result.d7),
+    d9: safeParse(result.d9),
+    d10: safeParse(result.d10),
+    vimsottari_dasa: safeParse(result.vimsottari_dasa),
+    narayana_dasa: safeParse(result.narayana_dasa),
+  };
+}
