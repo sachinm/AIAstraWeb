@@ -21,7 +21,7 @@ function getAskQueryTimeoutMs(): number {
  * When false (`VITE_CHAT_STREAM` = `0` / `false` / `off`): GraphQL `ask` only — the full answer appears once when the server finishes (often 30s+ for long Gemini calls).
  */
 export function isChatStreamEnabled(): boolean {
-  const raw = 1; //import.meta.env.VITE_CHAT_STREAM || 1;
+  const raw = import.meta.env.VITE_CHAT_STREAM || '1';
   if (raw == null || String(raw).trim() === '') return true;
   const s = String(raw).trim().toLowerCase();
   if (s === '0' || s === 'false' || s === 'off') return false;
@@ -70,6 +70,8 @@ async function consumeChatAskSse(
       if (ev.type === 'token' && typeof ev.delta === 'string') {
         onToken(ev.delta);
         answer += ev.delta;
+      } else if (ev.type === 'start') {
+        /* server opened stream; no UI action */
       } else if (ev.type === 'done') {
         if (typeof ev.answer === 'string') answer = ev.answer;
         if (typeof ev.chatId === 'string') chatId = ev.chatId;
