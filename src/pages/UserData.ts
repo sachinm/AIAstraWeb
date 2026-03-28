@@ -47,12 +47,14 @@ function getChatAskStreamUrl(): string {
 
 async function consumeChatAskSse(
   response: Response,
-  onToken: (delta: string) => void
-): Promise<{ answer: string; chatId: string }> {
+  onToken: (delta: string) => void,
+  onThought?: (delta: string) => void
+): Promise<{ answer: string; chatId: string; thinking: string }> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let answer = '';
+  let thinking = '';
   let chatId = '';
 
   const processEventBlock = (block: string) => {
@@ -70,6 +72,9 @@ async function consumeChatAskSse(
       if (ev.type === 'token' && typeof ev.delta === 'string') {
         onToken(ev.delta);
         answer += ev.delta;
+      } else if (ev.type === 'thought' && typeof ev.delta === 'string') {
+        onThought?.(ev.delta);
+        thinking += ev.delta;
       } else if (ev.type === 'start') {
         /* server opened stream; no UI action */
       } else if (ev.type === 'done') {
@@ -109,18 +114,19 @@ async function consumeChatAskSse(
   }
 
   if (!chatId) throw new Error('Stream ended without completion');
-  return { answer, chatId };
+  return { answer, chatId, thinking };
 }
 
 /**
  * Token-streaming chat (SSE). Same persistence as GraphQL `ask`; updates UI via `onDelta`.
+ * Optional `onThoughtDelta` receives Gemini 2.5 thinking chunks when the server sends `{type:"thought"}`.
  */
 export const sendChatMessageStream = async (
   question: string,
   chatId: string | null | undefined,
   onDelta: (delta: string) => void,
-  options?: { signal?: AbortSignal }
-): Promise<{ answer: string; chatId: string }> => {
+  options?: { signal?: AbortSignal; onThoughtDelta?: (delta: string) => void }
+): Promise<{ answer: string; chatId: string; thinking: string }> => {
   const details = await fetchUserDetails();
   if (!details.success || !details.kundli_added) {
     throw new Error('Kundli not available, cannot start chat');
@@ -169,7 +175,7 @@ export const sendChatMessageStream = async (
     if (!res.ok) throw new Error(`Chat stream failed (${res.status})`);
     if (!res.body) throw new Error('Empty stream response');
 
-    return await consumeChatAskSse(res, onDelta);
+    return await consumeChatAskSse(res, onDelta, options?.onThoughtDelta);
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);
   }

@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Bot, User, Sparkles, Star, Menu, X, Loader2, Mic, Square, Plus } from 'lucide-react';
+import {
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  Star,
+  Menu,
+  X,
+  Loader2,
+  Mic,
+  Square,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ChatSidebar from './ChatSidebar';
@@ -29,6 +43,8 @@ interface Message {
   text: string;
   sender: 'user' | 'ai' | 'system';
   timestamp: string;
+  /** Gemini 2.5 reasoning stream (when server sends thought SSE events). */
+  thinking?: string;
 }
 
 interface ChatHistory {
@@ -78,6 +94,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const [activeChat, setActiveChat] = useState<string | null>(activeChatId ?? null);
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [chatCreationDone, setChatCreationDone] = useState(false);
+  /** Per-message: whether the “Model reasoning” panel is expanded. */
+  const [thinkingOpenByMessageId, setThinkingOpenByMessageId] = useState<Record<string, boolean>>({});
   const sidebarRef = useRef<HTMLDivElement>(null);
   const inputTextAtSpeechStartRef = useRef('');
   const mountedRef = useRef(true);
@@ -243,7 +261,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           ...prev,
           { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts },
         ]);
-        const { answer, chatId } = await sendChatMessageStream(
+        const { answer, chatId, thinking } = await sendChatMessageStream(
           userMessage.text,
           activeChat,
           (delta) => {
@@ -251,12 +269,28 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             setMessages((prev) =>
               prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + delta } : m))
             );
+          },
+          {
+            onThoughtDelta: (td) => {
+              if (!mountedRef.current || !td) return;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiPlaceholderId
+                    ? { ...m, thinking: (m.thinking ?? '') + td }
+                    : m
+                )
+              );
+            },
           }
         );
         if (mountedRef.current) {
           setActiveChat(chatId);
           setMessages((prev) =>
-            prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: answer } : m))
+            prev.map((m) =>
+              m.id === aiPlaceholderId
+                ? { ...m, text: answer, thinking: thinking.trim() ? thinking : m.thinking }
+                : m
+            )
           );
         }
       } else {
@@ -498,6 +532,33 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
                     {message.sender === 'ai' ? (
                       message.id === streamingMessageId && !message.text.trim() ? (
                         <div className="not-prose flex flex-col gap-2" aria-live="polite">
+                          {message.thinking?.trim() ? (
+                            <div className="mb-1 rounded-lg border border-amber-500/30 bg-amber-950/25 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setThinkingOpenByMessageId((prev) => ({
+                                    ...prev,
+                                    [message.id]: !prev[message.id],
+                                  }))
+                                }
+                                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm text-amber-100/90 hover:bg-white/5"
+                                aria-expanded={Boolean(thinkingOpenByMessageId[message.id])}
+                              >
+                                <span className="font-medium">Model reasoning</span>
+                                {thinkingOpenByMessageId[message.id] ? (
+                                  <ChevronDown className="w-4 h-4 shrink-0 opacity-80" aria-hidden />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 shrink-0 opacity-80" aria-hidden />
+                                )}
+                              </button>
+                              {thinkingOpenByMessageId[message.id] ? (
+                                <div className="px-3 py-2 border-t border-amber-500/20 text-xs text-amber-50/85 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
+                                  {message.thinking}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <div className="flex space-x-2" aria-hidden>
                             <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
                             <div
@@ -514,23 +575,52 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
                           </p>
                         </div>
                       ) : (
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            img: ({ src, alt }) =>
-                              typeof src === 'string' && src.startsWith('https://') ? (
-                                <img
-                                  src={src}
-                                  alt={alt ?? ''}
-                                  className="max-h-64 max-w-full rounded-lg object-contain my-4 border border-white/20"
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
-                                />
-                              ) : null,
-                          }}
-                        >
-                          {message.text}
-                        </ReactMarkdown>
+                        <>
+                          {message.thinking?.trim() ? (
+                            <div className="not-prose mb-3 rounded-lg border border-amber-500/30 bg-amber-950/25 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setThinkingOpenByMessageId((prev) => ({
+                                    ...prev,
+                                    [message.id]: !prev[message.id],
+                                  }))
+                                }
+                                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm text-amber-100/90 hover:bg-white/5"
+                                aria-expanded={Boolean(thinkingOpenByMessageId[message.id])}
+                              >
+                                <span className="font-medium">Model reasoning</span>
+                                {thinkingOpenByMessageId[message.id] ? (
+                                  <ChevronDown className="w-4 h-4 shrink-0 opacity-80" aria-hidden />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 shrink-0 opacity-80" aria-hidden />
+                                )}
+                              </button>
+                              {thinkingOpenByMessageId[message.id] ? (
+                                <div className="px-3 py-2 border-t border-amber-500/20 text-xs text-amber-50/85 whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed">
+                                  {message.thinking}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              img: ({ src, alt }) =>
+                                typeof src === 'string' && src.startsWith('https://') ? (
+                                  <img
+                                    src={src}
+                                    alt={alt ?? ''}
+                                    className="max-h-64 max-w-full rounded-lg object-contain my-4 border border-white/20"
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : null,
+                            }}
+                          >
+                            {message.text}
+                          </ReactMarkdown>
+                        </>
                       )
                     ) : (
                       <p className="leading-relaxed">{message.text}</p>

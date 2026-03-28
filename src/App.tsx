@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import AppRoutes from './routes';
 import AuthProvider from './Auth/AuthProvider';
@@ -12,9 +12,25 @@ export interface User {
   timeOfBirth: string;
 }
 
+function readStoredSession(): { user: User | null; isAuthenticated: boolean } {
+  if (typeof window === 'undefined') {
+    return { user: null, isAuthenticated: false };
+  }
+  try {
+    const raw = localStorage.getItem('astroUser');
+    if (raw) {
+      return { user: JSON.parse(raw) as User, isAuthenticated: true };
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return { user: null, isAuthenticated: false };
+}
+
 const App = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const initialSession = readStoredSession();
+  const [user, setUser] = useState<User | null>(initialSession.user);
+  const [isAuthenticated, setIsAuthenticated] = useState(initialSession.isAuthenticated);
 
   const handleSignIn = (userData?: User) => {
     if (userData) {
@@ -37,14 +53,6 @@ const App = () => {
     localStorage.removeItem('astroUser');
     localStorage.removeItem('isAuthenticated');
   };
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('astroUser');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-    }
-  }, []);
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
