@@ -1,14 +1,22 @@
 // UserData – GraphQL for most APIs; chat may use REST SSE when VITE_CHAT_STREAM is enabled.
 import { runGraphQL, getUserId } from '../lib/graphql';
 
-/** Thrown when the SSE stream ends with `{type:"error"}`; `chatId` is set if the server saved the turn before failing. */
+/**
+ * Thrown when the SSE stream fails. `persistedChatId` is set when the server saved the turn before
+ * failing; `requestedChatId` is the client’s thread id (for GraphQL recovery when the server omits `chatId`).
+ */
 export class StreamChatError extends Error {
   readonly persistedChatId?: string;
+  readonly requestedChatId?: string;
 
-  constructor(message: string, persistedChatId?: string) {
+  constructor(
+    message: string,
+    opts?: { persistedChatId?: string; requestedChatId?: string }
+  ) {
     super(message);
     this.name = 'StreamChatError';
-    this.persistedChatId = persistedChatId;
+    this.persistedChatId = opts?.persistedChatId;
+    this.requestedChatId = opts?.requestedChatId;
   }
 }
 
@@ -59,7 +67,8 @@ function getChatAskStreamUrl(): string {
 async function consumeChatAskSse(
   response: Response,
   onToken: (delta: string) => void,
-  onThought?: (delta: string) => void
+  onThought: ((delta: string) => void) | undefined,
+  requestedChatId: string | undefined
 ): Promise<{ answer: string; chatId: string; thinking: string }> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
@@ -99,7 +108,10 @@ async function consumeChatAskSse(
         if (typeof ev.chatId === 'string') chatId = ev.chatId;
       } else if (ev.type === 'error') {
         const cid = typeof ev.chatId === 'string' ? ev.chatId : undefined;
-        throw new StreamChatError(ev.message || 'Stream error', cid);
+        throw new StreamChatError(ev.message || 'Stream error', {
+          persistedChatId: cid,
+          requestedChatId,
+        });
       }
     }
   };
@@ -131,7 +143,9 @@ async function consumeChatAskSse(
     reader.releaseLock();
   }
 
-  if (!chatId) throw new Error('Stream ended without completion');
+  if (!chatId) {
+    throw new StreamChatError('Stream ended without completion', { requestedChatId });
+  }
   return { answer, chatId, thinking };
 }
 
@@ -193,7 +207,7 @@ export const sendChatMessageStream = async (
     if (!res.ok) throw new Error(`Chat stream failed (${res.status})`);
     if (!res.body) throw new Error('Empty stream response');
 
-    return await consumeChatAskSse(res, onDelta, options?.onThoughtDelta);
+    return await consumeChatAskSse(res, onDelta, options?.onThoughtDelta, chatId?.trim() || undefined);
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);
   }

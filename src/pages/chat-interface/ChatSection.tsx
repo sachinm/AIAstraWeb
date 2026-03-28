@@ -313,19 +313,25 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         mountedRef.current
       ) {
         const qTrim = userMessage.text.trim();
+        const normQ = (s: string) => s.trim().replace(/\s+/g, ' ');
+        const qNorm = normQ(qTrim);
         try {
           const seen = new Set<string>();
           const fromChat = async (cid: string | undefined | null) => {
             if (!cid || seen.has(cid)) return null;
             seen.add(cid);
             const msgs = await fetchChatMessages(cid);
-            const match = [...msgs].reverse().find((m) => m.question.trim() === qTrim);
+            const match = [...msgs]
+              .reverse()
+              .find((m) => normQ(m.question) === qNorm);
             if (match?.ai_answer?.trim()) return { text: match.ai_answer, chatId: cid };
             return null;
           };
           const persistedId = err instanceof StreamChatError ? err.persistedChatId : undefined;
+          const requestedId = err instanceof StreamChatError ? err.requestedChatId : undefined;
           const recovered =
             (await fromChat(persistedId)) ??
+            (await fromChat(requestedId)) ??
             (await fromChat(activeChat)) ??
             (await fromChat((await fetchActiveChat())?.id ?? null));
           if (recovered && mountedRef.current) {
