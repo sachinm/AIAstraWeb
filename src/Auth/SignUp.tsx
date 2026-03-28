@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Star, UserIcon, Mail, Lock, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import type { User as AppUser } from '../App';
 import { signup } from './api';
 
@@ -11,7 +10,6 @@ interface SignUpProps {
 }
 
 const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -120,11 +118,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
           localStorage.setItem('astroUser', JSON.stringify(userData));
           localStorage.setItem('isAuthenticated', 'true');
           
-          // Update app state
           onSignUp(userData);
-          
-          // Navigate to dashboard after successful signup
-          navigate('/dashboard', { replace: true });
         } else {
           // Handle API error
           setErrors({ submit: result.message || 'Signup failed. Please try again.' });

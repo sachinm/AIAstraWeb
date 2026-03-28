@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       }
     }
     setIsAuthenticated(true);
-    navigate('/dashboard', { replace: true });
+    navigate('/dashboard/chat', { replace: true });
   };
 
   const handleSuccessfulSignUp = (userData: User) => {
@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     setIsAuthenticated(true);
     localStorage.setItem('astroUser', JSON.stringify(userData));
     localStorage.setItem('isAuthenticated', 'true');
-    navigate('/dashboard', { replace: true });
+    navigate('/dashboard/chat', { replace: true });
   };
 
   const handleLogout = () => {

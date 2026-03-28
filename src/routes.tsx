@@ -32,7 +32,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/" 
         element={
           isAuthenticated ? (
-            <Navigate to="/dashboard" replace />
+            <Navigate to="/dashboard/chat" replace />
           ) : (
             <LandingPage 
               onSignIn={() => navigate('/signin')}
@@ -52,7 +52,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
               handleSignIn={handleSignIn} // ✅ fixed
             />
           ) : (
-            <Navigate to="/dashboard" replace />
+            <Navigate to="/dashboard/chat" replace />
           )
         }
       />
@@ -67,7 +67,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
               onBack={() => navigate('/')}
             />
           ) : (
-            <Navigate to="/dashboard" replace />
+            <Navigate to="/dashboard/chat" replace />
           )
         }
       />
