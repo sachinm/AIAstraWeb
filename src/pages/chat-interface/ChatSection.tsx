@@ -492,7 +492,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
                         ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white'
                         : message.id === streamingMessageId && !message.text.trim()
                           ? 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-                          : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white'
+                          : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-6 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4'
                     }`}
                   >
                     {message.sender === 'ai' ? (
@@ -514,7 +514,21 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
                           </p>
                         </div>
                       ) : (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            img: ({ src, alt }) =>
+                              typeof src === 'string' && src.startsWith('https://') ? (
+                                <img
+                                  src={src}
+                                  alt={alt ?? ''}
+                                  className="max-h-64 max-w-full rounded-lg object-contain my-4 border border-white/20"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : null,
+                          }}
+                        >
                           {message.text}
                         </ReactMarkdown>
                       )
