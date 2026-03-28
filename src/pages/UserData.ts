@@ -17,17 +17,18 @@ function getAskQueryTimeoutMs(): number {
 }
 
 /**
- * Streaming is the default: chat uses `POST /api/chat/ask-stream` (SSE) when `VITE_CHAT_STREAM` is unset or empty.
- * Set `VITE_CHAT_STREAM` to `0`, `false`, or `off` to use GraphQL `ask` only.
+ * When true (default): `POST /api/chat/ask-stream` streams `{type:"token",delta}` and the UI updates incrementally.
+ * When false (`VITE_CHAT_STREAM` = `0` / `false` / `off`): GraphQL `ask` only — the full answer appears once when the server finishes (often 30s+ for long Gemini calls).
  */
 export function isChatStreamEnabled(): boolean {
-  const raw = import.meta.env.VITE_CHAT_STREAM;
+  const raw = 1; //import.meta.env.VITE_CHAT_STREAM || 1;
   if (raw == null || String(raw).trim() === '') return true;
   const s = String(raw).trim().toLowerCase();
   if (s === '0' || s === 'false' || s === 'off') return false;
   return true;
 }
 
+/** Builds absolute URL for SSE chat. Used only when {@link isChatStreamEnabled} is true. */
 function getChatAskStreamUrl(): string {
   const apiBase = import.meta.env.VITE_API_BASE || import.meta.env.VITE_GRAPHQL_BASE;
   if (apiBase) {
