@@ -1,6 +1,17 @@
 // UserData – GraphQL for most APIs; chat may use REST SSE when VITE_CHAT_STREAM is enabled.
 import { runGraphQL, getUserId } from '../lib/graphql';
 
+/** Thrown when the SSE stream ends with `{type:"error"}`; `chatId` is set if the server saved the turn before failing. */
+export class StreamChatError extends Error {
+  readonly persistedChatId?: string;
+
+  constructor(message: string, persistedChatId?: string) {
+    super(message);
+    this.name = 'StreamChatError';
+    this.persistedChatId = persistedChatId;
+  }
+}
+
 /**
  * Server `ask` runs LLM; short client timeouts abort while the server may still succeed.
  * Default 15m. Set VITE_GRAPHQL_ASK_TIMEOUT_MS=0 to disable browser-side timeout only.
@@ -63,7 +74,13 @@ async function consumeChatAskSse(
       if (!t.startsWith('data:')) continue;
       const raw = t.slice(5).trimStart();
       if (!raw || raw === '[DONE]') continue;
-      let ev: { type?: string; delta?: string; chatId?: string; answer?: string; message?: string };
+      let ev: {
+        type?: string;
+        delta?: string;
+        chatId?: string;
+        answer?: string;
+        message?: string;
+      };
       try {
         ev = JSON.parse(raw) as typeof ev;
       } catch {
@@ -81,7 +98,8 @@ async function consumeChatAskSse(
         if (typeof ev.answer === 'string') answer = ev.answer;
         if (typeof ev.chatId === 'string') chatId = ev.chatId;
       } else if (ev.type === 'error') {
-        throw new Error(ev.message || 'Stream error');
+        const cid = typeof ev.chatId === 'string' ? ev.chatId : undefined;
+        throw new StreamChatError(ev.message || 'Stream error', cid);
       }
     }
   };

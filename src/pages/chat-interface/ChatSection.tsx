@@ -23,7 +23,9 @@ import {
   isChatStreamEnabled,
   fetchUserDetails,
   createChat,
+  StreamChatError,
 } from '../UserData';
+import { fetchChatMessages, fetchActiveChat } from './chatAPI';
 import ChatRightSidebar from './ChatRightSidebar';
 import { useSpeechRecognition } from './useSpeechRecognition';
 
@@ -304,6 +306,39 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         setMessages((prev) => [...prev, aiResponse]);
       }
     } catch (err) {
+      if (
+        streamPlaceholderId &&
+        isChatStreamEnabled() &&
+        userMessage.text.trim() &&
+        mountedRef.current
+      ) {
+        const qTrim = userMessage.text.trim();
+        try {
+          const seen = new Set<string>();
+          const fromChat = async (cid: string | undefined | null) => {
+            if (!cid || seen.has(cid)) return null;
+            seen.add(cid);
+            const msgs = await fetchChatMessages(cid);
+            const match = [...msgs].reverse().find((m) => m.question.trim() === qTrim);
+            if (match?.ai_answer?.trim()) return { text: match.ai_answer, chatId: cid };
+            return null;
+          };
+          const persistedId = err instanceof StreamChatError ? err.persistedChatId : undefined;
+          const recovered =
+            (await fromChat(persistedId)) ??
+            (await fromChat(activeChat)) ??
+            (await fromChat((await fetchActiveChat())?.id ?? null));
+          if (recovered && mountedRef.current) {
+            setActiveChat(recovered.chatId);
+            setMessages((prev) =>
+              prev.map((m) => (m.id === streamPlaceholderId ? { ...m, text: recovered.text } : m))
+            );
+            return;
+          }
+        } catch {
+          /* fall through to generic error bubble */
+        }
+      }
       const msg = err instanceof Error ? err.message : 'Unknown error';
       if (streamPlaceholderId && mountedRef.current) {
         setMessages((prev) =>
