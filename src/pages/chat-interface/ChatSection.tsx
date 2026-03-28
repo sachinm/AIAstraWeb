@@ -70,6 +70,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [askElapsedSec, setAskElapsedSec] = useState(0);
+  /** While SSE chat is waiting for first token, wait copy lives inside the placeholder bubble (not the row below). */
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
@@ -227,6 +229,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     setIsTyping(true);
+    setStreamingMessageId(null);
 
     const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     let streamPlaceholderId: string | null = null;
@@ -235,6 +238,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
       if (isChatStreamEnabled()) {
         const aiPlaceholderId = (Date.now() + 1).toString();
         streamPlaceholderId = aiPlaceholderId;
+        setStreamingMessageId(aiPlaceholderId);
         setMessages((prev) => [
           ...prev,
           { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts },
@@ -283,7 +287,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         setMessages((prev) => [...prev, errorMessage]);
       }
     } finally {
-      if (mountedRef.current) setIsTyping(false);
+      if (mountedRef.current) {
+        setStreamingMessageId(null);
+        setIsTyping(false);
+      }
     }
   };
 
@@ -479,15 +486,38 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
                   </div>
 
                   {/* Message Bubble */}
-                  <div className={`rounded-2xl p-4 prose prose-invert max-w-none
-                    ${message.sender === 'user'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                      : 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-                  }`}>
+                  <div
+                    className={`rounded-2xl p-4 ${
+                      message.sender === 'user'
+                        ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                        : message.id === streamingMessageId && !message.text.trim()
+                          ? 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
+                          : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white'
+                    }`}
+                  >
                     {message.sender === 'ai' ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.text}
-                      </ReactMarkdown>
+                      message.id === streamingMessageId && !message.text.trim() ? (
+                        <div className="not-prose flex flex-col gap-2" aria-live="polite">
+                          <div className="flex space-x-2" aria-hidden>
+                            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                            <div
+                              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.1s' }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.2s' }}
+                            />
+                          </div>
+                          <p className="text-sm text-gray-200 leading-snug">
+                            {askWaitMessage(askElapsedSec)}
+                          </p>
+                        </div>
+                      ) : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {message.text}
+                        </ReactMarkdown>
+                      )
                     ) : (
                       <p className="leading-relaxed">{message.text}</p>
                     )}
@@ -502,16 +532,16 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             )
           )}
 
-          {/* Typing Indicator */}
-          {isTyping && (
+          {/* Typing row: GraphQL `ask` only (streaming uses placeholder bubble above for dots + wait copy). */}
+          {isTyping && !streamingMessageId && (
             <div className="flex justify-start" aria-busy="true" aria-live="polite">
               <div className="flex items-start space-x-2 max-w-[85%]">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 min-w-[12rem]">
-                  <div className="flex items-center gap-3">
-                    <div className="flex space-x-2 flex-shrink-0">
+                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 min-w-[12rem] max-w-[min(100%,24rem)]">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex space-x-2 flex-shrink-0" aria-hidden>
                       <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
                       <div
                         className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
@@ -522,7 +552,9 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
                         style={{ animationDelay: '0.2s' }}
                       />
                     </div>
-                    <p className="text-sm text-gray-200 leading-snug">{askWaitMessage(askElapsedSec)}</p>
+                    <p className="text-sm text-gray-200 leading-snug break-words">
+                      {askWaitMessage(askElapsedSec)}
+                    </p>
                   </div>
                 </div>
               </div>
