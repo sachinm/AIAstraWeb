@@ -1,14 +1,19 @@
 // UserData – all via GraphQL (no internal API or Supabase details)
 import { runGraphQL, getUserId } from '../lib/graphql';
 
-/** Server `ask` runs LLM (Groq/Gemini); 45s client abort caused "The operation was aborted" while backend still returned 200 ~60s later. */
+/**
+ * Server `ask` runs LLM; short client timeouts abort while the server may still succeed.
+ * Default 15m. Set VITE_GRAPHQL_ASK_TIMEOUT_MS=0 to disable browser-side timeout only.
+ */
 function getAskQueryTimeoutMs(): number {
   const raw = import.meta.env.VITE_GRAPHQL_ASK_TIMEOUT_MS;
   if (raw != null && String(raw).trim() !== '') {
-    const n = Number(raw);
-    if (Number.isFinite(n) && n >= 60_000) return Math.floor(n);
+    const s = String(raw).trim();
+    if (s === '0') return 0;
+    const n = Number(s);
+    if (Number.isFinite(n) && n >= 60_000) return Math.min(Math.floor(n), 1_800_000);
   }
-  return 180_000;
+  return 900_000;
 }
 
 export interface UserDetailsResponse {

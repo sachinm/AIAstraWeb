@@ -25,12 +25,22 @@ export interface GraphQLResponse<T = unknown> {
   errors?: Array<{ message: string }>;
 }
 
-/** Default for normal queries (me, login). LLM `ask` needs a much higher limit — see sendChatMessage. */
+/** Default for normal queries (me, login). Chat `ask` passes a longer timeout via `sendChatMessage`. */
 const DEFAULT_GRAPHQL_TIMEOUT_MS = 45_000;
 
 export interface RunGraphQLOptions {
-  /** Abort fetch after this many ms (browser-side). Omit for default 45s. */
+  /**
+   * Browser-side fetch timeout (ms).
+   * - Omit: 45s (default).
+   * - `0`: no client timeout (no AbortSignal); still subject to browser / CDN / host limits.
+   */
   timeoutMs?: number;
+}
+
+function isAbortError(e: unknown): boolean {
+  if (e instanceof DOMException && e.name === 'AbortError') return true;
+  const msg = e instanceof Error ? e.message : String(e);
+  return /aborted|AbortError|signal is aborted/i.test(msg);
 }
 
 export async function runGraphQL<T = unknown>(
@@ -38,9 +48,28 @@ export async function runGraphQL<T = unknown>(
   variables?: Record<string, unknown>,
   options?: RunGraphQLOptions
 ): Promise<GraphQLResponse<T>> {
-  const timeoutMs = options?.timeoutMs ?? DEFAULT_GRAPHQL_TIMEOUT_MS;
+  const explicit = options?.timeoutMs;
+  const timeoutMs =
+    explicit === undefined
+      ? DEFAULT_GRAPHQL_TIMEOUT_MS
+      : explicit === 0
+        ? 0
+        : explicit;
+
+  const useClientTimeout = timeoutMs > 0 && Number.isFinite(timeoutMs);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  if (useClientTimeout) {
+    timeoutId = setTimeout(() => {
+      try {
+        controller.abort(
+          new DOMException(`GraphQL request timed out after ${timeoutMs}ms`, 'TimeoutError')
+        );
+      } catch {
+        controller.abort();
+      }
+    }, timeoutMs);
+  }
 
   const token = getToken();
   const headers: Record<string, string> = {
@@ -55,15 +84,27 @@ export async function runGraphQL<T = unknown>(
       endpoint,
       hasToken: Boolean(token),
       variablesKeys: variables ? Object.keys(variables) : [],
+      clientTimeoutMs: useClientTimeout ? timeoutMs : null,
     });
     res = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify({ query: operation, variables }),
-      signal: controller.signal,
+      ...(useClientTimeout ? { signal: controller.signal } : {}),
     });
+  } catch (e) {
+    if (isAbortError(e)) {
+      const detail =
+        e instanceof DOMException && e.message
+          ? e.message
+          : 'The request was aborted before the server finished.';
+      throw new Error(
+        `${detail} For long chat answers, raise VITE_GRAPHQL_ASK_TIMEOUT_MS (ms) or set it to 0 to disable this browser timeout.`
+      );
+    }
+    throw e;
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
 
   const rawText = await res.text();
