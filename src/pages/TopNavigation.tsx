@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, LogOut, BarChart3, Heart, BookOpen, MessageCircle, AlertTriangle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { ShriGaneshAvatar } from '../components/ShriGaneshAvatar';
 
 interface User {
   name: string;
@@ -24,8 +25,6 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
     { id: 'mantras', label: 'Mantras/Horoscope', icon: BookOpen },
     { id: 'chat', label: 'Chat', icon: MessageCircle }
   ];
-
-  const avatarLetter = user?.name ? user.name.charAt(0).toUpperCase() : '?';
 
   return (
     <nav className="bg-black/30 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
@@ -65,9 +64,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
                 <p className="text-gray-400 text-sm">{user.email}</p>
               </div>
             )}
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-semibold">
-              {avatarLetter}
-            </div>
+            <ShriGaneshAvatar />
             <button
               onClick={onLogout}
               className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300"

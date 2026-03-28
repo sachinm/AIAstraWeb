@@ -12,6 +12,7 @@ import {
 } from '../UserData';
 import ChatRightSidebar from './ChatRightSidebar';
 import { useSpeechRecognition } from './useSpeechRecognition';
+import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 
 interface User {
   name: string;
@@ -435,9 +436,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         {/* Chat Header */}
         <div className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
+            <ShriGaneshAvatar />
             <div>
               <h2 className="text-lg font-semibold text-white">Cosmic AI Astrologer</h2>
               <p className="text-green-400 text-sm">Online • Ready to guide you</p>
@@ -593,29 +592,29 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
               Listening...
             </p>
           )}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-end gap-4">
             <button
               type="button"
               onClick={handleStartListening}
               disabled={!isSupported || isTyping || isListening}
               aria-label={!isSupported ? 'Microphone unavailable' : permissionDenied ? 'Microphone access denied; click to try again' : 'Start voice input'}
               title={!isSupported ? 'Voice input not supported in this browser' : permissionDenied ? 'Microphone access denied; click to try again' : 'Start voice input'}
-              className="p-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex-shrink-0"
+              className="p-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shrink-0"
             >
               <Mic className="w-5 h-5" />
             </button>
-            <div className="flex-1 relative">
+            <div className="relative min-w-0 flex-1">
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about your destiny, remedies, or any cosmic guidance..."
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none transition-all duration-300"
-                rows={1}
+                className="w-full min-h-[4.5rem] max-h-60 resize-y overflow-y-auto bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                rows={3}
                 disabled={isTyping}
               />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <Star className="w-5 h-5 text-purple-400" />
+              <div className="pointer-events-none absolute right-3 top-3">
+                <Star className="h-5 w-5 text-purple-400" />
               </div>
               {isListening && (
                 <div className="absolute right-3 bottom-3">
@@ -634,7 +633,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
               onClick={handleSendMessage}
               disabled={!inputText.trim() || isTyping}
               aria-label="Send"
-              className="p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
+              className="shrink-0 p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
             >
               <Send className="w-5 h-5" />
             </button>
