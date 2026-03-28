@@ -89,6 +89,7 @@ async function consumeChatAskSse(
         chatId?: string;
         answer?: string;
         message?: string;
+        thinking?: string;
       };
       try {
         ev = JSON.parse(raw) as typeof ev;
@@ -106,6 +107,9 @@ async function consumeChatAskSse(
       } else if (ev.type === 'done') {
         if (typeof ev.answer === 'string') answer = ev.answer;
         if (typeof ev.chatId === 'string') chatId = ev.chatId;
+        if (typeof ev.thinking === 'string' && ev.thinking.trim()) {
+          thinking = ev.thinking.trim();
+        }
       } else if (ev.type === 'error') {
         const cid = typeof ev.chatId === 'string' ? ev.chatId : undefined;
         throw new StreamChatError(ev.message || 'Stream error', {

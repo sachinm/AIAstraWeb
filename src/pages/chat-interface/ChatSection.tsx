@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import {
   Send,
   Bot,
@@ -90,7 +90,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const [askElapsedSec, setAskElapsedSec] = useState(0);
   /** While SSE chat is waiting for first token, wait copy lives inside the placeholder bubble (not the row below). */
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  /** Scroll this row into view once when streaming starts (top-aligned); no follow-scroll on tokens. */
+  const streamingAiRowRef = useRef<HTMLDivElement | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<string | null>(activeChatId ?? null);
@@ -213,16 +214,12 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     };
   }, []);
 
-  const scrollToBottom = () => {
-    const el = messagesEndRef.current;
-    if (el?.scrollIntoView && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useLayoutEffect(() => {
+    if (!streamingMessageId) return;
+    const el = streamingAiRowRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'auto', block: 'start', inline: 'nearest' });
+  }, [streamingMessageId]);
 
   useEffect(() => {
     if (!isTyping) {
@@ -543,6 +540,11 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             ) : (
               <div
                 key={message.id}
+                ref={
+                  message.sender === 'ai' && message.id === streamingMessageId
+                    ? streamingAiRowRef
+                    : undefined
+                }
                 className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`flex items-start space-x-2 max-w-[70%] ${
@@ -706,7 +708,6 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             </div>
           )}
 
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Quick Questions */}

@@ -78,14 +78,17 @@ export async function runGraphQL<T = unknown>(
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const endpoint = getGraphQLEndpoint();
+  const debugGraphql = import.meta.env.VITE_DEBUG_GRAPHQL === 'true';
   let res: Response;
   try {
-    console.log('[GraphQL] request', {
-      endpoint,
-      hasToken: Boolean(token),
-      variablesKeys: variables ? Object.keys(variables) : [],
-      clientTimeoutMs: useClientTimeout ? timeoutMs : null,
-    });
+    if (debugGraphql) {
+      console.log('[GraphQL] request', {
+        endpoint,
+        hasToken: Boolean(token),
+        variablesKeys: variables ? Object.keys(variables) : [],
+        clientTimeoutMs: useClientTimeout ? timeoutMs : null,
+      });
+    }
     res = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -108,11 +111,13 @@ export async function runGraphQL<T = unknown>(
   }
 
   const rawText = await res.text();
-  console.log('[GraphQL] response meta', {
-    ok: res.ok,
-    status: res.status,
-    contentLength: rawText.length,
-  });
+  if (debugGraphql) {
+    console.log('[GraphQL] response meta', {
+      ok: res.ok,
+      status: res.status,
+      contentLength: rawText.length,
+    });
+  }
 
   if (!res.ok) {
     // Try to surface GraphQL-style error message if present
