@@ -72,7 +72,6 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const [askElapsedSec, setAskElapsedSec] = useState(0);
   /** While SSE chat is waiting for first token, wait copy lives inside the placeholder bubble (not the row below). */
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<string | null>(activeChatId ?? null);
@@ -192,17 +191,6 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  const scrollToBottom = () => {
-    const el = messagesEndRef.current;
-    if (el?.scrollIntoView && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   useEffect(() => {
     if (!isTyping) {
@@ -574,8 +562,6 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
               </div>
             </div>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Quick Questions */}
