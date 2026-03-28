@@ -49,6 +49,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<string | null>(activeChatId ?? null);
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [chatCreationDone, setChatCreationDone] = useState(false);
