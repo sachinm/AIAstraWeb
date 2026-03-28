@@ -1,6 +1,16 @@
 // UserData – all via GraphQL (no internal API or Supabase details)
 import { runGraphQL, getUserId } from '../lib/graphql';
 
+/** Server `ask` runs LLM (Groq/Gemini); 45s client abort caused "The operation was aborted" while backend still returned 200 ~60s later. */
+function getAskQueryTimeoutMs(): number {
+  const raw = import.meta.env.VITE_GRAPHQL_ASK_TIMEOUT_MS;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 60_000) return Math.floor(n);
+  }
+  return 180_000;
+}
+
 export interface UserDetailsResponse {
   success: boolean;
   user_id?: string;
@@ -168,7 +178,8 @@ export const sendChatMessage = async (question: string, chatId?: string | null):
 
   const { data, errors } = await runGraphQL<{ ask: { success: boolean; answer: string | null; error: string | null } }>(
     ASK_QUERY,
-    { question, chatId: chatId || null }
+    { question, chatId: chatId || null },
+    { timeoutMs: getAskQueryTimeoutMs() }
   );
   if (errors?.length) throw new Error('Request failed');
 

@@ -25,13 +25,22 @@ export interface GraphQLResponse<T = unknown> {
   errors?: Array<{ message: string }>;
 }
 
+/** Default for normal queries (me, login). LLM `ask` needs a much higher limit — see sendChatMessage. */
+const DEFAULT_GRAPHQL_TIMEOUT_MS = 45_000;
+
+export interface RunGraphQLOptions {
+  /** Abort fetch after this many ms (browser-side). Omit for default 45s. */
+  timeoutMs?: number;
+}
+
 export async function runGraphQL<T = unknown>(
   operation: string,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
+  options?: RunGraphQLOptions
 ): Promise<GraphQLResponse<T>> {
-  // 45s timeout to tolerate cold starts / Render restarts on auth flows
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_GRAPHQL_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45_000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   const token = getToken();
   const headers: Record<string, string> = {
