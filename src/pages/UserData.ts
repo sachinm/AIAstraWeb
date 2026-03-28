@@ -1,4 +1,4 @@
-// UserData – all via GraphQL (no internal API or Supabase details)
+// UserData – GraphQL for most APIs; chat may use REST SSE when VITE_CHAT_STREAM is enabled.
 import { runGraphQL, getUserId } from '../lib/graphql';
 
 /**
@@ -15,6 +15,162 @@ function getAskQueryTimeoutMs(): number {
   }
   return 900_000;
 }
+
+/**
+ * Streaming is the default: chat uses `POST /api/chat/ask-stream` (SSE) when `VITE_CHAT_STREAM` is unset or empty.
+ * Set `VITE_CHAT_STREAM` to `0`, `false`, or `off` to use GraphQL `ask` only.
+ */
+export function isChatStreamEnabled(): boolean {
+  const raw = import.meta.env.VITE_CHAT_STREAM;
+  if (raw == null || String(raw).trim() === '') return true;
+  const s = String(raw).trim().toLowerCase();
+  if (s === '0' || s === 'false' || s === 'off') return false;
+  return true;
+}
+
+function getChatAskStreamUrl(): string {
+  const apiBase = import.meta.env.VITE_API_BASE || import.meta.env.VITE_GRAPHQL_BASE;
+  if (apiBase) {
+    return `${apiBase.replace(/\/+$/, '')}/api/chat/ask-stream`;
+  }
+  const ep = import.meta.env.VITE_GRAPHQL_ENDPOINT || '/graphql';
+  if (ep.startsWith('http://') || ep.startsWith('https://')) {
+    try {
+      return `${new URL(ep).origin}/api/chat/ask-stream`;
+    } catch {
+      return '/api/chat/ask-stream';
+    }
+  }
+  return '/api/chat/ask-stream';
+}
+
+async function consumeChatAskSse(
+  response: Response,
+  onToken: (delta: string) => void
+): Promise<{ answer: string; chatId: string }> {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let answer = '';
+  let chatId = '';
+
+  const processEventBlock = (block: string) => {
+    for (const line of block.split('\n')) {
+      const t = line.trimEnd();
+      if (!t.startsWith('data:')) continue;
+      const raw = t.slice(5).trimStart();
+      if (!raw || raw === '[DONE]') continue;
+      let ev: { type?: string; delta?: string; chatId?: string; answer?: string; message?: string };
+      try {
+        ev = JSON.parse(raw) as typeof ev;
+      } catch {
+        continue;
+      }
+      if (ev.type === 'token' && typeof ev.delta === 'string') {
+        onToken(ev.delta);
+        answer += ev.delta;
+      } else if (ev.type === 'done') {
+        if (typeof ev.answer === 'string') answer = ev.answer;
+        if (typeof ev.chatId === 'string') chatId = ev.chatId;
+      } else if (ev.type === 'error') {
+        throw new Error(ev.message || 'Stream error');
+      }
+    }
+  };
+
+  const flushBuffer = () => {
+    let sep: number;
+    while ((sep = buffer.indexOf('\n\n')) >= 0) {
+      const event = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      processEventBlock(event);
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+        flushBuffer();
+      }
+      if (done) {
+        buffer += decoder.decode();
+        flushBuffer();
+        if (buffer.trim()) processEventBlock(buffer);
+        break;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (!chatId) throw new Error('Stream ended without completion');
+  return { answer, chatId };
+}
+
+/**
+ * Token-streaming chat (SSE). Same persistence as GraphQL `ask`; updates UI via `onDelta`.
+ */
+export const sendChatMessageStream = async (
+  question: string,
+  chatId: string | null | undefined,
+  onDelta: (delta: string) => void,
+  options?: { signal?: AbortSignal }
+): Promise<{ answer: string; chatId: string }> => {
+  const details = await fetchUserDetails();
+  if (!details.success || !details.kundli_added) {
+    throw new Error('Kundli not available, cannot start chat');
+  }
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  if (!token) throw new Error('Not authenticated');
+
+  const timeoutMs = getAskQueryTimeoutMs();
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  if (timeoutMs > 0 && Number.isFinite(timeoutMs)) {
+    timeoutId = setTimeout(() => {
+      try {
+        controller.abort(
+          new DOMException(`Chat stream timed out after ${timeoutMs}ms`, 'TimeoutError')
+        );
+      } catch {
+        controller.abort();
+      }
+    }, timeoutMs);
+  }
+
+  if (options?.signal) {
+    if (options.signal.aborted) controller.abort();
+    else options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  const url = getChatAskStreamUrl();
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ question, chatId: chatId ?? null }),
+      signal: controller.signal,
+    });
+
+    if (res.status === 401) throw new Error('Not authenticated');
+    if (res.status === 400) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(j.error || 'Bad request');
+    }
+    if (!res.ok) throw new Error(`Chat stream failed (${res.status})`);
+    if (!res.body) throw new Error('Empty stream response');
+
+    return await consumeChatAskSse(res, onDelta);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+};
 
 export interface UserDetailsResponse {
   success: boolean;

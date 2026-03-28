@@ -13,6 +13,8 @@ import { useSpeechRecognition } from './useSpeechRecognition';
 vi.mock('../UserData', () => ({
   fetchUserDetails: vi.fn(),
   sendChatMessage: vi.fn(),
+  sendChatMessageStream: vi.fn(),
+  isChatStreamEnabled: vi.fn(() => false),
   createChat: vi.fn(),
 }));
 

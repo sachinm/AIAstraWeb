@@ -3,7 +3,13 @@ import { Send, Bot, User, Sparkles, Star, Menu, X, Loader2, Mic, Square, Plus } 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ChatSidebar from './ChatSidebar';
-import { sendChatMessage, fetchUserDetails, createChat } from '../UserData';
+import {
+  sendChatMessage,
+  sendChatMessageStream,
+  isChatStreamEnabled,
+  fetchUserDetails,
+  createChat,
+} from '../UserData';
 import ChatRightSidebar from './ChatRightSidebar';
 import { useSpeechRecognition } from './useSpeechRecognition';
 
@@ -34,6 +40,22 @@ interface ChatHistory {
 
 const POLL_INTERVAL_MS = 3000;
 
+function formatAskElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+/** Client-only copy while `ask` is in flight. Does not reset proxy/CDN limits; use job+polling or SSE for that. */
+function askWaitMessage(seconds: number): string {
+  const elapsed = formatAskElapsed(seconds);
+  if (seconds < 10) return `Preparing your answer… ${elapsed}`;
+  if (seconds < 60) return `Still consulting the model… ${elapsed}`;
+  if (seconds < 120) return `Detailed replies can take 1–3 minutes… ${elapsed}`;
+  return `Still generating… ${elapsed}. You can keep this tab open.`;
+}
+
 const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) => {
   const [kundliReady, setKundliReady] = useState<boolean | null>(null);
   const pollIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -47,6 +69,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [askElapsedSec, setAskElapsedSec] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
@@ -55,6 +78,14 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const [chatCreationDone, setChatCreationDone] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const inputTextAtSpeechStartRef = useRef('');
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const onTranscript = useCallback((transcript: string) => {
     const base = inputTextAtSpeechStartRef.current;
@@ -171,6 +202,18 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (!isTyping) {
+      setAskElapsedSec(0);
+      return;
+    }
+    setAskElapsedSec(0);
+    const id = window.setInterval(() => {
+      setAskElapsedSec((s) => s + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isTyping]);
+
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
 
@@ -185,27 +228,62 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     setInputText('');
     setIsTyping(true);
 
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let streamPlaceholderId: string | null = null;
+
     try {
-      const aiText = await sendChatMessage(userMessage.text, activeChat);
-
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: aiText,
-        sender: 'ai',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-
-      setMessages(prev => [...prev, aiResponse]);
+      if (isChatStreamEnabled()) {
+        const aiPlaceholderId = (Date.now() + 1).toString();
+        streamPlaceholderId = aiPlaceholderId;
+        setMessages((prev) => [
+          ...prev,
+          { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts },
+        ]);
+        const { answer, chatId } = await sendChatMessageStream(
+          userMessage.text,
+          activeChat,
+          (delta) => {
+            if (!mountedRef.current || !delta) return;
+            setMessages((prev) =>
+              prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + delta } : m))
+            );
+          }
+        );
+        if (mountedRef.current) {
+          setActiveChat(chatId);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: answer } : m))
+          );
+        }
+      } else {
+        const aiText = await sendChatMessage(userMessage.text, activeChat);
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: aiText,
+          sender: 'ai',
+          timestamp: ts,
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      }
     } catch (err) {
-      const errorMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        text: err instanceof Error ? err.message : "Unknown error",
-        sender: 'ai',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      if (streamPlaceholderId && mountedRef.current) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === streamPlaceholderId ? { ...m, text: m.text || msg } : m
+          )
+        );
+      } else if (mountedRef.current) {
+        const errorMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          text: msg,
+          sender: 'ai',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
-      setIsTyping(false);
+      if (mountedRef.current) setIsTyping(false);
     }
   };
 
@@ -426,16 +504,25 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
           {/* Typing Indicator */}
           {isTyping && (
-            <div className="flex justify-start">
-              <div className="flex items-start space-x-2 max-w-[70%]">
+            <div className="flex justify-start" aria-busy="true" aria-live="polite">
+              <div className="flex items-start space-x-2 max-w-[85%]">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
-                  <div className="flex space-x-2">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 min-w-[12rem]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex space-x-2 flex-shrink-0">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                      <div
+                        className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.1s' }}
+                      />
+                      <div
+                        className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.2s' }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-200 leading-snug">{askWaitMessage(askElapsedSec)}</p>
                   </div>
                 </div>
               </div>
