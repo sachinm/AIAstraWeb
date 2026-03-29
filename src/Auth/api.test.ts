@@ -37,7 +37,7 @@ describe('Auth api', () => {
       expect(setAuth).toHaveBeenCalledWith('jwt-token', 'user-id-1');
       expect(runGraphQL).toHaveBeenCalledWith(
         expect.stringContaining('mutation Login'),
-        { username: 'user1', password: 'pass123' }
+        { username: 'user1', password: 'pass123', recaptchaToken: null }
       );
     });
 

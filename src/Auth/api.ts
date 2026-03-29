@@ -1,8 +1,8 @@
 import { runGraphQL, setAuth } from '../lib/graphql';
 
 const LOGIN_MUTATION = `
-  mutation Login($username: String!, $password: String!) {
-    login(username: $username, password: $password) {
+  mutation Login($username: String!, $password: String!, $recaptchaToken: String) {
+    login(username: $username, password: $password, recaptchaToken: $recaptchaToken) {
       success
       message
       token
@@ -38,6 +38,7 @@ export interface SignUpInput {
   place_of_birth?: string | null;
   time_of_birth?: string | null;
   gender?: string | null;
+  recaptchaToken?: string | null;
 }
 
 export interface SignUpResult {
@@ -48,7 +49,8 @@ export interface SignUpResult {
 
 export async function login(
   username: string,
-  password: string
+  password: string,
+  recaptchaToken?: string | null
 ): Promise<LoginResult> {
   try {
     const { data, errors } = await runGraphQL<{
@@ -59,7 +61,11 @@ export async function login(
         user?: string;
         role?: string;
       };
-    }>(LOGIN_MUTATION, { username, password });
+    }>(LOGIN_MUTATION, {
+      username,
+      password,
+      recaptchaToken: recaptchaToken ?? null,
+    });
 
     if (errors?.length) {
       return { success: false, message: errors[0].message || 'Login failed' };
@@ -91,6 +97,7 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
       place_of_birth: userData.place_of_birth ?? null,
       time_of_birth: userData.time_of_birth ?? null,
       gender: userData.gender ?? null,
+      recaptchaToken: userData.recaptchaToken ?? null,
     };
 
     const { data, errors } = await runGraphQL<{

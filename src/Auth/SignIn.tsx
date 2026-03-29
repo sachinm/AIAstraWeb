@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Star, Mail, Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { login } from './api';
+import { useRecaptcha } from './useRecaptcha';
 
 interface SignInProps {
   onSignUp: () => void;
@@ -14,6 +15,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { getToken, isEnabled } = useRecaptcha();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +29,14 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         return;
       }
 
-      const result = await login(email, password);
+      const recaptchaToken = isEnabled ? await getToken('login') : null;
+      if (isEnabled && !recaptchaToken) {
+        setError('Security check failed to load. Please refresh the page and try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await login(email, password, recaptchaToken);
 
       if (result.success) {
         localStorage.setItem('isAuthenticated', 'true');
@@ -160,6 +169,30 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                 Forgot your password?
               </button>
             </div>
+
+            {isEnabled && (
+              <p className="text-center text-xs text-gray-500">
+                This site is protected by reCAPTCHA and the Google{' '}
+                <a
+                  href="https://policies.google.com/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-400/90 hover:text-purple-300 underline"
+                >
+                  Privacy Policy
+                </a>{' '}
+                and{' '}
+                <a
+                  href="https://policies.google.com/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-400/90 hover:text-purple-300 underline"
+                >
+                  Terms of Service
+                </a>{' '}
+                apply.
+              </p>
+            )}
           </form>
         </div>
       </div>

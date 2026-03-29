@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Star, UserIcon, Mail, Lock, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
 import type { User as AppUser } from '../App';
 import { signup } from './api';
+import { useRecaptcha } from './useRecaptcha';
 
 interface SignUpProps {
   onSignUp: (userData: AppUser) => void;
@@ -24,6 +25,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const { getToken, isEnabled } = useRecaptcha();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -86,6 +88,15 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
     setIsLoading(true);
 
     try {
+      const recaptchaToken = isEnabled ? await getToken('signup') : null;
+      if (isEnabled && !recaptchaToken) {
+        setErrors({
+          submit: 'Security check failed to load. Please refresh the page and try again.',
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Format data according to API requirements
       const apiData = {
         username: formData.name.replace(/\s+/g, '').toLowerCase(),
@@ -96,7 +107,8 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
         email: formData.email,
         gender: formData.gender,
         age: parseInt(formData.age),
-        name: formData.name
+        name: formData.name,
+        recaptchaToken,
       };
 
       try {
@@ -387,6 +399,30 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
                   "Create Account"
                 )}
               </button>
+
+              {isEnabled && (
+                <p className="text-center text-xs text-gray-500">
+                  This site is protected by reCAPTCHA and the Google{' '}
+                  <a
+                    href="https://policies.google.com/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-400/90 hover:text-purple-300 underline"
+                  >
+                    Privacy Policy
+                  </a>{' '}
+                  and{' '}
+                  <a
+                    href="https://policies.google.com/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-400/90 hover:text-purple-300 underline"
+                  >
+                    Terms of Service
+                  </a>{' '}
+                  apply.
+                </p>
+              )}
             </form>
           )}
 
