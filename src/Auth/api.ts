@@ -24,6 +24,31 @@ const SIGNUP_MUTATION = `
   }
 `;
 
+const REQUEST_MAGIC_LINK_MUTATION = `
+  mutation RequestMagicLink($email: String!, $recaptchaToken: String) {
+    requestMagicLink(email: $email, recaptchaToken: $recaptchaToken) {
+      success
+      message
+    }
+  }
+`;
+
+const LOGIN_WITH_MAGIC_LINK_MUTATION = `
+  mutation LoginWithMagicLink($email: String!, $code: String!, $recaptchaToken: String) {
+    loginWithMagicLink(email: $email, code: $code, recaptchaToken: $recaptchaToken) {
+      success
+      message
+      token
+      user
+      role
+    }
+  }
+`;
+
+/** Matches server LOGIN_FAILED_OBFUSCATED — never reveal user-not-found vs wrong password. */
+export const LOGIN_FAILED_GENERIC =
+  'Unable to sign in. Check your email and password and try again.';
+
 export interface LoginResult {
   success: boolean;
   user?: string;
@@ -68,7 +93,7 @@ export async function login(
     });
 
     if (errors?.length) {
-      return { success: false, message: errors[0].message || 'Login failed' };
+      return { success: false, message: LOGIN_FAILED_GENERIC };
     }
 
     const result = data?.login;
@@ -76,14 +101,79 @@ export async function login(
       setAuth(result.token, result.user);
       return { success: true, user: result.user };
     }
-    return { success: false, message: result?.message || 'Login failed' };
+    return { success: false, message: result?.message || LOGIN_FAILED_GENERIC };
   } catch (error) {
     console.error('Login error:', error);
+    return { success: false, message: LOGIN_FAILED_GENERIC };
+  }
+}
+
+export interface MagicLinkRequestResult {
+  success: boolean;
+  message?: string;
+}
+
+export async function requestMagicLinkEmail(
+  email: string,
+  recaptchaToken?: string | null
+): Promise<MagicLinkRequestResult> {
+  try {
+    const { data, errors } = await runGraphQL<{
+      requestMagicLink?: { success: boolean; message?: string };
+    }>(REQUEST_MAGIC_LINK_MUTATION, {
+      email: email.trim(),
+      recaptchaToken: recaptchaToken ?? null,
+    });
+
+    if (errors?.length) {
+      return { success: false, message: errors[0].message };
+    }
+    const r = data?.requestMagicLink;
     return {
-      success: false,
-      message:
-        error instanceof Error ? error.message : 'Login failed',
+      success: Boolean(r?.success),
+      message: r?.message,
     };
+  } catch (e) {
+    console.error('requestMagicLinkEmail:', e);
+    return { success: false, message: 'Something went wrong. Please try again.' };
+  }
+}
+
+export async function loginWithMagicLink(
+  email: string,
+  code: string,
+  recaptchaToken?: string | null
+): Promise<LoginResult> {
+  const CODE_FAILED =
+    'Unable to sign in. Check your code and try again.';
+  try {
+    const { data, errors } = await runGraphQL<{
+      loginWithMagicLink?: {
+        success: boolean;
+        message?: string;
+        token?: string;
+        user?: string;
+        role?: string;
+      };
+    }>(LOGIN_WITH_MAGIC_LINK_MUTATION, {
+      email: email.trim(),
+      code: code.trim(),
+      recaptchaToken: recaptchaToken ?? null,
+    });
+
+    if (errors?.length) {
+      return { success: false, message: CODE_FAILED };
+    }
+
+    const result = data?.loginWithMagicLink;
+    if (result?.success && result?.token && result?.user) {
+      setAuth(result.token, result.user);
+      return { success: true, user: result.user };
+    }
+    return { success: false, message: result?.message || CODE_FAILED };
+  } catch (e) {
+    console.error('loginWithMagicLink:', e);
+    return { success: false, message: CODE_FAILED };
   }
 }
 

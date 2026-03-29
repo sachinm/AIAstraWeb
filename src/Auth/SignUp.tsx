@@ -402,7 +402,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
 
               {isEnabled && (
                 <p className="text-center text-xs text-gray-500">
-                  This site is protected by reCAPTCHA and the Google{' '}
+                  reCAPTCHA v3 runs invisibly on submit (no checkbox). This site is protected by reCAPTCHA and the Google{' '}
                   <a
                     href="https://policies.google.com/privacy"
                     target="_blank"

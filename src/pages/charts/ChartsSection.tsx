@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Loader, Star, Moon, Sun, Sparkles } from "lucide-react";
+import { Loader, Sparkles } from "lucide-react";
+import { ShriGaneshAvatar } from "../../components/ShriGaneshAvatar";
 import { fetchUserBiodata, BiodataResponse } from "../UserData";
 
 const BiodataPage: React.FC = () => {
@@ -86,17 +87,14 @@ const BiodataPage: React.FC = () => {
             key={key}
             className="relative bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-purple-500/20 shadow-lg hover:shadow-purple-500/20 transition duration-300"
           >
-            <div className="absolute -top-3 -left-3 bg-gradient-to-br from-purple-600 to-pink-600 p-2 rounded-full shadow-md">
-              {key.includes("sun") ? (
-                <Sun className="w-4 h-4 text-yellow-300" />
-              ) : key.includes("moon") || key.includes("nakshatra") ? (
-                <Moon className="w-4 h-4 text-blue-300" />
-              ) : (
-                <Star className="w-4 h-4 text-purple-300" />
-              )}
+            <div className="absolute -top-3 -left-3 shadow-md">
+              <ShriGaneshAvatar
+                className="h-9 w-9"
+                ringClassName="ring-2 ring-purple-400/50 shadow-lg shadow-purple-900/40"
+              />
             </div>
             <p className="text-sm text-gray-300 mb-1">{prettyLabels[key] || key}</p>
-            <p className="text-lg font-semibold text-white">{value}</p>
+            <p className="text-lg font-semibold text-white">{String(value)}</p>
           </div>
         ))}
       </div>

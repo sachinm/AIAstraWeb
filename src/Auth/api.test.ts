@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { login, signup } from './api';
+import { login, signup, LOGIN_FAILED_GENERIC } from './api';
 import * as graphql from '../lib/graphql';
 
 vi.mock('../lib/graphql', () => ({
@@ -49,20 +49,21 @@ describe('Auth api', () => {
       const result = await login('user1', 'wrong');
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Invalid credentials');
+      expect(result.message).toBe(LOGIN_FAILED_GENERIC);
       expect(setAuth).not.toHaveBeenCalled();
     });
 
     it('returns failure when no token in response', async () => {
       runGraphQL.mockResolvedValueOnce({
         data: {
-          login: { success: false, message: 'Invalid username or password' },
+          login: { success: false, message: 'Unable to sign in. Check your email and password and try again.' },
         },
       });
 
       const result = await login('user1', 'pass');
 
       expect(result.success).toBe(false);
+      expect(result.message).toBe(LOGIN_FAILED_GENERIC);
       expect(setAuth).not.toHaveBeenCalled();
     });
 
@@ -72,7 +73,7 @@ describe('Auth api', () => {
       const result = await login('user1', 'pass');
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Network error');
+      expect(result.message).toBe(LOGIN_FAILED_GENERIC);
     });
   });
 

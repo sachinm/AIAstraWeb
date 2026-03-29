@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Bot, User, Sparkles, Star, Menu, X, Loader2, Mic, Square, Plus } from 'lucide-react';
+import { Send, User, Sparkles, Star, Menu, X, Loader2, Mic, Square, Plus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ChatSidebar from './ChatSidebar';
@@ -13,6 +13,7 @@ import {
 import ChatRightSidebar from './ChatRightSidebar';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
+import { trackChatQuestionSent } from '../../lib/analytics';
 
 interface User {
   name: string;
@@ -206,11 +207,14 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   }, [isTyping]);
 
   const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
+    const trimmed = inputText.trim();
+    if (!trimmed) return;
+
+    trackChatQuestionSent(trimmed);
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputText,
+      text: trimmed,
       sender: 'user',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
@@ -461,16 +465,13 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
                   message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                 }`}>
                   {/* Avatar */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    message.sender === 'user'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600'
-                      : 'bg-gradient-to-r from-purple-600 to-pink-600'
-                  }`}>
-                    {message.sender === 'user' ?
-                      <User className="w-4 h-4 text-white" /> :
-                      <Bot className="w-4 h-4 text-white" />
-                    }
-                  </div>
+                  {message.sender === 'user' ? (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                  ) : (
+                    <ShriGaneshAvatar className="h-8 w-8" />
+                  )}
 
                   {/* Message Bubble */}
                   <div
@@ -537,9 +538,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           {isTyping && !streamingMessageId && (
             <div className="flex justify-start" aria-busy="true" aria-live="polite">
               <div className="flex items-start space-x-2 max-w-[85%]">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
+                <ShriGaneshAvatar className="h-8 w-8" />
                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 min-w-[12rem] max-w-[min(100%,24rem)]">
                   <div className="flex flex-col gap-2">
                     <div className="flex space-x-2 flex-shrink-0" aria-hidden>
@@ -640,10 +639,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           </div>
           
           <div className="flex items-center justify-center mt-2">
-            <p className="text-xs text-gray-500 flex items-center">
-              <Bot className="w-3 h-3 mr-1" />
-              Powered by Vedic AI • Trained on ancient astrological texts
-            </p>
+            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+              <ShriGaneshAvatar className="h-3.5 w-3.5" ringClassName="ring ring-white/15" />
+              <span>Powered by Vedic AI • Trained on ancient astrological texts</span>
+            </div>
           </div>
         </div>
       </div>
