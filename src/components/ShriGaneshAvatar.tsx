@@ -1,4 +1,4 @@
-const shriGaneshPublicSrc = `${import.meta.env.BASE_URL}images/shriGanesh.jpg`;
+const shriGaneshPublicSrc = '/images/shriGanesh.jpg';
 
 type ShriGaneshAvatarProps = {
   /** Tailwind size classes, e.g. `h-10 w-10` */

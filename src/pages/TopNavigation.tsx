@@ -27,8 +27,11 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
   ];
 
   return (
-    <nav className="bg-black/30 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav
+      className="sticky top-0 z-50 w-screen shrink-0 border-b border-white/10 bg-black/45 backdrop-blur-md ml-[calc(50%-50vw)]"
+      aria-label="Main"
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3">
             <Star className="w-8 h-8 text-purple-400" />
