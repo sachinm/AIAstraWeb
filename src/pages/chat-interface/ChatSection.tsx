@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, User, Sparkles, Star, Menu, X, Loader2, Mic, Square, Plus } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import ChatSidebar from './ChatSidebar';
+import { Loader2 } from 'lucide-react';
 import {
   sendChatMessage,
   sendChatMessageStream,
@@ -10,10 +7,22 @@ import {
   fetchUserDetails,
   createChat,
 } from '../UserData';
+import { fetchAllChats, fetchChatMessages } from './chatAPI';
 import ChatRightSidebar from './ChatRightSidebar';
+import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
+import ChatMainArea from './ChatMainArea';
 import { useSpeechRecognition } from './useSpeechRecognition';
-import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 import { trackChatQuestionSent } from '../../lib/analytics';
+import {
+  MAX_SIDEBAR_CHATS,
+  mapApiMessagesToUi,
+  chatToSidebarRow,
+  snippetFromQuestion,
+  WELCOME_TEXT_INITIAL,
+  WELCOME_TEXT_NEW_THREAD,
+  type UiMessage,
+  type SidebarChatRow,
+} from './chatThreadUtils';
 
 interface User {
   name: string;
@@ -26,59 +35,22 @@ interface ChatSectionProps {
   activeChatId: string | null;
 }
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai' | 'system';
-  timestamp: string;
-}
-
-interface ChatHistory {
-  id: string;
-  name: string;
-  lastMessage: string;
-  timestamp: string;
-}
-
 const POLL_INTERVAL_MS = 3000;
-
-function formatAskElapsed(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
-}
-
-/** Client-only copy while `ask` is in flight. Does not reset proxy/CDN limits; use job+polling or SSE for that. */
-function askWaitMessage(seconds: number): string {
-  const elapsed = formatAskElapsed(seconds);
-  if (seconds < 10) return `Preparing your answer… ${elapsed}`;
-  if (seconds < 60) return `Still consulting the model… ${elapsed}`;
-  if (seconds < 120) return `Detailed replies can take 1–3 minutes… ${elapsed}`;
-  return `Still generating… ${elapsed}. You can keep this tab open.`;
-}
 
 const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) => {
   const [kundliReady, setKundliReady] = useState<boolean | null>(null);
   const pollIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: `Namaste ! I'm your Vedic astrology guide, trained in ancient wisdom and cosmic insights. How can I illuminate your path today?`,
-      sender: 'ai',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [askElapsedSec, setAskElapsedSec] = useState(0);
-  /** While SSE chat is waiting for first token, wait copy lives inside the placeholder bubble (not the row below). */
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<string | null>(activeChatId ?? null);
-  const [chats, setChats] = useState<ChatHistory[]>([]);
+  const [chats, setChats] = useState<SidebarChatRow[]>([]);
   const [chatCreationDone, setChatCreationDone] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const inputTextAtSpeechStartRef = useRef('');
   const mountedRef = useRef(true);
@@ -108,7 +80,25 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     startListening();
   }, [inputText, startListening]);
 
-  // Poll meDetails (auth.kundli_added + kundlis.queue_status) until sync is done
+  const loadChatHistory = useCallback(async (chatId: string) => {
+    setHistoryLoading(true);
+    setStreamingMessageId(null);
+    try {
+      const rows = await fetchChatMessages(chatId);
+      if (!mountedRef.current) return;
+      setMessages(mapApiMessagesToUi(rows));
+      if (rows.length > 0) {
+        const last = rows[rows.length - 1];
+        const snippet = snippetFromQuestion(last.question);
+        setChats((prev) =>
+          prev.map((c) => (c.id === chatId ? { ...c, lastMessage: snippet, timestamp: 'Now' } : c))
+        );
+      }
+    } finally {
+      if (mountedRef.current) setHistoryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -140,54 +130,100 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     };
   }, []);
 
-  // When kundli is ready, start one new chat thread (fresh conversation after login)
   useEffect(() => {
     if (kundliReady !== true || chatCreationDone) return;
     let cancelled = false;
     (async () => {
+      let all: Awaited<ReturnType<typeof fetchAllChats>>;
       try {
-        const { id } = await createChat();
-        if (cancelled) return;
-        const newChat: ChatHistory = {
-          id,
-          name: 'New Conversation',
-          lastMessage: 'Chat started',
-          timestamp: 'Now',
-        };
-        setChats([newChat]);
-        setActiveChat(id);
-        setMessages([
-          {
-            id: '1',
-            text: `Namaste ! I'm your Vedic astrology guide, trained in ancient wisdom and cosmic insights. How can I illuminate your path today?`,
-            sender: 'ai',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-        setChatCreationDone(true);
+        all = await fetchAllChats();
       } catch {
-        if (!cancelled) setChatCreationDone(true);
+        if (cancelled) return;
+        try {
+          const { id } = await createChat();
+          if (cancelled) return;
+          const row: SidebarChatRow = {
+            id,
+            name: 'New Conversation',
+            lastMessage: 'Chat started',
+            timestamp: 'Now',
+          };
+          setChats([row]);
+          setActiveChat(id);
+          setMessages([
+            {
+              id: '1',
+              text: WELCOME_TEXT_INITIAL,
+              sender: 'ai',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ]);
+        } catch {
+          // leave messages empty
+        }
+        if (mountedRef.current) setChatCreationDone(true);
+        return;
+      }
+      if (cancelled) return;
+      const slice = all.slice(0, MAX_SIDEBAR_CHATS);
+      if (slice.length > 0) {
+        setChats(slice.map(chatToSidebarRow));
+        const firstId = slice[0].id;
+        setActiveChat(firstId);
+        try {
+          await loadChatHistory(firstId);
+        } catch {
+          if (mountedRef.current) setMessages(mapApiMessagesToUi([]));
+        }
+        if (cancelled) return;
+        setChatCreationDone(true);
+      } else {
+        try {
+          const { id } = await createChat();
+          if (cancelled) return;
+          const row: SidebarChatRow = {
+            id,
+            name: 'New Conversation',
+            lastMessage: 'Chat started',
+            timestamp: 'Now',
+          };
+          setChats([row]);
+          setActiveChat(id);
+          setMessages([
+            {
+              id: '1',
+              text: WELCOME_TEXT_INITIAL,
+              sender: 'ai',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ]);
+          setChatCreationDone(true);
+        } catch {
+          if (mountedRef.current) setChatCreationDone(true);
+        }
       }
     })();
-    return () => { cancelled = true; };
-  }, [kundliReady, chatCreationDone]);
+    return () => {
+      cancelled = true;
+    };
+  }, [kundliReady, chatCreationDone, loadChatHistory]);
 
   useEffect(() => {
-    const handleResize = () => {
-      // Keep current open/closed state; only collapse on mobile when clicking outside.
-    };
+    const handleResize = () => {};
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (window.innerWidth < 768 && 
-          sidebarRef.current && 
-          !sidebarRef.current.contains(event.target as Node)) {
+      if (
+        window.innerWidth < 768 &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node)
+      ) {
         setIsSidebarOpen(false);
       }
     };
 
     window.addEventListener('resize', handleResize);
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -206,20 +242,32 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     return () => window.clearInterval(id);
   }, [isTyping]);
 
+  const updateSidebarPreview = useCallback((threadId: string | null, questionPreview: string) => {
+    if (!threadId) return;
+    const preview = questionPreview.length > 80 ? `${questionPreview.slice(0, 80)}…` : questionPreview;
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === threadId ? { ...c, lastMessage: preview, timestamp: 'Now' } : c
+      )
+    );
+  }, []);
+
   const handleSendMessage = async () => {
     const trimmed = inputText.trim();
     if (!trimmed) return;
 
     trackChatQuestionSent(trimmed);
 
-    const userMessage: Message = {
+    const threadIdAtSend = activeChat;
+
+    const userMessage: UiMessage = {
       id: Date.now().toString(),
       text: trimmed,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setIsTyping(true);
     setStreamingMessageId(null);
@@ -232,46 +280,39 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         const aiPlaceholderId = (Date.now() + 1).toString();
         streamPlaceholderId = aiPlaceholderId;
         setStreamingMessageId(aiPlaceholderId);
-        setMessages((prev) => [
-          ...prev,
-          { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts },
-        ]);
-        const { answer, chatId } = await sendChatMessageStream(
-          userMessage.text,
-          activeChat,
-          (delta) => {
-            if (!mountedRef.current || !delta) return;
-            setMessages((prev) =>
-              prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + delta } : m))
-            );
-          }
-        );
+        setMessages((prev) => [...prev, { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts }]);
+        const { answer, chatId } = await sendChatMessageStream(userMessage.text, activeChat, (delta) => {
+          if (!mountedRef.current || !delta) return;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + delta } : m))
+          );
+        });
         if (mountedRef.current) {
           setActiveChat(chatId);
           setMessages((prev) =>
             prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: answer } : m))
           );
+          updateSidebarPreview(chatId ?? threadIdAtSend, trimmed);
         }
       } else {
         const aiText = await sendChatMessage(userMessage.text, activeChat);
-        const aiResponse: Message = {
+        const aiResponse: UiMessage = {
           id: (Date.now() + 1).toString(),
           text: aiText,
           sender: 'ai',
           timestamp: ts,
         };
         setMessages((prev) => [...prev, aiResponse]);
+        updateSidebarPreview(threadIdAtSend, trimmed);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       if (streamPlaceholderId && mountedRef.current) {
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === streamPlaceholderId ? { ...m, text: m.text || msg } : m
-          )
+          prev.map((m) => (m.id === streamPlaceholderId ? { ...m, text: m.text || msg } : m))
         );
       } else if (mountedRef.current) {
-        const errorMessage: Message = {
+        const errorMessage: UiMessage = {
           id: (Date.now() + 2).toString(),
           text: msg,
           sender: 'ai',
@@ -290,20 +331,20 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      handleSendMessage();
+      void handleSendMessage();
     }
   };
 
   const handleNewChat = async () => {
     try {
       const { id } = await createChat();
-      const newChat: ChatHistory = {
+      const newChat: SidebarChatRow = {
         id,
         name: 'New Conversation',
         lastMessage: 'Chat started',
         timestamp: 'Now',
       };
-      setChats(prev => [newChat, ...prev]);
+      setChats((prev) => [newChat, ...prev].slice(0, MAX_SIDEBAR_CHATS));
       setActiveChat(id);
       setMessages([
         {
@@ -314,18 +355,22 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         },
         {
           id: '1',
-          text: `Namaste ! I'm your Vedic astrology guide. How can I help you with this new conversation?`,
+          text: WELCOME_TEXT_NEW_THREAD,
           sender: 'ai',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
       if (window.innerWidth < 768) {
         setIsSidebarOpen(false);
       }
     } catch {
-      // Fallback: at least start a local-only thread so UI doesn't block
       const fallbackId = Date.now().toString();
-      setChats(prev => [{ id: fallbackId, name: 'New Conversation', lastMessage: 'Chat started', timestamp: 'Now' }, ...prev]);
+      setChats((prev) =>
+        [{ id: fallbackId, name: 'New Conversation', lastMessage: 'Chat started', timestamp: 'Now' }, ...prev].slice(
+          0,
+          MAX_SIDEBAR_CHATS
+        )
+      );
       setActiveChat(fallbackId);
       setMessages([
         {
@@ -336,24 +381,38 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         },
         {
           id: '1',
-          text: `Namaste ! I'm your Vedic astrology guide. How can I help you with this new conversation?`,
+          text: WELCOME_TEXT_NEW_THREAD,
           sender: 'ai',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
       if (window.innerWidth < 768) setIsSidebarOpen(false);
     }
   };
 
+  const handleChatSelect = (chatId: string) => {
+    if (isTyping || streamingMessageId || historyLoading || !chatCreationDone) return;
+    if (chatId !== activeChat) {
+      setActiveChat(chatId);
+      void loadChatHistory(chatId);
+    }
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+  };
+
   const quickQuestions = [
-    "What does my birth chart say about my career?",
-    "Can you suggest remedies for better health?",
-    "What mantras should I chant for prosperity?",
-    "How can I improve my relationships?",
+    'What does my birth chart say about my career?',
+    'Can you suggest remedies for better health?',
+    'What mantras should I chant for prosperity?',
+    'How can I improve my relationships?',
     "What is my life's purpose according to Vedic astrology?",
-    "Are there any upcoming favorable periods?"
+    'Are there any upcoming favorable periods?',
   ];
 
+  const chatListDisabled = isTyping || !!streamingMessageId || historyLoading || !chatCreationDone;
+  const mainBusy = historyLoading || !chatCreationDone;
+  const inputDisabled = isTyping || mainBusy;
 
   if (kundliReady === null || kundliReady === false) {
     return (
@@ -375,281 +434,45 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
   return (
     <div className="flex h-screen relative">
-      {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && typeof window !== 'undefined' && window.innerWidth < 768 && (
-        <div className="fixed inset-0 bg-black/60 z-40 md:hidden" 
-             onClick={() => setIsSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
       )}
 
-      {/* Sidebar */}
-      <div
-        ref={sidebarRef}
-        className={`fixed md:relative z-50 h-full transition-all duration-300 ease-in-out bg-black/40 border-r border-white/10
-          ${
-            isSidebarOpen
-              ? 'translate-x-0 w-64 md:w-72'
-              : '-translate-x-full w-64 md:translate-x-0 md:w-14'
-          }
-        `}
-      >
-        <div className="flex h-full">
-          {/* Collapsed rail (always visible on desktop) */}
-          <div className="hidden md:flex flex-col items-center gap-4 p-3 w-14 bg-black/60 border-r border-white/10">
-            <button
-              onClick={() => setIsSidebarOpen((open) => !open)}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
-              aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            >
-              {isSidebarOpen ? (
-                <X className="w-4 h-4" />
-              ) : (
-                <Menu className="w-4 h-4" />
-              )}
-            </button>
-            <button
-              onClick={handleNewChat}
-              className="p-2 rounded-lg bg-purple-600/80 hover:bg-purple-600 text-white transition"
-              aria-label="Start new conversation"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Full sidebar content, hidden when collapsed on desktop */}
-          {isSidebarOpen && (
-            <div className="flex-1 md:w-56 bg-black/70">
-              <ChatSidebar
-                chats={chats}
-                activeChatId={activeChat}
-                onChatSelect={(chatId) => {
-                  setActiveChat(chatId);
-                  if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                    setIsSidebarOpen(false);
-                  }
-                }}
-                onNewChat={handleNewChat}
-                onClose={() => setIsSidebarOpen(false)}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
-        <div className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center">
-          <div className="flex items-center space-x-3">
-            <ShriGaneshAvatar />
-            <div>
-              <h2 className="text-lg font-semibold text-white">Cosmic AI Astrologer</h2>
-              <p className="text-green-400 text-sm">Online • Ready to guide you</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) =>
-            message.sender === 'system' ? (
-              <div key={message.id} className="py-2">
-                <hr className="border-white/20 my-2" />
-                <p className="text-center text-sm text-gray-400">{message.text}</p>
-              </div>
-            ) : (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`flex items-start space-x-2 max-w-[70%] ${
-                  message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                }`}>
-                  {/* Avatar */}
-                  {message.sender === 'user' ? (
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                  ) : (
-                    <ShriGaneshAvatar className="h-8 w-8" />
-                  )}
-
-                  {/* Message Bubble */}
-                  <div
-                    className={`rounded-2xl p-4 ${
-                      message.sender === 'user'
-                        ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                        : message.id === streamingMessageId && !message.text.trim()
-                          ? 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-                          : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-6 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4'
-                    }`}
-                  >
-                    {message.sender === 'ai' ? (
-                      message.id === streamingMessageId && !message.text.trim() ? (
-                        <div className="not-prose flex flex-col gap-2" aria-live="polite">
-                          <div className="flex space-x-2" aria-hidden>
-                            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
-                            <div
-                              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
-                              style={{ animationDelay: '0.1s' }}
-                            />
-                            <div
-                              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
-                              style={{ animationDelay: '0.2s' }}
-                            />
-                          </div>
-                          <p className="text-sm text-gray-200 leading-snug">
-                            {askWaitMessage(askElapsedSec)}
-                          </p>
-                        </div>
-                      ) : (
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            img: ({ src, alt }) =>
-                              typeof src === 'string' && src.startsWith('https://') ? (
-                                <img
-                                  src={src}
-                                  alt={alt ?? ''}
-                                  className="max-h-64 max-w-full rounded-lg object-contain my-4 border border-white/20"
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
-                                />
-                              ) : null,
-                          }}
-                        >
-                          {message.text}
-                        </ReactMarkdown>
-                      )
-                    ) : (
-                      <p className="leading-relaxed">{message.text}</p>
-                    )}
-                    <p className={`text-xs mt-2 ${
-                      message.sender === 'user' ? 'text-blue-200' : 'text-gray-400'
-                    }`}>
-                      {message.timestamp}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )
-          )}
-
-          {/* Typing row: GraphQL `ask` only (streaming uses placeholder bubble above for dots + wait copy). */}
-          {isTyping && !streamingMessageId && (
-            <div className="flex justify-start" aria-busy="true" aria-live="polite">
-              <div className="flex items-start space-x-2 max-w-[85%]">
-                <ShriGaneshAvatar className="h-8 w-8" />
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 min-w-[12rem] max-w-[min(100%,24rem)]">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex space-x-2 flex-shrink-0" aria-hidden>
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
-                      <div
-                        className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.1s' }}
-                      />
-                      <div
-                        className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.2s' }}
-                      />
-                    </div>
-                    <p className="text-sm text-gray-200 leading-snug break-words">
-                      {askWaitMessage(askElapsedSec)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Quick Questions */}
-        {messages.length <= 1 && (
-          <div className="px-4 pb-4">
-            <h3 className="text-white font-medium mb-3 flex items-center">
-              <Sparkles className="w-4 h-4 text-purple-400 mr-2" />
-              Quick Questions to Get Started:
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {quickQuestions.map((question, index) => (
-                <button
-                  key={index}
-                  onClick={() => setInputText(question)}
-                  className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all duration-300 text-sm"
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Input Area */}
-        <div className="bg-black/30 backdrop-blur-md border-t border-white/10 p-4">
-          {isListening && (
-            <p className="text-xs text-purple-300 mb-2 flex items-center gap-1" aria-live="polite">
-              <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden />
-              Listening...
-            </p>
-          )}
-          <div className="flex items-end gap-4">
-            <button
-              type="button"
-              onClick={handleStartListening}
-              disabled={!isSupported || isTyping || isListening}
-              aria-label={!isSupported ? 'Microphone unavailable' : permissionDenied ? 'Microphone access denied; click to try again' : 'Start voice input'}
-              title={!isSupported ? 'Voice input not supported in this browser' : permissionDenied ? 'Microphone access denied; click to try again' : 'Start voice input'}
-              className="p-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shrink-0"
-            >
-              <Mic className="w-5 h-5" />
-            </button>
-            <div className="relative min-w-0 flex-1">
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about your destiny, remedies, or any cosmic guidance..."
-                className="w-full min-h-[4.5rem] max-h-60 resize-y overflow-y-auto bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                rows={3}
-                disabled={isTyping}
-              />
-              <div className="pointer-events-none absolute right-3 top-3">
-                <Star className="h-5 w-5 text-purple-400" />
-              </div>
-              {isListening && (
-                <div className="absolute right-3 bottom-3">
-                  <button
-                    type="button"
-                    onClick={stopListening}
-                    aria-label="Stop listening"
-                    className="p-2 rounded-lg bg-red-500/90 hover:bg-red-500 text-white focus:outline-none focus:ring-2 focus:ring-red-400 transition-all"
-                  >
-                    <Square className="w-4 h-4 fill-current" />
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputText.trim() || isTyping}
-              aria-label="Send"
-              className="shrink-0 p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <div className="flex items-center justify-center mt-2">
-            <div className="text-xs text-gray-500 flex items-center gap-1.5">
-              <ShriGaneshAvatar className="h-3.5 w-3.5" ringClassName="ring ring-white/15" />
-              <span>Powered by Vedic AI • Trained on ancient astrological texts</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <ChatRightSidebar
-        isOpen={isRightSidebarOpen}
-        onOpenChange={setIsRightSidebarOpen}
+      <ChatLeftSidebarLayout
+        sidebarRef={sidebarRef}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        handleNewChat={handleNewChat}
+        chats={chats}
+        activeChatId={activeChat}
+        onChatSelect={handleChatSelect}
+        onClose={() => setIsSidebarOpen(false)}
+        chatListDisabled={chatListDisabled}
       />
+
+      <ChatMainArea
+        messages={messages}
+        streamingMessageId={streamingMessageId}
+        isTyping={isTyping}
+        askElapsedSec={askElapsedSec}
+        historyLoading={mainBusy}
+        inputText={inputText}
+        setInputText={setInputText}
+        onSend={() => void handleSendMessage()}
+        onKeyDown={handleKeyDown}
+        quickQuestions={quickQuestions}
+        isListening={isListening}
+        isSupported={isSupported}
+        permissionDenied={permissionDenied}
+        onStartListening={handleStartListening}
+        onStopListening={stopListening}
+        inputDisabled={inputDisabled}
+      />
+
+      <ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />
     </div>
   );
 };

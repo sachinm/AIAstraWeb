@@ -1,30 +1,26 @@
 import React from 'react';
 import { Plus, MessageCircle, X } from 'lucide-react';
-
-interface ChatHistory {
-  id: string;
-  name: string;
-  lastMessage: string;
-  timestamp: string;
-}
+import type { SidebarChatRow } from './chatThreadUtils';
 
 interface ChatSidebarProps {
-  chats: ChatHistory[];
+  chats: SidebarChatRow[];
   activeChatId: string | null;
   onChatSelect: (chatId: string) => void;
   onNewChat: () => void;
   onClose: () => void;
+  chatListDisabled?: boolean;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
-  chats, 
-  activeChatId, 
-  onChatSelect, 
+  chats,
+  activeChatId,
+  onChatSelect,
   onNewChat,
-  onClose 
+  onClose,
+  chatListDisabled = false,
 }) => {
   return (
-    <div className="w-80 bg-black/40 backdrop-blur-md border-r border-white/10 h-screen overflow-y-auto flex flex-col">
+    <div className="w-full min-w-0 bg-black/40 backdrop-blur-md border-r border-white/10 h-full max-h-screen overflow-y-auto flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-white/10">
         <div className="flex items-center justify-between mb-4">
@@ -58,12 +54,14 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           chats.map((chat) => (
             <button
               key={chat.id}
+              type="button"
+              disabled={chatListDisabled}
               onClick={() => onChatSelect(chat.id)}
               className={`w-full text-left p-3 rounded-lg transition-all duration-300 ${
                 activeChatId === chat.id
                   ? 'bg-purple-600/30 border border-purple-500/30'
                   : 'hover:bg-white/5'
-              }`}
+              } ${chatListDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">

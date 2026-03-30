@@ -8,6 +8,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ChatSection from './ChatSection';
 import * as UserData from '../UserData';
+import * as chatAPI from './chatAPI';
 import { useSpeechRecognition } from './useSpeechRecognition';
 
 vi.mock('../UserData', () => ({
@@ -16,6 +17,11 @@ vi.mock('../UserData', () => ({
   sendChatMessageStream: vi.fn(),
   isChatStreamEnabled: vi.fn(() => false),
   createChat: vi.fn(),
+}));
+
+vi.mock('./chatAPI', () => ({
+  fetchAllChats: vi.fn(),
+  fetchChatMessages: vi.fn(),
 }));
 
 const mockStartListening = vi.fn();
@@ -46,6 +52,8 @@ describe('ChatSection syncing modal', () => {
   beforeEach(() => {
     vi.mocked(UserData.fetchUserDetails).mockReset();
     vi.mocked(UserData.createChat).mockResolvedValue({ id: 'chat-1' });
+    vi.mocked(chatAPI.fetchAllChats).mockResolvedValue([]);
+    vi.mocked(chatAPI.fetchChatMessages).mockResolvedValue([]);
     setSpeechRecognitionMock();
   });
 
@@ -118,6 +126,8 @@ describe('ChatSection speech-to-text and input area', () => {
       queue_status: 'completed',
     });
     vi.mocked(UserData.createChat).mockResolvedValue({ id: 'chat-1' });
+    vi.mocked(chatAPI.fetchAllChats).mockResolvedValue([]);
+    vi.mocked(chatAPI.fetchChatMessages).mockResolvedValue([]);
     setSpeechRecognitionMock();
   });
 
@@ -188,5 +198,55 @@ describe('ChatSection speech-to-text and input area', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /start voice input/i }));
     expect(mockStartListening).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ChatSection existing conversations', () => {
+  const createdIso = new Date('2025-01-15T12:00:00.000Z').toISOString();
+
+  beforeEach(() => {
+    vi.mocked(UserData.fetchUserDetails).mockResolvedValue({
+      success: true,
+      kundli_added: true,
+      queue_status: 'completed',
+    });
+    vi.mocked(UserData.createChat).mockResolvedValue({ id: 'chat-new' });
+    vi.mocked(chatAPI.fetchAllChats).mockResolvedValue([
+      {
+        id: 'existing-1',
+        user_id: 'user-1',
+        name: 'Prior thread',
+        is_active: true,
+        created_at: createdIso,
+      },
+    ]);
+    vi.mocked(chatAPI.fetchChatMessages).mockResolvedValue([
+      {
+        id: 'msg-1',
+        chat_id: 'existing-1',
+        question: 'What about my chart?',
+        ai_answer: 'Here is guidance.',
+        created_at: createdIso,
+      },
+    ]);
+    setSpeechRecognitionMock();
+  });
+
+  it('loads existing chats and messages without creating a new chat', async () => {
+    vi.mocked(UserData.createChat).mockClear();
+
+    render(<ChatSection user={mockUser} activeChatId={null} />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Cosmic AI Astrologer/i)).toBeInTheDocument();
+        expect(screen.getByText('What about my chart?')).toBeInTheDocument();
+        expect(screen.getByText('Here is guidance.')).toBeInTheDocument();
+      },
+      { timeout: 2000 }
+    );
+
+    expect(UserData.createChat).not.toHaveBeenCalled();
+    expect(chatAPI.fetchChatMessages).toHaveBeenCalledWith('existing-1');
   });
 });
