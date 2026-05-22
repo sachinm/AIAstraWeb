@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-type TableKind = 'generic' | 'vimsottari' | 'narayana';
+type TableKind = 'generic' | 'vimsottari' | 'narayana' | 'divisional';
 
 interface KundliDataCardProps {
   title: string;
@@ -28,6 +28,8 @@ export interface KundliDisplayDataResponse {
     success: boolean;
     biodata: unknown | null;
     d1: unknown | null;
+    d2: unknown | null;
+    d4: unknown | null;
     d7: unknown | null;
     d9: unknown | null;
     d10: unknown | null;
@@ -143,6 +145,41 @@ const parseNarayanaTable = (value: unknown | null): TableModel => {
   };
 };
 
+/** AstroKundli chart slices often store `{ planets: [...], houses: [...] }` or nest under `data`. */
+const getDivisionalPayload = (value: unknown): Record<string, unknown> | null => {
+  if (!isNonNullObject(value)) return null;
+  const inner = value.data;
+  if (isNonNullObject(inner)) return inner;
+  return value;
+};
+
+const parseDivisionalChartTable = (value: unknown | null): TableModel | null => {
+  const payload = getDivisionalPayload(value);
+  if (!payload) return null;
+
+  const tryArrayTable = (arr: unknown): TableModel | null => {
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    const first = arr[0];
+    if (!isNonNullObject(first)) return null;
+    const columnKeys = Object.keys(first);
+    if (columnKeys.length === 0) return null;
+    const columns = columnKeys;
+    const rows = arr.map((rowValue) => {
+      const rowObject = isNonNullObject(rowValue) ? rowValue : {};
+      return columnKeys.map((columnKey) => toDisplayValue(rowObject[columnKey]));
+    });
+    return { columns, rows };
+  };
+
+  const planetsTable = tryArrayTable(payload.planets);
+  if (planetsTable && planetsTable.rows.length > 0) return planetsTable;
+
+  const housesTable = tryArrayTable(payload.houses);
+  if (housesTable && housesTable.rows.length > 0) return housesTable;
+
+  return null;
+};
+
 const buildGenericTableModel = (value: unknown | null): TableModel => {
   if (value == null) {
     return { columns: [], rows: [] };
@@ -194,6 +231,11 @@ const buildTableModel = (tableKind: TableKind, value: unknown | null): TableMode
 
   if (tableKind === 'narayana') {
     return parseNarayanaTable(value);
+  }
+
+  if (tableKind === 'divisional') {
+    const chartTable = parseDivisionalChartTable(value);
+    if (chartTable) return chartTable;
   }
 
   return buildGenericTableModel(value);

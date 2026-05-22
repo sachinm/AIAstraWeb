@@ -203,6 +203,8 @@ const MY_KUNDLI_DISPLAY_DATA = `
       error
       biodata
       d1
+      d2
+      d4
       d7
       d9
       d10
@@ -215,6 +217,8 @@ export interface KundliDisplayDataResponse {
   success: boolean;
   biodata: unknown | null;
   d1: unknown | null;
+  d2: unknown | null;
+  d4: unknown | null;
   d7: unknown | null;
   d9: unknown | null;
   d10: unknown | null;
@@ -379,6 +383,8 @@ export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataRespons
       error: string | null;
       biodata: string | null;
       d1: string | null;
+      d2: string | null;
+      d4: string | null;
       d7: string | null;
       d9: string | null;
       d10: string | null;
@@ -407,6 +413,8 @@ export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataRespons
     success: true,
     biodata: safeParse(result.biodata),
     d1: safeParse(result.d1),
+    d2: safeParse(result.d2),
+    d4: safeParse(result.d4),
     d7: safeParse(result.d7),
     d9: safeParse(result.d9),
     d10: safeParse(result.d10),

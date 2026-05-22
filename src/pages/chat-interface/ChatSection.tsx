@@ -18,6 +18,7 @@ import {
   mapApiMessagesToUi,
   chatToSidebarRow,
   snippetFromQuestion,
+  deriveChatTitleFromFirstQuestion,
   WELCOME_TEXT_INITIAL,
   WELCOME_TEXT_NEW_THREAD,
   type UiMessage,
@@ -245,10 +246,16 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const updateSidebarPreview = useCallback((threadId: string | null, questionPreview: string) => {
     if (!threadId) return;
     const preview = questionPreview.length > 80 ? `${questionPreview.slice(0, 80)}…` : questionPreview;
+    const titleFromQuestion = deriveChatTitleFromFirstQuestion(questionPreview);
     setChats((prev) =>
-      prev.map((c) =>
-        c.id === threadId ? { ...c, lastMessage: preview, timestamp: 'Now' } : c
-      )
+      prev.map((c) => {
+        if (c.id !== threadId) return c;
+        const genericTitle =
+          c.name === 'New Conversation' || c.name === 'Conversation';
+        const name =
+          titleFromQuestion && genericTitle ? titleFromQuestion : c.name;
+        return { ...c, name, lastMessage: preview, timestamp: 'Now' };
+      })
     );
   }, []);
 

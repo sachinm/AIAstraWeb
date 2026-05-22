@@ -1,19 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import SignIn from './SignIn';
 
 const mockOnSignUp = vi.fn();
 const mockOnBack = vi.fn();
 const mockHandleSignIn = vi.fn();
 
-function renderSignIn() {
+function renderSignIn(initialEntry = '/signin') {
   return render(
-    <SignIn
-      onSignUp={mockOnSignUp}
-      onBack={mockOnBack}
-      handleSignIn={mockHandleSignIn}
-    />
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <SignIn
+        onSignUp={mockOnSignUp}
+        onBack={mockOnBack}
+        handleSignIn={mockHandleSignIn}
+      />
+    </MemoryRouter>
   );
 }
 

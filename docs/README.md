@@ -117,6 +117,10 @@ Each user has varied DOB, TOB, and place of birth (Mumbai, Delhi, Chennai, etc.)
 | `/dashboard/remedies` | Remedies | Nested |
 | `*` | Catch-all → `/` | — |
 
+**Deploy (Render static site):** Client routes such as `/signin`, `/dashboard`, and `/dashboard/chat` require the host to **rewrite** unknown paths to `index.html` (SPA fallback). Without this rule, direct URLs and bookmarks return a host **404** before React loads — the React router never runs. The repo defines this in [`render.yaml`](../render.yaml) (`/*` → `/index.html`, action **Rewrite**). If the site was created manually in the Render dashboard, add the same rule under **Redirects / Rewrites**: Source `/*`, Destination `/index.html`, Action **Rewrite** (not Redirect). The build also emits `dist/404.html` (copy of `index.html`) and `public/_redirects` for hosts that use those conventions. See [Render redirects and rewrites](https://render.com/docs/redirects-rewrites).
+
+**Client routing after load:** `ProtectedRoute` / `GuestRoute` (`src/Auth/RouteGuards.tsx`) wait for session restore, then send unauthenticated users to `/signin` and authenticated users to `/dashboard/chat`. Session validity is based on JWT + idle timeout (`sessionRestore.ts`), not only `astroUser`.
+
 ### 4.2 Pages and Components
 
 | Page | File | Purpose |
@@ -168,10 +172,15 @@ Each user has varied DOB, TOB, and place of birth (Mumbai, Delhi, Chennai, etc.)
 
 - **Login (frontend):** SignIn → `Auth/api.ts` `login(username, password)` → GraphQL `login` → on success `setAuth(result.token, result.user)` and `handleSignIn(result.user)`. AuthProvider may set `user` from `localStorage.getItem('astroUser')` or from callback; navigates to `/dashboard`.
 - **Sign up:** SignUp → `signup(apiData)` → GraphQL `signup` → on success `setAuth` and `handleSignUp(userData)`; AuthProvider sets user, `isAuthenticated`, saves `astroUser` and `isAuthenticated` in localStorage, navigates to `/dashboard`.
-- **Logout (frontend):** `handleLogout`: clear user state, `isAuthenticated = false`, `localStorage.removeItem('astroUser')`, navigate to `/`. **Note:** `clearAuth()` in `graphql.ts` (which removes `token` and `userId`) is **not** called on logout in the current code; the JWT remains in localStorage until something else clears it.
+- **Logout (frontend):** `performLogout()` in `Auth/logout.ts` clears `token`, `userId`, `astroUser`, `isAuthenticated`, idle timestamps, and stops the idle watcher. Manual logout navigates to `/`; idle timeout navigates to `/signin?reason=idle`.
+- **Idle session (frontend):** After **10 minutes** without user activity (configurable via `VITE_SESSION_IDLE_MS`), the client signs out automatically. Activity is tracked in `sessionStorage` (`lastActivityAt`), with a meta-refresh fallback and multi-tab sync via `storage` events. JWT `exp` is checked on load.
 - **Admin:** Admin app login stores token in `adminToken`; logout clears token and related keys via `setToken(null)`.
 
-### 6.4 RBAC
+### 6.4 Backend follow-up (idle / JWT TTL)
+
+The user portal enforces **client-side** idle logout. For defense in depth, the backend should shorten JWT lifetime to match product policy (e.g. change `DEFAULT_EXPIRY` in `backend/src/services/authService.ts` from `7d` to `10m`, or set env `JWT_EXPIRY`). Ensure expired tokens return **401** from GraphQL context. Optional `logout` mutation is audit-only unless a token blocklist is added.
+
+### 6.5 RBAC
 
 - **Roles:** `user`, `astrology_student`, `astrologer`, `support`, `admin`, `superadmin`.
 - **Resolvers:** User-facing queries/mutations use `requireRoles(context, ALL_AUTHENTICATED_ROLES)`. Admin-only resolvers use `requireRoles(context, ['admin','superadmin'])` via `withAdmin`.
@@ -219,7 +228,7 @@ No other backend third-party calls. Frontend uses external image URLs (e.g. Pexe
 
 - **Env:** Backend uses `src/config/env.ts` for node env and AstroKundli URLs; JWT secret from `context.ts`. Frontend uses `VITE_GRAPHQL_ENDPOINT` (and admin app `VITE_API_BASE`, `VITE_GRAPHQL_ENDPOINT`).
 - **Chat persistence:** Backend supports `chats` and `messages` via GraphQL; frontend `chatAPI.ts` has the operations but Chat UI currently uses only `ask` (in-memory conversation). To persist, wire ChatSection to `chatAPI` (createChat, addMessage, chatMessages).
-- **Logout:** Frontend logout does not call `clearAuth()`; consider calling it so `token` and `userId` are removed from localStorage.
+- **Logout:** Use `performLogout()` so `token` and `userId` are always cleared. Backend JWT TTL should be aligned with `VITE_SESSION_IDLE_MS` when possible.
 - **Superadmin:** Created/updated at startup by `ensureSuperadmin` when `SUPERADMIN_PASSWORD` is set (min 16 chars). Uses `SUPERADMIN_USERNAME`, `SUPERADMIN_EMAIL`.
 
 ---

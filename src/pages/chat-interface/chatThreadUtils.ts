@@ -3,6 +3,16 @@ import { formatChatTimestamp, formatMessageTime } from './chatDateFormat';
 
 export const MAX_SIDEBAR_CHATS = 15;
 
+/** Must match server `AdAstra_Server/src/lib/chatTitle.ts`. */
+export const CHAT_TITLE_MAX_LEN = 50;
+
+/** First question trimmed, capped at `CHAT_TITLE_MAX_LEN` characters (same rule as persisted `Chat.name`). */
+export function deriveChatTitleFromFirstQuestion(question: string): string {
+  const t = question.trim();
+  if (!t) return '';
+  return t.length <= CHAT_TITLE_MAX_LEN ? t : t.slice(0, CHAT_TITLE_MAX_LEN);
+}
+
 export const WELCOME_TEXT_INITIAL =
   "Namaste ! I'm your Vedic astrology guide, trained in ancient wisdom and cosmic insights. How can I illuminate your path today?";
 
@@ -24,7 +34,8 @@ export interface SidebarChatRow {
 }
 
 export function chatToSidebarRow(chat: Chat): SidebarChatRow {
-  const name = (chat.name ?? '').trim() || 'Conversation';
+  const stored = (chat.name ?? '').trim();
+  const name = stored || 'Conversation';
   return {
     id: chat.id,
     name,

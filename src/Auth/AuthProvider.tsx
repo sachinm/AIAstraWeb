@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../App';
+import { touchActivity } from './sessionIdle';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -21,7 +22,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const handleSignIn = () => {
     setIsAuthenticated(true);
-    // Check if we have a saved user
     const savedUser = localStorage.getItem('astroUser');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
@@ -43,6 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       }
     }
     setIsAuthenticated(true);
+    touchActivity();
     navigate('/dashboard/chat', { replace: true });
   };
 
@@ -51,14 +52,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     setIsAuthenticated(true);
     localStorage.setItem('astroUser', JSON.stringify(userData));
     localStorage.setItem('isAuthenticated', 'true');
+    touchActivity();
     navigate('/dashboard/chat', { replace: true });
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('astroUser');
-    navigate('/');
   };
 
   return React.cloneElement(children as React.ReactElement, {
@@ -68,7 +63,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     onSignUp: handleSignUp,
     handleSignIn: handleSuccessfulSignIn,
     handleSignUp: handleSuccessfulSignUp,
-    handleLogout,
   });
 };
 

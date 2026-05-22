@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Star, Mail, Lock, ArrowLeft, Eye, EyeOff, KeyRound } from 'lucide-react';
 import {
   login,
@@ -17,7 +18,16 @@ interface SignInProps {
 type SignInMode = 'password' | 'magic';
 
 const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState<SignInMode>('password');
+  const [idleNotice, setIdleNotice] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('reason') === 'idle') {
+      setIdleNotice('You were signed out after 10 minutes of inactivity.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -251,6 +261,12 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                   </button>
                 </div>
               </div>
+
+              {idleNotice && (
+                <div className="bg-amber-500/20 border border-amber-500/30 text-amber-200 px-4 py-3 rounded-lg">
+                  {idleNotice}
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg">

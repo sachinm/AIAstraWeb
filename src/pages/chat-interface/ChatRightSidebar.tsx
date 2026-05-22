@@ -67,6 +67,8 @@ const ChatRightSidebar: React.FC<ChatRightSidebarProps> = ({ isOpen, onOpenChang
     success: false,
     biodata: null,
     d1: null,
+    d2: null,
+    d4: null,
     d7: null,
     d9: null,
     d10: null,
@@ -150,10 +152,12 @@ const ChatRightSidebar: React.FC<ChatRightSidebarProps> = ({ isOpen, onOpenChang
               {!loading && !error && (
                 <div>
                   <KundliDataCard title="Biodata" data={displayData.biodata} />
-                  <KundliDataCard title="D1" data={displayData.d1} />
-                  <KundliDataCard title="D7" data={displayData.d7} />
-                  <KundliDataCard title="D9" data={displayData.d9} />
-                  <KundliDataCard title="D10" data={displayData.d10} />
+                  <KundliDataCard title="D1" data={displayData.d1} tableKind="divisional" />
+                  <KundliDataCard title="D2 (Hora)" data={displayData.d2} tableKind="divisional" />
+                  <KundliDataCard title="D4 (Chaturthamsa)" data={displayData.d4} tableKind="divisional" />
+                  <KundliDataCard title="D7" data={displayData.d7} tableKind="divisional" />
+                  <KundliDataCard title="D9" data={displayData.d9} tableKind="divisional" />
+                  <KundliDataCard title="D10" data={displayData.d10} tableKind="divisional" />
                   <KundliDataCard
                     title="Vimsottari Dasa"
                     data={displayData.vimsottari_dasa}
