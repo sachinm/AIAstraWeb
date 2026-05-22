@@ -115,12 +115,17 @@ export async function runGraphQL<T = unknown>(
   });
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      throw new Error('Not authenticated');
+    }
     // Try to surface GraphQL-style error message if present
     try {
       const parsed = rawText ? (JSON.parse(rawText) as GraphQLResponse<T>) : undefined;
       const message = parsed?.errors?.[0]?.message;
       throw new Error(message || `Request failed with status ${res.status}`);
-    } catch {
+    } catch (e) {
+      if (e instanceof Error && e.message === 'Not authenticated') throw e;
       throw new Error(`Request failed with status ${res.status}`);
     }
   }

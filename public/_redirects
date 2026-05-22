@@ -1,0 +1,2 @@
+# SPA fallback (Netlify-style). Render uses render.yaml; this helps other static hosts.
+/*    /index.html   200
