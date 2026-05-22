@@ -1,4 +1,5 @@
 import { clearAuth } from '../lib/graphql';
+import { clearTurnstileVerification } from './turnstileSession';
 import {
   broadcastLogoutToOtherTabs,
   stopIdleSessionWatcher,
@@ -19,6 +20,7 @@ export function clearClientSession(): void {
   localStorage.removeItem('astroUser');
   localStorage.removeItem('isAuthenticated');
   sessionStorage.removeItem('lastActivityAt');
+  clearTurnstileVerification();
   stopIdleSessionWatcher();
 }
 

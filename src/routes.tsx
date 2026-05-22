@@ -12,6 +12,7 @@ import {
   ProtectedRoute,
   SessionLoadingScreen,
 } from './Auth/RouteGuards';
+import DashboardTurnstileGate from './Auth/DashboardTurnstileGate';
 import { User } from './App';
 
 interface AppRoutesProps {
@@ -81,7 +82,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           path="/dashboard"
           element={
             user ? (
-              <Dashboard user={user} onLogout={handleLogout} />
+              <DashboardTurnstileGate>
+                <Dashboard user={user} onLogout={handleLogout} />
+              </DashboardTurnstileGate>
             ) : (
               <Navigate to="/signin" replace />
             )

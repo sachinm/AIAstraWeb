@@ -18,7 +18,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   return (
-    <div className="min-h-screen text-white">
+    <div className="flex min-h-screen flex-col text-white">
       {/* Top Navigation */}
       <TopNavigation
         user={user}
@@ -26,8 +26,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       />
 
       {/* Main Content */}
-      <div className="flex">
-        <main className="flex-1">
+      <div className="flex min-w-0 flex-1 flex-col min-h-0">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           <Outlet />
         </main>
       </div>

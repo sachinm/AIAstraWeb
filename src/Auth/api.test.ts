@@ -37,7 +37,37 @@ describe('Auth api', () => {
       expect(setAuth).toHaveBeenCalledWith('jwt-token', 'user-id-1');
       expect(runGraphQL).toHaveBeenCalledWith(
         expect.stringContaining('mutation Login'),
-        { username: 'user1', password: 'pass123', recaptchaToken: null }
+        {
+          username: 'user1',
+          password: 'pass123',
+          recaptchaToken: null,
+          turnstileToken: null,
+        }
+      );
+    });
+
+    it('forwards turnstileToken when provided', async () => {
+      runGraphQL.mockResolvedValueOnce({
+        data: {
+          login: {
+            success: true,
+            token: 'jwt-token',
+            user: 'user-id-1',
+            role: 'user',
+          },
+        },
+      });
+
+      await login('user1', 'pass123', null, 'turnstile-token-abc');
+
+      expect(runGraphQL).toHaveBeenCalledWith(
+        expect.stringContaining('mutation Login'),
+        {
+          username: 'user1',
+          password: 'pass123',
+          recaptchaToken: null,
+          turnstileToken: 'turnstile-token-abc',
+        }
       );
     });
 
@@ -107,6 +137,38 @@ describe('Auth api', () => {
             username: 'newuser',
             email: 'new@test.com',
             date_of_birth: '1990-01-01',
+            recaptchaToken: null,
+            turnstileToken: null,
+          }),
+        })
+      );
+    });
+
+    it('forwards turnstileToken in signup input when provided', async () => {
+      runGraphQL.mockResolvedValueOnce({
+        data: {
+          signup: {
+            success: true,
+            token: 'jwt-token',
+            user: 'user-id-2',
+            role: 'user',
+          },
+        },
+      });
+
+      await signup({
+        username: 'newuser',
+        password: 'pass123',
+        email: 'new@test.com',
+        date_of_birth: '1990-01-01',
+        turnstileToken: 'turnstile-signup-token',
+      });
+
+      expect(runGraphQL).toHaveBeenCalledWith(
+        expect.stringContaining('mutation Signup'),
+        expect.objectContaining({
+          input: expect.objectContaining({
+            turnstileToken: 'turnstile-signup-token',
           }),
         })
       );

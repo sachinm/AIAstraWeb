@@ -15,6 +15,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@marsidev/react-turnstile": "^1.5.2",
     "axios": "^1.11.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",

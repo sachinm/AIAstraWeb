@@ -18,6 +18,8 @@ declare interface ImportMetaEnv {
   readonly VITE_CHAT_STREAM?: string;
   /** Google reCAPTCHA v3 site key (public). Pair with server RECAPTCHA_SECRET_KEY. */
   readonly VITE_RECAPTCHA_SITE_KEY?: string;
+  /** Cloudflare Turnstile site key (public). Pair with server TURNSTILE_SECRET_KEY. */
+  readonly VITE_TURNSTILE_SITE_KEY?: string;
 }
 
 declare interface ImportMeta {

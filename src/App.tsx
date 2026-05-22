@@ -94,7 +94,7 @@ const App = () => {
   }, [sessionReady, isAuthenticated, applyLogoutState]);
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
+    <div className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden">
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{

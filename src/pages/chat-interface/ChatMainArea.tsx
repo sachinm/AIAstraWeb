@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 import { askWaitMessage } from './chatWaitCopy';
+import { chatMarkdownComponents } from './ChatMarkdown';
 import type { UiMessage } from './chatThreadUtils';
 
 export interface ChatMainAreaProps {
@@ -24,6 +25,15 @@ export interface ChatMainAreaProps {
   onStopListening: () => void;
   inputDisabled: boolean;
 }
+
+const messageRowMaxWidth =
+  'min-w-0 max-w-[calc(100%-2.5rem)] sm:max-w-[85%] lg:max-w-[70%]';
+
+const aiProseClasses =
+  'prose prose-sm sm:prose-base prose-invert max-w-none w-full min-w-0 overflow-hidden break-words [overflow-wrap:anywhere] bg-white/10 backdrop-blur-sm border border-white/20 text-white prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-pre:overflow-x-auto prose-hr:my-8 prose-img:my-4';
+
+const userBubbleClasses =
+  'prose prose-invert max-w-none w-full min-w-0 overflow-hidden break-words [overflow-wrap:anywhere] bg-gradient-to-r from-blue-600 to-purple-600 text-white';
 
 const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   messages,
@@ -46,18 +56,18 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
-      <div className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center">
-        <div className="flex items-center space-x-3">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center shrink-0">
+        <div className="flex items-center space-x-3 min-w-0">
           <ShriGaneshAvatar />
-          <div>
-            <h2 className="text-lg font-semibold text-white">Cosmic AI Astrologer</h2>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-white truncate">Cosmic AI Astrologer</h2>
             <p className="text-green-400 text-sm">Online • Ready to guide you</p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-4 relative">
         {historyLoading && (
           <div
             className="absolute inset-0 z-10 flex items-center justify-center bg-black/30 backdrop-blur-[2px]"
@@ -71,15 +81,15 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           message.sender === 'system' ? (
             <div key={message.id} className="py-2">
               <hr className="border-white/20 my-2" />
-              <p className="text-center text-sm text-gray-400">{message.text}</p>
+              <p className="text-center text-sm text-gray-400 break-words">{message.text}</p>
             </div>
           ) : (
             <div
               key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex min-w-0 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`flex items-start space-x-2 max-w-[70%] ${
+                className={`flex min-w-0 items-start space-x-2 ${messageRowMaxWidth} ${
                   message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                 }`}
               >
@@ -88,16 +98,16 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                     <User className="w-4 h-4 text-white" />
                   </div>
                 ) : (
-                  <ShriGaneshAvatar className="h-8 w-8" />
+                  <ShriGaneshAvatar className="h-8 w-8 shrink-0" />
                 )}
 
                 <div
-                  className={`rounded-2xl p-4 ${
+                  className={`min-w-0 w-full overflow-hidden rounded-2xl p-4 ${
                     message.sender === 'user'
-                      ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                      ? userBubbleClasses
                       : message.id === streamingMessageId && !message.text.trim()
                         ? 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-                        : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-6 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4'
+                        : aiProseClasses
                   }`}
                 >
                   {message.sender === 'ai' ? (
@@ -114,32 +124,20 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                             style={{ animationDelay: '0.2s' }}
                           />
                         </div>
-                        <p className="text-sm text-gray-200 leading-snug">{askWaitMessage(askElapsedSec)}</p>
+                        <p className="text-sm text-gray-200 leading-snug break-words">
+                          {askWaitMessage(askElapsedSec)}
+                        </p>
                       </div>
                     ) : (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          img: ({ src, alt }) =>
-                            typeof src === 'string' && src.startsWith('https://') ? (
-                              <img
-                                src={src}
-                                alt={alt ?? ''}
-                                className="max-h-64 max-w-full rounded-lg object-contain my-4 border border-white/20"
-                                loading="lazy"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : null,
-                        }}
-                      >
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={chatMarkdownComponents}>
                         {message.text}
                       </ReactMarkdown>
                     )
                   ) : (
-                    <p className="leading-relaxed">{message.text}</p>
+                    <p className="leading-relaxed break-words [overflow-wrap:anywhere]">{message.text}</p>
                   )}
                   <p
-                    className={`text-xs mt-2 ${
+                    className={`not-prose text-xs mt-2 ${
                       message.sender === 'user' ? 'text-blue-200' : 'text-gray-400'
                     }`}
                   >
@@ -152,10 +150,10 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         )}
 
         {isTyping && !streamingMessageId && (
-          <div className="flex justify-start" aria-busy="true" aria-live="polite">
-            <div className="flex items-start space-x-2 max-w-[85%]">
-              <ShriGaneshAvatar className="h-8 w-8" />
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 min-w-[12rem] max-w-[min(100%,24rem)]">
+          <div className="flex justify-start min-w-0" aria-busy="true" aria-live="polite">
+            <div className={`flex min-w-0 items-start space-x-2 ${messageRowMaxWidth}`}>
+              <ShriGaneshAvatar className="h-8 w-8 shrink-0" />
+              <div className="min-w-0 w-full max-w-full overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
                 <div className="flex flex-col gap-2">
                   <div className="flex space-x-2 flex-shrink-0" aria-hidden>
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
@@ -179,9 +177,9 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
       </div>
 
       {showQuickQuestions && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 shrink-0 min-w-0">
           <h3 className="text-white font-medium mb-3 flex items-center">
-            <Sparkles className="w-4 h-4 text-purple-400 mr-2" />
+            <Sparkles className="w-4 h-4 text-purple-400 mr-2 shrink-0" />
             Quick Questions to Get Started:
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -190,7 +188,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                 key={index}
                 type="button"
                 onClick={() => setInputText(question)}
-                className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all duration-300 text-sm"
+                className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all duration-300 text-sm break-words"
               >
                 {question}
               </button>
@@ -199,14 +197,14 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         </div>
       )}
 
-      <div className="bg-black/30 backdrop-blur-md border-t border-white/10 p-4">
+      <div className="bg-black/30 backdrop-blur-md border-t border-white/10 p-4 shrink-0 min-w-0">
         {isListening && (
           <p className="text-xs text-purple-300 mb-2 flex items-center gap-1" aria-live="polite">
             <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden />
             Listening...
           </p>
         )}
-        <div className="flex items-end gap-4">
+        <div className="flex min-w-0 w-full items-end gap-2 sm:gap-4">
           <button
             type="button"
             onClick={onStartListening}
@@ -266,10 +264,13 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center justify-center mt-2">
-          <div className="text-xs text-gray-500 flex items-center gap-1.5">
-            <ShriGaneshAvatar className="h-3.5 w-3.5" ringClassName="ring ring-white/15" />
-            <span>Powered by Vedic AI • Trained on ancient astrological texts</span>
+        <div className="flex items-center justify-center mt-2 min-w-0">
+          <div className="text-xs text-gray-500 flex flex-wrap items-center justify-center gap-1.5 max-w-full px-1 text-center break-words">
+            <ShriGaneshAvatar className="h-3.5 w-3.5 shrink-0" ringClassName="ring ring-white/15" />
+            <span>
+              Powered by Vedic AI
+              <span className="hidden sm:inline"> • Trained on ancient astrological texts</span>
+            </span>
           </div>
         </div>
       </div>

@@ -433,7 +433,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   }
 
   return (
-    <div className="flex h-screen relative">
+    <div className="relative flex min-h-0 w-full max-w-full flex-1 overflow-hidden">
       {isSidebarOpen && typeof window !== 'undefined' && window.innerWidth < 768 && (
         <div
           className="fixed inset-0 bg-black/60 z-40 md:hidden"

@@ -8,6 +8,8 @@ import {
   LOGIN_FAILED_GENERIC,
 } from './api';
 import { useRecaptcha } from './useRecaptcha';
+import { useTurnstile } from './useTurnstile';
+import TurnstileField from './TurnstileField';
 
 interface SignInProps {
   onSignUp: () => void;
@@ -33,7 +35,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { getToken, isEnabled } = useRecaptcha();
+  const { getToken, isEnabled: isRecaptchaEnabled } = useRecaptcha();
+  const turnstile = useTurnstile();
 
   const [magicEmail, setMagicEmail] = useState('');
   const [magicCode, setMagicCode] = useState('');
@@ -47,6 +50,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
     setError('');
     setMagicError('');
     setMagicInfo('');
+    turnstile.reset();
     if (m === 'password') {
       setMagicCodeSent(false);
       setMagicCode('');
@@ -65,20 +69,28 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         return;
       }
 
-      const recaptchaToken = isEnabled ? await getToken('login') : null;
-      if (isEnabled && !recaptchaToken) {
+      const recaptchaToken = isRecaptchaEnabled ? await getToken('login') : null;
+      if (isRecaptchaEnabled && !recaptchaToken) {
         setError('Security check failed to load. Please refresh the page and try again.');
         setIsLoading(false);
         return;
       }
 
-      const result = await login(email, password, recaptchaToken);
+      const turnstileToken = turnstile.requireToken();
+      if (turnstile.isEnabled && !turnstileToken) {
+        setError('Please complete the security check below.');
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await login(email, password, recaptchaToken, turnstileToken);
 
       if (result.success) {
         localStorage.setItem('isAuthenticated', 'true');
         handleSignIn(result.user);
       } else {
         setError(result.message || LOGIN_FAILED_GENERIC);
+        turnstile.reset();
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -105,24 +117,34 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
     setMagicLoading(true);
     try {
-      const recaptchaToken = isEnabled ? await getToken('magic_link_request') : null;
-      if (isEnabled && !recaptchaToken) {
+      const recaptchaToken = isRecaptchaEnabled ? await getToken('magic_link_request') : null;
+      if (isRecaptchaEnabled && !recaptchaToken) {
         setMagicError('Security check failed to load. Please refresh the page and try again.');
         return;
       }
-      const r = await requestMagicLinkEmail(trimmed, recaptchaToken);
+
+      const turnstileToken = turnstile.requireToken();
+      if (turnstile.isEnabled && !turnstileToken) {
+        setMagicError('Please complete the security check below.');
+        return;
+      }
+
+      const r = await requestMagicLinkEmail(trimmed, recaptchaToken, turnstileToken);
       if (r.success) {
         setMagicInfo(
           r.message ||
             "If that email is registered, you'll receive a message with an 8-character code. The code expires in 5 minutes."
         );
         setMagicCodeSent(true);
+        turnstile.reset();
       } else {
         setMagicError(r.message || 'Something went wrong. Please try again.');
+        turnstile.reset();
       }
     } catch (err) {
       console.error('Magic link request:', err);
       setMagicError('Something went wrong. Please try again.');
+      turnstile.reset();
     } finally {
       setMagicLoading(false);
     }
@@ -140,17 +162,25 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
     setMagicLoading(true);
     try {
-      const recaptchaToken = isEnabled ? await getToken('magic_link_login') : null;
-      if (isEnabled && !recaptchaToken) {
+      const recaptchaToken = isRecaptchaEnabled ? await getToken('magic_link_login') : null;
+      if (isRecaptchaEnabled && !recaptchaToken) {
         setMagicError('Security check failed to load. Please refresh the page and try again.');
         return;
       }
-      const result = await loginWithMagicLink(trimmed, codeNorm, recaptchaToken);
+
+      const turnstileToken = turnstile.requireToken();
+      if (turnstile.isEnabled && !turnstileToken) {
+        setMagicError('Please complete the security check below.');
+        return;
+      }
+
+      const result = await loginWithMagicLink(trimmed, codeNorm, recaptchaToken, turnstileToken);
       if (result.success) {
         localStorage.setItem('isAuthenticated', 'true');
         handleSignIn(result.user);
       } else {
         setMagicError(result.message || 'Unable to sign in. Check your code and try again.');
+        turnstile.reset();
       }
     } catch (err) {
       console.error('Magic link login:', err);
@@ -274,6 +304,20 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                 </div>
               )}
 
+              {turnstile.isEnabled && (
+                <TurnstileField
+                  siteKey={turnstile.siteKey}
+                  action="login"
+                  onSuccess={turnstile.onSuccess}
+                  onExpire={turnstile.onExpire}
+                  onError={turnstile.onError}
+                  onRegisterReset={turnstile.registerReset}
+                />
+              )}
+              {turnstile.error && (
+                <p className="text-red-300 text-sm text-center">{turnstile.error}</p>
+              )}
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -312,27 +356,32 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                 </button>
               </div>
 
-              {isEnabled && (
+              {(isRecaptchaEnabled || turnstile.isEnabled) && (
                 <p className="text-center text-xs text-gray-500">
-                  Protected by reCAPTCHA v3 (invisible). This site is protected by reCAPTCHA and the Google{' '}
-                  <a
-                    href="https://policies.google.com/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-400/90 hover:text-purple-300 underline"
-                  >
-                    Privacy Policy
-                  </a>{' '}
-                  and{' '}
-                  <a
-                    href="https://policies.google.com/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-400/90 hover:text-purple-300 underline"
-                  >
-                    Terms of Service
-                  </a>{' '}
-                  apply.
+                  {turnstile.isEnabled && <>Protected by Cloudflare Turnstile. </>}
+                  {isRecaptchaEnabled && (
+                    <>
+                      reCAPTCHA v3 runs invisibly on submit. This site is protected by reCAPTCHA and the Google{' '}
+                      <a
+                        href="https://policies.google.com/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400/90 hover:text-purple-300 underline"
+                      >
+                        Privacy Policy
+                      </a>{' '}
+                      and{' '}
+                      <a
+                        href="https://policies.google.com/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400/90 hover:text-purple-300 underline"
+                      >
+                        Terms of Service
+                      </a>{' '}
+                      apply.
+                    </>
+                  )}
                 </p>
               )}
             </form>
@@ -363,6 +412,21 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                     />
                   </div>
                 </div>
+
+                {turnstile.isEnabled && (
+                  <TurnstileField
+                    siteKey={turnstile.siteKey}
+                    action="magic_link"
+                    onSuccess={turnstile.onSuccess}
+                    onExpire={turnstile.onExpire}
+                    onError={turnstile.onError}
+                    onRegisterReset={turnstile.registerReset}
+                  />
+                )}
+                {turnstile.error && (
+                  <p className="text-red-300 text-sm text-center">{turnstile.error}</p>
+                )}
+
                 <button
                   type="submit"
                   disabled={magicLoading}
@@ -445,27 +509,32 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                 </p>
               </div>
 
-              {isEnabled && (
+              {(isRecaptchaEnabled || turnstile.isEnabled) && (
                 <p className="text-center text-xs text-gray-500">
-                  Protected by reCAPTCHA v3 (invisible). Google{' '}
-                  <a
-                    href="https://policies.google.com/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-400/90 hover:text-purple-300 underline"
-                  >
-                    Privacy Policy
-                  </a>{' '}
-                  and{' '}
-                  <a
-                    href="https://policies.google.com/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-400/90 hover:text-purple-300 underline"
-                  >
-                    Terms
-                  </a>
-                  .
+                  {turnstile.isEnabled && <>Protected by Cloudflare Turnstile. </>}
+                  {isRecaptchaEnabled && (
+                    <>
+                      reCAPTCHA v3 runs invisibly on submit. Google{' '}
+                      <a
+                        href="https://policies.google.com/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400/90 hover:text-purple-300 underline"
+                      >
+                        Privacy Policy
+                      </a>{' '}
+                      and{' '}
+                      <a
+                        href="https://policies.google.com/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400/90 hover:text-purple-300 underline"
+                      >
+                        Terms
+                      </a>
+                      .
+                    </>
+                  )}
                 </p>
               )}
             </div>
