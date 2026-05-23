@@ -416,7 +416,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
   if (kundliReady === null || kundliReady === false) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
         <div className="text-center text-white p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
           <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">
@@ -433,7 +433,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   }
 
   return (
-    <div className="flex h-screen relative">
+    <div className="relative flex min-h-0 flex-1">
       {isSidebarOpen && typeof window !== 'undefined' && window.innerWidth < 768 && (
         <div
           className="fixed inset-0 bg-black/60 z-40 md:hidden"

@@ -1,10 +1,35 @@
 import React from 'react';
 import { Send, User, Sparkles, Star, Mic, Square, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 import { askWaitMessage } from './chatWaitCopy';
 import type { UiMessage } from './chatThreadUtils';
+
+/** Swipe/drag horizontal scroll for wide markdown tables and long text on phones only. */
+const MOBILE_OVERFLOW_X =
+  'max-[699px]:overflow-x-auto max-[699px]:overscroll-x-contain max-[699px]:[-webkit-overflow-scrolling:touch]';
+
+const aiMarkdownComponents: Components = {
+  table: ({ children, ...props }) => (
+    <div className={`my-6 ${MOBILE_OVERFLOW_X}`}>
+      <table {...props} className="max-[699px]:w-max max-[699px]:min-w-full min-[700px]:w-full">
+        {children}
+      </table>
+    </div>
+  ),
+  img: ({ src, alt }) =>
+    typeof src === 'string' && src.startsWith('https://') ? (
+      <img
+        src={src}
+        alt={alt ?? ''}
+        className="max-h-64 max-w-full rounded-lg object-contain my-4 border border-white/20"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+      />
+    ) : null,
+};
 
 export interface ChatMainAreaProps {
   messages: UiMessage[];
@@ -46,7 +71,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
 
   return (
-    <div className="flex-1 flex flex-col min-w-0" data-test-id="chat-main-area">
+    <div className="flex min-h-0 flex-1 flex-col min-w-0" data-test-id="chat-main-area">
       <div
         className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center"
         data-test-id="chat-main-area-header"
@@ -61,7 +86,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
       </div>
 
       <div
-        className="flex-1 overflow-y-auto max-[699px]:overflow-x-auto max-[699px]:touch-pan-x min-[700px]:overflow-x-hidden p-4 space-y-4 relative"
+        className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4"
         data-test-id="chat-main-area-messages"
       >
         {historyLoading && (
@@ -104,14 +129,14 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
 
                 <div
                   data-test-id="chat-main-area-message-bubble"
-                  className={`rounded-2xl p-4 min-w-0 ${
+                  className={`rounded-2xl p-4 min-w-0 ${MOBILE_OVERFLOW_X} ${
                     message.sender === 'user' ? '' : 'flex-1'
                   } ${
                     message.sender === 'user'
-                      ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                      ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white break-words'
                       : message.id === streamingMessageId && !message.text.trim()
                         ? 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-                        : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-6 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4'
+                        : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white break-words prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-0 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4 min-[700px]:prose-table:my-6'
                   }`}
                 >
                   {message.sender === 'ai' ? (
@@ -131,21 +156,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                         <p className="text-sm text-gray-200 leading-snug">{askWaitMessage(askElapsedSec)}</p>
                       </div>
                     ) : (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          img: ({ src, alt }) =>
-                            typeof src === 'string' && src.startsWith('https://') ? (
-                              <img
-                                src={src}
-                                alt={alt ?? ''}
-                                className="max-h-64 max-w-full rounded-lg object-contain my-4 border border-white/20"
-                                loading="lazy"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : null,
-                        }}
-                      >
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
                         {message.text}
                       </ReactMarkdown>
                     )
@@ -174,7 +185,9 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           >
             <div className="flex items-start space-x-2 w-full max-w-full min-[700px]:w-[97%] min-[700px]:max-w-[97%]">
               <ShriGaneshAvatar className="h-8 w-8" />
-              <div className="flex-1 min-w-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
+              <div
+                className={`flex-1 min-w-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 ${MOBILE_OVERFLOW_X}`}
+              >
                 <div className="flex flex-col gap-2">
                   <div className="flex space-x-2 flex-shrink-0" aria-hidden>
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
