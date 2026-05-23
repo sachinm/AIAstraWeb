@@ -46,8 +46,11 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
-      <div className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center">
+    <div className="flex-1 flex flex-col min-w-0" data-test-id="chat-main-area">
+      <div
+        className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center"
+        data-test-id="chat-main-area-header"
+      >
         <div className="flex items-center space-x-3">
           <ShriGaneshAvatar />
           <div>
@@ -57,10 +60,14 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+        data-test-id="chat-main-area-messages"
+      >
         {historyLoading && (
           <div
             className="absolute inset-0 z-10 flex items-center justify-center bg-black/30 backdrop-blur-[2px]"
+            data-test-id="chat-main-area-history-loading"
             aria-busy="true"
             aria-live="polite"
           >
@@ -69,18 +76,22 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         )}
         {messages.map((message) =>
           message.sender === 'system' ? (
-            <div key={message.id} className="py-2">
+            <div key={message.id} className="py-2" data-test-id="chat-main-area-system-message">
               <hr className="border-white/20 my-2" />
               <p className="text-center text-sm text-gray-400">{message.text}</p>
             </div>
           ) : (
             <div
               key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              data-test-id="chat-main-area-message-row"
+              data-message-sender={message.sender}
+              className={`flex w-full ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`flex items-start space-x-2 max-w-[70%] ${
-                  message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+                className={`flex items-start space-x-2 ${
+                  message.sender === 'user'
+                    ? 'max-w-[70%] flex-row-reverse space-x-reverse'
+                    : 'w-[97%] max-w-[97%]'
                 }`}
               >
                 {message.sender === 'user' ? (
@@ -92,7 +103,10 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                 )}
 
                 <div
-                  className={`rounded-2xl p-4 ${
+                  data-test-id="chat-main-area-message-bubble"
+                  className={`rounded-2xl p-4 min-w-0 ${
+                    message.sender === 'user' ? '' : 'flex-1'
+                  } ${
                     message.sender === 'user'
                       ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white'
                       : message.id === streamingMessageId && !message.text.trim()
@@ -152,10 +166,15 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         )}
 
         {isTyping && !streamingMessageId && (
-          <div className="flex justify-start" aria-busy="true" aria-live="polite">
-            <div className="flex items-start space-x-2 max-w-[85%]">
+          <div
+            className="flex justify-start w-full"
+            data-test-id="chat-main-area-typing-indicator"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <div className="flex items-start space-x-2 w-[97%] max-w-[97%]">
               <ShriGaneshAvatar className="h-8 w-8" />
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 min-w-[12rem] max-w-[min(100%,24rem)]">
+              <div className="flex-1 min-w-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
                 <div className="flex flex-col gap-2">
                   <div className="flex space-x-2 flex-shrink-0" aria-hidden>
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
@@ -179,7 +198,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
       </div>
 
       {showQuickQuestions && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4" data-test-id="chat-main-area-quick-questions">
           <h3 className="text-white font-medium mb-3 flex items-center">
             <Sparkles className="w-4 h-4 text-purple-400 mr-2" />
             Quick Questions to Get Started:
@@ -189,6 +208,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
               <button
                 key={index}
                 type="button"
+                data-test-id="chat-main-area-quick-question-button"
                 onClick={() => setInputText(question)}
                 className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all duration-300 text-sm"
               >
@@ -199,16 +219,24 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         </div>
       )}
 
-      <div className="bg-black/30 backdrop-blur-md border-t border-white/10 p-4">
+      <div
+        className="bg-black/30 backdrop-blur-md border-t border-white/10 p-4"
+        data-test-id="chat-main-area-input-footer"
+      >
         {isListening && (
-          <p className="text-xs text-purple-300 mb-2 flex items-center gap-1" aria-live="polite">
+          <p
+            className="text-xs text-purple-300 mb-2 flex items-center gap-1"
+            data-test-id="chat-main-area-listening-status"
+            aria-live="polite"
+          >
             <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden />
             Listening...
           </p>
         )}
-        <div className="flex items-end gap-4">
+        <div className="flex items-end gap-4" data-test-id="chat-main-area-input-row">
           <button
             type="button"
+            data-test-id="chat-main-area-mic-button"
             onClick={onStartListening}
             disabled={!isSupported || inputDisabled || isListening}
             aria-label={
@@ -229,8 +257,9 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           >
             <Mic className="w-5 h-5" />
           </button>
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-w-0 flex-1" data-test-id="chat-main-area-input-wrapper">
             <textarea
+              data-test-id="chat-main-area-input"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={onKeyDown}
@@ -246,6 +275,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
               <div className="absolute right-3 bottom-3">
                 <button
                   type="button"
+                  data-test-id="chat-main-area-stop-listening-button"
                   onClick={onStopListening}
                   aria-label="Stop listening"
                   className="p-2 rounded-lg bg-red-500/90 hover:bg-red-500 text-white focus:outline-none focus:ring-2 focus:ring-red-400 transition-all"
@@ -257,6 +287,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           </div>
           <button
             type="button"
+            data-test-id="chat-main-area-send-button"
             onClick={onSend}
             disabled={!inputText.trim() || inputDisabled}
             aria-label="Send"
@@ -266,7 +297,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center justify-center mt-2">
+        <div className="flex items-center justify-center mt-2" data-test-id="chat-main-area-powered-by">
           <div className="text-xs text-gray-500 flex items-center gap-1.5">
             <ShriGaneshAvatar className="h-3.5 w-3.5" ringClassName="ring ring-white/15" />
             <span>Powered by Vedic AI • Trained on ancient astrological texts</span>
