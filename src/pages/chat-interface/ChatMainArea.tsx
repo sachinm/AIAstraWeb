@@ -61,7 +61,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
       </div>
 
       <div
-        className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+        className="flex-1 overflow-y-auto max-[699px]:overflow-x-auto max-[699px]:touch-pan-x min-[700px]:overflow-x-hidden p-4 space-y-4 relative"
         data-test-id="chat-main-area-messages"
       >
         {historyLoading && (
@@ -91,7 +91,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                 className={`flex items-start space-x-2 ${
                   message.sender === 'user'
                     ? 'max-w-[70%] flex-row-reverse space-x-reverse'
-                    : 'w-[97%] max-w-[97%]'
+                    : 'w-full max-w-full min-[700px]:w-[97%] min-[700px]:max-w-[97%]'
                 }`}
               >
                 {message.sender === 'user' ? (
@@ -172,7 +172,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             aria-busy="true"
             aria-live="polite"
           >
-            <div className="flex items-start space-x-2 w-[97%] max-w-[97%]">
+            <div className="flex items-start space-x-2 w-full max-w-full min-[700px]:w-[97%] min-[700px]:max-w-[97%]">
               <ShriGaneshAvatar className="h-8 w-8" />
               <div className="flex-1 min-w-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
                 <div className="flex flex-col gap-2">
