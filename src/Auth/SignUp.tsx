@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Star, UserIcon, Mail, Lock, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
 import type { User as AppUser } from '../App';
 import { signup } from './api';
-import { useRecaptcha } from './useRecaptcha';
+import { useTurnstile } from './useTurnstile';
+import TurnstileField from './TurnstileField';
 
 interface SignUpProps {
   onSignUp: (userData: AppUser) => void;
@@ -25,7 +26,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
-  const { getToken, isEnabled } = useRecaptcha();
+  const turnstile = useTurnstile();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -88,16 +89,15 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
     setIsLoading(true);
 
     try {
-      const recaptchaToken = isEnabled ? await getToken('signup') : null;
-      if (isEnabled && !recaptchaToken) {
+      const turnstileToken = turnstile.requireToken();
+      if (turnstile.isEnabled && !turnstileToken) {
         setErrors({
-          submit: 'Security check failed to load. Please refresh the page and try again.',
+          submit: 'Please complete the security check before signing up.',
         });
         setIsLoading(false);
         return;
       }
 
-      // Format data according to API requirements
       const apiData = {
         username: formData.name.replace(/\s+/g, '').toLowerCase(),
         password: formData.password,
@@ -108,7 +108,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
         gender: formData.gender,
         age: parseInt(formData.age),
         name: formData.name,
-        recaptchaToken,
+        turnstileToken,
       };
 
       try {
@@ -132,16 +132,18 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
           
           onSignUp(userData);
         } else {
-          // Handle API error
           setErrors({ submit: result.message || 'Signup failed. Please try again.' });
+          turnstile.reset();
         }
       } catch (apiError) {
         console.error("API error:", apiError);
         setErrors({ submit: 'An error occurred while signing up. Please try again.' });
+        turnstile.reset();
       }
     } catch (error) {
       console.error("Signup error:", error);
       setErrors({ submit: 'An unexpected error occurred. Please try again.' });
+      turnstile.reset();
     } finally {
       setIsLoading(false);
     }
@@ -385,6 +387,18 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
                 {errors.confirmPassword && <p className="text-red-300 text-sm mt-1">{errors.confirmPassword}</p>}
               </div>
 
+              {turnstile.isEnabled && (
+                <TurnstileField
+                  siteKey={turnstile.siteKey}
+                  action="signup"
+                  onSuccess={turnstile.onSuccess}
+                  onExpire={turnstile.onExpire}
+                  onError={turnstile.onError}
+                  onRegisterReset={turnstile.registerReset}
+                  className="flex justify-center"
+                />
+              )}
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -400,27 +414,9 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
                 )}
               </button>
 
-              {isEnabled && (
+              {turnstile.isEnabled && (
                 <p className="text-center text-xs text-gray-500">
-                  reCAPTCHA v3 runs invisibly on submit (no checkbox). This site is protected by reCAPTCHA and the Google{' '}
-                  <a
-                    href="https://policies.google.com/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-400/90 hover:text-purple-300 underline"
-                  >
-                    Privacy Policy
-                  </a>{' '}
-                  and{' '}
-                  <a
-                    href="https://policies.google.com/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-400/90 hover:text-purple-300 underline"
-                  >
-                    Terms of Service
-                  </a>{' '}
-                  apply.
+                  Protected by Cloudflare Turnstile.
                 </p>
               )}
             </form>

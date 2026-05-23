@@ -1,8 +1,8 @@
 import { runGraphQL, setAuth } from '../lib/graphql';
 
 const LOGIN_MUTATION = `
-  mutation Login($username: String!, $password: String!, $recaptchaToken: String) {
-    login(username: $username, password: $password, recaptchaToken: $recaptchaToken) {
+  mutation Login($username: String!, $password: String!, $turnstileToken: String) {
+    login(username: $username, password: $password, turnstileToken: $turnstileToken) {
       success
       message
       token
@@ -25,8 +25,8 @@ const SIGNUP_MUTATION = `
 `;
 
 const REQUEST_MAGIC_LINK_MUTATION = `
-  mutation RequestMagicLink($email: String!, $recaptchaToken: String) {
-    requestMagicLink(email: $email, recaptchaToken: $recaptchaToken) {
+  mutation RequestMagicLink($email: String!, $turnstileToken: String) {
+    requestMagicLink(email: $email, turnstileToken: $turnstileToken) {
       success
       message
     }
@@ -34,8 +34,8 @@ const REQUEST_MAGIC_LINK_MUTATION = `
 `;
 
 const LOGIN_WITH_MAGIC_LINK_MUTATION = `
-  mutation LoginWithMagicLink($email: String!, $code: String!, $recaptchaToken: String) {
-    loginWithMagicLink(email: $email, code: $code, recaptchaToken: $recaptchaToken) {
+  mutation LoginWithMagicLink($email: String!, $code: String!, $turnstileToken: String) {
+    loginWithMagicLink(email: $email, code: $code, turnstileToken: $turnstileToken) {
       success
       message
       token
@@ -63,7 +63,7 @@ export interface SignUpInput {
   place_of_birth?: string | null;
   time_of_birth?: string | null;
   gender?: string | null;
-  recaptchaToken?: string | null;
+  turnstileToken?: string | null;
 }
 
 export interface SignUpResult {
@@ -75,7 +75,7 @@ export interface SignUpResult {
 export async function login(
   username: string,
   password: string,
-  recaptchaToken?: string | null
+  turnstileToken?: string | null
 ): Promise<LoginResult> {
   try {
     const { data, errors } = await runGraphQL<{
@@ -89,7 +89,7 @@ export async function login(
     }>(LOGIN_MUTATION, {
       username,
       password,
-      recaptchaToken: recaptchaToken ?? null,
+      turnstileToken: turnstileToken ?? null,
     });
 
     if (errors?.length) {
@@ -115,14 +115,14 @@ export interface MagicLinkRequestResult {
 
 export async function requestMagicLinkEmail(
   email: string,
-  recaptchaToken?: string | null
+  turnstileToken?: string | null
 ): Promise<MagicLinkRequestResult> {
   try {
     const { data, errors } = await runGraphQL<{
       requestMagicLink?: { success: boolean; message?: string };
     }>(REQUEST_MAGIC_LINK_MUTATION, {
       email: email.trim(),
-      recaptchaToken: recaptchaToken ?? null,
+      turnstileToken: turnstileToken ?? null,
     });
 
     if (errors?.length) {
@@ -142,7 +142,7 @@ export async function requestMagicLinkEmail(
 export async function loginWithMagicLink(
   email: string,
   code: string,
-  recaptchaToken?: string | null
+  turnstileToken?: string | null
 ): Promise<LoginResult> {
   const CODE_FAILED =
     'Unable to sign in. Check your code and try again.';
@@ -158,7 +158,7 @@ export async function loginWithMagicLink(
     }>(LOGIN_WITH_MAGIC_LINK_MUTATION, {
       email: email.trim(),
       code: code.trim(),
-      recaptchaToken: recaptchaToken ?? null,
+      turnstileToken: turnstileToken ?? null,
     });
 
     if (errors?.length) {
@@ -187,7 +187,7 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
       place_of_birth: userData.place_of_birth ?? null,
       time_of_birth: userData.time_of_birth ?? null,
       gender: userData.gender ?? null,
-      recaptchaToken: userData.recaptchaToken ?? null,
+      turnstileToken: userData.turnstileToken ?? null,
     };
 
     const { data, errors } = await runGraphQL<{
