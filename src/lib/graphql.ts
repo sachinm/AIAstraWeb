@@ -1,3 +1,5 @@
+import { buildApiHeaders } from './apiHeaders';
+
 /**
  * GraphQL client – single endpoint, no Supabase or internal API details exposed.
  */
@@ -72,10 +74,8 @@ export async function runGraphQL<T = unknown>(
   }
 
   const token = getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const body = JSON.stringify({ query: operation, variables });
+  const headers = await buildApiHeaders({ token, body, method: 'POST' });
 
   const endpoint = getGraphQLEndpoint();
   let res: Response;
@@ -89,7 +89,7 @@ export async function runGraphQL<T = unknown>(
     res = await fetch(endpoint, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ query: operation, variables }),
+      body,
       ...(useClientTimeout ? { signal: controller.signal } : {}),
     });
   } catch (e) {

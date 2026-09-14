@@ -1,5 +1,6 @@
 // UserData – GraphQL for most APIs; chat may use REST SSE when VITE_CHAT_STREAM is enabled.
 import { runGraphQL, getUserId } from '../lib/graphql';
+import { buildApiHeaders } from '../lib/apiHeaders';
 
 /**
  * Server `ask` runs LLM; short client timeouts abort while the server may still succeed.
@@ -151,13 +152,12 @@ export const sendChatMessageStream = async (
 
   const url = getChatAskStreamUrl();
   try {
+    const body = JSON.stringify({ question, chatId: chatId ?? null });
+    const headers = await buildApiHeaders({ token, body, method: 'POST' });
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ question, chatId: chatId ?? null }),
+      headers,
+      body,
       signal: controller.signal,
     });
 
