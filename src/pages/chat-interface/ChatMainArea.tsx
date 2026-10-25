@@ -7,6 +7,7 @@ import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 import { askWaitMessage } from './chatWaitCopy';
 import type { UiMessage } from './chatThreadUtils';
 import { visibleChips, type ReadingProgress, type StageChip } from './readingProgress';
+import Disclaimer from '../../components/Disclaimer';
 
 /** Understanding line + stage pills for a reading-engine answer. Renders nothing on the legacy path. */
 const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean }> = ({ progress, working }) => {
@@ -355,11 +356,8 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center justify-center mt-2" data-test-id="chat-main-area-powered-by">
-          <div className="text-xs text-gray-500 flex items-center gap-1.5">
-            <ShriGaneshAvatar className="h-3.5 w-3.5" ringClassName="ring ring-white/15" />
-            <span>Powered by Vedic AI • Trained on ancient astrological texts</span>
-          </div>
+        <div className="flex items-center justify-center mt-2 px-2" data-test-id="chat-main-area-disclaimer">
+          <Disclaimer />
         </div>
       </div>
     </div>
