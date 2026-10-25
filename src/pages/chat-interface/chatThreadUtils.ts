@@ -1,5 +1,6 @@
 import type { Chat, Message as ApiMessage } from './chatAPI';
 import { formatChatTimestamp, formatMessageTime } from './chatDateFormat';
+import type { ReadingProgress } from './readingProgress';
 
 export const MAX_SIDEBAR_CHATS = 15;
 
@@ -14,6 +15,8 @@ export interface UiMessage {
   text: string;
   sender: 'user' | 'ai' | 'system';
   timestamp: string;
+  /** Reading-engine progress for this answer (understanding line + stage pills); absent on the legacy path. */
+  progress?: ReadingProgress;
 }
 
 export interface SidebarChatRow {

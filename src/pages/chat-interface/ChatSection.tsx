@@ -12,6 +12,7 @@ import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
 import ChatMainArea from './ChatMainArea';
 import { useSpeechRecognition } from './useSpeechRecognition';
+import { applyReadingEvent } from './readingProgress';
 import { trackChatQuestionSent } from '../../lib/analytics';
 import {
   MAX_SIDEBAR_CHATS,
@@ -281,12 +282,24 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         streamPlaceholderId = aiPlaceholderId;
         setStreamingMessageId(aiPlaceholderId);
         setMessages((prev) => [...prev, { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts }]);
-        const { answer, chatId } = await sendChatMessageStream(userMessage.text, activeChat, (delta) => {
-          if (!mountedRef.current || !delta) return;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + delta } : m))
-          );
-        });
+        const { answer, chatId } = await sendChatMessageStream(
+          userMessage.text,
+          activeChat,
+          (delta) => {
+            if (!mountedRef.current || !delta) return;
+            setMessages((prev) =>
+              prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + delta } : m))
+            );
+          },
+          {
+            onEvent: (ev) => {
+              if (!mountedRef.current) return;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === aiPlaceholderId ? { ...m, progress: applyReadingEvent(m.progress, ev) } : m))
+              );
+            },
+          }
+        );
         if (mountedRef.current) {
           setActiveChat(chatId);
           setMessages((prev) =>

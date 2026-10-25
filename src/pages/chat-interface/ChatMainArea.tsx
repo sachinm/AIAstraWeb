@@ -6,6 +6,47 @@ import remarkGfm from 'remark-gfm';
 import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 import { askWaitMessage } from './chatWaitCopy';
 import type { UiMessage } from './chatThreadUtils';
+import { visibleChips, type ReadingProgress, type StageChip } from './readingProgress';
+
+/** Understanding line + stage pills for a reading-engine answer. Renders nothing on the legacy path. */
+const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean }> = ({ progress, working }) => {
+  if (!progress || (!progress.understood && progress.stages.length === 0)) return null;
+  const chips = visibleChips(progress);
+  const pill = (c: StageChip) => {
+    const tone =
+      c.status === 'done'
+        ? 'border-green-400/40 text-green-300'
+        : c.status === 'failed'
+          ? 'border-amber-400/50 text-amber-300'
+          : 'border-purple-400/50 text-purple-200 animate-pulse';
+    const mark = c.status === 'done' ? '\u2713' : c.status === 'failed' ? '!' : '\u2026';
+    return (
+      <span
+        key={c.key}
+        data-test-id="reading-stage-chip"
+        data-stage={c.name}
+        data-status={c.status}
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${tone}`}
+      >
+        {c.label} {mark}
+      </span>
+    );
+  };
+  return (
+    <div className="not-prose mb-3 flex flex-col gap-2" data-test-id="reading-progress" aria-live="polite">
+      {progress.understood && (
+        <p className="text-sm italic text-gray-300 leading-snug" data-test-id="reading-understood">
+          {progress.understood}
+        </p>
+      )}
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5" data-test-id="reading-stage-chips" data-working={working ? 'true' : 'false'}>
+          {chips.map(pill)}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** Swipe/drag horizontal scroll for wide markdown tables and long text on phones only. */
 const MOBILE_OVERFLOW_X =
@@ -142,6 +183,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                   {message.sender === 'ai' ? (
                     message.id === streamingMessageId && !message.text.trim() ? (
                       <div className="not-prose flex flex-col gap-2" aria-live="polite">
+                        <ReadingProgressView progress={message.progress} working />
                         <div className="flex space-x-2" aria-hidden>
                           <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
                           <div
@@ -156,9 +198,12 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                         <p className="text-sm text-gray-200 leading-snug">{askWaitMessage(askElapsedSec)}</p>
                       </div>
                     ) : (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
-                        {message.text}
-                      </ReactMarkdown>
+                      <>
+                        <ReadingProgressView progress={message.progress} working={message.id === streamingMessageId} />
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
+                          {message.text}
+                        </ReactMarkdown>
+                      </>
                     )
                   ) : (
                     <p className="leading-relaxed">{message.text}</p>
