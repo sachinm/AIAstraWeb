@@ -32,7 +32,7 @@ const ChatLeftSidebarLayout: React.FC<ChatLeftSidebarLayoutProps> = ({
       className={`fixed md:relative z-50 h-full transition-all duration-300 ease-in-out bg-black/40 border-r border-white/10
         ${
           isSidebarOpen
-            ? 'translate-x-0 w-64 md:w-72'
+            ? 'translate-x-0 w-64 md:w-[280px]'
             : '-translate-x-full w-64 md:translate-x-0 md:w-14'
         }
       `}

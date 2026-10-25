@@ -28,7 +28,6 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   isAuthenticated,
   sessionReady,
   handleSignIn,
-  handleSignUp,
   handleLogout,
 }) => {
   const navigate = useNavigate();
@@ -68,8 +67,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           path="/signup"
           element={
             <SignUp
-              onSignUp={handleSignUp}
-              onSignIn={() => navigate('/signin')}
+              onCodeSent={(email) => navigate('/signin', { state: { email, codeSent: true } })}
+              onSignIn={(email) => navigate('/signin', { state: email ? { email } : undefined })}
               onBack={() => navigate('/')}
             />
           }

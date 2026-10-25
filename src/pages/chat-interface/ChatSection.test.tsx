@@ -16,6 +16,9 @@ vi.mock('../UserData', () => ({
   sendChatMessage: vi.fn(),
   sendChatMessageStream: vi.fn(),
   isChatStreamEnabled: vi.fn(() => false),
+  isClarifyEnabled: vi.fn(() => false),
+  answerClarify: vi.fn(),
+  confirmClarifyStream: vi.fn(),
   createChat: vi.fn(),
 }));
 
@@ -69,7 +72,7 @@ describe('ChatSection syncing modal', () => {
     await waitFor(() => {
       expect(screen.getByText(/Syncing your chart…/i)).toBeInTheDocument();
     });
-    expect(screen.queryByText(/Cosmic AI Astrologer/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Readings from your own chart/i)).not.toBeInTheDocument();
   });
 
   it('shows "Syncing your chart…" when queue_status is not completed', async () => {
@@ -97,7 +100,7 @@ describe('ChatSection syncing modal', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText(/Cosmic AI Astrologer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Readings from your own chart/i)).toBeInTheDocument();
         expect(screen.queryByText(/Syncing your chart…/i)).not.toBeInTheDocument();
       },
       { timeout: 2000 }
@@ -136,7 +139,7 @@ describe('ChatSection speech-to-text and input area', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByPlaceholderText(/Ask about your destiny/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/Ask about work, money/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /start voice input/i })).toBeInTheDocument();
       },
       { timeout: 2000 }
@@ -165,7 +168,7 @@ describe('ChatSection speech-to-text and input area', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByPlaceholderText(/Ask about your destiny/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/Ask about work, money/i)).toBeInTheDocument();
       },
       { timeout: 2000 }
     );
@@ -239,7 +242,7 @@ describe('ChatSection existing conversations', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText(/Cosmic AI Astrologer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Readings from your own chart/i)).toBeInTheDocument();
         expect(screen.getByText('What about my chart?')).toBeInTheDocument();
         expect(screen.getByText('Here is guidance.')).toBeInTheDocument();
       },
