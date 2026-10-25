@@ -4,9 +4,13 @@ import {
   sendChatMessage,
   sendChatMessageStream,
   isChatStreamEnabled,
+  isClarifyEnabled,
+  answerClarify,
+  confirmClarifyStream,
   fetchUserDetails,
   createChat,
 } from '../UserData';
+import { SUBJECT_CHIPS, shouldSendOnKey, toClarifyView, loadSidebarPrefs, saveSidebarPrefs } from './readingUi';
 import { fetchAllChats, fetchChatMessages } from './chatAPI';
 import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
@@ -46,8 +50,13 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const [isTyping, setIsTyping] = useState(false);
   const [askElapsedSec, setAskElapsedSec] = useState(0);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  // sidebars remember open/closed per device (chat-interface-review §3.3)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => loadSidebarPrefs({ leftOpen: false, rightOpen: false }).leftOpen);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(() => loadSidebarPrefs({ leftOpen: false, rightOpen: false }).rightOpen);
+  const [clarifyBusy, setClarifyBusy] = useState(false);
+  useEffect(() => {
+    saveSidebarPrefs({ leftOpen: isSidebarOpen, rightOpen: isRightSidebarOpen });
+  }, [isSidebarOpen, isRightSidebarOpen]);
   const [activeChat, setActiveChat] = useState<string | null>(activeChatId ?? null);
   const [chats, setChats] = useState<SidebarChatRow[]>([]);
   const [chatCreationDone, setChatCreationDone] = useState(false);
@@ -282,7 +291,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         streamPlaceholderId = aiPlaceholderId;
         setStreamingMessageId(aiPlaceholderId);
         setMessages((prev) => [...prev, { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts }]);
-        const { answer, chatId } = await sendChatMessageStream(
+        const { answer, chatId, clarifyingRunId } = await sendChatMessageStream(
           userMessage.text,
           activeChat,
           (delta) => {
@@ -292,14 +301,19 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             );
           },
           {
+            clarify: isClarifyEnabled(),
             onEvent: (ev) => {
               if (!mountedRef.current) return;
+              const view = toClarifyView(ev as Record<string, unknown>);
               setMessages((prev) =>
-                prev.map((m) => (m.id === aiPlaceholderId ? { ...m, progress: applyReadingEvent(m.progress, ev) } : m))
+                prev.map((m) =>
+                  m.id !== aiPlaceholderId ? m : view ? { ...m, clarify: view, clarifyQuestion: trimmed } : { ...m, progress: applyReadingEvent(m.progress, ev) }
+                )
               );
             },
           }
         );
+        if (clarifyingRunId) return; // the card on the message now drives the conversation
         if (mountedRef.current) {
           setActiveChat(chatId);
           setMessages((prev) =>
@@ -341,11 +355,74 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     }
   };
 
+  // Enter sends, Shift+Enter is a new line (chat-interface-review §3.4)
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    if (shouldSendOnKey(e as unknown as { key: string; shiftKey: boolean; nativeEvent: { isComposing?: boolean } })) {
       e.preventDefault();
       void handleSendMessage();
     }
+  };
+
+  const setClarify = (messageId: string, view: UiMessage['clarify'] | undefined) =>
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, clarify: view } : m)));
+
+  /** A chip or typed answer to the clarify agent. */
+  const handleClarifyAnswer = async (messageId: string, runId: string, value: string, viaChip: boolean) => {
+    setClarifyBusy(true);
+    try {
+      const next = await answerClarify(runId, value, viaChip);
+      if (!mountedRef.current) return;
+      const view = toClarifyView(next as unknown as Record<string, unknown>);
+      if (view) setClarify(messageId, view);
+    } catch (err) {
+      if (mountedRef.current) setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, clarify: undefined, text: err instanceof Error ? err.message : 'Something went wrong' } : m)));
+    } finally {
+      if (mountedRef.current) setClarifyBusy(false);
+    }
+  };
+
+  /** "Yes, read it": stream the reading into the same message. */
+  const handleClarifyConfirm = async (messageId: string, runId: string) => {
+    const question = messages.find((m) => m.id === messageId)?.clarifyQuestion ?? '';
+    setClarify(messageId, undefined);
+    setIsTyping(true);
+    setStreamingMessageId(messageId);
+    try {
+      const { answer, chatId } = await confirmClarifyStream(
+        runId,
+        activeChat,
+        (delta) => {
+          if (!mountedRef.current || !delta) return;
+          setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)));
+        },
+        {
+          onEvent: (ev) => {
+            if (!mountedRef.current) return;
+            setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, progress: applyReadingEvent(m.progress, ev) } : m)));
+          },
+        }
+      );
+      if (mountedRef.current && chatId) {
+        setActiveChat(chatId);
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: answer } : m)));
+        updateSidebarPreview(chatId, question);
+      }
+    } catch (err) {
+      if (mountedRef.current) setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text || (err instanceof Error ? err.message : 'Something went wrong') } : m)));
+    } finally {
+      if (mountedRef.current) {
+        setStreamingMessageId(null);
+        setIsTyping(false);
+      }
+    }
+  };
+
+  /** "Change": put the question back in the input so the person can rephrase it. */
+  const handleClarifyChange = (messageId: string) => {
+    const question = messages.find((m) => m.id === messageId)?.clarifyQuestion ?? '';
+    setClarify(messageId, undefined);
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: 'Okay, edit your question below.' } : m)));
+    setInputText(question);
   };
 
   const handleNewChat = async () => {
@@ -414,14 +491,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     }
   };
 
-  const quickQuestions = [
-    'What does my birth chart say about my career?',
-    'Can you suggest remedies for better health?',
-    'What mantras should I chant for prosperity?',
-    'How can I improve my relationships?',
-    "What is my life's purpose according to Vedic astrology?",
-    'Are there any upcoming favorable periods?',
-  ];
+  // subject chips replace the old quick questions (no remedies or mantras, which the app does not answer)
+  const quickQuestions = SUBJECT_CHIPS.map((c) => c.question);
 
   const chatListDisabled = isTyping || !!streamingMessageId || historyLoading || !chatCreationDone;
   const mainBusy = historyLoading || !chatCreationDone;
@@ -483,6 +554,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         onStartListening={handleStartListening}
         onStopListening={stopListening}
         inputDisabled={inputDisabled}
+        clarifyBusy={clarifyBusy}
+        onClarifyAnswer={(id, runId, value, viaChip) => void handleClarifyAnswer(id, runId, value, viaChip)}
+        onClarifyConfirm={(id, runId) => void handleClarifyConfirm(id, runId)}
+        onClarifyChange={handleClarifyChange}
       />
 
       <ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />

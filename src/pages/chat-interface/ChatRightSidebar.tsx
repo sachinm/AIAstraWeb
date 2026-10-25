@@ -90,8 +90,8 @@ const ChatRightSidebar: React.FC<ChatRightSidebarProps> = ({ isOpen, onOpenChang
         className={`fixed right-0 md:relative md:right-auto z-50 h-full transition-all duration-300 ease-in-out bg-black/40 border-l border-white/10
           ${
             isOpen
-              ? 'translate-x-0 w-[60vw] md:w-[60vw] max-w-2xl'
-              : 'translate-x-full w-[60vw] md:translate-x-0 md:w-10'
+              ? 'translate-x-0 w-[85vw] md:w-[360px] max-w-[360px]'
+              : 'translate-x-full w-[85vw] md:translate-x-0 md:w-10'
           }
         `}
       >

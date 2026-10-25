@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Send, User, Sparkles, Star, Mic, Square, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
@@ -8,6 +8,8 @@ import { askWaitMessage } from './chatWaitCopy';
 import type { UiMessage } from './chatThreadUtils';
 import { visibleChips, type ReadingProgress, type StageChip } from './readingProgress';
 import Disclaimer from '../../components/Disclaimer';
+import ClarifyCard from './ClarifyCard';
+import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
 
 /** Understanding line + stage pills for a reading-engine answer. Renders nothing on the legacy path. */
 const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean }> = ({ progress, working }) => {
@@ -90,6 +92,11 @@ export interface ChatMainAreaProps {
   onStartListening: () => void;
   onStopListening: () => void;
   inputDisabled: boolean;
+  /** Clarify agent card handlers (docs/reading-engine/17) */
+  clarifyBusy?: boolean;
+  onClarifyAnswer?: (messageId: string, runId: string, value: string, viaChip: boolean) => void;
+  onClarifyConfirm?: (messageId: string, runId: string) => void;
+  onClarifyChange?: (messageId: string) => void;
 }
 
 const ChatMainArea: React.FC<ChatMainAreaProps> = ({
@@ -109,8 +116,34 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   onStartListening,
   onStopListening,
   inputDisabled,
+  clarifyBusy = false,
+  onClarifyAnswer,
+  onClarifyConfirm,
+  onClarifyChange,
 }) => {
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
+
+  // Follow new text only while the reader is near the bottom; otherwise offer a "New text" pill (review §3.2)
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
+  const nearBottomRef = useRef(true);
+  const [hasNewBelow, setHasNewBelow] = useState(false);
+  const lastSender = messages[messages.length - 1]?.sender;
+  const lastText = messages[messages.length - 1]?.text ?? '';
+  useEffect(() => {
+    if (lastSender === 'user' || nearBottomRef.current) {
+      endRef.current?.scrollIntoView?.({ block: 'end' });
+      setHasNewBelow(false);
+    } else {
+      setHasNewBelow(true);
+    }
+  }, [messages.length, lastSender, lastText]);
+  const onListScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    nearBottomRef.current = isNearBottom(el);
+    if (nearBottomRef.current) setHasNewBelow(false);
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col min-w-0" data-test-id="chat-main-area">
@@ -121,13 +154,15 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         <div className="flex items-center space-x-3">
           <ShriGaneshAvatar />
           <div>
-            <h2 className="text-lg font-semibold text-white">Cosmic AI Astrologer</h2>
-            <p className="text-green-400 text-sm">Online • Ready to guide you</p>
+            <h2 className="text-lg font-semibold text-white">AI Astra</h2>
+            <p className="text-slate-400 text-sm">Readings from your own chart</p>
           </div>
         </div>
       </div>
 
       <div
+        ref={listRef}
+        onScroll={onListScroll}
         className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4"
         data-test-id="chat-main-area-messages"
       >
@@ -181,7 +216,18 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                         : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white break-words prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-0 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4 min-[700px]:prose-table:my-6'
                   }`}
                 >
-                  {message.sender === 'ai' ? (
+                  {message.sender === 'ai' && message.clarify && message.id !== streamingMessageId ? (
+                    <div className="not-prose" data-test-id="chat-main-area-clarify">
+                      <ClarifyCard
+                        view={message.clarify}
+                        busy={clarifyBusy}
+                        onChip={(value) => message.clarify && message.clarify.type !== 'declined' && onClarifyAnswer?.(message.id, message.clarify.runId, value, true)}
+                        onText={(text) => message.clarify && message.clarify.type !== 'declined' && onClarifyAnswer?.(message.id, message.clarify.runId, text, false)}
+                        onConfirm={() => message.clarify && message.clarify.type !== 'declined' && onClarifyConfirm?.(message.id, message.clarify.runId)}
+                        onChange={() => onClarifyChange?.(message.id)}
+                      />
+                    </div>
+                  ) : message.sender === 'ai' ? (
                     message.id === streamingMessageId && !message.text.trim() ? (
                       <div className="not-prose flex flex-col gap-2" aria-live="polite">
                         <ReadingProgressView progress={message.progress} working />
@@ -254,6 +300,21 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             </div>
           </div>
         )}
+        <div ref={endRef} data-test-id="chat-main-area-end" />
+        {hasNewBelow && (
+          <button
+            type="button"
+            data-test-id="chat-main-area-new-text"
+            onClick={() => {
+              endRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
+              nearBottomRef.current = true;
+              setHasNewBelow(false);
+            }}
+            className="sticky bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-medium text-slate-900 shadow"
+          >
+            ↓ New text
+          </button>
+        )}
       </div>
 
       {showQuickQuestions && (
@@ -322,7 +383,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Ask about your destiny, remedies, or any cosmic guidance..."
+              placeholder={INPUT_PLACEHOLDER}
               className="w-full min-h-[4.5rem] max-h-60 resize-y overflow-y-auto bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
               rows={3}
               disabled={inputDisabled}
