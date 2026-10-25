@@ -1,4 +1,5 @@
 import { clearAuth } from '../lib/graphql';
+import { requestServerLogout } from './api';
 import {
   broadcastLogoutToOtherTabs,
   stopIdleSessionWatcher,
@@ -28,6 +29,11 @@ export function performLogout(options?: PerformLogoutOptions): void {
   const redirect = options?.redirect !== false;
 
   if (broadcast) broadcastLogoutToOtherTabs();
+  // Originating tab only (other tabs get broadcast:false), and not for expired sessions
+  // (the token is already rejected). Must run before clearClientSession removes the token.
+  if (broadcast && reason !== 'expired' && localStorage.getItem('token')) {
+    void requestServerLogout();
+  }
   clearClientSession();
 
   window.dispatchEvent(

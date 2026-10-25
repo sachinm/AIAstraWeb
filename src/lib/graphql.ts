@@ -37,6 +37,8 @@ export interface RunGraphQLOptions {
    * - `0`: no client timeout (no AbortSignal); still subject to browser / CDN / host limits.
    */
   timeoutMs?: number;
+  /** Pass `keepalive` to fetch so the request can finish after page navigation (small bodies only). */
+  keepalive?: boolean;
 }
 
 function isAbortError(e: unknown): boolean {
@@ -91,6 +93,7 @@ export async function runGraphQL<T = unknown>(
       headers,
       body,
       ...(useClientTimeout ? { signal: controller.signal } : {}),
+      ...(options?.keepalive ? { keepalive: true } : {}),
     });
   } catch (e) {
     if (isAbortError(e)) {
