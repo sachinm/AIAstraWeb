@@ -1,0 +1,83 @@
+name: Deploy web to Amplify (staging)
+
+# Runs on a push to release-candidate-staging, or by manual dispatch. Builds the staging
+# bundle (.env.staging) and uploads it as a zip to the Amplify branch of the same name.
+# Requires the Amplify branch `release-candidate-staging` to exist on app AMPLIFY_APP_ID.
+
+on:
+  push:
+    branches: [release-candidate-staging]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-web-amplify-staging
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "442728149528"
+  ROLE_ARN: arn:aws:iam::442728149528:role/aiastra-github-deploy
+  AMPLIFY_APP_ID: d20sdo476h9w6c
+  AMPLIFY_BRANCH: release-candidate-staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build staging bundle
+        run: npm run build -- --mode staging
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify account
+        run: |
+          set -euo pipefail
+          ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+          test "$ACCOUNT" = "$AWS_ACCOUNT_ID" || { echo "Wrong account: $ACCOUNT"; exit 1; }
+
+      - name: Create Amplify deployment and upload
+        id: amplify
+        run: |
+          set -euo pipefail
+          DEPLOY="$(aws amplify create-deployment --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --output json)"
+          JOB_ID="$(echo "$DEPLOY" | jq -r .jobId)"
+          UPLOAD_URL="$(echo "$DEPLOY" | jq -r .zipUploadUrl)"
+          (cd dist && zip -qr ../dist.zip .)
+          curl -sf -X PUT -H "Content-Type: application/zip" --upload-file dist.zip "$UPLOAD_URL"
+          aws amplify start-deployment --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --job-id "$JOB_ID" --output json > /dev/null
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+          echo "Amplify job $JOB_ID started on $AMPLIFY_BRANCH" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Wait for Amplify job
+        run: |
+          set -euo pipefail
+          JOB_ID="${{ steps.amplify.outputs.job_id }}"
+          for _ in $(seq 1 60); do
+            STATUS="$(aws amplify get-job --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --job-id "$JOB_ID" --query 'job.summary.status' --output text)"
+            case "$STATUS" in
+              SUCCEED) echo "Amplify job $JOB_ID SUCCEED" >> "$GITHUB_STEP_SUMMARY"; exit 0 ;;
+              FAILED|CANCELLED) echo "Amplify job $JOB_ID $STATUS"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Amplify job $JOB_ID still $STATUS after 10 minutes"; exit 1
