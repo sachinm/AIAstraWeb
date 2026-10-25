@@ -1,6 +1,7 @@
 // UserData – GraphQL for most APIs; chat may use REST SSE when VITE_CHAT_STREAM is enabled.
 import { runGraphQL, getUserId } from '../lib/graphql';
 import { buildApiHeaders } from '../lib/apiHeaders';
+import type { ReadingStreamEvent } from './chat-interface/readingProgress';
 
 /**
  * Server `ask` runs LLM; short client timeouts abort while the server may still succeed.
@@ -48,7 +49,8 @@ function getChatAskStreamUrl(): string {
 
 async function consumeChatAskSse(
   response: Response,
-  onToken: (delta: string) => void
+  onToken: (delta: string) => void,
+  onEvent?: (event: ReadingStreamEvent) => void
 ): Promise<{ answer: string; chatId: string }> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
@@ -62,7 +64,7 @@ async function consumeChatAskSse(
       if (!t.startsWith('data:')) continue;
       const raw = t.slice(5).trimStart();
       if (!raw || raw === '[DONE]') continue;
-      let ev: { type?: string; delta?: string; chatId?: string; answer?: string; message?: string };
+      let ev: { type?: string; delta?: string; chatId?: string; answer?: string; message?: string; [k: string]: unknown };
       try {
         ev = JSON.parse(raw) as typeof ev;
       } catch {
@@ -78,6 +80,9 @@ async function consumeChatAskSse(
         if (typeof ev.chatId === 'string') chatId = ev.chatId;
       } else if (ev.type === 'error') {
         throw new Error(ev.message || 'Stream error');
+      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info') {
+        // reading-engine progress; older servers never send these
+        onEvent?.(ev as ReadingStreamEvent);
       }
     }
   };
@@ -120,13 +125,11 @@ export const sendChatMessageStream = async (
   question: string,
   chatId: string | null | undefined,
   onDelta: (delta: string) => void,
-  options?: { signal?: AbortSignal }
+  options?: { signal?: AbortSignal; onEvent?: (event: ReadingStreamEvent) => void }
 ): Promise<{ answer: string; chatId: string }> => {
-  const details = await fetchUserDetails();
-  if (!details.success || !details.kundli_added) {
-    throw new Error('Kundli not available, cannot start chat');
-  }
-
+  // No `meDetails` round trip here: the chat input is only enabled once the kundli is ready (ChatSection polls it),
+  // and the server re-checks on every ask-stream (400 "chart is still being prepared"). Skipping the extra call
+  // removes one full network round trip before the first byte of every answer.
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (!token) throw new Error('Not authenticated');
 
@@ -169,7 +172,7 @@ export const sendChatMessageStream = async (
     if (!res.ok) throw new Error(`Chat stream failed (${res.status})`);
     if (!res.body) throw new Error('Empty stream response');
 
-    return await consumeChatAskSse(res, onDelta);
+    return await consumeChatAskSse(res, onDelta, options?.onEvent);
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
