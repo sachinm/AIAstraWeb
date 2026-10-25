@@ -1,25 +1,10 @@
 import { runGraphQL, setAuth } from '../lib/graphql';
 
-const LOGIN_MUTATION = `
-  mutation Login($username: String!, $password: String!, $turnstileToken: String) {
-    login(username: $username, password: $password, turnstileToken: $turnstileToken) {
-      success
-      message
-      token
-      user
-      role
-    }
-  }
-`;
-
 const SIGNUP_MUTATION = `
   mutation Signup($input: SignUpInput!) {
     signup(input: $input) {
       success
       message
-      token
-      user
-      role
     }
   }
 `;
@@ -45,9 +30,8 @@ const LOGIN_WITH_MAGIC_LINK_MUTATION = `
   }
 `;
 
-/** Matches server LOGIN_FAILED_OBFUSCATED — never reveal user-not-found vs wrong password. */
-export const LOGIN_FAILED_GENERIC =
-  'Unable to sign in. Check your email and password and try again.';
+/** Matches server MAGIC_LINK_LOGIN_FAILED: never reveal whether the email exists or the code was wrong. */
+export const LOGIN_FAILED_GENERIC = 'Unable to sign in. Check your code and try again.';
 
 export interface LoginResult {
   success: boolean;
@@ -55,9 +39,9 @@ export interface LoginResult {
   message?: string;
 }
 
+/** Account details only. There is no password: sign-in is by emailed code. */
 export interface SignUpInput {
   username: string;
-  password: string;
   email: string;
   date_of_birth: string;
   place_of_birth?: string | null;
@@ -66,46 +50,10 @@ export interface SignUpInput {
   turnstileToken?: string | null;
 }
 
+/** Signup does not sign the user in; the caller moves to the code step. */
 export interface SignUpResult {
   success: boolean;
-  user?: string;
   message?: string;
-}
-
-export async function login(
-  username: string,
-  password: string,
-  turnstileToken?: string | null
-): Promise<LoginResult> {
-  try {
-    const { data, errors } = await runGraphQL<{
-      login?: {
-        success: boolean;
-        message?: string;
-        token?: string;
-        user?: string;
-        role?: string;
-      };
-    }>(LOGIN_MUTATION, {
-      username,
-      password,
-      turnstileToken: turnstileToken ?? null,
-    });
-
-    if (errors?.length) {
-      return { success: false, message: LOGIN_FAILED_GENERIC };
-    }
-
-    const result = data?.login;
-    if (result?.success && result?.token && result?.user) {
-      setAuth(result.token, result.user);
-      return { success: true, user: result.user };
-    }
-    return { success: false, message: result?.message || LOGIN_FAILED_GENERIC };
-  } catch (error) {
-    console.error('Login error:', error);
-    return { success: false, message: LOGIN_FAILED_GENERIC };
-  }
 }
 
 export interface MagicLinkRequestResult {
@@ -181,7 +129,6 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
   try {
     const input = {
       username: userData.username,
-      password: userData.password,
       email: userData.email,
       date_of_birth: userData.date_of_birth,
       place_of_birth: userData.place_of_birth ?? null,
@@ -194,9 +141,6 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
       signup?: {
         success: boolean;
         message?: string;
-        token?: string;
-        user?: string;
-        role?: string;
       };
     }>(SIGNUP_MUTATION, { input });
 
@@ -205,9 +149,8 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
     }
 
     const result = data?.signup;
-    if (result?.success && result?.token && result?.user) {
-      setAuth(result.token, result.user);
-      return { success: true, user: result.user };
+    if (result?.success) {
+      return { success: true, message: result.message };
     }
     return { success: false, message: result?.message || 'Signup failed' };
   } catch (error) {

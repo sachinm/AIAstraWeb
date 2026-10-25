@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { Star, UserIcon, Mail, Lock, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
-import type { User as AppUser } from '../App';
+import { Star, UserIcon, Mail, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
 import { signup } from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileField from './TurnstileField';
 
 interface SignUpProps {
-  onSignUp: (userData: AppUser) => void;
+  /** Called after the account is created; the user confirms the emailed code on the sign-in code step. */
+  onCodeSent: (email: string) => void;
   onSignIn: () => void;
   onBack: () => void;
 }
 
-const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
+const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -19,8 +19,6 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
     placeOfBirth: '',
     timeOfBirth: '',
     email: '',
-    password: '',
-    confirmPassword: '',
     gender: 'M' // Default gender value
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -62,16 +60,6 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
       newErrors.email = 'Valid email is required';
     }
 
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -100,7 +88,6 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
 
       const apiData = {
         username: formData.name.replace(/\s+/g, '').toLowerCase(),
-        password: formData.password,
         date_of_birth: formData.dateOfBirth,
         place_of_birth: formData.placeOfBirth,
         time_of_birth: formData.timeOfBirth + ':00',
@@ -116,21 +103,8 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
         const result = await signup(apiData);
         
         if (result.success) {
-          // Successfully signed up
-          const userData = {
-            name: formData.name,
-            email: formData.email,
-            age: parseInt(formData.age),
-            dateOfBirth: formData.dateOfBirth,
-            placeOfBirth: formData.placeOfBirth,
-            timeOfBirth: formData.timeOfBirth
-          };
-          
-          // Store user data and auth state
-          localStorage.setItem('astroUser', JSON.stringify(userData));
-          localStorage.setItem('isAuthenticated', 'true');
-          
-          onSignUp(userData);
+          // Account created. The user is not signed in yet: they enter the emailed code next.
+          onCodeSent(formData.email.trim());
         } else {
           setErrors({ submit: result.message || 'Signup failed. Please try again.' });
           turnstile.reset();
@@ -189,7 +163,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
             <p className="text-gray-300">
-              {step === 1 ? 'Enter your birth details for personalized insights' : 'Complete your account setup'}
+              {step === 1 ? 'Enter your birth details for personalized insights' : 'Enter your email to create your account'}
             </p>
           </div>
 
@@ -345,46 +319,6 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSignIn, onBack }) => {
                   />
                 </div>
                 {errors.email && <p className="text-red-300 text-sm mt-1">{errors.email}</p>}
-              </div>
-
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={`w-full bg-white/10 border ${errors.password ? 'border-red-500' : 'border-white/20'} rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                    placeholder="Create a password"
-                  />
-                </div>
-                {errors.password && <p className="text-red-300 text-sm mt-1">{errors.password}</p>}
-              </div>
-
-              {/* Confirm Password */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className={`w-full bg-white/10 border ${errors.confirmPassword ? 'border-red-500' : 'border-white/20'} rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                    placeholder="Confirm your password"
-                  />
-                </div>
-                {errors.confirmPassword && <p className="text-red-300 text-sm mt-1">{errors.confirmPassword}</p>}
               </div>
 
               {turnstile.isEnabled && (
