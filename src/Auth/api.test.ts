@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { login, signup, LOGIN_FAILED_GENERIC } from './api';
+import { loginWithMagicLink, signup, LOGIN_FAILED_GENERIC } from './api';
 import * as graphql from '../lib/graphql';
 
 vi.mock('../lib/graphql', () => ({
@@ -17,60 +17,55 @@ describe('Auth api', () => {
     vi.clearAllMocks();
   });
 
-  describe('login', () => {
-    it('returns success and user when login succeeds', async () => {
+  describe('loginWithMagicLink', () => {
+    it('stores the session and returns the user when the code is accepted', async () => {
       runGraphQL.mockResolvedValueOnce({
         data: {
-          login: {
+          loginWithMagicLink: {
             success: true,
             token: 'jwt-token',
             user: 'user-id-1',
-            role: 'user',
+            role: 'novice',
           },
         },
       });
 
-      const result = await login('user1', 'pass123');
+      const result = await loginWithMagicLink(' user@test.com ', 'ABCD2345');
 
       expect(result.success).toBe(true);
       expect(result.user).toBe('user-id-1');
       expect(setAuth).toHaveBeenCalledWith('jwt-token', 'user-id-1');
       expect(runGraphQL).toHaveBeenCalledWith(
-        expect.stringContaining('mutation Login'),
-        { username: 'user1', password: 'pass123', turnstileToken: null }
+        expect.stringContaining('mutation LoginWithMagicLink'),
+        { email: 'user@test.com', code: 'ABCD2345', turnstileToken: null }
       );
     });
 
-    it('returns failure when GraphQL returns errors', async () => {
-      runGraphQL.mockResolvedValueOnce({
-        errors: [{ message: 'Invalid credentials' }],
-      });
+    it('returns the generic failure when GraphQL returns errors', async () => {
+      runGraphQL.mockResolvedValueOnce({ errors: [{ message: 'Invalid code' }] });
 
-      const result = await login('user1', 'wrong');
+      const result = await loginWithMagicLink('user@test.com', 'WRONG123');
 
       expect(result.success).toBe(false);
       expect(result.message).toBe(LOGIN_FAILED_GENERIC);
       expect(setAuth).not.toHaveBeenCalled();
     });
 
-    it('returns failure when no token in response', async () => {
+    it('returns the generic failure when the server refuses the code', async () => {
       runGraphQL.mockResolvedValueOnce({
-        data: {
-          login: { success: false, message: 'Unable to sign in. Check your email and password and try again.' },
-        },
+        data: { loginWithMagicLink: { success: false, message: LOGIN_FAILED_GENERIC } },
       });
 
-      const result = await login('user1', 'pass');
+      const result = await loginWithMagicLink('user@test.com', 'WRONG123');
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe(LOGIN_FAILED_GENERIC);
       expect(setAuth).not.toHaveBeenCalled();
     });
 
-    it('returns failure on network error', async () => {
+    it('returns the generic failure on network error', async () => {
       runGraphQL.mockRejectedValueOnce(new Error('Network error'));
 
-      const result = await login('user1', 'pass');
+      const result = await loginWithMagicLink('user@test.com', 'ABCD2345');
 
       expect(result.success).toBe(false);
       expect(result.message).toBe(LOGIN_FAILED_GENERIC);
@@ -78,28 +73,21 @@ describe('Auth api', () => {
   });
 
   describe('signup', () => {
-    it('returns success and user when signup succeeds', async () => {
+    it('creates the account from email and profile fields without signing in', async () => {
       runGraphQL.mockResolvedValueOnce({
         data: {
-          signup: {
-            success: true,
-            token: 'jwt-token',
-            user: 'user-id-2',
-            role: 'user',
-          },
+          signup: { success: true, message: 'Account created.' },
         },
       });
 
       const result = await signup({
         username: 'newuser',
-        password: 'pass123',
         email: 'new@test.com',
         date_of_birth: '1990-01-01',
       });
 
       expect(result.success).toBe(true);
-      expect(result.user).toBe('user-id-2');
-      expect(setAuth).toHaveBeenCalledWith('jwt-token', 'user-id-2');
+      expect(setAuth).not.toHaveBeenCalled();
       expect(runGraphQL).toHaveBeenCalledWith(
         expect.stringContaining('mutation Signup'),
         expect.objectContaining({
@@ -110,23 +98,44 @@ describe('Auth api', () => {
           }),
         })
       );
+      const sent = runGraphQL.mock.calls[0][1] as { input: Record<string, unknown> };
+      expect(sent.input).not.toHaveProperty('password');
     });
 
     it('returns failure when GraphQL returns errors', async () => {
       runGraphQL.mockResolvedValueOnce({
-        errors: [{ message: 'Username already exists' }],
+        errors: [{ message: 'Username or email already exists' }],
       });
 
       const result = await signup({
         username: 'existing',
-        password: 'pass123',
         email: 'e@test.com',
         date_of_birth: '1990-01-01',
       });
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Username already exists');
+      expect(result.message).toBe('Username or email already exists');
       expect(setAuth).not.toHaveBeenCalled();
+    });
+
+    it('passes the stable EMAIL_EXISTS code through on a refused signup', async () => {
+      runGraphQL.mockResolvedValueOnce({
+        data: {
+          signup: {
+            success: false,
+            code: 'EMAIL_EXISTS',
+            message: 'This email is already registered. Please sign in instead.',
+          },
+        },
+      });
+
+      const result = await signup({ username: 'x', email: 'taken@test.com', date_of_birth: '1990-01-01' });
+
+      expect(result).toEqual({
+        success: false,
+        code: 'EMAIL_EXISTS',
+        message: 'This email is already registered. Please sign in instead.',
+      });
     });
   });
 });
