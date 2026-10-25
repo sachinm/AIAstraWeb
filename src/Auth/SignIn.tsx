@@ -11,16 +11,21 @@ interface SignInProps {
   handleSignIn: (userData?: any) => void;
 }
 
-/** Set by the sign-up step, which has already emailed the code and goes straight to the code step. */
+/**
+ * Optional route state. Sign-up passes the email (and codeSent) so this page opens with the code field
+ * already showing; the sign-up link after "email already registered" passes only the email.
+ */
 interface SignInRouteState {
   email?: string;
   codeSent?: boolean;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CODE_LENGTH = 8; // server contract: 8-character code, 5 minute TTL
 
 /**
- * Email-first sign-in: enter email, get a one-time code by email, enter the code.
+ * One page, no step change: email field, "Send me a code". Once a code is sent, the code field appears
+ * below the email on the same page, with "Verify" and a resend link. The email stays editable.
  * There is no password login on this screen.
  */
 const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
@@ -44,6 +49,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   const [loading, setLoading] = useState(false);
   const turnstile = useTurnstile();
 
+  /** Emails a code to the address in the field. Used by "Send me a code" and by "Resend code". */
   const sendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError('');
@@ -83,12 +89,12 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
     }
   };
 
-  const signInWithCode = async (e: React.FormEvent) => {
+  const verifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     const codeNorm = code.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    if (codeNorm.length !== 8) {
-      setError('Enter the 8-character code from your email.');
+    if (codeNorm.length !== CODE_LENGTH) {
+      setError(`Enter the ${CODE_LENGTH}-character code from your email.`);
       return;
     }
 
@@ -114,12 +120,6 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const useDifferentEmail = () => {
-    setCodeSent(false);
-    setCode('');
-    setError('');
   };
 
   return (
@@ -148,49 +148,53 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
             </div>
           )}
 
-          <form onSubmit={codeSent ? signInWithCode : sendCode} className="space-y-6">
-            {!codeSent ? (
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    required
-                  />
-                </div>
+          <form onSubmit={codeSent ? verifyCode : sendCode} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                Email address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  required
+                />
               </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-300 text-center">
-                  Enter the 8-character code sent to{' '}
-                  <span className="font-medium text-white break-all">{email.trim()}</span>. It expires in 5 minutes.
-                </p>
-                <div>
-                  <label htmlFor="code" className="block text-sm font-medium text-gray-300 mb-2">
-                    8-character code
-                  </label>
-                  <input
-                    type="text"
-                    id="code"
-                    value={code}
-                    onChange={(e) =>
-                      setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))
-                    }
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white text-center text-xl tracking-[0.35em] font-mono placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="XXXXXXXX"
-                    maxLength={8}
-                    autoComplete="one-time-code"
-                    autoFocus
-                  />
+            </div>
+
+            {codeSent && (
+              <div>
+                <label htmlFor="code" className="block text-sm font-medium text-gray-300 mb-2">
+                  Sign-in code
+                </label>
+                <input
+                  type="text"
+                  id="code"
+                  value={code}
+                  onChange={(e) =>
+                    setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH))
+                  }
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white text-center text-xl tracking-[0.35em] font-mono placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="XXXXXXXX"
+                  maxLength={CODE_LENGTH}
+                  autoComplete="one-time-code"
+                />
+                <div className="flex justify-between items-center mt-2 text-sm">
+                  <span className="text-gray-400">Expires in 5 minutes.</span>
+                  <button
+                    type="button"
+                    onClick={() => sendCode()}
+                    disabled={loading}
+                    className="text-purple-400 hover:text-purple-300 font-medium transition-colors disabled:opacity-50"
+                  >
+                    Resend code
+                  </button>
                 </div>
               </div>
             )}
@@ -208,7 +212,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
             )}
 
             {(error || turnstile.error) && (
-              <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
+              <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
                 {error || turnstile.error}
               </div>
             )}
@@ -221,38 +225,18 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  {codeSent ? 'Signing in…' : 'Sending…'}
+                  {codeSent ? 'Verifying…' : 'Sending…'}
                 </>
               ) : codeSent ? (
-                'Sign in with code'
+                'Verify'
               ) : (
                 <>
                   <KeyRound className="w-4 h-4 mr-2" />
-                  Email me a code
+                  Send me a code
                 </>
               )}
             </button>
           </form>
-
-          {codeSent && (
-            <div className="flex justify-between text-sm mt-4">
-              <button
-                type="button"
-                onClick={() => sendCode()}
-                disabled={loading}
-                className="text-purple-400 hover:text-purple-300 font-medium transition-colors disabled:opacity-50"
-              >
-                Resend code
-              </button>
-              <button
-                type="button"
-                onClick={useDifferentEmail}
-                className="text-gray-400 hover:text-gray-300 transition-colors"
-              >
-                Use a different email
-              </button>
-            </div>
-          )}
 
           <div className="text-center mt-6">
             <p className="text-gray-300">

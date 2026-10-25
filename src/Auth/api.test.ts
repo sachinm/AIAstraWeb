@@ -117,5 +117,25 @@ describe('Auth api', () => {
       expect(result.message).toBe('Username or email already exists');
       expect(setAuth).not.toHaveBeenCalled();
     });
+
+    it('passes the stable EMAIL_EXISTS code through on a refused signup', async () => {
+      runGraphQL.mockResolvedValueOnce({
+        data: {
+          signup: {
+            success: false,
+            code: 'EMAIL_EXISTS',
+            message: 'This email is already registered. Please sign in instead.',
+          },
+        },
+      });
+
+      const result = await signup({ username: 'x', email: 'taken@test.com', date_of_birth: '1990-01-01' });
+
+      expect(result).toEqual({
+        success: false,
+        code: 'EMAIL_EXISTS',
+        message: 'This email is already registered. Please sign in instead.',
+      });
+    });
   });
 });

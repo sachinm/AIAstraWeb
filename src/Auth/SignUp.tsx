@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Star, UserIcon, Mail, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
-import { signup } from './api';
+import { signup, EMAIL_EXISTS_CODE } from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileField from './TurnstileField';
 
 interface SignUpProps {
   /** Called after the account is created; the user confirms the emailed code on the sign-in code step. */
   onCodeSent: (email: string) => void;
-  onSignIn: () => void;
+  /** Opens sign-in; the email is passed when the account already exists, to prefill that screen. */
+  onSignIn: (email?: string) => void;
   onBack: () => void;
 }
 
@@ -23,6 +24,7 @@ const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
   const [step, setStep] = useState(1);
   const turnstile = useTurnstile();
 
@@ -72,6 +74,7 @@ const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEmailExists(false);
     if (!validateStep2()) return;
 
     setIsLoading(true);
@@ -106,6 +109,7 @@ const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
           // Account created. The user is not signed in yet: they enter the emailed code next.
           onCodeSent(formData.email.trim());
         } else {
+          setEmailExists(result.code === EMAIL_EXISTS_CODE);
           setErrors({ submit: result.message || 'Signup failed. Please try again.' });
           turnstile.reset();
         }
@@ -168,8 +172,17 @@ const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
           </div>
 
           {errors.submit && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm">
-              {errors.submit}
+            <div role="alert" className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm">
+              <p>{errors.submit}</p>
+              {emailExists && (
+                <button
+                  type="button"
+                  onClick={() => onSignIn(formData.email.trim())}
+                  className="mt-2 text-purple-300 hover:text-white font-semibold underline underline-offset-2"
+                >
+                  Sign in
+                </button>
+              )}
             </div>
           )}
 
@@ -362,7 +375,7 @@ const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
               Already have an account?{' '}
               <button
                 type="button"
-                onClick={onSignIn}
+                onClick={() => onSignIn()}
                 className="text-purple-400 hover:text-purple-300 font-semibold transition-colors duration-300"
               >
                 Sign in

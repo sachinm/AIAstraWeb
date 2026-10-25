@@ -5,6 +5,7 @@ const SIGNUP_MUTATION = `
     signup(input: $input) {
       success
       message
+      code
     }
   }
 `;
@@ -54,7 +55,11 @@ export interface SignUpInput {
 export interface SignUpResult {
   success: boolean;
   message?: string;
+  /** Stable server code for a refused signup, e.g. EMAIL_EXISTS. */
+  code?: string;
 }
+
+export const EMAIL_EXISTS_CODE = 'EMAIL_EXISTS';
 
 export interface MagicLinkRequestResult {
   success: boolean;
@@ -141,6 +146,7 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
       signup?: {
         success: boolean;
         message?: string;
+        code?: string | null;
       };
     }>(SIGNUP_MUTATION, { input });
 
@@ -152,7 +158,11 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
     if (result?.success) {
       return { success: true, message: result.message };
     }
-    return { success: false, message: result?.message || 'Signup failed' };
+    return {
+      success: false,
+      message: result?.message || 'Signup failed',
+      code: result?.code ?? undefined,
+    };
   } catch (error) {
     console.error('Signup error:', error);
     return {
