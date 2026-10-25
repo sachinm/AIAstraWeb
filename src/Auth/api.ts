@@ -219,3 +219,28 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
     };
   }
 }
+
+const LOGOUT_MUTATION = `
+  mutation Logout {
+    logout
+  }
+`;
+
+/**
+ * Asks the server to delete this user's LLM prompt caches.
+ * Fire-and-forget: never throws and never blocks local logout.
+ * The auth token is read synchronously by runGraphQL, so call this before clearing localStorage.
+ */
+export async function requestServerLogout(): Promise<void> {
+  try {
+    const { errors } = await runGraphQL<{ logout?: boolean }>(LOGOUT_MUTATION, undefined, {
+      timeoutMs: 2000,
+      keepalive: true,
+    });
+    if (errors?.length) {
+      console.debug('[logout] server cache cleanup returned errors', errors[0].message);
+    }
+  } catch (e) {
+    console.debug('[logout] server cache cleanup failed', e instanceof Error ? e.message : String(e));
+  }
+}
