@@ -23,7 +23,7 @@ export interface ReadingProgress {
 }
 
 export interface ReadingStreamEvent {
-  type: 'intent' | 'stage' | 'windows' | 'info';
+  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose';
   [k: string]: unknown;
 }
 

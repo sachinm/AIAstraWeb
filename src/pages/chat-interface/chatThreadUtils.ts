@@ -1,6 +1,7 @@
 import type { Chat, Message as ApiMessage } from './chatAPI';
 import { formatChatTimestamp, formatMessageTime } from './chatDateFormat';
 import type { ReadingProgress } from './readingProgress';
+import type { ClarifyView } from './readingUi';
 
 export const MAX_SIDEBAR_CHATS = 15;
 
@@ -17,6 +18,10 @@ export interface UiMessage {
   timestamp: string;
   /** Reading-engine progress for this answer (understanding line + stage pills); absent on the legacy path. */
   progress?: ReadingProgress;
+  /** Clarify agent card on this AI message (question with chips, or the exact query to confirm) */
+  clarify?: ClarifyView;
+  /** The question the clarify card belongs to (for the sidebar preview once the reading streams) */
+  clarifyQuestion?: string;
 }
 
 export interface SidebarChatRow {

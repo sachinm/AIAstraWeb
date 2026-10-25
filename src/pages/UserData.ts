@@ -22,6 +22,12 @@ function getAskQueryTimeoutMs(): number {
  * When true (default): `POST /api/chat/ask-stream` streams `{type:"token",delta}` and the UI updates incrementally.
  * When false (`VITE_CHAT_STREAM` = `0` / `false` / `off`): GraphQL `ask` only — the full answer appears once when the server finishes (often 30s+ for long Gemini calls).
  */
+/** Ask the server to clarify vague questions (clarify agent). VITE_CHAT_CLARIFY=0 turns it off. */
+export function isClarifyEnabled(): boolean {
+  const raw = String(import.meta.env.VITE_CHAT_CLARIFY ?? '1').trim().toLowerCase();
+  return !(raw === '0' || raw === 'false' || raw === 'off');
+}
+
 export function isChatStreamEnabled(): boolean {
   const raw = import.meta.env.VITE_CHAT_STREAM || '1';
   if (raw == null || String(raw).trim() === '') return true;
@@ -51,12 +57,13 @@ async function consumeChatAskSse(
   response: Response,
   onToken: (delta: string) => void,
   onEvent?: (event: ReadingStreamEvent) => void
-): Promise<{ answer: string; chatId: string }> {
+): Promise<StreamResult> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let answer = '';
   let chatId = '';
+  let clarifyingRunId = '';
 
   const processEventBlock = (block: string) => {
     for (const line of block.split('\n')) {
@@ -78,9 +85,11 @@ async function consumeChatAskSse(
       } else if (ev.type === 'done') {
         if (typeof ev.answer === 'string') answer = ev.answer;
         if (typeof ev.chatId === 'string') chatId = ev.chatId;
+        // the clarify agent asked a question instead of answering; the reading follows after confirm
+        if (ev.status === 'clarifying' && typeof ev.runId === 'string') clarifyingRunId = ev.runId;
       } else if (ev.type === 'error') {
         throw new Error(ev.message || 'Stream error');
-      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info') {
+      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose') {
         // reading-engine progress; older servers never send these
         onEvent?.(ev as ReadingStreamEvent);
       }
@@ -114,8 +123,16 @@ async function consumeChatAskSse(
     reader.releaseLock();
   }
 
+  if (clarifyingRunId) return { answer: '', chatId: '', clarifyingRunId };
   if (!chatId) throw new Error('Stream ended without completion');
   return { answer, chatId };
+}
+
+export interface StreamResult {
+  answer: string;
+  chatId: string;
+  /** set when the server asked a clarifying question instead of answering (clarify agent) */
+  clarifyingRunId?: string;
 }
 
 /**
@@ -125,8 +142,50 @@ export const sendChatMessageStream = async (
   question: string,
   chatId: string | null | undefined,
   onDelta: (delta: string) => void,
+  options?: { signal?: AbortSignal; onEvent?: (event: ReadingStreamEvent) => void; clarify?: boolean }
+): Promise<StreamResult> => {
+  return postChatSse(getChatAskStreamUrl(), { question, chatId: chatId ?? null, ...(options?.clarify ? { clarify: true } : {}) }, onDelta, options);
+};
+
+/** Confirms the clarified question and streams the reading (clarify agent). */
+export const confirmClarifyStream = async (
+  runId: string,
+  chatId: string | null | undefined,
+  onDelta: (delta: string) => void,
+  options?: { signal?: AbortSignal; onEvent?: (event: ReadingStreamEvent) => void; edits?: { horizon?: string; bucket?: string } }
+): Promise<StreamResult> => {
+  return postChatSse(chatApiUrl('/api/chat/confirm-stream'), { runId, chatId: chatId ?? null, ...(options?.edits ? { edits: options.edits } : {}) }, onDelta, options);
+};
+
+export type ClarifyAnswerResult =
+  | { type: 'clarify'; runId: string; criterion: string; question: string; chips: Array<{ label: string; value: string }>; allowFreeText: boolean; guidance?: string; understanding?: string }
+  | { type: 'propose'; runId: string; exactQuery: string; assumed: string | null }
+  | { type: 'declined'; runId: string; reply: string }
+  | { type: 'ready'; runId: string };
+
+/** Sends a chip or typed answer to the clarify agent; returns its next step. */
+export const answerClarify = async (runId: string, value: string, viaChip: boolean): Promise<ClarifyAnswerResult> => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  if (!token) throw new Error('Not authenticated');
+  const body = JSON.stringify({ runId, value, viaChip });
+  const headers = await buildApiHeaders({ token, body, method: 'POST' });
+  const res = await fetch(chatApiUrl('/api/chat/answer'), { method: 'POST', headers, body });
+  if (res.status === 401) throw new Error('Not authenticated');
+  if (!res.ok) throw new Error(`Clarify failed (${res.status})`);
+  return (await res.json()) as ClarifyAnswerResult;
+};
+
+function chatApiUrl(path: string): string {
+  const ask = getChatAskStreamUrl();
+  return ask.replace(/\/api\/chat\/ask-stream$/, path);
+}
+
+async function postChatSse(
+  url: string,
+  payload: Record<string, unknown>,
+  onDelta: (delta: string) => void,
   options?: { signal?: AbortSignal; onEvent?: (event: ReadingStreamEvent) => void }
-): Promise<{ answer: string; chatId: string }> => {
+): Promise<StreamResult> {
   // No `meDetails` round trip here: the chat input is only enabled once the kundli is ready (ChatSection polls it),
   // and the server re-checks on every ask-stream (400 "chart is still being prepared"). Skipping the extra call
   // removes one full network round trip before the first byte of every answer.
@@ -153,9 +212,8 @@ export const sendChatMessageStream = async (
     else options.signal.addEventListener('abort', () => controller.abort(), { once: true });
   }
 
-  const url = getChatAskStreamUrl();
   try {
-    const body = JSON.stringify({ question, chatId: chatId ?? null });
+    const body = JSON.stringify(payload);
     const headers = await buildApiHeaders({ token, body, method: 'POST' });
     const res = await fetch(url, {
       method: 'POST',
@@ -176,7 +234,7 @@ export const sendChatMessageStream = async (
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
-};
+}
 
 export interface UserDetailsResponse {
   success: boolean;
