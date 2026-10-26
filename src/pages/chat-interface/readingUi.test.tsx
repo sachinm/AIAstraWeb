@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import ClarifyCard from './ClarifyCard';
-import { isNearBottom, loadSidebarPrefs, saveSidebarPrefs, shouldSendOnKey, SUBJECT_CHIPS, toClarifyView } from './readingUi';
+import { browserTimeZone, clarifyPlaceholder, isNearBottom, loadSidebarPrefs, LOCATION_CRITERION, saveSidebarPrefs, shouldSendOnKey, SUBJECT_CHIPS, toClarifyView } from './readingUi';
 
 describe('Enter to send', () => {
   it('Enter sends; Shift+Enter and IME composition do not', () => {
@@ -83,5 +83,46 @@ describe('ClarifyCard', () => {
   it('buttons are disabled while busy', () => {
     render(<ClarifyCard view={view} busy onChip={vi.fn()} onText={vi.fn()} onConfirm={vi.fn()} onChange={vi.fn()} />);
     expect(screen.getByText('Next 6 months')).toBeDisabled();
+  });
+  it('the sibling question renders its chips and sends the chip value', () => {
+    const onChip = vi.fn();
+    const sib = toClarifyView({ type: 'clarify', runId: 'r2', criterion: 'sibling', question: 'Which brother do you mean?', chips: [{ label: 'Elder brother', value: 'elder_brother' }, { label: 'Younger brother', value: 'younger_brother' }, { label: 'All my brothers', value: 'all' }], allowFreeText: true });
+    if (!sib) throw new Error('no view');
+    render(<ClarifyCard view={sib} onChip={onChip} onText={vi.fn()} onConfirm={vi.fn()} onChange={vi.fn()} />);
+    expect(screen.getByText('Which brother do you mean?')).toBeInTheDocument();
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(expect.arrayContaining(['Elder brother', 'Younger brother', 'All my brothers']));
+    fireEvent.click(screen.getByText('Younger brother'));
+    expect(onChip).toHaveBeenCalledWith('younger_brother', 'Younger brother');
+  });
+  it('the location question takes a typed place (city placeholder) and offers "Same as birth place"', () => {
+    const onText = vi.fn();
+    const onChip = vi.fn();
+    const loc = toClarifyView({ type: 'clarify', runId: 'r3', criterion: 'location', question: 'Where are you living now?', chips: [{ label: 'Same as birth place', value: 'same_as_birth' }], allowFreeText: true });
+    if (!loc) throw new Error('no view');
+    render(<ClarifyCard view={loc} onChip={onChip} onText={onText} onConfirm={vi.fn()} onChange={vi.fn()} />);
+    const input = screen.getByLabelText('Where you live now') as HTMLInputElement;
+    expect(input.placeholder).toBe('Type your city, e.g. Pune, India');
+    fireEvent.change(input, { target: { value: 'Toronto, Canada' } });
+    fireEvent.click(screen.getByText('Send'));
+    expect(onText).toHaveBeenCalledWith('Toronto, Canada');
+    fireEvent.click(screen.getByText('Same as birth place'));
+    expect(onChip).toHaveBeenCalledWith('same_as_birth', 'Same as birth place');
+  });
+});
+
+describe('location helpers', () => {
+  it('clarify events keep the criterion; the placeholder follows it', () => {
+    expect(toClarifyView({ type: 'clarify', runId: 'r', criterion: 'location', question: 'Where are you living now?', chips: [] })).toMatchObject({ criterion: LOCATION_CRITERION });
+    expect(clarifyPlaceholder('location')).toMatch(/city/);
+    expect(clarifyPlaceholder('horizon')).toBe('Or type your answer');
+    expect(clarifyPlaceholder()).toBe('Or type your answer');
+  });
+  it('browserTimeZone returns the Intl timezone, or undefined when Intl fails', () => {
+    expect(browserTimeZone()).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone || undefined);
+    const spy = vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+      throw new Error('no Intl');
+    });
+    expect(browserTimeZone()).toBeUndefined();
+    spy.mockRestore();
   });
 });
