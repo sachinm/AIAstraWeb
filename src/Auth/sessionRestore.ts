@@ -27,7 +27,7 @@ export function parseStoredUser(): User | null {
   }
 }
 
-/** Profile from signup, or minimal placeholder when only JWT/userId exist (password login). */
+/** Profile from signup, or minimal placeholder when only JWT/userId exist (code login). */
 export function resolveUserForSession(): User | null {
   const parsed = parseStoredUser();
   if (parsed) return parsed;
