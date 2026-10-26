@@ -7,6 +7,7 @@ import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
+import LedgerSection from './pages/timeline/LedgerSection';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -94,6 +95,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <Route path="charts" element={<ChartsSection user={user!} />} />
           <Route path="mantras" element={<MantrasSection user={user!} />} />
           <Route path="remedies" element={<RemediesSection user={user!} />} />
+          <Route path="timeline/ledger" element={<LedgerSection />} />
         </Route>
       </Route>
 
