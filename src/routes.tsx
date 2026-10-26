@@ -67,7 +67,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           path="/signup"
           element={
             <SignUp
-              onCodeSent={(email) => navigate('/signin', { state: { email, codeSent: true } })}
+              onCodeSent={(email) => navigate('/signin', { state: { email, codeSent: true, fromSignUp: true } })}
               onSignIn={(email) => navigate('/signin', { state: email ? { email } : undefined })}
               onBack={() => navigate('/')}
             />
