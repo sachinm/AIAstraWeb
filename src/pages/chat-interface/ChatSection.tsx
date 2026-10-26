@@ -10,7 +10,7 @@ import {
   fetchUserDetails,
   createChat,
 } from '../UserData';
-import { SUBJECT_CHIPS, shouldSendOnKey, toClarifyView, loadSidebarPrefs, saveSidebarPrefs } from './readingUi';
+import { SUBJECT_CHIPS, shouldSendOnKey, toClarifyView, loadSidebarPrefs, saveSidebarPrefs, browserTimeZone, LOCATION_CRITERION } from './readingUi';
 import { fetchAllChats, fetchChatMessages } from './chatAPI';
 import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
@@ -455,8 +455,11 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   /** A chip or typed answer to the clarify agent. */
   const handleClarifyAnswer = async (messageId: string, runId: string, value: string, viaChip: boolean) => {
     setClarifyBusy(true);
+    // the "Where are you living now?" answer carries the browser's timezone
+    const current = messages.find((m) => m.id === messageId)?.clarify;
+    const tz = current?.type === 'clarify' && current.criterion === LOCATION_CRITERION ? browserTimeZone() : undefined;
     try {
-      const next = await answerClarify(runId, value, viaChip);
+      const next = tz ? await answerClarify(runId, value, viaChip, { tz }) : await answerClarify(runId, value, viaChip);
       if (!mountedRef.current) return;
       const view = toClarifyView(next as unknown as Record<string, unknown>);
       if (view) setClarify(messageId, view);

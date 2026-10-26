@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { ClarifyView } from './readingUi';
+import { clarifyPlaceholder, LOCATION_CRITERION, type ClarifyView } from './readingUi';
 
 export interface ClarifyCardProps {
   view: ClarifyView;
@@ -83,8 +83,8 @@ const ClarifyCard: React.FC<ClarifyCardProps> = ({ view, busy = false, onChip, o
             value={text}
             onChange={(e) => setText(e.target.value)}
             disabled={busy}
-            placeholder="Or type your answer"
-            aria-label="Type your answer"
+            placeholder={clarifyPlaceholder(view.criterion)}
+            aria-label={view.criterion === LOCATION_CRITERION ? 'Where you live now' : 'Type your answer'}
             className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
           <button type="submit" data-test-id="clarify-send" disabled={busy || !text.trim()} className="rounded-lg border border-white/20 px-3 py-2 text-sm text-slate-200 hover:bg-white/10 disabled:opacity-50">
