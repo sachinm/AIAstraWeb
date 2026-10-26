@@ -135,6 +135,19 @@ export interface StreamResult {
   clarifyingRunId?: string;
 }
 
+/** Where a question is asked: lat/lon rounded to 2 decimals in the client, tz an IANA zone. */
+export interface QuestionLocationFields {
+  lat: number;
+  lon: number;
+  tz?: string;
+}
+
+/** Body fields for ask-stream / confirm-stream; empty when there is no usable location (server falls back to birth place). */
+export function locationFields(location: QuestionLocationFields | null | undefined): Partial<QuestionLocationFields> {
+  if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lon)) return {};
+  return { lat: location.lat, lon: location.lon, ...(location.tz ? { tz: location.tz } : {}) };
+}
+
 /**
  * Token-streaming chat (SSE). Same persistence as GraphQL `ask`; updates UI via `onDelta`.
  */
@@ -148,6 +161,8 @@ export const sendChatMessageStream = async (
     clarify?: boolean;
     /** Answer one part of a multi-part question (after a `next` event); `parts` are the ones still to come after it. */
     focus?: { subject: string; parts: string[] };
+    /** Where the question is asked (prashna chart); omitted means the server uses the birth place. */
+    location?: QuestionLocationFields | null;
   }
 ): Promise<StreamResult> => {
   return postChatSse(
@@ -157,6 +172,7 @@ export const sendChatMessageStream = async (
       chatId: chatId ?? null,
       ...(options?.clarify ? { clarify: true } : {}),
       ...(options?.focus ? { focus: options.focus.subject, parts: options.focus.parts } : {}),
+      ...locationFields(options?.location),
     },
     onDelta,
     options
@@ -168,9 +184,19 @@ export const confirmClarifyStream = async (
   runId: string,
   chatId: string | null | undefined,
   onDelta: (delta: string) => void,
-  options?: { signal?: AbortSignal; onEvent?: (event: ReadingStreamEvent) => void; edits?: { horizon?: string; bucket?: string } }
+  options?: {
+    signal?: AbortSignal;
+    onEvent?: (event: ReadingStreamEvent) => void;
+    edits?: { horizon?: string; bucket?: string };
+    location?: QuestionLocationFields | null;
+  }
 ): Promise<StreamResult> => {
-  return postChatSse(chatApiUrl('/api/chat/confirm-stream'), { runId, chatId: chatId ?? null, ...(options?.edits ? { edits: options.edits } : {}) }, onDelta, options);
+  return postChatSse(
+    chatApiUrl('/api/chat/confirm-stream'),
+    { runId, chatId: chatId ?? null, ...(options?.edits ? { edits: options.edits } : {}), ...locationFields(options?.location) },
+    onDelta,
+    options
+  );
 };
 
 export type ClarifyAnswerResult =

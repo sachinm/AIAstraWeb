@@ -6,11 +6,13 @@ import remarkGfm from 'remark-gfm';
 import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 import { askWaitMessage } from './chatWaitCopy';
 import type { UiMessage } from './chatThreadUtils';
-import { visibleChips, type ReadingProgress, type StageChip } from './readingProgress';
+import type { ReadingProgress } from './readingProgress';
+import ReadingStagesPanel, { ReadingMadeLink } from './ReadingStagesPanel';
 import Disclaimer from '../../components/Disclaimer';
 import ClarifyCard from './ClarifyCard';
 import ThinkingPanel from './ThinkingPanel';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
+import type { QuestionLocationStatus } from './useQuestionLocation';
 
 /** "Part 2 of 4: Finances" above an answer that is one part of a multi-part question. */
 const PartHeader: React.FC<{ text: string }> = ({ text }) => (
@@ -19,41 +21,15 @@ const PartHeader: React.FC<{ text: string }> = ({ text }) => (
   </p>
 );
 
-/** Understanding line + stage pills + collapsible thinking for a reading-engine answer. Renders nothing on the legacy path. */
+/** Understanding line + collapsible thinking for a reading-engine answer (the stages live in ReadingStagesPanel). */
 const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean; answering?: boolean }> = ({ progress, working, answering = false }) => {
-  if (!progress || (!progress.understood && progress.stages.length === 0 && !progress.thinking)) return null;
-  const chips = visibleChips(progress);
-  const pill = (c: StageChip) => {
-    const tone =
-      c.status === 'done'
-        ? 'border-green-400/40 text-green-300'
-        : c.status === 'failed'
-          ? 'border-amber-400/50 text-amber-300'
-          : 'border-purple-400/50 text-purple-200 animate-pulse';
-    const mark = c.status === 'done' ? '\u2713' : c.status === 'failed' ? '!' : '\u2026';
-    return (
-      <span
-        key={c.key}
-        data-test-id="reading-stage-chip"
-        data-stage={c.name}
-        data-status={c.status}
-        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${tone}`}
-      >
-        {c.label} {mark}
-      </span>
-    );
-  };
+  if (!progress || (!progress.understood && !progress.thinking)) return null;
   return (
     <div className="not-prose mb-3 flex flex-col gap-2" data-test-id="reading-progress" aria-live="polite">
       {progress.understood && (
         <p className="text-sm italic text-gray-300 leading-snug" data-test-id="reading-understood">
           {progress.understood}
         </p>
-      )}
-      {chips.length > 0 && (
-        <div className="flex flex-wrap gap-1.5" data-test-id="reading-stage-chips" data-working={working ? 'true' : 'false'}>
-          {chips.map(pill)}
-        </div>
       )}
       {progress.thinking && <ThinkingPanel text={progress.thinking} answering={answering} working={working} />}
     </div>
@@ -106,6 +82,10 @@ export interface ChatMainAreaProps {
   onClarifyAnswer?: (messageId: string, runId: string, value: string, viaChip: boolean) => void;
   onClarifyConfirm?: (messageId: string, runId: string) => void;
   onClarifyChange?: (messageId: string) => void;
+  /** Where readings are cast from: the browser's location this session, or the birth place (server docs 28 §4). */
+  questionLocationStatus?: QuestionLocationStatus;
+  /** Ask the browser for location again. */
+  onChangeQuestionLocation?: () => void;
 }
 
 const ChatMainArea: React.FC<ChatMainAreaProps> = ({
@@ -129,6 +109,8 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   onClarifyAnswer,
   onClarifyConfirm,
   onClarifyChange,
+  questionLocationStatus,
+  onChangeQuestionLocation,
 }) => {
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
 
@@ -214,65 +196,74 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                 )}
 
                 <div
-                  data-test-id="chat-main-area-message-bubble"
-                  className={`rounded-2xl p-4 min-w-0 ${MOBILE_OVERFLOW_X} ${
-                    message.sender === 'user' ? '' : 'flex-1'
-                  } ${
-                    message.sender === 'user'
-                      ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white break-words'
-                      : message.id === streamingMessageId && !message.text.trim()
-                        ? 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-                        : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white break-words prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-0 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4 min-[700px]:prose-table:my-6'
-                  }`}
+                  className={message.sender === 'user' ? 'min-w-0' : 'flex min-w-0 flex-1 flex-col gap-2'}
+                  data-test-id="chat-main-area-message-column"
                 >
-                  {message.sender === 'ai' && message.clarify && message.id !== streamingMessageId ? (
-                    <div className="not-prose" data-test-id="chat-main-area-clarify">
-                      <ClarifyCard
-                        view={message.clarify}
-                        busy={clarifyBusy}
-                        onChip={(value) => message.clarify && message.clarify.type !== 'declined' && onClarifyAnswer?.(message.id, message.clarify.runId, value, true)}
-                        onText={(text) => message.clarify && message.clarify.type !== 'declined' && onClarifyAnswer?.(message.id, message.clarify.runId, text, false)}
-                        onConfirm={() => message.clarify && message.clarify.type !== 'declined' && onClarifyConfirm?.(message.id, message.clarify.runId)}
-                        onChange={() => onClarifyChange?.(message.id)}
-                      />
-                    </div>
-                  ) : message.sender === 'ai' ? (
-                    message.id === streamingMessageId && !message.text.trim() ? (
-                      <div className="not-prose flex flex-col gap-2" aria-live="polite">
-                        {message.partHeader && <PartHeader text={message.partHeader} />}
-                        <ReadingProgressView progress={message.progress} working />
-                        <div className="flex space-x-2" aria-hidden>
-                          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
-                          <div
-                            className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
-                            style={{ animationDelay: '0.1s' }}
-                          />
-                          <div
-                            className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
-                            style={{ animationDelay: '0.2s' }}
-                          />
-                        </div>
-                        <p className="text-sm text-gray-200 leading-snug">{askWaitMessage(askElapsedSec)}</p>
-                      </div>
-                    ) : (
-                      <>
-                        {message.partHeader && <PartHeader text={message.partHeader} />}
-                        <ReadingProgressView progress={message.progress} working={message.id === streamingMessageId} answering />
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
-                          {message.text}
-                        </ReactMarkdown>
-                      </>
-                    )
-                  ) : (
-                    <p className="leading-relaxed">{message.text}</p>
+                  {message.sender === 'ai' && !message.clarify && (
+                    <ReadingStagesPanel progress={message.progress} working={message.id === streamingMessageId} />
                   )}
-                  <p
-                    className={`text-xs mt-2 ${
-                      message.sender === 'user' ? 'text-blue-200' : 'text-gray-400'
+                  <div
+                    data-test-id="chat-main-area-message-bubble"
+                    className={`rounded-2xl p-4 min-w-0 ${MOBILE_OVERFLOW_X} ${
+                      message.sender === 'user'
+                        ? 'prose prose-invert max-w-none bg-gradient-to-r from-blue-600 to-purple-600 text-white break-words'
+                        : message.id === streamingMessageId && !message.text.trim()
+                          ? 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
+                          : 'prose prose-invert max-w-none bg-white/10 backdrop-blur-sm border border-white/20 text-white break-words prose-p:mb-4 prose-p:mt-0 prose-headings:scroll-mt-4 prose-h2:mt-10 prose-h2:mb-3 prose-h3:mt-8 prose-h3:mb-2 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-table:my-0 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-table:border-collapse prose-th:border prose-th:border-white/25 prose-td:border prose-td:border-white/15 prose-hr:my-8 prose-img:my-4 min-[700px]:prose-table:my-6'
                     }`}
                   >
-                    {message.timestamp}
-                  </p>
+                    {message.sender === 'ai' && message.clarify && message.id !== streamingMessageId ? (
+                      <div className="not-prose" data-test-id="chat-main-area-clarify">
+                        <ClarifyCard
+                          view={message.clarify}
+                          busy={clarifyBusy}
+                          onChip={(value) => message.clarify && message.clarify.type !== 'declined' && onClarifyAnswer?.(message.id, message.clarify.runId, value, true)}
+                          onText={(text) => message.clarify && message.clarify.type !== 'declined' && onClarifyAnswer?.(message.id, message.clarify.runId, text, false)}
+                          onConfirm={() => message.clarify && message.clarify.type !== 'declined' && onClarifyConfirm?.(message.id, message.clarify.runId)}
+                          onChange={() => onClarifyChange?.(message.id)}
+                        />
+                      </div>
+                    ) : message.sender === 'ai' ? (
+                      message.id === streamingMessageId && !message.text.trim() ? (
+                        <div className="not-prose flex flex-col gap-2" aria-live="polite">
+                          {message.partHeader && <PartHeader text={message.partHeader} />}
+                          <ReadingProgressView progress={message.progress} working />
+                          <div className="flex space-x-2" aria-hidden>
+                            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                            <div
+                              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.1s' }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.2s' }}
+                            />
+                          </div>
+                          <p className="text-sm text-gray-200 leading-snug">{askWaitMessage(askElapsedSec)}</p>
+                        </div>
+                      ) : (
+                        <>
+                          {message.partHeader && <PartHeader text={message.partHeader} />}
+                          <ReadingProgressView progress={message.progress} working={message.id === streamingMessageId} answering />
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
+                            {message.text}
+                          </ReactMarkdown>
+                        </>
+                      )
+                    ) : (
+                      <p className="leading-relaxed">{message.text}</p>
+                    )}
+                    {message.sender === 'ai' && !message.clarify && message.id !== streamingMessageId && (
+                      <ReadingMadeLink progress={message.progress} />
+                    )}
+                    <p
+                      className={`text-xs mt-2 ${
+                        message.sender === 'user' ? 'text-blue-200' : 'text-gray-400'
+                      }`}
+                    >
+                      {message.timestamp}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -428,6 +419,30 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           </button>
         </div>
 
+        {questionLocationStatus && (
+          <p className="mt-2 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-question-location">
+            <span data-test-id="chat-main-area-question-location-status">
+              {questionLocationStatus === 'granted'
+                ? 'Using your current location'
+                : questionLocationStatus === 'asking'
+                  ? 'Checking your location…'
+                  : 'Using your birth place'}
+            </span>
+            {onChangeQuestionLocation && questionLocationStatus !== 'asking' && (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  data-test-id="chat-main-area-question-location-change"
+                  onClick={onChangeQuestionLocation}
+                  className="underline text-purple-300 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+                >
+                  {questionLocationStatus === 'granted' ? 'Change' : 'Use my location'}
+                </button>
+              </>
+            )}
+          </p>
+        )}
         <div className="flex items-center justify-center mt-2 px-2" data-test-id="chat-main-area-disclaimer">
           <Disclaimer />
         </div>

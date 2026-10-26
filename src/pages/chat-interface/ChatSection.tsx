@@ -16,6 +16,7 @@ import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
 import ChatMainArea from './ChatMainArea';
 import { useSpeechRecognition } from './useSpeechRecognition';
+import { useQuestionLocation, QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
 import { applyReadingEvent, nextPartsOf, type NextPart } from './readingProgress';
 import { trackChatQuestionSent } from '../../lib/analytics';
 import {
@@ -86,6 +87,21 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     startListening,
     stopListening,
   } = useSpeechRecognition({ onTranscript });
+
+  // Where the question is asked (prashna chart): asked once per session, after the first question is sent.
+  const {
+    status: questionLocationStatus,
+    ensureLocation,
+    currentLocation,
+    reask: reaskLocation,
+  } = useQuestionLocation({
+    onAsk: () =>
+      setMessages((prev) =>
+        prev.some((m) => m.id === 'question-location-ask')
+          ? prev
+          : [...prev, { id: 'question-location-ask', text: QUESTION_LOCATION_ASK_TEXT, sender: 'system', timestamp: '' }]
+      ),
+  });
 
   const handleStartListening = useCallback(() => {
     inputTextAtSpeechStartRef.current = inputText;
@@ -309,6 +325,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           },
           {
             focus: { subject: part.id, parts: rest.map((p) => p.id) },
+            location: currentLocation(),
             onEvent: (ev) => {
               if (!mountedRef.current) return;
               if (ev.type === 'next') next = nextPartsOf(ev);
@@ -365,6 +382,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
     try {
       if (isChatStreamEnabled()) {
+        const location = await ensureLocation();
         const aiPlaceholderId = (Date.now() + 1).toString();
         streamPlaceholderId = aiPlaceholderId;
         setStreamingMessageId(aiPlaceholderId);
@@ -381,6 +399,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           },
           {
             clarify: isClarifyEnabled(),
+            location,
             onEvent: (ev) => {
               if (!mountedRef.current) return;
               if (ev.type === 'next') {
@@ -488,6 +507,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)));
         },
         {
+          location: currentLocation(),
           onEvent: (ev) => {
             if (!mountedRef.current) return;
             if (ev.type === 'next') {
@@ -657,6 +677,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         onClarifyAnswer={(id, runId, value, viaChip) => void handleClarifyAnswer(id, runId, value, viaChip)}
         onClarifyConfirm={(id, runId) => void handleClarifyConfirm(id, runId)}
         onClarifyChange={handleClarifyChange}
+        questionLocationStatus={questionLocationStatus}
+        onChangeQuestionLocation={() => void reaskLocation()}
       />
 
       <ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />
