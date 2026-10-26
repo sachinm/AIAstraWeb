@@ -12,6 +12,13 @@ import ClarifyCard from './ClarifyCard';
 import ThinkingPanel from './ThinkingPanel';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
 
+/** "Part 2 of 4: Finances" above an answer that is one part of a multi-part question. */
+const PartHeader: React.FC<{ text: string }> = ({ text }) => (
+  <p className="not-prose mb-1 text-xs font-semibold uppercase tracking-wide text-purple-300" data-test-id="answer-part-header">
+    {text}
+  </p>
+);
+
 /** Understanding line + stage pills + collapsible thinking for a reading-engine answer. Renders nothing on the legacy path. */
 const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean; answering?: boolean }> = ({ progress, working, answering = false }) => {
   if (!progress || (!progress.understood && progress.stages.length === 0 && !progress.thinking)) return null;
@@ -232,6 +239,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                   ) : message.sender === 'ai' ? (
                     message.id === streamingMessageId && !message.text.trim() ? (
                       <div className="not-prose flex flex-col gap-2" aria-live="polite">
+                        {message.partHeader && <PartHeader text={message.partHeader} />}
                         <ReadingProgressView progress={message.progress} working />
                         <div className="flex space-x-2" aria-hidden>
                           <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
@@ -248,6 +256,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                       </div>
                     ) : (
                       <>
+                        {message.partHeader && <PartHeader text={message.partHeader} />}
                         <ReadingProgressView progress={message.progress} working={message.id === streamingMessageId} answering />
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
                           {message.text}

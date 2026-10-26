@@ -16,7 +16,7 @@ import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
 import ChatMainArea from './ChatMainArea';
 import { useSpeechRecognition } from './useSpeechRecognition';
-import { applyReadingEvent } from './readingProgress';
+import { applyReadingEvent, nextPartsOf, type NextPart } from './readingProgress';
 import { trackChatQuestionSent } from '../../lib/analytics';
 import {
   MAX_SIDEBAR_CHATS,
@@ -64,6 +64,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   const sidebarRef = useRef<HTMLDivElement>(null);
   const inputTextAtSpeechStartRef = useRef('');
   const mountedRef = useRef(true);
+  /** Bumped by every new question: a running multi-part chain stops when the person asks something else. */
+  const partsRunRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -262,9 +264,85 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     );
   }, []);
 
+  /** Labels the first answer once the server says how many parts the question has. */
+  const labelFirstPart = (messageId: string, parts: NextPart[]) =>
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, partHeader: `Part 1 of ${parts.length + 1}: ${m.progress?.subjects?.[0] ?? 'your first question'}` } : m
+      )
+    );
+
+  /**
+   * Answers the remaining parts of a multi-part question one after another. Each part is its own reading on the server
+   * (fresh budget, own run, own message). The server's `next` event after each part says what is left, so the chain
+   * ends when nothing is left, on an error, or when the person asks something else.
+   */
+  const continueParts = async (question: string, first: NextPart[], chatId: string | null) => {
+    const run = partsRunRef.current;
+    const total = first.length + 1;
+    let pending = first;
+    let index = 2;
+    let thread = chatId;
+    while (pending.length && mountedRef.current && partsRunRef.current === run) {
+      const [part, ...rest] = pending;
+      const id = `${Date.now()}-part-${part.id}`;
+      let next: NextPart[] = [];
+      setMessages((prev) => [
+        ...prev,
+        {
+          id,
+          text: '',
+          sender: 'ai',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          partHeader: `Part ${index} of ${Math.max(total, index)}: ${part.label}`,
+        },
+      ]);
+      setIsTyping(true);
+      setStreamingMessageId(id);
+      try {
+        const { answer, chatId: cid } = await sendChatMessageStream(
+          question,
+          thread,
+          (delta) => {
+            if (!mountedRef.current || !delta) return;
+            setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: m.text + delta } : m)));
+          },
+          {
+            focus: { subject: part.id, parts: rest.map((p) => p.id) },
+            onEvent: (ev) => {
+              if (!mountedRef.current) return;
+              if (ev.type === 'next') next = nextPartsOf(ev);
+              setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, progress: applyReadingEvent(m.progress, ev) } : m)));
+            },
+          }
+        );
+        thread = cid || thread;
+        if (mountedRef.current) {
+          if (thread) setActiveChat(thread);
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: answer } : m)));
+        }
+      } catch (err) {
+        if (mountedRef.current) {
+          const msg = err instanceof Error ? err.message : 'Something went wrong';
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: m.text || msg } : m)));
+        }
+        break;
+      } finally {
+        if (mountedRef.current) {
+          setStreamingMessageId(null);
+          setIsTyping(false);
+        }
+      }
+      pending = next;
+      index += 1;
+    }
+  };
+
   const handleSendMessage = async () => {
     const trimmed = inputText.trim();
     if (!trimmed) return;
+    partsRunRef.current += 1; // a new question stops any multi-part chain still running
+    let continueFrom: { chatId: string | null; parts: NextPart[] } | null = null;
 
     trackChatQuestionSent(trimmed);
 
@@ -291,6 +369,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         streamPlaceholderId = aiPlaceholderId;
         setStreamingMessageId(aiPlaceholderId);
         setMessages((prev) => [...prev, { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts }]);
+        let nextParts: NextPart[] = [];
         const { answer, chatId, clarifyingRunId } = await sendChatMessageStream(
           userMessage.text,
           activeChat,
@@ -304,6 +383,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             clarify: isClarifyEnabled(),
             onEvent: (ev) => {
               if (!mountedRef.current) return;
+              if (ev.type === 'next') {
+                nextParts = nextPartsOf(ev);
+                if (nextParts.length) labelFirstPart(aiPlaceholderId, nextParts);
+              }
               const view = toClarifyView(ev as Record<string, unknown>);
               setMessages((prev) =>
                 prev.map((m) =>
@@ -320,6 +403,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: answer } : m))
           );
           updateSidebarPreview(chatId ?? threadIdAtSend, trimmed);
+          if (nextParts.length) continueFrom = { chatId, parts: nextParts };
         }
       } else {
         const aiText = await sendChatMessage(userMessage.text, activeChat);
@@ -353,6 +437,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         setIsTyping(false);
       }
     }
+    // the other parts of the question, one after another (only after this answer's stream has fully closed)
+    if (continueFrom) await continueParts(trimmed, continueFrom.parts, continueFrom.chatId);
   };
 
   // Enter sends, Shift+Enter is a new line (chat-interface-review §3.4)
@@ -384,6 +470,9 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   /** "Yes, read it": stream the reading into the same message. */
   const handleClarifyConfirm = async (messageId: string, runId: string) => {
     const question = messages.find((m) => m.id === messageId)?.clarifyQuestion ?? '';
+    partsRunRef.current += 1;
+    let nextParts: NextPart[] = [];
+    let continueFrom: { chatId: string | null; parts: NextPart[] } | null = null;
     setClarify(messageId, undefined);
     setIsTyping(true);
     setStreamingMessageId(messageId);
@@ -398,6 +487,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         {
           onEvent: (ev) => {
             if (!mountedRef.current) return;
+            if (ev.type === 'next') {
+              nextParts = nextPartsOf(ev);
+              if (nextParts.length) labelFirstPart(messageId, nextParts);
+            }
             setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, progress: applyReadingEvent(m.progress, ev) } : m)));
           },
         }
@@ -406,6 +499,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         setActiveChat(chatId);
         setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: answer } : m)));
         updateSidebarPreview(chatId, question);
+        if (nextParts.length) continueFrom = { chatId, parts: nextParts };
       }
     } catch (err) {
       if (mountedRef.current) setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text || (err instanceof Error ? err.message : 'Something went wrong') } : m)));
@@ -415,6 +509,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         setIsTyping(false);
       }
     }
+    // "love first" was confirmed: now the other parts, one after another
+    if (continueFrom) await continueParts(question, continueFrom.parts, continueFrom.chatId);
   };
 
   /** "Change": put the question back in the input so the person can rephrase it. */
