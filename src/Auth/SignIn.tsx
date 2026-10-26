@@ -12,12 +12,14 @@ interface SignInProps {
 }
 
 /**
- * Optional route state. Sign-up passes the email (and codeSent) so this page opens with the code field
- * already showing; the sign-up link after "email already registered" passes only the email.
+ * Optional route state. Sign-up passes the email (with codeSent and fromSignUp) so this page opens with the
+ * code field already showing and a line saying the verification email was sent; the sign-up link after "email already registered" passes only the email.
  */
 interface SignInRouteState {
   email?: string;
   codeSent?: boolean;
+  /** True only when arriving straight from a successful sign-up (shows the verification-email line). */
+  fromSignUp?: boolean;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,6 +49,11 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   }, [searchParams, setSearchParams]);
 
   const [email, setEmail] = useState(routeState?.email ?? '');
+  // Shown once, until the user asks for another code or edits the address (then the line would be stale).
+  const [verificationNotice, setVerificationNotice] = useState(
+    Boolean(routeState?.fromSignUp && routeState?.codeSent && routeState?.email)
+  );
+  const sentTo = routeState?.email ?? '';
   const [codeSent, setCodeSent] = useState(Boolean(routeState?.codeSent && routeState?.email));
   const [code, setCode] = useState('');
   // A code is already on its way when we arrive from sign-up, so the cooldown starts right away.
@@ -90,6 +97,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         // Turnstile tokens are single use: the next request needs a fresh check.
         turnstile.reset();
         setCode('');
+        setVerificationNotice(false);
         setCodeSent(true);
         setCooldown(RESEND_COOLDOWN_SECONDS);
       } else {
@@ -175,7 +183,10 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                   type="email"
                   id="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (e.target.value.trim() !== sentTo) setVerificationNotice(false);
+                  }}
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                   placeholder="you@example.com"
                   autoComplete="email"
@@ -186,6 +197,15 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
             {codeSent && (
               <div>
+                {verificationNotice && (
+                  <div
+                    role="status"
+                    className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 px-4 py-3 rounded-lg mb-4 text-sm"
+                  >
+                    Your account is created. We sent a verification email to <strong>{sentTo}</strong>. Enter the
+                    code from it below to finish signing up.
+                  </div>
+                )}
                 <label htmlFor="code" className="block text-sm font-medium text-gray-300 mb-2">
                   Sign-in code
                 </label>

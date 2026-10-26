@@ -38,6 +38,91 @@ describe('SignIn (one page, email then code)', () => {
     expect(screen.queryByLabelText(/sign-in code/i)).not.toBeInTheDocument();
   });
 
+  it('is one screen: a single form whose code field and Verify button appear below the email after sending', async () => {
+    const user = userEvent.setup();
+    vi.mocked(requestMagicLinkEmail).mockResolvedValueOnce({ success: true });
+    const { container } = renderSignIn();
+
+    // before: one form, email only, one submit button
+    expect(container.querySelectorAll('form')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /^verify$/i })).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/email address/i), 'a@b.co');
+    await user.click(screen.getByRole('button', { name: /send me a code/i }));
+    const codeField = await screen.findByLabelText(/sign-in code/i);
+
+    // after: still one form, code field is below the email, Verify replaces "Send me a code"
+    expect(container.querySelectorAll('form')).toHaveLength(1);
+    const emailField = screen.getByLabelText(/email address/i);
+    expect(emailField.compareDocumentPosition(codeField) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^verify$/i })).toHaveAttribute('type', 'submit');
+    expect(screen.queryByRole('button', { name: /send me a code/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send a new code/i })).toHaveAttribute('type', 'button');
+    // no verification-email banner when the user came to sign in (it is for the sign-up hand-over only)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('has no password field, no forgot-password link and no reset link at any step', async () => {
+    const user = userEvent.setup();
+    vi.mocked(requestMagicLinkEmail).mockResolvedValueOnce({ success: true });
+    const { container } = renderSignIn();
+    const check = () => {
+      expect(container.querySelector('input[type="password"]')).toBeNull();
+      expect(container.textContent).not.toMatch(/password|forgot|reset/i);
+      expect(screen.queryByRole('link', { name: /forgot|reset/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /forgot|reset/i })).not.toBeInTheDocument();
+    };
+    check();
+    await user.type(screen.getByLabelText(/email address/i), 'a@b.co');
+    await user.click(screen.getByRole('button', { name: /send me a code/i }));
+    await screen.findByLabelText(/sign-in code/i);
+    check();
+  });
+
+  describe('arriving from sign-up', () => {
+    const fromSignUp = { pathname: '/signin', state: { email: 'new@b.co', codeSent: true, fromSignUp: true } };
+
+    it('shows the code field and a clear line that the verification email was sent to that address', () => {
+      renderSignIn(fromSignUp);
+      expect(screen.getByLabelText(/email address/i)).toHaveValue('new@b.co');
+      const code = screen.getByLabelText(/sign-in code/i);
+      expect(code).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^verify$/i })).toBeInTheDocument();
+      const note = screen.getByRole('status');
+      expect(note).toHaveTextContent(/verification email/i);
+      expect(note).toHaveTextContent('new@b.co');
+      // the note sits between the email and the code field, on the same screen
+      const email = screen.getByLabelText(/email address/i);
+      expect(email.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(note.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // the 30 second cooldown is already running
+      expect(screen.getByRole('button', { name: /send a new code/i })).toBeDisabled();
+      expect(screen.getByText(/new code in \d+s/i)).toBeInTheDocument();
+    });
+
+    it('does not show the line when only the email is prefilled', () => {
+      renderSignIn({ pathname: '/signin', state: { email: 'taken@b.co' } });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('drops the line once the address is edited, because it would no longer be true', async () => {
+      const user = userEvent.setup();
+      renderSignIn(fromSignUp);
+      await user.type(screen.getByLabelText(/email address/i), 'x');
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('signs in with the code from the verification email', async () => {
+      const user = userEvent.setup();
+      vi.mocked(loginWithMagicLink).mockResolvedValueOnce({ success: true, user: 'user-9' });
+      renderSignIn(fromSignUp);
+      await user.type(screen.getByLabelText(/sign-in code/i), '123456');
+      await user.click(screen.getByRole('button', { name: /^verify$/i }));
+      await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('new@b.co', '123456', null));
+      expect(mockHandleSignIn).toHaveBeenCalledWith('user-9');
+    });
+  });
+
   it('has a back button that calls onBack', async () => {
     const user = userEvent.setup();
     renderSignIn();
