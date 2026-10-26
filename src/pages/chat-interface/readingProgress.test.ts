@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyReadingEvent, emptyProgress, MAX_THINKING_CHARS, nextPartsOf, visibleChips, type ReadingProgress } from './readingProgress';
+import { applyReadingEvent, emptyProgress, formatSeconds, MAX_THINKING_CHARS, nextPartsOf, panelStages, stageCounts, stageReason, visibleChips, type ReadingProgress } from './readingProgress';
 
 describe('applyReadingEvent', () => {
   it('captures the understanding line and subjects from the intent event', () => {
@@ -108,5 +108,56 @@ describe('next parts', () => {
     expect(nextPartsOf({ parts: [{ id: 'x', label: 'X' }, { id: 3 }, null, 'y'] })).toEqual([{ id: 'x', label: 'X' }]);
     expect(nextPartsOf({ parts: 'nope' })).toEqual([]);
     expect(applyReadingEvent(emptyProgress(), { type: 'next', parts: [] }).next).toBeUndefined();
+  });
+});
+
+describe('stage states for the progress panel', () => {
+  it('keeps the server skipped status instead of showing it as still running', () => {
+    const p = applyReadingEvent(undefined, { type: 'stage', name: 'nakshatra', status: 'skipped', ms: 18000 }, 50_000);
+    expect(p.stages[0]).toMatchObject({ status: 'skipped', ms: 18000, startedAt: 32_000, endedAt: 50_000 });
+    expect(stageReason(visibleChips(p)[0]!)).toMatch(/^Skipped/);
+  });
+
+  it('records start time, cache hits, server reasons and the transit-unavailable note', () => {
+    let p = applyReadingEvent(undefined, { type: 'stage', name: 'promise', status: 'start' }, 1000);
+    p = applyReadingEvent(p, { type: 'stage', name: 'promise', status: 'done', ms: 5, cached: true }, 1005);
+    expect(p.stages[0]).toMatchObject({ startedAt: 1000, endedAt: 1005, cached: true });
+    expect(stageReason(p.stages[0]!)).toBe('Reused from an earlier reading');
+    p = applyReadingEvent(p, { type: 'stage', name: 'prepare', status: 'done', ms: 10, detail: { transits: 'unavailable' } }, 1010);
+    expect(stageReason(visibleChips(p).find((c) => c.name === 'prepare')!)).toBe('Transit data unavailable');
+    p = applyReadingEvent(p, { type: 'stage', name: 'dasha', status: 'skipped', reason: 'timeout' }, 1020);
+    expect(stageReason(visibleChips(p).find((c) => c.name === 'dasha')!)).toBe('Skipped (timed out) — optional check');
+  });
+
+  it('failed reads as a capped reading, after a retry unless the server says there was none', () => {
+    const chip = { key: 'dasha', name: 'dasha', label: 'Dasha', status: 'failed' as const };
+    expect(stageReason(chip)).toBe('Did not finish after a retry — reading confidence capped');
+    expect(stageReason({ ...chip, reason: 'timeout' })).toBe('Timed out after a retry — reading confidence capped');
+    expect(stageReason({ ...chip, retried: false })).toBe('Did not finish — reading confidence capped');
+  });
+
+  it('a running subject outranks a skipped one; failed outranks all', () => {
+    let p: ReadingProgress | undefined;
+    p = applyReadingEvent(p, { type: 'stage', name: 'transit', status: 'skipped', subject: 'a' });
+    p = applyReadingEvent(p, { type: 'stage', name: 'transit', status: 'start', subject: 'b' });
+    expect(visibleChips(p)[0]!.status).toBe('start');
+    p = applyReadingEvent(p, { type: 'stage', name: 'transit', status: 'failed', subject: 'c' });
+    expect(visibleChips(p)[0]!.status).toBe('failed');
+  });
+
+  it('adds waiting rows for Cross-check and Writing, and counts finished stages', () => {
+    let p = applyReadingEvent(undefined, { type: 'stage', name: 'prepare', status: 'done', ms: 1 });
+    expect(panelStages(p).map((s) => `${s.name}:${s.status}`)).toEqual(['prepare:done', 'synthesize:waiting']);
+    p = applyReadingEvent(p, { type: 'stage', name: 'dasha', status: 'start' });
+    const stages = panelStages(p);
+    expect(stages.map((s) => s.name)).toEqual(['prepare', 'dasha', 'reconcile', 'synthesize']);
+    expect(stageCounts(stages)).toEqual({ finished: 1, total: 4 });
+    expect(panelStages(undefined)).toEqual([]);
+  });
+
+  it('formats times for people', () => {
+    expect(formatSeconds(4200)).toBe('4.2 s');
+    expect(formatSeconds(34_400)).toBe('34 s');
+    expect(formatSeconds(65_000)).toBe('1 m 05 s');
   });
 });
