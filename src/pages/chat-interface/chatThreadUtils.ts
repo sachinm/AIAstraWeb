@@ -22,6 +22,8 @@ export interface UiMessage {
   clarify?: ClarifyView;
   /** The question the clarify card belongs to (for the sidebar preview once the reading streams) */
   clarifyQuestion?: string;
+  /** "Part 2 of 4: Finances" when this answer is one part of a multi-part question */
+  partHeader?: string;
 }
 
 export interface SidebarChatRow {

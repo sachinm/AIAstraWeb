@@ -22,13 +22,29 @@ export interface ReadingProgress {
   windowsCount?: number;
   /** Thought summaries streamed while the answer is prepared (event `thought`). Shown in a collapsible panel, never saved. */
   thinking?: string;
+  /** Parts of the question still to answer, in order (event `next`); the chat reads them one after another. */
+  next?: NextPart[];
+}
+
+export interface NextPart {
+  id: string;
+  label: string;
+}
+
+/** The parts listed by a `next` event (ids and labels as strings only). */
+export function nextPartsOf(ev: Record<string, unknown>): NextPart[] {
+  const parts = ev.parts;
+  if (!Array.isArray(parts)) return [];
+  return parts
+    .filter((p): p is { id: string; label: string } => !!p && typeof (p as NextPart).id === 'string' && typeof (p as NextPart).label === 'string')
+    .map((p) => ({ id: p.id, label: p.label }));
 }
 
 /** Longest thinking text kept in memory for one answer. */
 export const MAX_THINKING_CHARS = 20_000;
 
 export interface ReadingStreamEvent {
-  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'thought';
+  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'thought' | 'next';
   [k: string]: unknown;
 }
 
@@ -56,6 +72,11 @@ export function applyReadingEvent(prev: ReadingProgress | undefined, ev: Reading
     p.understood = typeof intent.text === 'string' ? intent.text : p.understood;
     p.subjects = (intent.subjects ?? []).map((s) => s.label ?? '').filter(Boolean);
     p.horizonLabel = intent.horizonLabel;
+    return p;
+  }
+  if (ev.type === 'next') {
+    const parts = nextPartsOf(ev);
+    if (parts.length) p.next = parts;
     return p;
   }
   if (ev.type === 'thought') {

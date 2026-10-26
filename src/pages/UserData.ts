@@ -89,7 +89,7 @@ async function consumeChatAskSse(
         if (ev.status === 'clarifying' && typeof ev.runId === 'string') clarifyingRunId = ev.runId;
       } else if (ev.type === 'error') {
         throw new Error(ev.message || 'Stream error');
-      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'thought') {
+      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'thought' || ev.type === 'next') {
         // reading-engine progress; older servers never send these
         onEvent?.(ev as ReadingStreamEvent);
       }
@@ -142,9 +142,25 @@ export const sendChatMessageStream = async (
   question: string,
   chatId: string | null | undefined,
   onDelta: (delta: string) => void,
-  options?: { signal?: AbortSignal; onEvent?: (event: ReadingStreamEvent) => void; clarify?: boolean }
+  options?: {
+    signal?: AbortSignal;
+    onEvent?: (event: ReadingStreamEvent) => void;
+    clarify?: boolean;
+    /** Answer one part of a multi-part question (after a `next` event); `parts` are the ones still to come after it. */
+    focus?: { subject: string; parts: string[] };
+  }
 ): Promise<StreamResult> => {
-  return postChatSse(getChatAskStreamUrl(), { question, chatId: chatId ?? null, ...(options?.clarify ? { clarify: true } : {}) }, onDelta, options);
+  return postChatSse(
+    getChatAskStreamUrl(),
+    {
+      question,
+      chatId: chatId ?? null,
+      ...(options?.clarify ? { clarify: true } : {}),
+      ...(options?.focus ? { focus: options.focus.subject, parts: options.focus.parts } : {}),
+    },
+    onDelta,
+    options
+  );
 };
 
 /** Confirms the clarified question and streams the reading (clarify agent). */
