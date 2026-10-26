@@ -54,15 +54,42 @@ export function saveSidebarPrefs(p: SidebarPrefs): void {
   }
 }
 
+/** The clarify question "Where are you living now?" (server criterion `location`). */
+export const LOCATION_CRITERION = 'location';
+
+/** Placeholder of the clarify card's text box: a place for the location question, a generic hint otherwise. */
+export function clarifyPlaceholder(criterion?: string): string {
+  return criterion === LOCATION_CRITERION ? 'Type your city, e.g. Pune, India' : 'Or type your answer';
+}
+
+/** The browser's IANA timezone ("Asia/Kolkata"), or undefined when the runtime cannot tell. Sent with the location answer. */
+export function browserTimeZone(): string | undefined {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return typeof tz === 'string' && tz ? tz : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** What the clarify card shows (server events from the clarify agent). */
 export type ClarifyView =
-  | { type: 'clarify'; runId: string; question: string; chips: Array<{ label: string; value: string }>; allowFreeText: boolean; guidance?: string; understanding?: string }
+  | { type: 'clarify'; runId: string; question: string; chips: Array<{ label: string; value: string }>; allowFreeText: boolean; guidance?: string; understanding?: string; criterion?: string }
   | { type: 'propose'; runId: string; exactQuery: string; assumed?: string | null }
   | { type: 'declined'; runId?: string; reply: string };
 
 export function toClarifyView(ev: Record<string, unknown>): ClarifyView | null {
   if (ev.type === 'clarify' && typeof ev.runId === 'string' && typeof ev.question === 'string') {
-    return { type: 'clarify', runId: ev.runId, question: ev.question, chips: Array.isArray(ev.chips) ? (ev.chips as Array<{ label: string; value: string }>) : [], allowFreeText: ev.allowFreeText !== false, guidance: typeof ev.guidance === 'string' ? ev.guidance : undefined, understanding: typeof ev.understanding === 'string' ? ev.understanding : undefined };
+    return {
+      type: 'clarify',
+      runId: ev.runId,
+      question: ev.question,
+      chips: Array.isArray(ev.chips) ? (ev.chips as Array<{ label: string; value: string }>) : [],
+      allowFreeText: ev.allowFreeText !== false,
+      guidance: typeof ev.guidance === 'string' ? ev.guidance : undefined,
+      understanding: typeof ev.understanding === 'string' ? ev.understanding : undefined,
+      criterion: typeof ev.criterion === 'string' ? ev.criterion : undefined,
+    };
   }
   if (ev.type === 'propose' && typeof ev.runId === 'string' && typeof ev.exactQuery === 'string') {
     return { type: 'propose', runId: ev.runId, exactQuery: ev.exactQuery, assumed: typeof ev.assumed === 'string' ? ev.assumed : null };

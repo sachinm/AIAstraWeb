@@ -179,11 +179,14 @@ export type ClarifyAnswerResult =
   | { type: 'declined'; runId: string; reply: string }
   | { type: 'ready'; runId: string };
 
-/** Sends a chip or typed answer to the clarify agent; returns its next step. */
-export const answerClarify = async (runId: string, value: string, viaChip: boolean): Promise<ClarifyAnswerResult> => {
+/**
+ * Sends a chip or typed answer to the clarify agent; returns its next step. `tz` (the browser's IANA timezone) goes
+ * with the answer to "Where are you living now?" so timing can be stated in local terms.
+ */
+export const answerClarify = async (runId: string, value: string, viaChip: boolean, options?: { tz?: string }): Promise<ClarifyAnswerResult> => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (!token) throw new Error('Not authenticated');
-  const body = JSON.stringify({ runId, value, viaChip });
+  const body = JSON.stringify({ runId, value, viaChip, ...(options?.tz ? { tz: options.tz } : {}) });
   const headers = await buildApiHeaders({ token, body, method: 'POST' });
   const res = await fetch(chatApiUrl('/api/chat/answer'), { method: 'POST', headers, body });
   if (res.status === 401) throw new Error('Not authenticated');
