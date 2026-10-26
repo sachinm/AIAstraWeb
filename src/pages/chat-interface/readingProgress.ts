@@ -20,10 +20,15 @@ export interface ReadingProgress {
   horizonLabel?: string;
   stages: StageChip[];
   windowsCount?: number;
+  /** Thought summaries streamed while the answer is prepared (event `thought`). Shown in a collapsible panel, never saved. */
+  thinking?: string;
 }
 
+/** Longest thinking text kept in memory for one answer. */
+export const MAX_THINKING_CHARS = 20_000;
+
 export interface ReadingStreamEvent {
-  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose';
+  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'thought';
   [k: string]: unknown;
 }
 
@@ -51,6 +56,11 @@ export function applyReadingEvent(prev: ReadingProgress | undefined, ev: Reading
     p.understood = typeof intent.text === 'string' ? intent.text : p.understood;
     p.subjects = (intent.subjects ?? []).map((s) => s.label ?? '').filter(Boolean);
     p.horizonLabel = intent.horizonLabel;
+    return p;
+  }
+  if (ev.type === 'thought') {
+    const delta = typeof ev.delta === 'string' ? ev.delta : '';
+    if (delta) p.thinking = ((p.thinking ?? '') + delta).slice(0, MAX_THINKING_CHARS);
     return p;
   }
   if (ev.type === 'windows') {

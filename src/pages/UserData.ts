@@ -89,7 +89,7 @@ async function consumeChatAskSse(
         if (ev.status === 'clarifying' && typeof ev.runId === 'string') clarifyingRunId = ev.runId;
       } else if (ev.type === 'error') {
         throw new Error(ev.message || 'Stream error');
-      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose') {
+      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'thought') {
         // reading-engine progress; older servers never send these
         onEvent?.(ev as ReadingStreamEvent);
       }
