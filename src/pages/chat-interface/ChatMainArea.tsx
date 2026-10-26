@@ -9,11 +9,12 @@ import type { UiMessage } from './chatThreadUtils';
 import { visibleChips, type ReadingProgress, type StageChip } from './readingProgress';
 import Disclaimer from '../../components/Disclaimer';
 import ClarifyCard from './ClarifyCard';
+import ThinkingPanel from './ThinkingPanel';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
 
-/** Understanding line + stage pills for a reading-engine answer. Renders nothing on the legacy path. */
-const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean }> = ({ progress, working }) => {
-  if (!progress || (!progress.understood && progress.stages.length === 0)) return null;
+/** Understanding line + stage pills + collapsible thinking for a reading-engine answer. Renders nothing on the legacy path. */
+const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean; answering?: boolean }> = ({ progress, working, answering = false }) => {
+  if (!progress || (!progress.understood && progress.stages.length === 0 && !progress.thinking)) return null;
   const chips = visibleChips(progress);
   const pill = (c: StageChip) => {
     const tone =
@@ -47,6 +48,7 @@ const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boole
           {chips.map(pill)}
         </div>
       )}
+      {progress.thinking && <ThinkingPanel text={progress.thinking} answering={answering} working={working} />}
     </div>
   );
 };
@@ -246,7 +248,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                       </div>
                     ) : (
                       <>
-                        <ReadingProgressView progress={message.progress} working={message.id === streamingMessageId} />
+                        <ReadingProgressView progress={message.progress} working={message.id === streamingMessageId} answering />
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
                           {message.text}
                         </ReactMarkdown>
