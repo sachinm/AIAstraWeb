@@ -12,6 +12,7 @@ import Disclaimer from '../../components/Disclaimer';
 import ClarifyCard from './ClarifyCard';
 import ThinkingPanel from './ThinkingPanel';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
+import type { QuestionLocationStatus } from './useQuestionLocation';
 
 /** "Part 2 of 4: Finances" above an answer that is one part of a multi-part question. */
 const PartHeader: React.FC<{ text: string }> = ({ text }) => (
@@ -81,6 +82,10 @@ export interface ChatMainAreaProps {
   onClarifyAnswer?: (messageId: string, runId: string, value: string, viaChip: boolean) => void;
   onClarifyConfirm?: (messageId: string, runId: string) => void;
   onClarifyChange?: (messageId: string) => void;
+  /** Where readings are cast from: the browser's location this session, or the birth place (server docs 28 §4). */
+  questionLocationStatus?: QuestionLocationStatus;
+  /** Ask the browser for location again. */
+  onChangeQuestionLocation?: () => void;
 }
 
 const ChatMainArea: React.FC<ChatMainAreaProps> = ({
@@ -104,6 +109,8 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   onClarifyAnswer,
   onClarifyConfirm,
   onClarifyChange,
+  questionLocationStatus,
+  onChangeQuestionLocation,
 }) => {
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
 
@@ -412,6 +419,30 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           </button>
         </div>
 
+        {questionLocationStatus && (
+          <p className="mt-2 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-question-location">
+            <span data-test-id="chat-main-area-question-location-status">
+              {questionLocationStatus === 'granted'
+                ? 'Using your current location'
+                : questionLocationStatus === 'asking'
+                  ? 'Checking your location…'
+                  : 'Using your birth place'}
+            </span>
+            {onChangeQuestionLocation && questionLocationStatus !== 'asking' && (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  data-test-id="chat-main-area-question-location-change"
+                  onClick={onChangeQuestionLocation}
+                  className="underline text-purple-300 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+                >
+                  {questionLocationStatus === 'granted' ? 'Change' : 'Use my location'}
+                </button>
+              </>
+            )}
+          </p>
+        )}
         <div className="flex items-center justify-center mt-2 px-2" data-test-id="chat-main-area-disclaimer">
           <Disclaimer />
         </div>
