@@ -21,7 +21,11 @@ interface SignInRouteState {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CODE_LENGTH = 8; // server contract: 8-character code, 5 minute TTL
+/** Codes differ by sign-in method (digits or letters and digits, 6 to 8 long); the server decides what is valid. */
+const CODE_MIN_LENGTH = 6;
+const CODE_MAX_LENGTH = 8;
+/** Seconds the user must wait before asking for another code. */
+const RESEND_COOLDOWN_SECONDS = 30;
 
 /**
  * One page, no step change: email field, "Send me a code". Once a code is sent, the code field appears
@@ -45,14 +49,25 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   const [email, setEmail] = useState(routeState?.email ?? '');
   const [codeSent, setCodeSent] = useState(Boolean(routeState?.codeSent && routeState?.email));
   const [code, setCode] = useState('');
+  // A code is already on its way when we arrive from sign-up, so the cooldown starts right away.
+  const [cooldown, setCooldown] = useState(
+    routeState?.codeSent && routeState?.email ? RESEND_COOLDOWN_SECONDS : 0
+  );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const turnstile = useTurnstile();
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   /** Emails a code to the address in the field. Used by "Send me a code" and by "Resend code". */
   const sendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError('');
+    if (codeSent && cooldown > 0) return;
     const trimmed = email.trim();
     if (!trimmed) {
       setError('Please enter your email address.');
@@ -76,6 +91,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         turnstile.reset();
         setCode('');
         setCodeSent(true);
+        setCooldown(RESEND_COOLDOWN_SECONDS);
       } else {
         setError(r.message || 'Something went wrong. Please try again.');
         turnstile.reset();
@@ -93,8 +109,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
     e.preventDefault();
     setError('');
     const codeNorm = code.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    if (codeNorm.length !== CODE_LENGTH) {
-      setError(`Enter the ${CODE_LENGTH}-character code from your email.`);
+    if (codeNorm.length < CODE_MIN_LENGTH || codeNorm.length > CODE_MAX_LENGTH) {
+      setError('Enter the code we emailed you.');
       return;
     }
 
@@ -178,22 +194,27 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                   id="code"
                   value={code}
                   onChange={(e) =>
-                    setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH))
+                    setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_MAX_LENGTH))
                   }
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white text-center text-xl tracking-[0.35em] font-mono placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="XXXXXXXX"
-                  maxLength={CODE_LENGTH}
+                  placeholder="Enter code"
+                  maxLength={CODE_MAX_LENGTH}
                   autoComplete="one-time-code"
                 />
+                <p className="mt-2 text-sm text-gray-400">
+                  Enter the code we emailed you. It expires in a few minutes.
+                </p>
                 <div className="flex justify-between items-center mt-2 text-sm">
-                  <span className="text-gray-400">Expires in 5 minutes.</span>
+                  <span className="text-gray-400" aria-live="polite">
+                    {cooldown > 0 ? `You can ask for a new code in ${cooldown}s.` : ''}
+                  </span>
                   <button
                     type="button"
                     onClick={() => sendCode()}
-                    disabled={loading}
-                    className="text-purple-400 hover:text-purple-300 font-medium transition-colors disabled:opacity-50"
+                    disabled={loading || cooldown > 0}
+                    className="text-purple-400 hover:text-purple-300 underline underline-offset-2 font-medium transition-colors disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
                   >
-                    Resend code
+                    Send a new code
                   </button>
                 </div>
               </div>
