@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyReadingEvent, emptyProgress, visibleChips, type ReadingProgress } from './readingProgress';
+import { applyReadingEvent, emptyProgress, MAX_THINKING_CHARS, visibleChips, type ReadingProgress } from './readingProgress';
 
 describe('applyReadingEvent', () => {
   it('captures the understanding line and subjects from the intent event', () => {
@@ -60,5 +60,31 @@ describe('applyReadingEvent', () => {
     const p = applyReadingEvent(undefined, { type: 'windows', windows: [{}, {}, {}] });
     expect(p.windowsCount).toBe(3);
     expect(applyReadingEvent(p, { type: 'info', reason: 'dossier_missing' })).toEqual(p);
+  });
+});
+
+describe('thought events', () => {
+  it('accumulates thought text in order without touching stages or the understanding line', () => {
+    let p: ReadingProgress = emptyProgress();
+    p = applyReadingEvent(p, { type: 'intent', intent: { text: 'About your career.' } });
+    p = applyReadingEvent(p, { type: 'thought', delta: '**Checking** the 10th lord. ' });
+    p = applyReadingEvent(p, { type: 'thought', delta: 'Weighing the dasha.' });
+    expect(p.thinking).toBe('**Checking** the 10th lord. Weighing the dasha.');
+    expect(p.understood).toBe('About your career.');
+    expect(p.stages).toEqual([]);
+  });
+
+  it('ignores empty or non-string deltas', () => {
+    let p: ReadingProgress = emptyProgress();
+    p = applyReadingEvent(p, { type: 'thought', delta: '' });
+    p = applyReadingEvent(p, { type: 'thought', delta: 42 as unknown as string });
+    expect(p.thinking).toBeUndefined();
+  });
+
+  it('keeps at most MAX_THINKING_CHARS', () => {
+    let p: ReadingProgress = emptyProgress();
+    p = applyReadingEvent(p, { type: 'thought', delta: 'a'.repeat(MAX_THINKING_CHARS - 10) });
+    p = applyReadingEvent(p, { type: 'thought', delta: 'b'.repeat(500) });
+    expect(p.thinking!.length).toBe(MAX_THINKING_CHARS);
   });
 });
