@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyReadingEvent, emptyProgress, MAX_THINKING_CHARS, visibleChips, type ReadingProgress } from './readingProgress';
+import { applyReadingEvent, emptyProgress, MAX_THINKING_CHARS, nextPartsOf, visibleChips, type ReadingProgress } from './readingProgress';
 
 describe('applyReadingEvent', () => {
   it('captures the understanding line and subjects from the intent event', () => {
@@ -86,5 +86,27 @@ describe('thought events', () => {
     p = applyReadingEvent(p, { type: 'thought', delta: 'a'.repeat(MAX_THINKING_CHARS - 10) });
     p = applyReadingEvent(p, { type: 'thought', delta: 'b'.repeat(500) });
     expect(p.thinking!.length).toBe(MAX_THINKING_CHARS);
+  });
+});
+
+describe('next parts', () => {
+  it('keeps the parts still to come, in order, from a next event', () => {
+    const p = applyReadingEvent(emptyProgress(), {
+      type: 'next',
+      parts: [
+        { id: 'income_wealth', label: 'Money and finances' },
+        { id: 'career_work', label: 'Career and work' },
+      ],
+    });
+    expect(p.next).toEqual([
+      { id: 'income_wealth', label: 'Money and finances' },
+      { id: 'career_work', label: 'Career and work' },
+    ]);
+  });
+
+  it('drops malformed parts and ignores an empty list', () => {
+    expect(nextPartsOf({ parts: [{ id: 'x', label: 'X' }, { id: 3 }, null, 'y'] })).toEqual([{ id: 'x', label: 'X' }]);
+    expect(nextPartsOf({ parts: 'nope' })).toEqual([]);
+    expect(applyReadingEvent(emptyProgress(), { type: 'next', parts: [] }).next).toBeUndefined();
   });
 });
