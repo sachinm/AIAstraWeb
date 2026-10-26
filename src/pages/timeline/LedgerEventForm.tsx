@@ -217,7 +217,7 @@ const LedgerEventForm: React.FC<Props> = ({ meta, title, submitLabel, initial, f
           type="text"
           className={inputCls}
           value={place}
-          maxLength={200}
+          maxLength={120}
           onChange={(e) => setPlace(e.target.value)}
           aria-invalid={!!errors.place}
           aria-describedby={describedBy('place')}
