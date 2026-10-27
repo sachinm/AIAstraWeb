@@ -28,4 +28,13 @@ describe('no password UI anywhere in the web app', () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  it('has no age field or age state anywhere (the date of birth is the only input)', () => {
+    const offenders: string[] = [];
+    for (const f of files) {
+      const text = readFileSync(f, 'utf8');
+      if (/age/i.test(text)) offenders.push(f);
+    }
+    expect(offenders).toEqual([]);
+  });
 });
