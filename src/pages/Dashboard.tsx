@@ -2,11 +2,11 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import TopNavigation from './TopNavigation';
 import Disclaimer from '../components/Disclaimer';
+import KundliNotice from '../components/KundliNotice';
 
 interface User {
   name: string;
   email: string;
-  age: number;
   dateOfBirth: string;
   placeOfBirth: string;
   timeOfBirth: string;
@@ -27,6 +27,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         user={user}
         onLogout={onLogout}
       />
+
+      <KundliNotice />
 
       {/* Main Content */}
       <div className="flex min-h-0 flex-1">

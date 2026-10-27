@@ -13,7 +13,6 @@ import {
 export interface User {
   name: string;
   email: string;
-  age: number;
   dateOfBirth: string;
   placeOfBirth: string;
   timeOfBirth: string;

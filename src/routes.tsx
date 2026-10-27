@@ -2,12 +2,14 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LandingPage from './LandingPage';
 import SignIn from './Auth/SignIn';
 import SignUp from './Auth/SignUp';
+import BirthDetails from './Auth/BirthDetails';
+import ProfileGate from './Auth/ProfileGate';
 import Dashboard from './pages/Dashboard';
+import ProfileSection from './pages/profile/ProfileSection';
 import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
-import LedgerSection from './pages/timeline/LedgerSection';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -68,7 +70,10 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           path="/signup"
           element={
             <SignUp
-              onCodeSent={(email) => navigate('/signin', { state: { email, codeSent: true, fromSignUp: true } })}
+              onVerified={({ email, name }) => {
+                handleSignIn({ name, email, dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' });
+                navigate('/signup/details', { replace: true });
+              }}
               onSignIn={(email) => navigate('/signin', { state: email ? { email } : undefined })}
               onBack={() => navigate('/')}
             />
@@ -77,6 +82,11 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       </Route>
 
       <Route element={<ProtectedRoute {...gateProps} />}>
+        <Route
+          path="/signup/details"
+          element={<BirthDetails onDone={() => navigate('/dashboard/chat', { replace: true })} />}
+        />
+        <Route element={<ProfileGate />}>
         <Route
           path="/dashboard"
           element={
@@ -95,7 +105,20 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <Route path="charts" element={<ChartsSection user={user!} />} />
           <Route path="mantras" element={<MantrasSection user={user!} />} />
           <Route path="remedies" element={<RemediesSection user={user!} />} />
-          <Route path="timeline/ledger" element={<LedgerSection />} />
+          <Route path="timeline/ledger" element={<Navigate to="/profile" replace />} />
+        </Route>
+        <Route
+          path="/profile"
+          element={
+            user ? (
+              <Dashboard user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/signin" replace />
+            )
+          }
+        >
+          <Route index element={<ProfileSection />} />
+        </Route>
         </Route>
       </Route>
 

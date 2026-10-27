@@ -38,7 +38,6 @@ export function resolveUserForSession(): User | null {
   return {
     name: 'User',
     email: userId,
-    age: 0,
     dateOfBirth: '',
     placeOfBirth: '',
     timeOfBirth: '',
