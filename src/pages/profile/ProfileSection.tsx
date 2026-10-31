@@ -16,6 +16,7 @@ import { isoToTyped, parseTypedDate } from '../../Auth/fields/dateUtils';
 import { useRefreshMe } from '../../Auth/ProfileGate';
 import { READY_NOTICE } from '../../Auth/readyNotice';
 import LedgerSection from '../timeline/LedgerSection';
+import PastLifeReadingSection from '../timeline/PastLifeReadingSection';
 
 export const REBUILD_WARNING =
   'Changing your birth details rebuilds your chart. Readings will use the new chart in about 30 minutes.';
@@ -248,11 +249,7 @@ const ProfileSection: React.FC = () => {
 
       <section aria-label="Your life timeline" className="space-y-4">
         <h3 className="text-xl font-semibold">Your life timeline</h3>
-        {timelineEnabled && (
-          <div className={panelCls}>
-            <p className="text-sm text-gray-300">Coming soon — we&apos;re researching this</p>
-          </div>
-        )}
+        {timelineEnabled && <PastLifeReadingSection />}
         <LedgerSection embedded />
       </section>
     </div>
