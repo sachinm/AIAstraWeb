@@ -19,7 +19,7 @@ export function useRefreshMe(): () => Promise<void> {
 }
 
 /** Re-check the chart status this often while it is not ready. */
-const POLL_MS = 60_000;
+const POLL_MS = 3_000;
 
 /**
  * Wraps the signed-in app. A user whose registration is unfinished (profile_complete false) is sent to the
