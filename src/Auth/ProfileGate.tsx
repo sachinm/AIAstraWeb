@@ -1,12 +1,28 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { fetchMe, type Me } from './api';
+import { fetchMe, fetchPlanState, type Me } from './api';
+import type { PlanStatus } from '../lib/billing';
 import { SessionLoadingScreen } from './RouteGuards';
 
 const MeContext = createContext<{ me: Me | null; refresh: () => Promise<void> }>({
   me: null,
   refresh: async () => {},
 });
+
+const PlanContext = createContext<{
+  plan: PlanStatus | null;
+  setPlan: (plan: PlanStatus | null) => void;
+  refreshPlan: () => Promise<void>;
+}>({
+  plan: null,
+  setPlan: () => {},
+  refreshPlan: async () => {},
+});
+
+/** The signed-in user's plan and question count (plan is null when limits are off). */
+export function usePlan() {
+  return useContext(PlanContext);
+}
 
 /** The signed-in user's onboarding state (null while unknown or when it could not be read). */
 export function useMe(): Me | null {
@@ -29,6 +45,20 @@ const REST_POLL_MS = 15_000;
 export function ProfileGate() {
   const [me, setMe] = useState<Me | null>(null);
   const [checked, setChecked] = useState(false);
+  const [plan, setPlan] = useState<PlanStatus | null>(null);
+
+  const refreshPlan = useCallback(async () => {
+    const s = await fetchPlanState();
+    setPlan(s.plan);
+  }, []);
+
+  // read on window focus too, so a question asked in another tab moves this tab's bar
+  useEffect(() => {
+    void refreshPlan();
+    const onFocus = () => void refreshPlan();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refreshPlan]);
 
   useEffect(() => {
     let alive = true;
@@ -63,7 +93,9 @@ export function ProfileGate() {
   if (me && !me.profile_complete) return <Navigate to="/signup/details" replace />;
   return (
     <MeContext.Provider value={{ me, refresh }}>
-      <Outlet />
+      <PlanContext.Provider value={{ plan, setPlan, refreshPlan }}>
+        <Outlet />
+      </PlanContext.Provider>
     </MeContext.Provider>
   );
 }

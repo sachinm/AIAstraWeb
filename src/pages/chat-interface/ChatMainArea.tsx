@@ -77,6 +77,8 @@ export interface ChatMainAreaProps {
   onStartListening: () => void;
   onStopListening: () => void;
   inputDisabled: boolean;
+  /** Shown in place of the input row, when no more questions can be asked. */
+  inputBlockedCard?: React.ReactNode;
   /** Clarify agent card handlers (docs/reading-engine/17) */
   clarifyBusy?: boolean;
   onClarifyAnswer?: (messageId: string, runId: string, value: string, viaChip: boolean) => void;
@@ -105,6 +107,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   onStartListening,
   onStopListening,
   inputDisabled,
+  inputBlockedCard,
   clarifyBusy = false,
   onClarifyAnswer,
   onClarifyConfirm,
@@ -355,6 +358,9 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             Listening...
           </p>
         )}
+        {inputBlockedCard ? (
+          inputBlockedCard
+        ) : (
         <div className="flex items-end gap-4" data-test-id="chat-main-area-input-row">
           <button
             type="button"
@@ -418,6 +424,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             <Send className="w-5 h-5" />
           </button>
         </div>
+        )}
 
         {/* one row of three cells: text wraps inside its own cell, never onto a row of its own */}
         <div className="mt-2 grid grid-cols-3 items-start gap-3 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-footer">
