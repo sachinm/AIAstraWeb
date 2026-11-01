@@ -12,7 +12,7 @@ const usage: PlanStatus = {
   used: 5,
   limit: 5,
   remaining: 0,
-  window: 'lifetime',
+  window: 'month',
   resets_at: null,
   exempt: false,
 };

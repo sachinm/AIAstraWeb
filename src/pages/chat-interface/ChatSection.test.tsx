@@ -72,7 +72,7 @@ describe('ChatSection syncing modal', () => {
     await waitFor(() => {
       expect(screen.getByText(/Syncing your chart…/i)).toBeInTheDocument();
     });
-    expect(screen.queryByText(/Readings from your own chart/i)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-test-id="chat-main-area"]')).toBeNull();
   });
 
   it('shows "Syncing your chart…" when queue_status is not completed', async () => {
@@ -100,7 +100,7 @@ describe('ChatSection syncing modal', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText(/Readings from your own chart/i)).toBeInTheDocument();
+        expect(document.querySelector('[data-test-id="chat-main-area"]')).not.toBeNull();
         expect(screen.queryByText(/Syncing your chart…/i)).not.toBeInTheDocument();
       },
       { timeout: 2000 }
@@ -242,7 +242,7 @@ describe('ChatSection existing conversations', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText(/Readings from your own chart/i)).toBeInTheDocument();
+        expect(document.querySelector('[data-test-id="chat-main-area"]')).not.toBeNull();
         expect(screen.getByText('What about my chart?')).toBeInTheDocument();
         expect(screen.getByText('Here is guidance.')).toBeInTheDocument();
       },

@@ -17,11 +17,11 @@ export interface PlanStatus {
   is_paid: boolean;
   interval: PlanInterval | null;
   used: number;
-  /** null when exempt */
+  /** null when unlimited or exempt */
   limit: number | null;
-  /** null when exempt */
+  /** null when unlimited or exempt */
   remaining: number | null;
-  window: 'lifetime' | 'month' | 'day' | 'none';
+  window: 'month' | 'none';
   resets_at: string | null;
   exempt: boolean;
 }

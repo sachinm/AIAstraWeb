@@ -73,7 +73,8 @@ describe('ChatSection question location', () => {
 
     expect(getCurrentPosition).not.toHaveBeenCalled();
     expect(screen.queryByText(QUESTION_LOCATION_ASK_TEXT)).not.toBeInTheDocument();
-    expect(screen.getByText('Using your birth place')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use my location' })).toBeInTheDocument();
+    expect(screen.queryByText(/birth place/i)).not.toBeInTheDocument();
 
     await ask(user, 'Will I get the job?');
     await waitFor(() => expect(UserData.sendChatMessageStream).toHaveBeenCalledTimes(1));
@@ -103,7 +104,7 @@ describe('ChatSection question location', () => {
 
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
     for (const call of vi.mocked(UserData.sendChatMessageStream).mock.calls) expect(call[3]?.location ?? null).toBeNull();
-    expect(screen.getByText('Using your birth place')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use my location' })).toBeInTheDocument();
   });
 
   it('the change link asks again', async () => {

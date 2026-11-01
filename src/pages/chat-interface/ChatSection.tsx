@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu, PanelRightOpen, Plus } from 'lucide-react';
 import {
   sendChatMessage,
   sendChatMessageStream,
@@ -686,6 +686,18 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
     <KundliNotice />
+    {/* the side rails are desktop only, so phones reach the same panels from here */}
+    <div className="flex shrink-0 items-center gap-1 border-b border-white/10 bg-black/30 px-2 py-1 md:hidden" data-test-id="chat-phone-toolbar">
+      <button type="button" aria-label="Open conversations" onClick={() => setIsSidebarOpen(true)} className="rounded-lg p-2.5 text-white hover:bg-white/10">
+        <Menu className="h-5 w-5" />
+      </button>
+      <button type="button" aria-label="Start new conversation" onClick={handleNewChat} className="rounded-lg p-2.5 text-white hover:bg-white/10">
+        <Plus className="h-5 w-5" />
+      </button>
+      <button type="button" aria-label="Open your Kundli" onClick={() => setIsRightSidebarOpen(true)} className="ml-auto rounded-lg p-2.5 text-white hover:bg-white/10">
+        <PanelRightOpen className="h-5 w-5" />
+      </button>
+    </div>
     <div className="relative flex min-h-0 flex-1">
       {isSidebarOpen && typeof window !== 'undefined' && window.innerWidth < 768 && (
         <div
@@ -730,9 +742,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         onClarifyChange={handleClarifyChange}
         questionLocationStatus={questionLocationStatus}
         onChangeQuestionLocation={() => void reaskLocation()}
+        rightPanel={<ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />}
       />
-
-      <ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />
     </div>
     </div>
   );

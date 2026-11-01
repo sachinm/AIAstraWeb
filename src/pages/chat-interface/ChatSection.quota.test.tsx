@@ -39,7 +39,7 @@ const plan = (used: number): PlanStatus => ({
   used,
   limit: 5,
   remaining: 5 - used,
-  window: 'lifetime',
+  window: 'month',
   resets_at: null,
   exempt: false,
 });

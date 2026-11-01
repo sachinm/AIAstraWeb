@@ -22,7 +22,7 @@ const free = (used: number): PlanStatus => ({
   used,
   limit: 5,
   remaining: 5 - used,
-  window: 'lifetime',
+  window: 'month',
   resets_at: null,
   exempt: false,
 });
@@ -48,17 +48,17 @@ describe('UsageBar', () => {
   it('counts used questions, then warns, then says they are gone', () => {
     withPlan(free(2));
     const { rerender } = inRouter(<UsageBar />);
-    expect(screen.getByText('2 of 5 free questions used')).toBeInTheDocument();
+    expect(screen.getByText('2 of 5 questions used')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
 
     withPlan(free(4));
     rerender(<MemoryRouter><UsageBar /></MemoryRouter>);
-    expect(screen.getByText('1 free question left')).toBeInTheDocument();
+    expect(screen.getByText('1 question left')).toBeInTheDocument();
     expect(document.querySelector('[data-test-id="usage-bar"]')).toHaveAttribute('data-tone', 'amber');
 
     withPlan(free(5));
     rerender(<MemoryRouter><UsageBar /></MemoryRouter>);
-    expect(screen.getByText('You have used your 5 free questions')).toBeInTheDocument();
+    expect(screen.getByText('5 of 5 questions used')).toBeInTheDocument();
     expect(document.querySelector('[data-test-id="usage-bar"]')).toHaveAttribute('data-tone', 'red');
     expect(screen.getByRole('link', { name: 'Upgrade' })).toHaveAttribute('href', '/pricing');
   });
@@ -88,10 +88,11 @@ describe('ProfileMenu', () => {
     expect(within(menu).getByText('Asha Rao')).toBeInTheDocument();
     expect(within(menu).getByText('asha@example.com')).toBeInTheDocument();
     expect(within(menu).getByText('Free plan')).toBeInTheDocument();
-    expect(within(menu).getByText('2 of 5 free questions left')).toBeInTheDocument();
+    expect(within(menu).getByText('2 of 5 questions left this month')).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: 'Upgrade plan' })).toHaveFocus();
     await u.keyboard('{ArrowDown}');
-    expect(within(menu).getByRole('menuitem', { name: 'Profile' })).toHaveFocus();
+    expect(within(menu).getByRole('menuitem', { name: 'Chat' })).toHaveFocus();
+    for (const name of ['Charts', 'Remedies', 'Mantras/Horoscope', 'Profile']) expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
     await u.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open profile menu' })).toHaveFocus();
@@ -127,7 +128,7 @@ describe('ProfileMenu', () => {
     const u = userEvent.setup();
     for (const plan of [
       null,
-      { ...free(0), code: 'unlimited' as const, is_paid: true, limit: 50, remaining: 50, window: 'day' as const },
+      { ...free(0), code: 'unlimited' as const, is_paid: true, limit: null, remaining: null },
       { ...free(0), exempt: true, limit: null, remaining: null, window: 'none' as const },
     ]) {
       withPlan(plan);
@@ -185,25 +186,22 @@ describe('region storage and prices', () => {
 });
 
 describe('UpgradeCard and isExhausted', () => {
+  it('reads a month that ends at midnight UTC as that UTC date in every time zone', () => {
+    inRouter(<UpgradeCard plan={{ ...free(5), resets_at: '2026-12-01T00:00:00.000Z' }} />);
+    expect(screen.getByText(/They renew on December 1, 2026\./)).toBeInTheDocument();
+  });
+
   it('uses the words for each window', () => {
     const { rerender } = inRouter(<UpgradeCard plan={free(5)} />);
-    expect(screen.getByText(/You have used your 5 free questions\. Choose a plan to keep asking\. Your earlier answers stay here\./)).toBeInTheDocument();
+    expect(screen.getByText(/You have used this month's 5 questions\. Choose a plan to keep asking\. Your earlier answers stay here\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Choose a plan' })).toHaveAttribute('href', '/pricing');
 
     rerender(
       <MemoryRouter>
-        <UpgradeCard plan={{ ...free(0), code: 'plus', is_paid: true, used: 20, limit: 20, remaining: 0, window: 'month', resets_at: '2026-12-01T12:00:00.000Z' }} />
+        <UpgradeCard plan={{ ...free(0), code: 'plus', is_paid: true, used: 100, limit: 100, remaining: 0, window: 'month', resets_at: '2026-12-01T12:00:00.000Z' }} />
       </MemoryRouter>
     );
-    expect(screen.getByText(/You have used this month's 20 questions\. They renew on .*2026\./)).toBeInTheDocument();
-
-    rerender(
-      <MemoryRouter>
-        <UpgradeCard plan={{ ...free(0), code: 'unlimited', is_paid: true, used: 50, limit: 50, remaining: 0, window: 'day' }} />
-      </MemoryRouter>
-    );
-    expect(screen.getByText('You have asked a lot today. You can ask again tomorrow.')).toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText(/You have used this month's 100 questions\. They renew on .*2026\./)).toBeInTheDocument();
   });
 
   it('is exhausted only at zero left, and never for exempt staff or with limits off', () => {

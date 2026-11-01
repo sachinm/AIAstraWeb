@@ -22,12 +22,12 @@ function renderAt(path: string) {
 }
 
 describe('Disclaimer', () => {
-  it('says education and entertainment only, not financial advice, lifestyle choices are your own', () => {
+  it('says education and entertainment only, not professional advice, decisions are the reader\'s own', () => {
     render(<Disclaimer />);
     expect(screen.getByRole('note')).toHaveTextContent(DISCLAIMER_TEXT);
     expect(DISCLAIMER_TEXT).toMatch(/education and entertainment purposes only/i);
-    expect(DISCLAIMER_TEXT).toMatch(/not financial advice/i);
-    expect(DISCLAIMER_TEXT).toMatch(/lifestyle choices are your own/i);
+    expect(DISCLAIMER_TEXT).toMatch(/not medical, legal, financial or other professional advice/i);
+    expect(DISCLAIMER_TEXT).toMatch(/sole responsibility for your decisions/i);
   });
   it('appears in the dashboard footer on dashboard pages', () => {
     renderAt('/dashboard/charts');

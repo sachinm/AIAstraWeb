@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import TopNavigation from './TopNavigation';
 import Disclaimer from '../components/Disclaimer';
 import KundliNotice from '../components/KundliNotice';
-import UsageBar from '../components/UsageBar';
 
 interface User {
   name: string;
@@ -24,7 +23,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   return (
     <div
       data-test-id="dashboard-root"
-      // chat is held to the window: nav, usage bar, sidebars and input stay put, and only the message list scrolls
+      // chat is held to the window: nav, sidebars and input stay put, and only the message list scrolls
       className={`flex flex-col text-white ${onChat ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
     >
       {/* Top Navigation */}
@@ -32,8 +31,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         user={user}
         onLogout={onLogout}
       />
-
-      <UsageBar />
 
       <KundliNotice />
 
