@@ -382,6 +382,76 @@ const PastLifeReadingSection: React.FC = () => {
         </div>
       </section>
 
+      {/* Anti-Sycophancy Claim Verification & 4-Tier Planetary Playbooks */}
+      {report.claimVerificationAudit && (
+        <section
+          aria-label="Chart-First Counterparty & Network Disambiguation"
+          className="rounded-xl border border-amber-400/25 bg-amber-950/20 p-4 space-y-2"
+        >
+          <h5 className="text-sm font-semibold text-amber-200">
+            Chart-First Counterparty &amp; Network Disambiguation (Rule 0)
+          </h5>
+          <p className="text-xs text-gray-200">{report.claimVerificationAudit.ruleDirective}</p>
+          <div className="grid gap-2 sm:grid-cols-3 pt-1">
+            {report.claimVerificationAudit.disambiguatedEntities.map((ent) => (
+              <div key={ent.trackId} className="rounded-lg border border-white/10 bg-black/25 p-3 space-y-1 text-xs">
+                <div className="font-semibold text-amber-200">{ent.label}</div>
+                <div className="text-indigo-200">{ent.astrologicalCircuit}</div>
+                <div className="text-gray-300">{ent.verificationGuidance}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {report.jupiterBehavioralPlaybook && (
+        <section
+          aria-label="Jupiter H7 Behavioral Playbook & 2026-2029 Windows"
+          className="rounded-xl border border-emerald-400/25 bg-emerald-950/15 p-4 space-y-2"
+        >
+          <h5 className="text-sm font-semibold text-emerald-200">
+            Jupiter (H7 Mrita vs. D1–D60 H1) 4-Tier Behavioral Playbook
+          </h5>
+          <p className="text-xs text-gray-200">{report.jupiterBehavioralPlaybook.structuralDiagnosis}</p>
+          <p className="text-xs text-emerald-200/90">{report.jupiterBehavioralPlaybook.vargaConfirmationSummary}</p>
+          <div className="grid gap-2 sm:grid-cols-2 text-xs text-gray-200 pt-1">
+            <div className="rounded-lg border border-white/10 bg-black/25 p-2.5">{report.jupiterBehavioralPlaybook.tiers.sattvicOptimal}</div>
+            <div className="rounded-lg border border-white/10 bg-black/25 p-2.5">{report.jupiterBehavioralPlaybook.tiers.rajasicHighLeverage}</div>
+            <div className="rounded-lg border border-white/10 bg-black/25 p-2.5">{report.jupiterBehavioralPlaybook.tiers.mediocrePassive}</div>
+            <div className="rounded-lg border border-white/10 bg-black/25 p-2.5">{report.jupiterBehavioralPlaybook.tiers.baselineLossPrevention}</div>
+          </div>
+        </section>
+      )}
+
+      {report.venusBehavioralPlaybook && (
+        <section
+          aria-label="Venus H6 & D9 H2 Anti-Combustion & Family Kavacha Playbook"
+          className="rounded-xl border border-pink-400/25 bg-pink-950/15 p-4 space-y-2"
+        >
+          <h5 className="text-sm font-semibold text-pink-200">
+            Venus (Hora/Indu Lagna vs. 2025–2026 Eclipses &amp; 4 Family Charts Shield) Playbook
+          </h5>
+          <p className="text-xs text-gray-200">{report.venusBehavioralPlaybook.structuralDiagnosis}</p>
+          <p className="text-xs text-pink-200/90">{report.venusBehavioralPlaybook.whyRaVe2025To2026WasPoorestAndEclipsed}</p>
+          <p className="text-xs text-indigo-200">{report.venusBehavioralPlaybook.fourFamilyChartsSavingGrace}</p>
+          <p className="text-xs text-emerald-200">{report.venusBehavioralPlaybook.remainingSubDashaPromise2026To2027}</p>
+        </section>
+      )}
+
+      {report.marsSaturnBehavioralPlaybook && (
+        <section
+          aria-label="Mars-Saturn 1°15' Lock Raja-Guru Unlock & 15-Year Roadmap"
+          className="rounded-xl border border-sky-400/25 bg-sky-950/15 p-4 space-y-2"
+        >
+          <h5 className="text-sm font-semibold text-sky-200">
+            Mars + Saturn (1°15&apos; Lock) Raja-Guru Unlock &amp; 1-Month to 15-Year Roadmap
+          </h5>
+          <p className="text-xs text-gray-200">{report.marsSaturnBehavioralPlaybook.structuralDiagnosis}</p>
+          <p className="text-xs text-sky-200/90">{report.marsSaturnBehavioralPlaybook.rajaGuruUnlockProtocol}</p>
+          <p className="text-xs text-amber-200">{report.marsSaturnBehavioralPlaybook.familyAndSpouseProtectionRule}</p>
+        </section>
+      )}
+
       {/* Prediction Completeness & Accuracy Scorecard */}
       <section
         aria-label="Prediction Completeness & Accuracy Scorecard"

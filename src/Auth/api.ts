@@ -138,7 +138,7 @@ export async function signup(userData: SignUpInput): Promise<SignUpResult> {
       date_of_birth: userData.date_of_birth,
       place_of_birth: userData.place_of_birth ?? null,
       time_of_birth: userData.time_of_birth ?? null,
-      gender: userData.gender ?? null,
+      gender: normalizeClientGender(userData.gender),
       turnstileToken: userData.turnstileToken ?? null,
     };
 
@@ -276,6 +276,15 @@ export async function verifySignupCode(email: string, code: string): Promise<Log
 
 export type Gender = 'male' | 'female' | 'prefer_not_to_say';
 
+export function normalizeClientGender(raw?: string | null): Gender | null {
+  if (!raw) return null;
+  const t = raw.trim().toLowerCase();
+  if (!t) return null;
+  if (t === 'male' || t === 'm' || t === 'man') return 'male';
+  if (t === 'female' || t === 'f' || t === 'woman') return 'female';
+  return 'prefer_not_to_say';
+}
+
 export interface CompleteProfileInput {
   /** YYYY-MM-DD */
   date_of_birth: string;
@@ -300,7 +309,7 @@ export async function completeProfile(input: CompleteProfileInput): Promise<Comp
     const { data, errors } = await runGraphQL<{
       completeProfile?: { success: boolean; message?: string | null; referral_code?: string | null };
     }>(COMPLETE_PROFILE_MUTATION, {
-      input: { ...input, referral_code: input.referral_code?.trim() || null },
+      input: { ...input, gender: normalizeClientGender(input.gender) ?? 'prefer_not_to_say', referral_code: input.referral_code?.trim() || null },
     });
     if (errors?.length) {
       return { success: false, message: errors[0].message || 'Something went wrong. Please try again.' };

@@ -45,6 +45,25 @@ export interface PastLifeEpoch {
   emotionalAndMentalTone: string;
 }
 
+export interface DisambiguatedCounterpartyTrack {
+  trackId: string;
+  label: string;
+  ageAndArchetype: string;
+  astrologicalCircuit: string;
+  verificationGuidance: string;
+}
+
+export interface JupiterWindowItem {
+  id: string;
+  windowStart: string;
+  windowEnd: string;
+  windowType: 'jupiter_supported' | 'caution_hazard';
+  title: string;
+  dashasAndAnnualCharts: string;
+  transitsAndVargas: string;
+  actionDirective: string;
+}
+
 export interface PastLifeReadingReport {
   kundliId: string;
   generatedAt: string;
@@ -55,6 +74,67 @@ export interface PastLifeReadingReport {
     primaryConditionalDasha: string;
     mahadashaCharterSummary: string;
     avasthaManifestationNote: string;
+  };
+  claimVerificationAudit?: {
+    ruleDirective: string;
+    disambiguatedEntities: DisambiguatedCounterpartyTrack[];
+  };
+  jupiterBehavioralPlaybook?: {
+    structuralDiagnosis: string;
+    vargaConfirmationSummary: string;
+    tiers: {
+      sattvicOptimal: string;
+      rajasicHighLeverage: string;
+      mediocrePassive: string;
+      baselineLossPrevention: string;
+    };
+    windows2026To2029: JupiterWindowItem[];
+  };
+  venusBehavioralPlaybook?: {
+    structuralDiagnosis: string;
+    whyRaVe2025To2026WasPoorestAndEclipsed: string;
+    fourFamilyChartsSavingGrace: string;
+    remainingSubDashaPromise2026To2027: string;
+    tiers: {
+      sattvicOptimal: string;
+      rajasicHighLeverage: string;
+      mediocrePassive: string;
+      baselineLossPrevention: string;
+    };
+  };
+  marsSaturnBehavioralPlaybook?: {
+    structuralDiagnosis: string;
+    rajaGuruUnlockProtocol: string;
+    familyAndSpouseProtectionRule: string;
+    tiers: {
+      sattvicOptimal: string;
+      rajasicHighLeverage: string;
+      mediocrePassive: string;
+      baselineLossPrevention: string;
+    };
+    roadmap1MonthTo15Years: Array<{
+      horizon: string;
+      window: string;
+      dashaAndTransitStack: string;
+      strategicDirective: string;
+    }>;
+  };
+  pendingKarmaBehavioralPlaybook?: {
+    structuralDiagnosis: string;
+    whyNotCompleteLossAndHowItImproves: string;
+    antiCombustionAndHouseActivations: {
+      house1SelfIdentity: string;
+      house4HomeMotherVehicles: string;
+      house7MarriageContracts: string;
+      house9DharmaFatherElders: string;
+    };
+    subDashaUnlockSequence: string;
+    tiers: {
+      sattvicOptimal: string;
+      rajasicHighLeverage: string;
+      mediocrePassive: string;
+      baselineLossPrevention: string;
+    };
   };
   epochs: PastLifeEpoch[];
   predictions: BlindPredictionItem[];
