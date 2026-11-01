@@ -449,7 +449,6 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         <p className="text-center text-[11px] text-gray-400 mt-1.5" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         <p className="text-center text-[11px] text-gray-400 mt-1.5" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         <p className="text-center text-[11px] text-gray-400 mt-1.5" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
-        </div>
       </div>
     </div>
   );
