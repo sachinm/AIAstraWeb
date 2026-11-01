@@ -17,7 +17,7 @@ export function getSessionIdleMs(): number {
     const n = Number(env);
     if (Number.isFinite(n) && n > 0) return n;
   }
-  return 600_000;
+  return 1_800_000;
 }
 
 export const SESSION_IDLE_MS = getSessionIdleMs();

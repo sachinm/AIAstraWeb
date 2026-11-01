@@ -64,6 +64,9 @@ const GENDERS: { value: Gender; label: string }[] = [
 
 const input =
   'w-full bg-white/10 border rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent';
+const selectCls =
+  'w-full bg-slate-900 border rounded-lg px-3 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent [color-scheme:dark]';
+const optionCls = 'bg-slate-900 text-white';
 const label = 'block text-sm font-medium text-gray-300 mb-2';
 const errCls = 'text-red-300 text-sm mt-1';
 const hint = 'text-gray-400 text-sm mt-1';
@@ -85,7 +88,7 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
   const hourRef = useRef<HTMLSelectElement>(null);
   const countryRef = useRef<HTMLInputElement>(null);
   const cityRef = useRef<HTMLInputElement>(null);
-  const genderRef = useRef<HTMLInputElement>(null);
+  const genderRef = useRef<HTMLSelectElement>(null);
 
   useImperativeHandle(handle, () => ({
     focus: (f) => {
@@ -130,11 +133,12 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
             value={values.hour}
             onChange={(e) => onChange({ hour: e.target.value })}
             onBlur={() => onCheck('time')}
-            className={`${input} ${border('time')} px-3 [color-scheme:dark] bg-slate-900`}
+            className={`${selectCls} ${border('time')}`}
+            style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
           >
-            <option value="">Hour</option>
+            <option value="" className={optionCls} style={{ backgroundColor: '#0f172a', color: '#9ca3af' }}>Hour</option>
             {hours.map((h) => (
-              <option key={h} value={h}>
+              <option key={h} value={h} className={optionCls} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
                 {h}
               </option>
             ))}
@@ -145,11 +149,12 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
             value={values.minute}
             onChange={(e) => onChange({ minute: e.target.value })}
             onBlur={() => onCheck('time')}
-            className={`${input} ${border('time')} px-3 [color-scheme:dark] bg-slate-900`}
+            className={`${selectCls} ${border('time')}`}
+            style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
           >
-            <option value="">Min</option>
+            <option value="" className={optionCls} style={{ backgroundColor: '#0f172a', color: '#9ca3af' }}>Min</option>
             {minutes.map((m) => (
-              <option key={m} value={m}>
+              <option key={m} value={m} className={optionCls} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
                 {m}
               </option>
             ))}
@@ -159,11 +164,12 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
             value={values.ampm}
             onChange={(e) => onChange({ ampm: e.target.value as BirthValues['ampm'] })}
             onBlur={() => onCheck('time')}
-            className={`${input} ${border('time')} px-3 [color-scheme:dark] bg-slate-900`}
+            className={`${selectCls} ${border('time')}`}
+            style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
           >
-            <option value="">AM/PM</option>
-            <option value="AM">AM</option>
-            <option value="PM">PM</option>
+            <option value="" className={optionCls} style={{ backgroundColor: '#0f172a', color: '#9ca3af' }}>AM/PM</option>
+            <option value="AM" className={optionCls} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>AM</option>
+            <option value="PM" className={optionCls} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>PM</option>
           </select>
         </div>
         <p className={errors.time ? errCls : hint}>
@@ -213,34 +219,36 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
         {errors.city && <p className={errCls}>{errors.city}</p>}
       </div>
 
-      <fieldset>
-        <legend className={label}>Gender</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {GENDERS.map((g, i) => (
-            <label
-              key={g.value}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-3 text-white cursor-pointer ${
-                values.gender === g.value ? 'border-purple-400 bg-purple-500/20' : border('gender') + ' bg-white/10'
-              }`}
-            >
-              <input
-                ref={i === 0 ? genderRef : undefined}
-                type="radio"
-                name="gender"
-                value={g.value}
-                checked={values.gender === g.value}
-                onChange={() => {
-                  onChange({ gender: g.value });
-                  if (errors.gender) onCheck('gender', { ...values, gender: g.value });
-                }}
-                className="accent-purple-500"
-              />
-              <span className="text-sm">{g.label}</span>
-            </label>
+      <div>
+        <label htmlFor="gender" className={label}>
+          Gender
+        </label>
+        <select
+          ref={genderRef}
+          id="gender"
+          aria-label="Gender"
+          value={values.gender}
+          onChange={(e) => {
+            const g = e.target.value as '' | Gender;
+            onChange({ gender: g });
+            if (errors.gender) onCheck('gender', { ...values, gender: g });
+          }}
+          onBlur={() => onCheck('gender')}
+          aria-invalid={Boolean(errors.gender)}
+          className={`${selectCls} ${border('gender')}`}
+          style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
+        >
+          <option value="" className={optionCls} style={{ backgroundColor: '#0f172a', color: '#9ca3af' }}>
+            Select gender
+          </option>
+          {GENDERS.map((g) => (
+            <option key={g.value} value={g.value} className={optionCls} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              {g.label}
+            </option>
           ))}
-        </div>
+        </select>
         {errors.gender && <p className={errCls}>{errors.gender}</p>}
-      </fieldset>
+      </div>
     </>
   );
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Loader2 } from 'lucide-react';
 import { completeProfile, fetchMe, type Gender } from './api';
 import BirthFields, {
   BIRTH_FIELD_LABEL,
@@ -120,6 +120,26 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:px-6">
+      {loading && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-test-id="birth-chart-generating-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md px-4"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-slate-900/95 border border-purple-400/30 p-8 text-center shadow-2xl">
+            <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/20 border border-purple-400/40">
+              <Loader2 className="h-9 w-9 text-purple-400 animate-spin" aria-hidden="true" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Generating your birth chart…
+            </h3>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              We are calculating your planetary placements, divisional charts, and dasha periods. Please wait a moment while we prepare your profile.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-md">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
@@ -180,6 +200,10 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
                 </>
               ) : (
                 'Create my chart'
+              )}
+            </button>
+          </form>
+          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
               )}
             </button>
           </form>
