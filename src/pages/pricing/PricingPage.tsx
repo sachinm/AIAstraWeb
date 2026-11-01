@@ -89,10 +89,8 @@ const PricingPage: React.FC = () => {
     }
   };
 
-  const limitWords = (p: CatalogPlan) => {
-    if (p.code === 'unlimited') return t('pricing.limitUnlimited');
-    return t(p.window === 'lifetime' ? 'pricing.limitLifetime' : 'pricing.limitMonth', { limit: p.limit });
-  };
+  const limitWords = (p: CatalogPlan) =>
+    p.limit === null ? t('pricing.limitUnlimited') : t('pricing.limitMonth', { limit: p.limit });
 
   // a choice saved earlier and not paid for yet says so when the person comes back
   const pendingName =
@@ -169,9 +167,6 @@ const PricingPage: React.FC = () => {
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-purple-300" aria-hidden="true" />
                     {limitWords(p)}
                   </p>
-                  {p.code === 'unlimited' && p.limit !== null && (
-                    <p className="mt-2 text-xs text-gray-400">{t('pricing.fairUse', { limit: p.limit })}</p>
-                  )}
                   <div className="mt-6 flex flex-1 items-end">
                     {current ? (
                       <p className="w-full rounded-lg border border-white/20 py-2 text-center text-sm text-gray-200">{t('pricing.current')}</p>

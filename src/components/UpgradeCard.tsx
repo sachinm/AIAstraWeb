@@ -7,24 +7,22 @@ import type { PlanStatus } from '../lib/billing';
 const UpgradeCard: React.FC<{ plan: PlanStatus }> = ({ plan }) => {
   const { t } = useTranslation();
   const limit = plan.limit ?? 0;
-  let words = t('quota.free', { limit });
-  if (plan.window === 'day') words = t('quota.day');
-  else if (plan.window === 'month') {
-    words = plan.resets_at
-      ? t('quota.monthRenews', { limit, date: new Date(plan.resets_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) })
-      : t('quota.month', { limit });
-  }
+  // the server's months turn over in UTC, so a local date would read a day early in the US
+  const date = plan.resets_at
+    ? new Date(plan.resets_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : null;
+  const words = date ? t('quota.monthRenews', { limit, date }) : t('quota.month', { limit });
   return (
-    <div role="status" data-test-id="upgrade-card" className="rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-sm text-purple-100">
-      <p>{words}</p>
-      {plan.window !== 'day' && (
-        <Link
-          to="/pricing"
-          className="mt-3 inline-block rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 font-semibold text-white hover:from-purple-700 hover:to-pink-700"
-        >
-          {t('quota.choose')}
-        </Link>
-      )}
+    <div role="status" data-test-id="upgrade-card" className="rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-sm text-gray-100">
+      <p>
+        {words} {plan.code === 'free' && t('quota.freeNext')}
+      </p>
+      <Link
+        to="/pricing"
+        className="mt-3 inline-block rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 font-semibold text-white hover:from-purple-500 hover:to-pink-500"
+      >
+        {t('quota.choose')}
+      </Link>
     </div>
   );
 };

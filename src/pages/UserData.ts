@@ -316,6 +316,7 @@ const MY_KUNDLI_DISPLAY_DATA = `
     myKundliDisplayData {
       success
       error
+      research
       biodata
       d1
       d7
@@ -335,6 +336,8 @@ export interface KundliDisplayDataResponse {
   d10: unknown | null;
   vimsottari_dasa: unknown | null;
   narayana_dasa: unknown | null;
+  /** The account's research flag: the charts and dashas are sent only when it is on. */
+  research: boolean;
   message?: string;
 }
 
@@ -483,15 +486,11 @@ export const fetchUserContent = async (): Promise<UserContentResponse> => {
 };
 
 export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataResponse> => {
-  const details = await fetchUserDetails();
-  if (!details.success) {
-    throw new Error(details.message || 'Failed to fetch user details');
-  }
-
   const { data, errors } = await runGraphQL<{
     myKundliDisplayData: {
       success: boolean;
       error: string | null;
+      research: boolean | null;
       biodata: string | null;
       d1: string | null;
       d7: string | null;
@@ -527,5 +526,6 @@ export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataRespons
     d10: safeParse(result.d10),
     vimsottari_dasa: safeParse(result.vimsottari_dasa),
     narayana_dasa: safeParse(result.narayana_dasa),
+    research: result.research === true,
   };
 }

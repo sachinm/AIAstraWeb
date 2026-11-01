@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* behind the background photo: white text stays readable if the photo is slow, blocked or past its edge */
+html,
+body {
+  background-color: #05060f;
+}

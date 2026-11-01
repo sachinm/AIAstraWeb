@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, LogOut, Sparkles, User as UserIcon } from 'lucide-react';
+import { BarChart3, BookOpen, ChevronDown, Heart, LogOut, MessageCircle, Sparkles, User as UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
@@ -59,8 +59,8 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
     ? { free: t('menu.planFree'), plus: t('menu.planPlus'), unlimited: t('menu.planUnlimited') }[plan.code]
     : null;
   const left =
-    plan && !plan.exempt && plan.remaining !== null && plan.limit !== null && plan.code !== 'unlimited'
-      ? t(plan.code === 'free' ? 'menu.leftFree' : 'menu.leftMonth', { remaining: plan.remaining, limit: plan.limit })
+    plan && !plan.exempt && plan.remaining !== null && plan.limit !== null
+      ? t('menu.leftMonth', { remaining: plan.remaining, limit: plan.limit })
       : null;
 
   return (
@@ -83,7 +83,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
           ref={listRef}
           role="menu"
           aria-label={t('menu.open')}
-          className="absolute right-0 z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md"
+          className="absolute right-0 z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-slate-900 p-2 shadow-2xl backdrop-blur-md"
         >
           {user && (
             <div className="border-b border-white/10 px-3 py-2">
@@ -104,6 +104,22 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
                 {t('menu.upgrade')}
               </button>
             )}
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/chat')}>
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              {t('menu.chat')}
+            </button>
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/charts')}>
+              <BarChart3 className="h-4 w-4" aria-hidden="true" />
+              {t('menu.charts')}
+            </button>
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/remedies')}>
+              <Heart className="h-4 w-4" aria-hidden="true" />
+              {t('menu.remedies')}
+            </button>
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/mantras')}>
+              <BookOpen className="h-4 w-4" aria-hidden="true" />
+              {t('menu.mantras')}
+            </button>
             <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile')}>
               <UserIcon className="h-4 w-4" aria-hidden="true" />
               {t('menu.profile')}

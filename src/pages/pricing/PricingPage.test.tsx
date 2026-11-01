@@ -23,9 +23,9 @@ const catalog = (region: 'US' | 'IN'): PlanCatalog => {
     currency,
     gateway: null,
     plans: [
-      { code: 'free', name: 'Free', limit: 5, window: 'lifetime', prices: null },
-      { code: 'plus', name: 'Plus', limit: 20, window: 'month', prices: { month: price(50, 2499), year: price(500, 24999) } },
-      { code: 'unlimited', name: 'Unlimited', limit: 50, window: 'day', prices: { month: price(200, 9999), year: price(2000, 99999) } },
+      { code: 'free', name: 'Free', limit: 20, window: 'month', prices: null },
+      { code: 'plus', name: 'Plus', limit: 100, window: 'month', prices: { month: price(50, 2499), year: price(500, 24999) } },
+      { code: 'unlimited', name: 'Unlimited', limit: null, window: 'month', prices: { month: price(200, 9999), year: price(2000, 99999) } },
     ],
   };
 };
@@ -54,11 +54,10 @@ describe('PricingPage', () => {
     renderPage();
     const plus = await screen.findByRole('region', { name: 'Plus' });
     expect(within(plus).getByText('$50 / month')).toBeInTheDocument();
-    expect(within(plus).getByText('20 questions a month')).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Free' })).getByText('5 questions in total')).toBeInTheDocument();
+    expect(within(plus).getByText('100 questions a month')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Free' })).getByText('20 questions a month')).toBeInTheDocument();
     const unlimited = screen.getByRole('region', { name: 'Unlimited' });
     expect(within(unlimited).getByText('Unlimited questions')).toBeInTheDocument();
-    expect(within(unlimited).getByText('Up to 50 questions a day, to prevent abuse')).toBeInTheDocument();
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Annual' }));
     expect(within(plus).getByText('$500 / year')).toBeInTheDocument();
@@ -110,7 +109,7 @@ describe('PricingPage', () => {
       language: 'en',
       plan: {
         code: 'free', desired_plan: 'plus', desired_interval: 'month', is_paid: false, interval: null, used: 1, limit: 5,
-        remaining: 4, window: 'lifetime', resets_at: null, exempt: false,
+        remaining: 4, window: 'month', resets_at: null, exempt: false,
       },
     });
     renderPage();

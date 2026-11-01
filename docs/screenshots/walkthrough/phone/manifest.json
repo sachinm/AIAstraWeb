@@ -1,0 +1,228 @@
+{
+  "steps": [
+    {
+      "file": "01-landing-top.png",
+      "step": "landing-top",
+      "url": "/",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [
+        "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.%s true jsx jsx true jsx \n    at style\n    at div\n    at LandingPage (http://localhost:5199/src/LandingPage.tsx:23:24)\n    at RenderedRoute (http://lo",
+        "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.%s true global global true global \n    at style\n    at div\n    at LandingPage (http://localhost:5199/src/LandingPage.tsx:23:24)\n    at RenderedRoute (",
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failedRequests": []
+    },
+    {
+      "file": "02-landing-full.png",
+      "step": "landing-full",
+      "url": "/",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "03-landing-india-selected.png",
+      "step": "landing-india-selected",
+      "url": "/",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "04-pricing-india-rupees.png",
+      "step": "pricing-india-rupees",
+      "url": "/pricing",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "05-pricing-india-annual.png",
+      "step": "pricing-india-annual",
+      "url": "/pricing",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "06-pricing-us-dollars.png",
+      "step": "pricing-us-dollars",
+      "url": "/pricing",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "07-sign-in.png",
+      "step": "sign-in",
+      "url": "/signin",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "08-sign-up.png",
+      "step": "sign-up",
+      "url": "/signup",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "09-registration-details.png",
+      "step": "registration-details",
+      "url": "/signup/details",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "10-registration-hindi-chosen.png",
+      "step": "registration-hindi-chosen",
+      "url": "/signup/details",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "11-chat-free-2-of-20.png",
+      "step": "chat-free-2-of-20",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "12-phone-conversations-open.png",
+      "step": "phone-conversations-open",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "13-phone-kundli-open.png",
+      "step": "phone-kundli-open",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "14-profile-menu-open.png",
+      "step": "profile-menu-open",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "15-chat-after-question-3-of-20.png",
+      "step": "chat-after-question-3-of-20",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "16-chat-last-question-amber.png",
+      "step": "chat-last-question-amber",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "17-chat-limit-reached.png",
+      "step": "chat-limit-reached",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "18-chat-long-conversation-scrolled.png",
+      "step": "chat-long-conversation-scrolled",
+      "url": "/dashboard/chat",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "19-pricing-signed-in.png",
+      "step": "pricing-signed-in",
+      "url": "/pricing",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "20-pricing-choice-saved.png",
+      "step": "pricing-choice-saved",
+      "url": "/pricing",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "21-page-charts.png",
+      "step": "page-charts",
+      "url": "/dashboard/charts",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "22-page-remedies.png",
+      "step": "page-remedies",
+      "url": "/dashboard/remedies",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "23-page-mantras.png",
+      "step": "page-mantras",
+      "url": "/dashboard/mantras",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "24-page-profile.png",
+      "step": "page-profile",
+      "url": "/profile",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    }
+  ],
+  "operationsNotStubbed": [
+    "MyBiodata",
+    "MyContent"
+  ]
+}
