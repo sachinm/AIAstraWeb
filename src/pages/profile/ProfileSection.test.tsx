@@ -54,7 +54,7 @@ describe('ProfileSection', () => {
     expect(screen.getByLabelText(/am or pm/i)).toHaveValue('PM');
     expect(screen.getByLabelText(/country of birth/i)).toHaveValue('India');
     expect(screen.getByLabelText(/city of birth/i)).toHaveValue('Pune');
-    expect(screen.getByLabelText('Female')).toBeChecked();
+    expect(screen.getByLabelText('Gender')).toHaveValue('female');
   });
 
   it('a name-only change saves at once, with no rebuild warning or notice', async () => {

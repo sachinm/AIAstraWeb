@@ -38,7 +38,7 @@ async function fillAll(user: U, over: { dob?: string } = {}) {
   await user.type(screen.getByLabelText(/country of birth/i), 'Ind');
   await user.click(await screen.findByRole('option', { name: 'India' }));
   await user.type(screen.getByLabelText(/city of birth/i), 'Pune');
-  await user.click(screen.getByLabelText('Female'));
+  await user.selectOptions(screen.getByLabelText('Gender'), 'female');
 }
 
 describe('BirthDetails (page 2)', () => {
@@ -58,9 +58,10 @@ describe('BirthDetails (page 2)', () => {
     expect(screen.getByText("If you don't know the exact time, use your best estimate.")).toBeInTheDocument();
     expect(screen.getByLabelText(/country of birth/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/city of birth/i)).toHaveAttribute('type', 'text');
-    expect(screen.getByLabelText('Male')).toBeInTheDocument();
-    expect(screen.getByLabelText('Female')).toBeInTheDocument();
-    expect(screen.getByLabelText('Prefer not to say')).toBeInTheDocument();
+    expect(screen.getByLabelText('Gender')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Male' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Female' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Prefer not to say' })).toBeInTheDocument();
     expect(screen.getByLabelText('Referral code (optional)')).toBeInTheDocument();
     expect(screen.getByRole('note')).toHaveTextContent('about 30 minutes after you register');
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
@@ -153,12 +154,12 @@ describe('BirthDetails (page 2)', () => {
     const user = userEvent.setup();
     const first = renderPage();
     await user.type(screen.getByLabelText(/city of birth/i), 'Pune');
-    await user.click(screen.getByLabelText('Male'));
+    await user.selectOptions(screen.getByLabelText('Gender'), 'male');
     first.unmount();
 
     renderPage();
     expect(screen.getByLabelText(/city of birth/i)).toHaveValue('Pune');
-    expect(screen.getByLabelText('Male')).toBeChecked();
+    expect(screen.getByLabelText('Gender')).toHaveValue('male');
   });
 
   it('shows the server message and keeps the entries when saving fails', async () => {
@@ -186,10 +187,20 @@ describe('BirthDetails (page 2)', () => {
     expect(screen.getByLabelText(/date of birth/i)).toHaveValue('09/03/1985');
   });
 
-  it('skips the page for a user whose profile is already complete', async () => {
+  it('skips the page for a user whose profile is already complete and chart is ready', async () => {
     vi.mocked(fetchMe).mockResolvedValue(me({ profile_complete: true, kundli_status: 'ready' }));
     renderPage();
     await waitFor(() => expect(onDone).toHaveBeenCalled());
+  });
+
+  it('shows the generating overlay on reload/re-login when profile_complete is true and kundli_status is building, then calls onDone when ready', async () => {
+    vi.mocked(fetchMe)
+      .mockResolvedValueOnce(me({ profile_complete: true, kundli_status: 'building' }))
+      .mockResolvedValueOnce(me({ profile_complete: true, kundli_status: 'ready' }));
+    renderPage();
+    expect(await screen.findByTestId('birth-chart-generating-overlay')).toBeInTheDocument();
+    expect(screen.getByText(/Generating your birth chart/i)).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 5000 });
   });
 });
 

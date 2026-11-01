@@ -54,14 +54,32 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
 
   const fieldsRef = useRef<BirthFieldsHandle>(null);
 
-  // A user who already finished registration does not need this page.
+  // A user who already finished registration and has a ready chart does not need this page.
+  // If their birth details were already submitted (e.g. before a page reload or logout + login) and their
+  // birth chart is still being generated (kundli_status !== 'ready'), show the generating overlay and poll
+  // until kundli_status === 'ready', then proceed to the dashboard.
   useEffect(() => {
     let alive = true;
-    void fetchMe().then((me) => {
-      if (alive && me?.profile_complete) onDone();
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const checkMe = async () => {
+      const me = await fetchMe();
+      if (!alive || !me?.profile_complete) return;
+      if (me.kundli_status === 'ready') {
+        setLoading(false);
+        onDone();
+        return;
+      }
+      setLoading(true);
+      timer = setTimeout(() => {
+        void checkMe();
+      }, 2000);
+    };
+
+    void checkMe();
     return () => {
       alive = false;
+      if (timer !== undefined) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -109,12 +127,21 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
         } catch {
           /* ignore */
         }
+        // Poll until kundli_status is 'ready' (or if fetchMe is unavailable, proceed immediately).
+        for (let attempt = 0; attempt < 30; attempt++) {
+          const me = await fetchMe();
+          if (!me || me.kundli_status === 'ready' || !me.profile_complete) break;
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+        setLoading(false);
         onDone();
       } else {
+        setLoading(false);
         setSubmitError(result.message || 'Something went wrong on our side. Your details are still here; try again in a moment.');
       }
-    } finally {
+    } catch {
       setLoading(false);
+      setSubmitError('Something went wrong on our side. Your details are still here; try again in a moment.');
     }
   };
 

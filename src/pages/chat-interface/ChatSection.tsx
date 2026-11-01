@@ -134,9 +134,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         const details = await fetchUserDetails();
         if (cancelled) return;
         const ready = Boolean(
-          details.success &&
-            (details.kundli_added === true || details.queue_status === 'completed') ||
-            details.queue_status === 'completed'
+          details.success && details.kundli_added === true && details.queue_status === 'completed'
         );
         setKundliReady(ready);
         if (ready && pollIdRef.current) {
@@ -619,15 +617,23 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
   if (kundliReady === null || kundliReady === false) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
-        <div className="text-center text-white p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+      <div
+        role="status"
+        aria-live="polite"
+        data-test-id="birth-chart-generating-overlay"
+        className="flex min-h-0 flex-1 items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 px-4"
+      >
+        <div className="w-full max-w-md text-center text-white p-8 rounded-2xl bg-slate-900/95 border border-purple-400/30 backdrop-blur-md shadow-2xl">
           <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">
-            {kundliReady === null ? 'Loading…' : 'Syncing your chart…'}
+          <h3 className="text-lg font-semibold mb-1">
+            {kundliReady === null ? 'Loading…' : 'Generating your birth chart…'}
           </h3>
-          <p className="text-gray-400 text-sm max-w-sm">
+          {kundliReady === false && (
+            <p className="text-xs font-medium text-purple-300 mb-2">Syncing your chart…</p>
+          )}
+          <p className="text-gray-300 text-sm leading-relaxed">
             {kundliReady === false
-              ? 'We’re fetching your chart data. You can use chat as soon as it’s ready.'
+              ? 'We’re calculating your planetary placements, divisional charts, and dasha periods. You can use chat as soon as it’s ready.'
               : 'Preparing your cosmic profile.'}
           </p>
         </div>
