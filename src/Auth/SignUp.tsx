@@ -265,17 +265,8 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               </div>
             )}
 
-            {turnstile.isEnabled && (
-              <TurnstileField
-                siteKey={turnstile.siteKey}
-                action="signup"
-                onSuccess={turnstile.onSuccess}
-                onExpire={turnstile.onExpire}
-                onError={turnstile.onError}
-                onRegisterReset={turnstile.registerReset}
-                className="flex justify-center"
-              />
-            )}
+            {turnstile.isEnabled && <span className="sr-only" />}
+          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
 
             {(error || turnstile.error) && (
               <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
