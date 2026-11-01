@@ -1,7 +1,7 @@
 import React from 'react';
-import { Star, LogOut, BarChart3, Heart, BookOpen, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Star, BarChart3, Heart, BookOpen, MessageCircle, AlertTriangle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ShriGaneshAvatar } from '../components/ShriGaneshAvatar';
+import ProfileMenu from '../components/ProfileMenu';
 
 interface User {
   name: string;
@@ -60,28 +60,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
             })}
           </div>
 
-          <div className="flex items-center space-x-4">
-            {user && (
-              <button
-                type="button"
-                onClick={() => navigate('/profile')}
-                title="Your profile"
-                aria-label="Profile"
-                className="hidden sm:block text-right rounded-lg px-2 py-1 hover:bg-white/10"
-              >
-                <p className="text-white font-medium">{user.name}</p>
-                <p className="text-gray-400 text-sm">{user.email}</p>
-              </button>
-            )}
-            <ShriGaneshAvatar />
-            <button
-              onClick={onLogout}
-              className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
+          <ProfileMenu user={user} onLogout={onLogout} />
         </div>
 
         {/* ✅ Error Banner */}
@@ -112,13 +91,6 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
                 </button>
               );
             })}
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="sm:hidden flex items-center space-x-2 px-3 py-2 rounded-lg whitespace-nowrap text-gray-300 hover:text-white hover:bg-white/10"
-            >
-              <span className="text-sm font-medium">Profile</span>
-            </button>
           </div>
         </div>
       </div>

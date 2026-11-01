@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Star, Loader2 } from 'lucide-react';
-import { completeProfile, fetchMe, isChartOpen, type ChartStatus, type Gender } from './api';
+import { completeProfile, fetchMe, isChartOpen, type ChartStatus, type Gender, type Language } from './api';
 import ChartProgress from '../components/ChartProgress';
 import BirthFields, {
   BIRTH_FIELD_LABEL,
@@ -14,6 +14,7 @@ import BirthFields, {
   type BirthValues,
 } from './fields/BirthFields';
 import { defaultCountryFromLocale } from './fields/countries';
+import LanguageField, { defaultLanguage } from './fields/LanguageField';
 import { parseTypedDate } from './fields/dateUtils';
 import { READY_NOTICE } from './readyNotice';
 
@@ -24,7 +25,7 @@ interface Props {
   onDone: () => void;
 }
 
-type Values = BirthValues & { referral: string };
+type Values = BirthValues & { referral: string; language?: Language };
 
 const STORAGE_KEY = 'aiastra.registration.details';
 const EMPTY: Values = { ...EMPTY_BIRTH, referral: '' };
@@ -46,7 +47,7 @@ const label = 'block text-sm font-medium text-gray-300 mb-2';
 const BirthDetails: React.FC<Props> = ({ onDone }) => {
   const [values, setValues] = useState<Values>(() => {
     const v = loadDraft();
-    return v.country ? v : { ...v, country: defaultCountryFromLocale() };
+    return { ...v, country: v.country || defaultCountryFromLocale(), language: v.language ?? defaultLanguage() };
   });
   const [errors, setErrors] = useState<BirthErrors>({});
   const [submitError, setSubmitError] = useState('');
@@ -123,6 +124,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
         city: values.city.trim(),
         gender: values.gender as Gender,
         referral_code: values.referral.trim() || null,
+        language: values.language ?? 'en',
       });
       if (result.success) {
         try {
@@ -199,6 +201,8 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
               onChange={(patch) => setValues((p) => ({ ...p, ...patch }))}
               onCheck={checkField}
             />
+
+            <LanguageField value={values.language ?? 'en'} onChange={(language) => setValues((p) => ({ ...p, language }))} />
 
             <div>
               <label htmlFor="referral" className={label}>

@@ -19,7 +19,9 @@ import { useSpeechRecognition } from './useSpeechRecognition';
 import { useQuestionLocation, QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
 import { applyReadingEvent, nextPartsOf, type NextPart } from './readingProgress';
 import { trackChatQuestionSent } from '../../lib/analytics';
-import { useMe, useRefreshMe } from '../../Auth/ProfileGate';
+import { useMe, usePlan, useRefreshMe } from '../../Auth/ProfileGate';
+import { isExhausted, QuotaExhaustedError } from '../../lib/billing';
+import UpgradeCard from '../../components/UpgradeCard';
 import ChartProgress from '../../components/ChartProgress';
 import KundliNotice from '../../components/KundliNotice';
 import {
@@ -49,6 +51,7 @@ const POLL_INTERVAL_MS = 3000;
 const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) => {
   const me = useMe();
   const refreshMe = useRefreshMe();
+  const { plan, setPlan, refreshPlan } = usePlan();
   const [kundliReady, setKundliReady] = useState<boolean | null>(null);
   const pollIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -331,6 +334,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             location: currentLocation(),
             onEvent: (ev) => {
               if (!mountedRef.current) return;
+              if (ev.type === 'usage') {
+                if (ev.usage) setPlan(ev.usage);
+                return;
+              }
               if (ev.type === 'next') next = nextPartsOf(ev);
               setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, progress: applyReadingEvent(m.progress, ev) } : m)));
             },
@@ -343,6 +350,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         }
       } catch (err) {
         if (mountedRef.current) {
+          if (err instanceof QuotaExhaustedError && err.usage) setPlan(err.usage);
           const msg = err instanceof Error ? err.message : 'Something went wrong';
           setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: m.text || msg } : m)));
         }
@@ -405,6 +413,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
             location,
             onEvent: (ev) => {
               if (!mountedRef.current) return;
+              if (ev.type === 'usage') {
+                if (ev.usage) setPlan(ev.usage);
+                return;
+              }
               if (ev.type === 'next') {
                 nextParts = nextPartsOf(ev);
                 if (nextParts.length) labelFirstPart(aiPlaceholderId, nextParts);
@@ -437,8 +449,19 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         };
         setMessages((prev) => [...prev, aiResponse]);
         updateSidebarPreview(threadIdAtSend, trimmed);
+        void refreshPlan();
       }
     } catch (err) {
+      if (err instanceof QuotaExhaustedError) {
+        // no answer is coming: the question goes back in the box, and the upgrade card takes the input's place
+        if (mountedRef.current) {
+          if (err.usage) setPlan(err.usage);
+          else void refreshPlan();
+          setMessages((prev) => prev.filter((m) => m.id !== userMessage.id && m.id !== streamPlaceholderId));
+          setInputText(trimmed);
+        }
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Unknown error';
       if (streamPlaceholderId && mountedRef.current) {
         setMessages((prev) =>
@@ -513,6 +536,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           location: currentLocation(),
           onEvent: (ev) => {
             if (!mountedRef.current) return;
+            if (ev.type === 'usage') {
+              if (ev.usage) setPlan(ev.usage);
+              return;
+            }
             if (ev.type === 'next') {
               nextParts = nextPartsOf(ev);
               if (nextParts.length) labelFirstPart(messageId, nextParts);
@@ -528,6 +555,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         if (nextParts.length) continueFrom = { chatId, parts: nextParts };
       }
     } catch (err) {
+      if (err instanceof QuotaExhaustedError && mountedRef.current) {
+        if (err.usage) setPlan(err.usage);
+        else void refreshPlan();
+      }
       if (mountedRef.current) setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text || (err instanceof Error ? err.message : 'Something went wrong') } : m)));
     } finally {
       if (mountedRef.current) {
@@ -692,6 +723,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         onStartListening={handleStartListening}
         onStopListening={stopListening}
         inputDisabled={inputDisabled}
+        inputBlockedCard={plan && isExhausted(plan) && !isTyping ? <UpgradeCard plan={plan} /> : undefined}
         clarifyBusy={clarifyBusy}
         onClarifyAnswer={(id, runId, value, viaChip) => void handleClarifyAnswer(id, runId, value, viaChip)}
         onClarifyConfirm={(id, runId) => void handleClarifyConfirm(id, runId)}

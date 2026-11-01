@@ -1,12 +1,18 @@
+import { useTranslation } from 'react-i18next';
+import RegionSwitch from './components/RegionSwitch';
+import { useRegion } from './lib/region';
 import React, { useEffect, useState, useRef } from 'react';
 import { Star, Moon, Sun, Sparkles, ChevronDown, BookOpen, Globe, Shield, Users, ArrowRight, Check, Move3d } from 'lucide-react';
 
 interface LandingPageProps {
+  onPricing?: () => void;
   onSignIn: () => void;
   onSignUp: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing }) => {
+  const { t } = useTranslation();
+  const [region, setRegion] = useRegion();
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('principles');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -144,7 +150,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp }) => {
               Cosmo Vedic
             </h1>
           </div>
-          <div className="space-x-4">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <RegionSwitch value={region} onChange={setRegion} />
+            {onPricing && (
+              <button type="button" onClick={onPricing} className="text-gray-200 hover:text-white">
+                {t('region.pricing')}
+              </button>
+            )}
             {/* <button
               onClick={onSignIn}
               className="px-6 py-2 text-white border border-purple-400/50 rounded-full hover:bg-purple-400/20 transition-all duration-300"

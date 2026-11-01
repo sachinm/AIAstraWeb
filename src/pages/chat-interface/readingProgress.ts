@@ -1,3 +1,4 @@
+import type { PlanStatus } from '../../lib/billing';
 /**
  * Progress shown while the reading engine works: the "I understood X" line (from the `intent` SSE event) and one pill per
  * stage (`stage` events). Pure functions so the UI state is easy to test. The server sends these events only when the
@@ -60,7 +61,9 @@ export function nextPartsOf(ev: Record<string, unknown>): NextPart[] {
 export const MAX_THINKING_CHARS = 20_000;
 
 export interface ReadingStreamEvent {
-  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'thought' | 'next';
+  /** with type `usage`: the question count after this request (not a reading stage) */
+  usage?: PlanStatus;
+  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'thought' | 'next' | 'usage';
   [k: string]: unknown;
 }
 
