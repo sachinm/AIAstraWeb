@@ -3,6 +3,8 @@ import { Star, UserIcon, Mail, ArrowLeft } from 'lucide-react';
 import { startSignup, verifySignupCode, EMAIL_EXISTS_CODE } from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileField from './TurnstileField';
+import LegalLinks from '../components/LegalLinks';
+import { PRODUCT_NAME } from '../lib/legal';
 
 interface SignUpProps {
   /** Called when the emailed code is confirmed and the user is signed in; the next page is birth details. */
@@ -18,6 +20,7 @@ const CODE_MAX_LENGTH = 8;
 /** Seconds before another code can be requested. */
 export const RESEND_COOLDOWN_SECONDS = 30;
 export const EMAIL_EXISTS_MESSAGE = 'This email is already registered. Please sign in instead.';
+export const TERMS_REQUIRED_MESSAGE = 'Please accept the Terms of Service and Privacy Policy to continue.';
 
 const inputCls =
   'w-full bg-white/10 border rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 read-only:opacity-70';
@@ -35,6 +38,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string }>({});
   const [error, setError] = useState('');
   const [emailExists, setEmailExists] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const turnstile = useTurnstile();
   const nameRef = useRef<HTMLInputElement>(null);
@@ -69,6 +73,10 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
     setEmailExists(false);
     if (codeSent && cooldown > 0) return;
     if (!validate()) return;
+    if (!accepted) {
+      setError(TERMS_REQUIRED_MESSAGE);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -152,7 +160,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               <Star className="w-12 h-12 text-purple-400" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Create your account</h2>
-            <p className="text-gray-300">Your name and email. Birth details come next.</p>
+            <p className="text-gray-300">Join AI Astra with your name and email. Birth details come next.</p>
           </div>
 
           <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-6">
@@ -265,6 +273,31 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               </div>
             )}
 
+            {!codeSent && (
+              <label className="flex items-start gap-2 text-sm text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={accepted}
+                  onChange={(e) => {
+                    setAccepted(e.target.checked);
+                    if (e.target.checked) setError('');
+                  }}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-purple-500"
+                />
+                <span>
+                  I am 18 or older and accept the{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-purple-300 underline underline-offset-2 hover:text-white">
+                    Terms of Service
+                  </a>{' '}
+                  and{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-300 underline underline-offset-2 hover:text-white">
+                    Privacy Policy
+                  </a>
+                  . {PRODUCT_NAME} is for education and entertainment only and is not advice.
+                </span>
+              </label>
+            )}
+
             {turnstile.isEnabled && <span className="sr-only" />}
 
             {(error || turnstile.error) && (
@@ -315,7 +348,8 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               onRegisterReset={turnstile.registerReset}
             />
           )}
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+          <LegalLinks className="mt-6" />
+          <p className="text-center text-xs text-gray-400 mt-2" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>
       </div>
     </div>

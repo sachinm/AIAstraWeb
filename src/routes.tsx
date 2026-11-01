@@ -11,6 +11,7 @@ import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
 import PricingPage from './pages/pricing/PricingPage';
+import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -58,6 +59,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       />
 
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/refunds" element={<RefundsPage />} />
 
       <Route element={<GuestRoute {...gateProps} />}>
         <Route

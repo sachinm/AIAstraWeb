@@ -9,6 +9,7 @@ import type { UiMessage } from './chatThreadUtils';
 import type { ReadingProgress } from './readingProgress';
 import ReadingStagesPanel, { ReadingMadeLink } from './ReadingStagesPanel';
 import Disclaimer from '../../components/Disclaimer';
+import LegalLinks from '../../components/LegalLinks';
 import ClarifyCard from './ClarifyCard';
 import ThinkingPanel from './ThinkingPanel';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
@@ -460,7 +461,10 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           <div className="min-w-0" data-test-id="chat-main-area-disclaimer">
             <Disclaimer />
           </div>
-          <p className="min-w-0" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+          <div className="min-w-0">
+            <p data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+            <LegalLinks />
+          </div>
         </div>
       </div>
     </div>

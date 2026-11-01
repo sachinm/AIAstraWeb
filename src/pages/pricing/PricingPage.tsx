@@ -3,6 +3,8 @@ import { ArrowLeft, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { fetchPlanState } from '../../Auth/api';
+import Disclaimer from '../../components/Disclaimer';
+import LegalLinks from '../../components/LegalLinks';
 import RegionSwitch from '../../components/RegionSwitch';
 import {
   fetchPlans,
@@ -194,6 +196,8 @@ const PricingPage: React.FC = () => {
             })}
           </div>
         )}
+        <Disclaimer className="mt-8" />
+        <LegalLinks className="mt-2" />
       </div>
     </div>
   );

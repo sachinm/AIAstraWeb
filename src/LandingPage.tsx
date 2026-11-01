@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import RegionSwitch from './components/RegionSwitch';
 import { useRegion } from './lib/region';
+import Disclaimer from './components/Disclaimer';
+import { PRODUCT_NAME, SUPPORT_EMAIL } from './lib/legal';
 import React, { useEffect, useState, useRef } from 'react';
 import { Star, Moon, Sun, Sparkles, ChevronDown, BookOpen, Globe, Shield, Users, ArrowRight, Check, Move3d } from 'lucide-react';
 
@@ -54,18 +56,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
       icon: <BookOpen className="w-6 h-6 text-purple-400" />
     },
     {
-      title: "Cosmo Connection",
+      title: "Cosmic Connection",
       description: "The positions of planets at your birth create a unique energetic blueprint that influences your personality, relationships, and life path.",
       icon: <Globe className="w-6 h-6 text-blue-400" />
     },
     {
       title: "Remedial Solutions",
-      description: "Vedic astrology offers practical remedies like mantras, gemstones, and rituals to harmonize planetary energies and overcome challenges.",
+      description: "The tradition offers remedies such as mantras, gemstones, and rituals for working with planetary energies.",
       icon: <Shield className="w-6 h-6 text-yellow-400" />
     },
     {
       title: "Cycles of Time",
-      description: "Through dashas (planetary periods), Vedic astrology predicts life events and optimal timing for important decisions and actions.",
+      description: "Through dashas (planetary periods), Vedic astrology studies the timing of the chapters of a life.",
       icon: <Users className="w-6 h-6 text-pink-400" />
     }
   ];
@@ -77,15 +79,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
     },
     {
       question: "What information do I need for a Vedic chart reading?",
-      answer: "For an accurate reading, we need your exact birth time, date, and place of birth. This allows us to calculate your ascendant (Lagna) and planetary positions precisely."
+      answer: "We need your birth date, time, and place. They are used to calculate your ascendant (Lagna) and planetary positions."
     },
     {
       question: "How often should I consult my Vedic chart?",
-      answer: "Major life transitions are ideal times for consultation. Many clients check during planetary transitions (Gochar) or at the start of new planetary periods (Dasha)."
+      answer: "People often look at their chart during planetary transitions (Gochar) or at the start of new planetary periods (Dasha)."
     },
     {
       question: "Can Vedic astrology predict future events?",
-      answer: "Vedic astrology identifies patterns and probabilities rather than fixed outcomes. It reveals potential challenges and opportunities, empowering you to make conscious choices."
+      answer: "Readings describe what the tradition associates with a chart. They are for education and entertainment, and they are not predictions you should rely on."
     }
   ];
 
@@ -147,7 +149,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
           <div className="flex items-center space-x-2">
             <Star className="text-purple-400 w-8 h-8 animate-pulse" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Cosmo Vedic
+              {PRODUCT_NAME}
             </h1>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
@@ -157,14 +159,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
                 {t('region.pricing')}
               </button>
             )}
-            {/* <button
-              onClick={onSignIn}
-              className="px-6 py-2 text-white border border-purple-400/50 rounded-full hover:bg-purple-400/20 transition-all duration-300"
-            >
-              Sign In
-            </button> */}
+            <button type="button" onClick={onSignIn} className="text-gray-200 hover:text-white">
+              Sign in
+            </button>
             <button
-              onClick={onSignIn}
+              onClick={onSignUp}
               className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 flex items-center group"
             >
               Get Started
@@ -181,19 +180,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
         }`}>
           <div className="inline-block mb-6 bg-purple-900/30 px-4 py-2 rounded-full border border-purple-400/30 animate-pulse">
             <span className="flex items-center text-purple-300">
-              <Move3d className="mr-2 w-5 h-5" /> Precision Vedic Astrology
+              <Move3d className="mr-2 w-5 h-5" /> Vedic astrology with AI
             </span>
           </div>
           <h2 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-            Discover Your Cosmo Blueprint
+            Discover Your Cosmic Blueprint
           </h2>
           <h3 className="text-5xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
             Through Vedic Wisdom
           </h3>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Unlock the ancient secrets of Jyotish (Vedic Astrology) to navigate life's challenges, fulfill your dharma, 
-            and align with Cosmo rhythms. Our AI-powered platform combines timeless wisdom with modern technology for 
-            personalized guidance.
+            Explore Jyotish (Vedic astrology) through your own birth chart. Ask questions and read about what the tradition
+            sees in your chart, for education and entertainment.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button
@@ -202,69 +200,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
             >
               Generate My Chart
             </button>
-            <button className="px-10 py-4 text-white text-lg border border-purple-400/50 rounded-full hover:bg-purple-400/20 transition-all duration-300">
+            <button
+              type="button"
+              onClick={() => document.getElementById('vedic-principles')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-10 py-4 text-white text-lg border border-purple-400/50 rounded-full hover:bg-purple-400/20 transition-all duration-300">
               Explore Vedic Wisdom
             </button>
           </div>
         </div>
 
-        {/* Accuracy Warning Section */}
-        <div className={`py-16 transition-all duration-1000 delay-500 ${
-          isVisible ? 'opacity-100' : 'opacity-0 translate-y-10'
-        }`}>
-          <div className="bg-gradient-to-r from-purple-900/40 to-pink-900/40 rounded-2xl p-8 border border-purple-400/30 relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-24 h-24 bg-purple-500/20 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-pink-500/20 rounded-full blur-xl"></div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center mb-6">
-                <div className="bg-red-500/20 p-2 rounded-lg mr-4">
-                  <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                  </svg>
-                </div>
-                <h3 className="text-3xl font-bold bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent">
-                  Beware of Inaccurate AI Astrology
-                </h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <p className="text-lg text-gray-300 mb-4">
-                    Our research shows that <span className="text-red-300 font-bold">70% of AI-based astrology platforms</span> generate incorrect charts and make predictions without proper Vedic foundations.
-                  </p>
-                  <p className="text-gray-300">
-                    Many platforms use oversimplified algorithms that fail to account for precise astronomical calculations, 
-                    sidereal zodiac adjustments, and location-specific planetary positions.
-                  </p>
-                </div>
-                
-                <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
-                  <h4 className="text-xl font-semibold text-white mb-4 flex items-center">
-                    <Star className="mr-2 text-yellow-400 w-5 h-5" />
-                    Cosmo Vedic's Precision Approach
-                  </h4>
-                  <ul className="space-y-3">
-                    {[
-                      "Millimeter-accurate planetary positions using NASA data",
-                      "Validated by Vedic scholars from traditional lineages",
-                      "AI trained on classical Sanskrit texts",
-                      "Sidereal zodiac with precise ayanamsa calculation"
-                    ].map((item, index) => (
-                      <li key={index} className="flex items-start">
-                        <Check className="w-5 h-5 text-green-400 mt-0.5 mr-3 flex-shrink-0" />
-                        <span className="text-gray-300">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Vedic Principles */}
-        <div className={`py-16 transition-all duration-1000 delay-700 ${
+        <div id="vedic-principles" className={`py-16 transition-all duration-1000 delay-700 ${
           isVisible ? 'opacity-100' : 'opacity-0 translate-y-10'
         }`}>
           <div className="text-center mb-16">
@@ -273,7 +219,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
             </h3>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Jyotish, the "science of light," offers a comprehensive framework for understanding life's patterns 
-              through Cosmo influences
+              through cosmic influences
             </p>
           </div>
           
@@ -312,14 +258,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
               The Ancient Science of Light
             </h3>
             <p className="text-xl text-gray-300 max-w-3xl mb-8">
-              Vedic astrology (Jyotish) is a 5,000-year-old mathematical system that reveals how Cosmo patterns 
-              influence human consciousness and earthly events
+              Vedic astrology (Jyotish) is a long-standing tradition that relates cosmic patterns
+              to human life
             </p>
             <button 
               onClick={onSignUp}
               className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105"
             >
-              Explore Your Cosmo Design
+              Explore Your Cosmic Design
             </button>
           </div>
         </div>
@@ -347,17 +293,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
               {
                 icon: <Sun className="w-8 h-8 text-yellow-400" />,
                 title: "Remedial Guidance",
-                description: "Personalized gemstone recommendations, ritual guidance, and spiritual practices for planetary harmony."
+                description: "What the tradition suggests for your chart: gemstones, rituals, and spiritual practices."
               },
               {
                 icon: <Sparkles className="w-8 h-8 text-purple-400" />,
                 title: "Mantra & Meditation",
-                description: "Sacred mantras and meditation techniques aligned with your chart to manifest abundance and spiritual growth."
+                description: "Traditional mantras and meditation techniques related to your chart."
               },
               {
                 icon: <Star className="w-8 h-8 text-pink-400" />,
                 title: "AI Astrologer",
-                description: "24/7 access to our Vedic AI trained on classical texts like Brihat Parashara Hora Shastra."
+                description: "Ask an AI about your chart whenever you like."
               }
             ].map((card, index) => (
               <div
@@ -387,12 +333,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           }`}>
             <h3 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Transform Your Life Through Cosmo Wisdom
+              Explore Your Life Through Cosmic Wisdom
             </h3>
             <p className="text-lg text-gray-300 max-w-4xl mx-auto mb-12 leading-relaxed">
-              Vedic astrology offers profound insights into your dharma, relationships, career, and spiritual path. 
-              Our platform combines traditional knowledge with modern AI to provide accurate, personalized guidance 
-              for every aspect of your life journey.
+              Vedic astrology has much to say about dharma, relationships, career, and the spiritual path.
+              {PRODUCT_NAME} brings that tradition and modern AI together in readings based on your own chart.
             </p>
           </div>
           
@@ -401,10 +346,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
               <h4 className="text-2xl font-semibold mb-4 text-white">Vedic Astrology vs Modern Life</h4>
               <ul className="space-y-4">
                 {[
-                  "Understand relationship compatibility through Graha Maitri (planetary friendships)",
-                  "Navigate career crossroads with Arudha Lagna insights",
-                  "Identify optimal timing for ventures using Muhurta",
-                  "Balance health through planetary-dosha connections"
+                  "Read about compatibility through Graha Maitri (planetary friendships)",
+                  "Explore what Arudha Lagna says about how others see you",
+                  "Learn how Muhurta approaches the timing of events"
                 ].map((item, index) => (
                   <li key={index} className="flex items-start">
                     <Check className="w-5 h-5 text-green-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -415,10 +359,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
             </div>
             
             <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-8 border border-purple-400/30">
-              <h4 className="text-2xl font-semibold mb-4 text-white">The Cosmo Advantage</h4>
+              <h4 className="text-2xl font-semibold mb-4 text-white">What the Tradition Looks At</h4>
               <p className="text-gray-300 mb-6">
-                Vedic astrology provides a 5,000-year-old framework for understanding life's patterns. 
-                Unlike sun-sign astrology, it considers:
+                Unlike sun-sign astrology, Vedic astrology considers:
               </p>
               <ul className="space-y-3">
                 {[
@@ -481,10 +424,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
         <div className="py-16 text-center">
           <div className="bg-gradient-to-r from-purple-900/40 to-pink-900/40 rounded-2xl p-12 border border-purple-400/30">
             <h3 className="text-4xl font-bold mb-6 bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
-              Ready to Discover Your Cosmo Path?
+              Ready to Explore Your Cosmic Path?
             </h3>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-              Unlock personalized Vedic insights that illuminate your life's purpose, relationships, and destiny
+              Create your chart and start asking questions
             </p>
             <button
               onClick={onSignUp}
@@ -503,70 +446,42 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <Star className="text-purple-400 w-6 h-6" />
-                <span className="text-white font-bold text-xl">Cosmo Vedic</span>
+                <span className="text-white font-bold text-xl">{PRODUCT_NAME}</span>
               </div>
               <p className="text-gray-400 mb-4">
-                Illuminating life paths through ancient Vedic wisdom and modern technology
+                Vedic astrology and modern AI, for education and entertainment
               </p>
-              <div className="flex space-x-4">
-                <div className="w-8 h-8 rounded-full bg-purple-900/50 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12z"/>
-                  </svg>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-purple-900/50 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.477 2 2 6.477 2 12c0 5.523 4.477 10 10 10 5.523 0 10-4.477 10-10 0-5.523-4.477-10-10-10zm-2 15v-4H7v-4h3V8.012C10 6.904 10.895 6 12.006 6H15v4h-2v1h2v4h-3v4h-2z"/>
-                  </svg>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-purple-900/50 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                  </svg>
-                </div>
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold text-white mb-4">Product</h4>
+              <ul className="space-y-3">
+                <li><button type="button" onClick={onSignUp} className="text-gray-400 hover:text-purple-300 transition-colors">Create an account</button></li>
+                <li><button type="button" onClick={onSignIn} className="text-gray-400 hover:text-purple-300 transition-colors">Sign in</button></li>
+                {onPricing && <li><button type="button" onClick={onPricing} className="text-gray-400 hover:text-purple-300 transition-colors">Pricing</button></li>}
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold text-white mb-4">Legal</h4>
+              <ul className="space-y-3">
+                <li><a href="/terms" className="text-gray-400 hover:text-purple-300 transition-colors">Terms of Service</a></li>
+                <li><a href="/privacy" className="text-gray-400 hover:text-purple-300 transition-colors">Privacy Policy</a></li>
+                <li><a href="/refunds" className="text-gray-400 hover:text-purple-300 transition-colors">Refund Policy</a></li>
+              </ul>
+            </div>
+
+            {SUPPORT_EMAIL && (
+              <div>
+                <h4 className="text-lg font-semibold text-white mb-4">Contact</h4>
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-gray-400 hover:text-purple-300 transition-colors">{SUPPORT_EMAIL}</a>
               </div>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Resources</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Vedic Knowledge Base</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Planetary Guide</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Mantra Library</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Nakshatra Encyclopedia</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Services</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Birth Chart Analysis</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Compatibility Reading</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Dasha Period Forecast</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Remedial Solutions</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Contact</h4>
-              <ul className="space-y-3">
-                <li className="text-gray-400">support@Cosmovedic.com</li>
-                <li className="text-gray-400">+1 (800) 555-1080</li>
-                <li className="text-gray-400">Varanasi, India</li>
-                <li className="mt-4">
-                  <button 
-                    onClick={onSignIn}
-                    className="text-purple-400 hover:text-white transition-colors flex items-center"
-                  >
-                    Contact Support <ArrowRight className="ml-2 h-4 w-4" />
-                  </button>
-                </li>
-              </ul>
-            </div>
+            )}
           </div>
-          
+
           <div className="text-center text-gray-400 mt-12 pt-8 border-t border-white/10">
-            <p>&copy; 2025.</p>
+            <Disclaimer className="mb-4" />
+            <p>&copy; 2026 {PRODUCT_NAME}. All rights reserved.</p>
           </div>
         </div>
       </footer>
