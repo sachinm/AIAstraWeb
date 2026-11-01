@@ -9,6 +9,8 @@ interface TurnstileFieldProps {
   onExpire?: () => void;
   onError?: () => void;
   onRegisterReset?: (reset: () => void) => void;
+  /** Draw the widget only when Cloudflare needs the person to act, so a reset does not visibly redraw the page. */
+  quiet?: boolean;
 }
 
 const TurnstileField: React.FC<TurnstileFieldProps> = ({
@@ -19,6 +21,7 @@ const TurnstileField: React.FC<TurnstileFieldProps> = ({
   onExpire,
   onError,
   onRegisterReset,
+  quiet = false,
 }) => {
   const ref = useRef<TurnstileInstance>(null);
   const [loaded, setLoaded] = useState(false);
@@ -30,8 +33,8 @@ const TurnstileField: React.FC<TurnstileFieldProps> = ({
   }, [onRegisterReset]);
 
   return (
-    <div className={`${className} min-h-[65px] items-center relative`} data-test-id="turnstile-field">
-      {!loaded && (
+    <div className={`${className} ${quiet ? '' : 'min-h-[65px]'} items-center relative`} data-test-id="turnstile-field">
+      {!loaded && !quiet && (
         <span className="text-xs text-gray-400 animate-pulse absolute">
           Loading security check…
         </span>
@@ -52,7 +55,7 @@ const TurnstileField: React.FC<TurnstileFieldProps> = ({
         options={{
           theme: 'dark',
           size: 'normal',
-          appearance: 'always',
+          appearance: quiet ? 'interaction-only' : 'always',
           ...(action ? { action } : {}),
         }}
       />

@@ -232,7 +232,7 @@ async function postChatSse(
   options?: { signal?: AbortSignal; onEvent?: (event: ReadingStreamEvent) => void }
 ): Promise<StreamResult> {
   // No `meDetails` round trip here: the chat input is only enabled once the kundli is ready (ChatSection polls it),
-  // and the server re-checks on every ask-stream (400 "chart is still being prepared"). Skipping the extra call
+  // and the server re-checks on every ask-stream (409 "chart is still being prepared"). Skipping the extra call
   // removes one full network round trip before the first byte of every answer.
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (!token) throw new Error('Not authenticated');
@@ -268,7 +268,7 @@ async function postChatSse(
     });
 
     if (res.status === 401) throw new Error('Not authenticated');
-    if (res.status === 400) {
+    if (res.status === 400 || res.status === 409) {
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(j.error || 'Bad request');
     }

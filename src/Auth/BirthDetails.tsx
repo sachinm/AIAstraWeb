@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Star, Loader2 } from 'lucide-react';
-import { completeProfile, fetchMe, type Gender } from './api';
+import { completeProfile, fetchMe, isChartOpen, type ChartStatus, type Gender } from './api';
+import ChartProgress from '../components/ChartProgress';
 import BirthFields, {
   BIRTH_FIELD_LABEL,
   BIRTH_FIELD_ORDER,
@@ -51,13 +52,14 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
   const [submitError, setSubmitError] = useState('');
   const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(false);
+  const [chart, setChart] = useState<ChartStatus | null>(null);
 
   const fieldsRef = useRef<BirthFieldsHandle>(null);
 
-  // A user who already finished registration and has a ready chart does not need this page.
+  // A user who already finished registration and whose chat is open does not need this page.
   // If their birth details were already submitted (e.g. before a page reload or logout + login) and their
-  // birth chart is still being generated (kundli_status !== 'ready'), show the generating overlay and poll
-  // until kundli_status === 'ready', then proceed to the dashboard.
+  // birth chart is still being generated, show the generating overlay and poll until chat opens, then proceed
+  // to the dashboard.
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -65,11 +67,12 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
     const checkMe = async () => {
       const me = await fetchMe();
       if (!alive || !me?.profile_complete) return;
-      if (me.kundli_status === 'ready') {
+      if (isChartOpen(me)) {
         setLoading(false);
         onDone();
         return;
       }
+      setChart(me.chart ?? null);
       setLoading(true);
       timer = setTimeout(() => {
         void checkMe();
@@ -127,10 +130,11 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
         } catch {
           /* ignore */
         }
-        // Poll until kundli_status is 'ready' (or if fetchMe is unavailable, proceed immediately).
+        // Poll until chat opens (or if fetchMe is unavailable, proceed immediately).
         for (let attempt = 0; attempt < 30; attempt++) {
           const me = await fetchMe();
-          if (!me || me.kundli_status === 'ready' || !me.profile_complete) break;
+          if (!me || isChartOpen(me) || !me.profile_complete) break;
+          setChart(me.chart ?? null);
           await new Promise((r) => setTimeout(r, 2000));
         }
         setLoading(false);
@@ -155,15 +159,21 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md px-4"
         >
           <div className="w-full max-w-md rounded-2xl bg-slate-900/95 border border-purple-400/30 p-8 text-center shadow-2xl">
-            <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/20 border border-purple-400/40">
-              <Loader2 className="h-9 w-9 text-purple-400 animate-spin" aria-hidden="true" />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">
-              Generating your birth chart…
-            </h3>
-            <p className="text-sm text-gray-300 leading-relaxed">
-              We are calculating your planetary placements, divisional charts, and dasha periods. Please wait a moment while we prepare your profile.
-            </p>
+            {chart ? (
+              <ChartProgress chart={chart} onUpdated={setChart} />
+            ) : (
+              <>
+                <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/20 border border-purple-400/40">
+                  <Loader2 className="h-9 w-9 text-purple-400 animate-spin" aria-hidden="true" />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  Generating your birth chart…
+                </h3>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  We are calculating your planetary placements, divisional charts, and dasha periods. Please wait a moment while we prepare your profile.
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -14,8 +14,8 @@ describe('sessionIdle', () => {
     vi.stubEnv('VITE_SESSION_IDLE_MS', '');
   });
 
-  it('defaults idle timeout to 10 minutes', () => {
-    expect(getSessionIdleMs()).toBe(600_000);
+  it('defaults idle timeout to 30 minutes', () => {
+    expect(getSessionIdleMs()).toBe(1_800_000);
   });
 
   it('detects expired idle session when lastActivity is older than idle ms', () => {
