@@ -43,7 +43,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
   useEffect(() => {
     if (searchParams.get('reason') === 'idle') {
-      setIdleNotice('You were signed out after 10 minutes of inactivity.');
+      setIdleNotice('You were signed out after 30 minutes of inactivity.');
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -241,7 +241,6 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
             )}
 
             {turnstile.isEnabled && <span className="sr-only" />}
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
 
             {(error || turnstile.error) && (
               <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
@@ -284,8 +283,15 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
           </div>
 
           {turnstile.isEnabled && (
-          {turnstile.isEnabled && <span className="sr-only" />}
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+            <TurnstileField
+              siteKey={turnstile.siteKey}
+              action="login"
+              className="flex justify-center mt-6"
+              onSuccess={turnstile.onSuccess}
+              onExpire={turnstile.onExpire}
+              onError={turnstile.onError}
+              onRegisterReset={turnstile.registerReset}
+            />
           )}
           <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>

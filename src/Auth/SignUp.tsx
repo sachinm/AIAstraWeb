@@ -266,7 +266,6 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
             )}
 
             {turnstile.isEnabled && <span className="sr-only" />}
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
 
             {(error || turnstile.error) && (
               <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
@@ -306,8 +305,15 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
           </div>
 
           {turnstile.isEnabled && (
-          {turnstile.isEnabled && <span className="sr-only" />}
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+            <TurnstileField
+              siteKey={turnstile.siteKey}
+              action="register"
+              className="flex justify-center mt-6"
+              onSuccess={turnstile.onSuccess}
+              onExpire={turnstile.onExpire}
+              onError={turnstile.onError}
+              onRegisterReset={turnstile.registerReset}
+            />
           )}
           <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>
