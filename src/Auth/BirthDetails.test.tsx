@@ -124,12 +124,34 @@ describe('BirthDetails (page 2)', () => {
       city: 'Pune',
       gender: 'female',
       referral_code: 'FRIEND1',
+      language: 'en',
     });
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     const sent = vi.mocked(completeProfile).mock.calls[0][0] as unknown as Record<string, unknown>;
     expect(Object.keys(sent).sort()).toEqual(
-      ['city', 'country_code', 'date_of_birth', 'gender', 'referral_code', 'time_of_birth']
+      ['city', 'country_code', 'date_of_birth', 'gender', 'language', 'referral_code', 'time_of_birth']
     );
+  });
+
+  it('asks for English or Hindi, says Hindi is coming, and sends the choice', async () => {
+    const user = userEvent.setup();
+    vi.mocked(completeProfile).mockResolvedValueOnce({ success: true, referral_code: 'ABC' });
+    renderPage();
+    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
+    expect(screen.queryByText(/Hindi is coming soon/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'हिन्दी (Hindi)' }));
+    expect(screen.getByText('Hindi is coming soon. Until then, your readings and the app are in English.')).toBeInTheDocument();
+    await fillAll(user);
+    await user.click(screen.getByRole('button', { name: /create my chart/i }));
+    await waitFor(() => expect(completeProfile).toHaveBeenCalled());
+    expect(vi.mocked(completeProfile).mock.calls[0][0].language).toBe('hi');
+  });
+
+  it('defaults to Hindi for a browser set to Hindi', () => {
+    const spy = vi.spyOn(navigator, 'language', 'get').mockReturnValue('hi-IN');
+    renderPage();
+    expect(screen.getByRole('radio', { name: 'हिन्दी (Hindi)' })).toBeChecked();
+    spy.mockRestore();
   });
 
   it('converts 12-hour pieces to 24-hour correctly', () => {

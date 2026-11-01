@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { checkGraphQLStartupHealth } from './lib/graphql';
+import './i18n';
 import './index.css';
 
 const GRAPHQL_STARTUP_CHECK_KEY = Symbol.for('adastra.graphql.startup-check-ran');

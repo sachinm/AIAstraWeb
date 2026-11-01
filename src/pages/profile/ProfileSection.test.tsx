@@ -11,6 +11,7 @@ vi.mock('../../Auth/api', () => ({
   fetchProfile: vi.fn(),
   updateProfile: vi.fn(),
   fetchMe: vi.fn(),
+  fetchPlanState: vi.fn().mockResolvedValue({ plan: null, language: null }),
 }));
 vi.mock('../../lib/ledgerApi', async (orig) => ({
   ...(await orig<typeof import('../../lib/ledgerApi')>()),

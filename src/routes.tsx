@@ -10,6 +10,7 @@ import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
+import PricingPage from './pages/pricing/PricingPage';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -50,10 +51,13 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             <LandingPage
               onSignIn={() => navigate('/signin')}
               onSignUp={() => navigate('/signup')}
+              onPricing={() => navigate('/pricing')}
             />
           )
         }
       />
+
+      <Route path="/pricing" element={<PricingPage />} />
 
       <Route element={<GuestRoute {...gateProps} />}>
         <Route

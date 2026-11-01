@@ -21,7 +21,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   // the chat page shows the disclaimer under its input box, where it stays visible while scrolling
   const onChat = useLocation().pathname.replace(/\/+$/, '').endsWith('/chat');
   return (
-    <div className="flex min-h-screen flex-col text-white">
+    <div
+      data-test-id="dashboard-root"
+      // chat is held to the window: nav, sidebars and input stay put, and only the message list scrolls
+      className={`flex flex-col text-white ${onChat ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
+    >
       {/* Top Navigation */}
       <TopNavigation
         user={user}

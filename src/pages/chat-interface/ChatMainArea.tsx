@@ -77,6 +77,8 @@ export interface ChatMainAreaProps {
   onStartListening: () => void;
   onStopListening: () => void;
   inputDisabled: boolean;
+  /** Shown in place of the input row, when no more questions can be asked. */
+  inputBlockedCard?: React.ReactNode;
   /** Clarify agent card handlers (docs/reading-engine/17) */
   clarifyBusy?: boolean;
   onClarifyAnswer?: (messageId: string, runId: string, value: string, viaChip: boolean) => void;
@@ -86,6 +88,8 @@ export interface ChatMainAreaProps {
   questionLocationStatus?: QuestionLocationStatus;
   /** Ask the browser for location again. */
   onChangeQuestionLocation?: () => void;
+  /** Sits beside the messages, between the header and the prompt bar. */
+  rightPanel?: React.ReactNode;
 }
 
 const ChatMainArea: React.FC<ChatMainAreaProps> = ({
@@ -105,12 +109,14 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   onStartListening,
   onStopListening,
   inputDisabled,
+  inputBlockedCard,
   clarifyBusy = false,
   onClarifyAnswer,
   onClarifyConfirm,
   onClarifyChange,
   questionLocationStatus,
   onChangeQuestionLocation,
+  rightPanel,
 }) => {
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
 
@@ -129,6 +135,14 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
       setHasNewBelow(true);
     }
   }, [messages.length, lastSender, lastText]);
+  // the box grows with what is typed, up to its max height; the buttons sit inside it, so there is no drag handle
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight + 2}px`;
+  }, [inputText]);
   const onListScroll = () => {
     const el = listRef.current;
     if (!el) return;
@@ -138,19 +152,8 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col min-w-0" data-test-id="chat-main-area">
-      <div
-        className="bg-black/30 backdrop-blur-md border-b border-white/10 p-4 flex items-center"
-        data-test-id="chat-main-area-header"
-      >
-        <div className="flex items-center space-x-3">
-          <ShriGaneshAvatar />
-          <div>
-            <h2 className="text-lg font-semibold text-white">AI Astra</h2>
-            <p className="text-slate-400 text-sm">Readings from your own chart</p>
-          </div>
-        </div>
-      </div>
-
+      <div className="relative flex min-h-0 flex-1 overflow-hidden" data-test-id="chat-main-area-body">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div
         ref={listRef}
         onScroll={onListScroll}
@@ -341,8 +344,12 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         </div>
       )}
 
+      </div>
+      {rightPanel}
+      </div>
+
       <div
-        className="bg-black/30 backdrop-blur-md border-t border-white/10 p-4"
+        className="shrink-0 bg-black/30 backdrop-blur-md border-t border-white/10 px-3 py-2"
         data-test-id="chat-main-area-input-footer"
       >
         {isListening && (
@@ -355,85 +362,88 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             Listening...
           </p>
         )}
-        <div className="flex items-end gap-4" data-test-id="chat-main-area-input-row">
-          <button
-            type="button"
-            data-test-id="chat-main-area-mic-button"
-            onClick={onStartListening}
-            disabled={!isSupported || inputDisabled || isListening}
-            aria-label={
-              !isSupported
-                ? 'Microphone unavailable'
-                : permissionDenied
-                  ? 'Microphone access denied; click to try again'
-                  : 'Start voice input'
-            }
-            title={
-              !isSupported
-                ? 'Voice input not supported in this browser'
-                : permissionDenied
-                  ? 'Microphone access denied; click to try again'
-                  : 'Start voice input'
-            }
-            className="p-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shrink-0"
-          >
-            <Mic className="w-5 h-5" />
-          </button>
-          <div className="relative min-w-0 flex-1" data-test-id="chat-main-area-input-wrapper">
-            <textarea
-              data-test-id="chat-main-area-input"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={INPUT_PLACEHOLDER}
-              className="w-full min-h-[4.5rem] max-h-60 resize-y overflow-y-auto bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-              rows={3}
-              disabled={inputDisabled}
-            />
-            <div className="pointer-events-none absolute right-3 top-3">
-              <Star className="h-5 w-5 text-purple-400" />
-            </div>
-            {isListening && (
-              <div className="absolute right-3 bottom-3">
-                <button
-                  type="button"
-                  data-test-id="chat-main-area-stop-listening-button"
-                  onClick={onStopListening}
-                  aria-label="Stop listening"
-                  className="p-2 rounded-lg bg-red-500/90 hover:bg-red-500 text-white focus:outline-none focus:ring-2 focus:ring-red-400 transition-all"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                </button>
-              </div>
-            )}
+        {inputBlockedCard ? (
+          inputBlockedCard
+        ) : (
+        <div className="relative min-w-0" data-test-id="chat-main-area-input-row">
+          <textarea
+            ref={inputRef}
+            data-test-id="chat-main-area-input"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={INPUT_PLACEHOLDER}
+            className="block w-full min-h-[4rem] max-h-60 resize-none overflow-y-auto bg-white/10 border border-white/20 rounded-xl py-2 pl-3 pr-24 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300"
+            rows={2}
+            disabled={inputDisabled}
+          />
+          <div className="pointer-events-none absolute right-3 top-2">
+            <Star className="h-4 w-4 text-purple-400" />
           </div>
-          <button
-            type="button"
-            data-test-id="chat-main-area-send-button"
-            onClick={onSend}
-            disabled={!inputText.trim() || inputDisabled}
-            aria-label="Send"
-            className="shrink-0 p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
-          >
-            <Send className="w-5 h-5" />
-          </button>
+          {/* on the box's bottom row, below the star */}
+          <div className="absolute bottom-2 right-2 flex items-center gap-1">
+            {isListening ? (
+              <button
+                type="button"
+                data-test-id="chat-main-area-stop-listening-button"
+                onClick={onStopListening}
+                aria-label="Stop listening"
+                className="p-1.5 rounded-lg bg-red-500/90 hover:bg-red-500 text-white focus:outline-none focus:ring-2 focus:ring-red-400 transition-all"
+              >
+                <Square className="w-4 h-4 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-test-id="chat-main-area-mic-button"
+                onClick={onStartListening}
+                disabled={!isSupported || inputDisabled}
+                aria-label={
+                  !isSupported
+                    ? 'Microphone unavailable'
+                    : permissionDenied
+                      ? 'Microphone access denied; click to try again'
+                      : 'Start voice input'
+                }
+                title={
+                  !isSupported
+                    ? 'Voice input not supported in this browser'
+                    : permissionDenied
+                      ? 'Microphone access denied; click to try again'
+                      : 'Start voice input'
+                }
+                className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              data-test-id="chat-main-area-send-button"
+              onClick={onSend}
+              disabled={!inputText.trim() || inputDisabled}
+              aria-label="Send"
+              className="p-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+        )}
 
-        {/* one row of three cells: text wraps inside its own cell, never onto a row of its own */}
-        <div className="mt-2 grid grid-cols-3 items-start gap-3 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-footer">
+        {/* one row of three cells: the side cells stay narrow and wrap, so the middle keeps the room */}
+        <div className="mt-1.5 grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_minmax(0,7rem)] items-start gap-3 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-footer">
           <div className="min-w-0">
             {questionLocationStatus && (
               <p data-test-id="chat-main-area-question-location">
-                <span data-test-id="chat-main-area-question-location-status">
-                  {questionLocationStatus === 'granted'
-                    ? 'Using your current location'
-                    : questionLocationStatus === 'asking'
-                      ? 'Checking your location…'
-                      : 'Using your birth place'}
-                </span>
+                {(questionLocationStatus === 'granted' || questionLocationStatus === 'asking') && (
+                  <span data-test-id="chat-main-area-question-location-status">
+                    {questionLocationStatus === 'granted' ? 'Using your current location' : 'Checking your location…'}
+                  </span>
+                )}
                 {onChangeQuestionLocation && questionLocationStatus !== 'asking' && (
                   <>
-                    {' · '}
+                    {questionLocationStatus === 'granted' && ' · '}
                     <button
                       type="button"
                       data-test-id="chat-main-area-question-location-change"

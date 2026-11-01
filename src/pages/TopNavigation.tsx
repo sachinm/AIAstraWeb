@@ -1,7 +1,8 @@
 import React from 'react';
-import { Star, LogOut, BarChart3, Heart, BookOpen, MessageCircle, AlertTriangle } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ShriGaneshAvatar } from '../components/ShriGaneshAvatar';
+import { Star, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import ProfileMenu from '../components/ProfileMenu';
+import UsageBar from '../components/UsageBar';
 
 interface User {
   name: string;
@@ -14,116 +15,34 @@ interface TopNavigationProps {
   errorMessage?: string | null;   // ✅ accept error message
 }
 
-const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMessage }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const currentPath = location.pathname.split('/').pop() || 'chat';
+const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMessage }) => (
+  <nav
+    className="sticky top-0 z-50 w-screen shrink-0 border-b border-white/10 bg-black/45 backdrop-blur-md ml-[calc(50%-50vw)]"
+    aria-label="Main"
+  >
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 items-center justify-between gap-3">
+        <Link to="/dashboard/chat" className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+          <Star className="w-8 h-8 text-purple-400" />
+          <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Cosmic Vedic
+          </h1>
+        </Link>
 
-  const navItems: { id: string; path?: string; label: string; icon: typeof Star }[] = [
-    { id: 'charts', label: 'Charts', icon: BarChart3 },
-    { id: 'remedies', label: 'Remedies', icon: Heart },
-    { id: 'mantras', label: 'Mantras/Horoscope', icon: BookOpen },
-    { id: 'chat', label: 'Chat', icon: MessageCircle }
-  ];
+        <UsageBar />
 
-  return (
-    <nav
-      className="sticky top-0 z-50 w-screen shrink-0 border-b border-white/10 bg-black/45 backdrop-blur-md ml-[calc(50%-50vw)]"
-      aria-label="Main"
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-3">
-            <Star className="w-8 h-8 text-purple-400" />
-            <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Cosmic Vedic
-            </h1>
-          </div>
-
-          <div className="hidden md:flex space-x-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => navigate(`/dashboard/${item.path ?? item.id}`)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${
-                    currentPath === item.id
-                      ? 'bg-purple-600/30 text-purple-300 border border-purple-500/30'
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center space-x-4">
-            {user && (
-              <button
-                type="button"
-                onClick={() => navigate('/profile')}
-                title="Your profile"
-                aria-label="Profile"
-                className="hidden sm:block text-right rounded-lg px-2 py-1 hover:bg-white/10"
-              >
-                <p className="text-white font-medium">{user.name}</p>
-                <p className="text-gray-400 text-sm">{user.email}</p>
-              </button>
-            )}
-            <ShriGaneshAvatar />
-            <button
-              onClick={onLogout}
-              className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* ✅ Error Banner */}
-        {errorMessage && (
-          <div className="bg-red-500/20 border-t border-red-500/30 py-2 px-4 flex items-center space-x-2 text-red-300 text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            <span>{errorMessage || "This task is not possible at this moment"}</span>
-          </div>
-        )}
-
-        {/* Mobile Navigation */}
-        <div className="md:hidden pb-4">
-          <div className="flex space-x-1 overflow-x-auto">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => navigate(`/dashboard/${item.path ?? item.id}`)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all duration-300 ${
-                    currentPath === item.id
-                      ? 'bg-purple-600/30 text-purple-300 border border-purple-500/30'
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="sm:hidden flex items-center space-x-2 px-3 py-2 rounded-lg whitespace-nowrap text-gray-300 hover:text-white hover:bg-white/10"
-            >
-              <span className="text-sm font-medium">Profile</span>
-            </button>
-          </div>
-        </div>
+        <ProfileMenu user={user} onLogout={onLogout} />
       </div>
-    </nav>
-  );
-};
+
+      {/* ✅ Error Banner */}
+      {errorMessage && (
+        <div className="bg-red-500/20 border-t border-red-500/30 py-2 px-4 flex items-center space-x-2 text-red-300 text-sm">
+          <AlertTriangle className="w-4 h-4" />
+          <span>{errorMessage || "This task is not possible at this moment"}</span>
+        </div>
+      )}
+    </div>
+  </nav>
+);
 
 export default TopNavigation;

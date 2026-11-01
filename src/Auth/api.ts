@@ -1,3 +1,4 @@
+import type { PlanStatus } from '../lib/billing';
 import { runGraphQL, setAuth } from '../lib/graphql';
 
 const SIGNUP_MUTATION = `
@@ -308,6 +309,8 @@ export function normalizeClientGender(raw?: string | null): Gender | null {
   return 'prefer_not_to_say';
 }
 
+export type Language = 'en' | 'hi';
+
 export interface CompleteProfileInput {
   /** YYYY-MM-DD */
   date_of_birth: string;
@@ -318,6 +321,7 @@ export interface CompleteProfileInput {
   city: string;
   gender: Gender;
   referral_code?: string | null;
+  language?: Language;
 }
 
 export interface CompleteProfileResult {
@@ -400,6 +404,43 @@ export async function fetchMe(): Promise<Me | null> {
   }
 }
 
+const PLAN_STATE_QUERY = `
+  query MyPlan {
+    me {
+      language
+      plan {
+        code
+        desired_plan
+        desired_interval
+        is_paid
+        interval
+        used
+        limit
+        remaining
+        window
+        resets_at
+        exempt
+      }
+    }
+  }
+`;
+
+/**
+ * The plan and saved language, in a query of their own so a server without them cannot break `me` and the chart gate.
+ * A null plan means limits are off, or the plan could not be read: the app shows no bar and no upgrade card.
+ */
+export async function fetchPlanState(): Promise<{ plan: PlanStatus | null; language: Language | null }> {
+  try {
+    const { data, errors } = await runGraphQL<{ me?: { plan?: PlanStatus | null; language?: string | null } | null }>(PLAN_STATE_QUERY);
+    if (errors?.length || !data?.me) return { plan: null, language: null };
+    const language = data.me.language;
+    return { plan: data.me.plan ?? null, language: language === 'en' || language === 'hi' ? language : null };
+  } catch (e) {
+    console.debug('fetchPlanState failed', e instanceof Error ? e.message : String(e));
+    return { plan: null, language: null };
+  }
+}
+
 const UPDATE_PROFILE_MUTATION = `
   mutation UpdateProfile($input: UpdateProfileInput!) {
     updateProfile(input: $input) {
@@ -452,6 +493,7 @@ export interface UpdateProfileInput {
   time_of_birth: string;
   country_code: string;
   city: string;
+  language?: Language;
 }
 
 export async function updateProfile(input: UpdateProfileInput): Promise<{ success: boolean; message?: string }> {

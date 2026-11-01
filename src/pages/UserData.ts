@@ -1,6 +1,7 @@
 // UserData – GraphQL for most APIs; chat may use REST SSE when VITE_CHAT_STREAM is enabled.
 import { runGraphQL, getUserId } from '../lib/graphql';
 import { buildApiHeaders } from '../lib/apiHeaders';
+import { QuotaExhaustedError, type PlanStatus } from '../lib/billing';
 import type { ReadingStreamEvent } from './chat-interface/readingProgress';
 
 /**
@@ -87,7 +88,11 @@ async function consumeChatAskSse(
         if (typeof ev.chatId === 'string') chatId = ev.chatId;
         // the clarify agent asked a question instead of answering; the reading follows after confirm
         if (ev.status === 'clarifying' && typeof ev.runId === 'string') clarifyingRunId = ev.runId;
+        if (ev.usage) onEvent?.({ type: 'usage', usage: ev.usage as PlanStatus });
+      } else if (ev.type === 'usage') {
+        if (ev.usage) onEvent?.({ type: 'usage', usage: ev.usage as PlanStatus });
       } else if (ev.type === 'error') {
+        if (ev.code === 'quota_exhausted') throw new QuotaExhaustedError((ev.usage as PlanStatus | undefined) ?? null, ev.message);
         throw new Error(ev.message || 'Stream error');
       } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'thought' || ev.type === 'next') {
         // reading-engine progress; older servers never send these
@@ -268,6 +273,10 @@ async function postChatSse(
     });
 
     if (res.status === 401) throw new Error('Not authenticated');
+    if (res.status === 402) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string; usage?: PlanStatus };
+      throw new QuotaExhaustedError(j.usage ?? null, j.error);
+    }
     if (res.status === 400 || res.status === 409) {
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(j.error || 'Bad request');
@@ -307,6 +316,7 @@ const MY_KUNDLI_DISPLAY_DATA = `
     myKundliDisplayData {
       success
       error
+      research
       biodata
       d1
       d7
@@ -326,6 +336,8 @@ export interface KundliDisplayDataResponse {
   d10: unknown | null;
   vimsottari_dasa: unknown | null;
   narayana_dasa: unknown | null;
+  /** The account's research flag: the charts and dashas are sent only when it is on. */
+  research: boolean;
   message?: string;
 }
 
@@ -474,15 +486,11 @@ export const fetchUserContent = async (): Promise<UserContentResponse> => {
 };
 
 export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataResponse> => {
-  const details = await fetchUserDetails();
-  if (!details.success) {
-    throw new Error(details.message || 'Failed to fetch user details');
-  }
-
   const { data, errors } = await runGraphQL<{
     myKundliDisplayData: {
       success: boolean;
       error: string | null;
+      research: boolean | null;
       biodata: string | null;
       d1: string | null;
       d7: string | null;
@@ -518,5 +526,6 @@ export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataRespons
     d10: safeParse(result.d10),
     vimsottari_dasa: safeParse(result.vimsottari_dasa),
     narayana_dasa: safeParse(result.narayana_dasa),
+    research: result.research === true,
   };
 }
