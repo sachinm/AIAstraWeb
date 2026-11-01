@@ -293,7 +293,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
           </div>
 
           {turnstile.isEnabled && (
-            <p className="text-center text-xs text-gray-500 mt-4">Protected by Cloudflare Turnstile.</p>
+            <span className="sr-only" />
           )}
         </div>
       </div>
