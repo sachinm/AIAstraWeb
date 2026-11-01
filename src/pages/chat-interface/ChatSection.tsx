@@ -135,7 +135,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         if (cancelled) return;
         const ready = Boolean(
           details.success &&
-            details.kundli_added === true &&
+            (details.kundli_added === true || details.queue_status === 'completed') ||
             details.queue_status === 'completed'
         );
         setKundliReady(ready);

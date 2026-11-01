@@ -41,7 +41,8 @@ const CountrySelect = forwardRef<HTMLInputElement, Props>(function CountrySelect
   const handleBlur = (e: React.FocusEvent) => {
     if (wrapRef.current?.contains(e.relatedTarget as Node | null)) return;
     setOpen(false);
-    const exact = COUNTRIES.find((c) => c.name.toLowerCase() === query.trim().toLowerCase());
+    const q = query.trim().toLowerCase();
+    const exact = COUNTRIES.find((c) => c.name.toLowerCase() === q || c.code.toLowerCase() === q) ?? (matches.length === 1 ? matches[0] : undefined);
     if (exact) {
       if (exact.code !== value) onChange(exact.code);
       setQuery(exact.name);
@@ -69,7 +70,7 @@ const CountrySelect = forwardRef<HTMLInputElement, Props>(function CountrySelect
         autoComplete="off"
         value={query}
         placeholder="Start typing a country"
-        onFocus={() => setOpen(true)}
+        onFocus={(e) => { setOpen(true); e.currentTarget.select(); }}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
