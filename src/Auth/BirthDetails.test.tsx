@@ -9,7 +9,8 @@ import { completeProfile, fetchMe, type Me } from './api';
 import { COUNTRIES } from './fields/countries';
 import { todayISO } from './fields/dateUtils';
 
-vi.mock('./api', () => ({
+vi.mock('./api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./api')>()),
   completeProfile: vi.fn(),
   fetchMe: vi.fn(),
 }));
@@ -198,8 +199,18 @@ describe('BirthDetails (page 2)', () => {
       .mockResolvedValueOnce(me({ profile_complete: true, kundli_status: 'building' }))
       .mockResolvedValueOnce(me({ profile_complete: true, kundli_status: 'ready' }));
     renderPage();
-    expect(await screen.findByTestId('birth-chart-generating-overlay')).toBeInTheDocument();
-    expect(screen.getByText(/Generating your birth chart/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Generating your birth chart/i)).toBeInTheDocument();
+    expect(document.querySelector('[data-test-id="birth-chart-generating-overlay"]')).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 5000 });
+  });
+
+  it('shows real progress from the build state, and moves on as soon as chat opens', async () => {
+    const chart = { stage: 'gate' as const, gate_total: 24, rest_done: 0, rest_total: 89, facts_status: 'pending', reading_mode: 'legacy' as const, last_error: null };
+    vi.mocked(fetchMe)
+      .mockResolvedValueOnce(me({ profile_complete: true, kundli_status: 'building', chart: { ...chart, status: 'building', gate_done: 7 } }))
+      .mockResolvedValueOnce(me({ profile_complete: true, kundli_status: 'building', chart: { ...chart, status: 'chat_ready', stage: 'rest', gate_done: 24 } }));
+    renderPage();
+    expect(await screen.findByText('7 of 24')).toBeInTheDocument();
     await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 5000 });
   });
 });
@@ -239,6 +250,13 @@ describe('resume and the 30-minute notice', () => {
     renderApp(me({ profile_complete: true, kundli_status: status }));
     expect(await screen.findByText('Chat page')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('about 30 minutes after you register');
+  });
+
+  it('says when chat is answering from the basic chart only', async () => {
+    const chart = { status: 'ready' as const, stage: null, gate_done: 24, gate_total: 24, rest_done: 89, rest_total: 89, facts_status: 'unsupported', reading_mode: 'legacy' as const, last_error: null };
+    renderApp(me({ profile_complete: true, kundli_status: 'ready', chart }));
+    expect(await screen.findByText('Chat page')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Answers for now use your basic chart');
   });
 
   it('hides the notice when the chart is ready', async () => {

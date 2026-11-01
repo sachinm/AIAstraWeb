@@ -19,6 +19,9 @@ import { useSpeechRecognition } from './useSpeechRecognition';
 import { useQuestionLocation, QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
 import { applyReadingEvent, nextPartsOf, type NextPart } from './readingProgress';
 import { trackChatQuestionSent } from '../../lib/analytics';
+import { useMe, useRefreshMe } from '../../Auth/ProfileGate';
+import ChartProgress from '../../components/ChartProgress';
+import KundliNotice from '../../components/KundliNotice';
 import {
   MAX_SIDEBAR_CHATS,
   mapApiMessagesToUi,
@@ -44,6 +47,8 @@ interface ChatSectionProps {
 const POLL_INTERVAL_MS = 3000;
 
 const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) => {
+  const me = useMe();
+  const refreshMe = useRefreshMe();
   const [kundliReady, setKundliReady] = useState<boolean | null>(null);
   const pollIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -624,24 +629,32 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         className="flex min-h-0 flex-1 items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 px-4"
       >
         <div className="w-full max-w-md text-center text-white p-8 rounded-2xl bg-slate-900/95 border border-purple-400/30 backdrop-blur-md shadow-2xl">
-          <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-1">
-            {kundliReady === null ? 'Loading…' : 'Generating your birth chart…'}
-          </h3>
-          {kundliReady === false && (
-            <p className="text-xs font-medium text-purple-300 mb-2">Syncing your chart…</p>
+          {kundliReady === false && me?.chart ? (
+            <ChartProgress chart={me.chart} onUpdated={() => void refreshMe()} />
+          ) : (
+            <>
+              <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-1">
+                {kundliReady === null ? 'Loading…' : 'Generating your birth chart…'}
+              </h3>
+              {kundliReady === false && (
+                <p className="text-xs font-medium text-purple-300 mb-2">Syncing your chart…</p>
+              )}
+              <p className="text-gray-300 text-sm leading-relaxed">
+                {kundliReady === false
+                  ? 'We’re calculating your planetary placements, divisional charts, and dasha periods. You can use chat as soon as it’s ready.'
+                  : 'Preparing your cosmic profile.'}
+              </p>
+            </>
           )}
-          <p className="text-gray-300 text-sm leading-relaxed">
-            {kundliReady === false
-              ? 'We’re calculating your planetary placements, divisional charts, and dasha periods. You can use chat as soon as it’s ready.'
-              : 'Preparing your cosmic profile.'}
-          </p>
         </div>
       </div>
     );
   }
 
   return (
+    <div className="flex min-h-0 flex-1 flex-col">
+    <KundliNotice />
     <div className="relative flex min-h-0 flex-1">
       {isSidebarOpen && typeof window !== 'undefined' && window.innerWidth < 768 && (
         <div
@@ -688,6 +701,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
       />
 
       <ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />
+    </div>
     </div>
   );
 };

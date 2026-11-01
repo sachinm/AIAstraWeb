@@ -205,12 +205,35 @@ const COMPLETE_PROFILE_MUTATION = `
   }
 `;
 
+const CHART_STATUS_FIELDS = `
+        status
+        stage
+        gate_done
+        gate_total
+        rest_done
+        rest_total
+        facts_status
+        reading_mode
+        last_error
+`;
+
 const ME_QUERY = `
   query Me {
     me {
       profile_complete
       email_verified
       kundli_status
+      chart {
+        ${CHART_STATUS_FIELDS}
+      }
+    }
+  }
+`;
+
+const RETRY_CHART_BUILD_MUTATION = `
+  mutation RetryChartBuild {
+    retryChartBuild {
+      ${CHART_STATUS_FIELDS}
     }
   }
 `;
@@ -328,10 +351,41 @@ export async function completeProfile(input: CompleteProfileInput): Promise<Comp
 
 export type KundliStatus = 'pending' | 'building' | 'ready';
 
+export interface ChartStatus {
+  status: 'pending' | 'building' | 'chat_ready' | 'ready' | 'failed';
+  stage: 'gate' | 'facts' | 'rest' | null;
+  gate_done: number;
+  gate_total: number;
+  rest_done: number;
+  rest_total: number;
+  facts_status: string;
+  /** What chat answers with right now: `legacy` is the basic chart only. */
+  reading_mode: 'full' | 'legacy';
+  last_error: string | null;
+}
+
 export interface Me {
   profile_complete: boolean;
   email_verified: boolean;
   kundli_status: KundliStatus;
+  chart?: ChartStatus | null;
+}
+
+/** Chat can be used: the build has opened it, or (when `chart` could not be read) the old status says so. */
+export function isChartOpen(me: Me): boolean {
+  return me.chart ? me.chart.status === 'chat_ready' || me.chart.status === 'ready' : me.kundli_status === 'ready';
+}
+
+/** The Retry button: restarts the build and returns its new state, or null when that could not be done. */
+export async function retryChartBuild(): Promise<ChartStatus | null> {
+  try {
+    const { data, errors } = await runGraphQL<{ retryChartBuild?: ChartStatus | null }>(RETRY_CHART_BUILD_MUTATION);
+    if (errors?.length) return null;
+    return data?.retryChartBuild ?? null;
+  } catch (e) {
+    console.error('retryChartBuild:', e);
+    return null;
+  }
 }
 
 /** The signed-in user's onboarding state, or null when it cannot be read (callers fail open). */

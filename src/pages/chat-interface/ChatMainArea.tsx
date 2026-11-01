@@ -419,34 +419,39 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
           </button>
         </div>
 
-        {questionLocationStatus && (
-          <p className="mt-2 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-question-location">
-            <span data-test-id="chat-main-area-question-location-status">
-              {questionLocationStatus === 'granted'
-                ? 'Using your current location'
-                : questionLocationStatus === 'asking'
-                  ? 'Checking your location…'
-                  : 'Using your birth place'}
-            </span>
-            {onChangeQuestionLocation && questionLocationStatus !== 'asking' && (
-              <>
-                {' · '}
-                <button
-                  type="button"
-                  data-test-id="chat-main-area-question-location-change"
-                  onClick={onChangeQuestionLocation}
-                  className="underline text-purple-300 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
-                >
-                  {questionLocationStatus === 'granted' ? 'Change' : 'Use my location'}
-                </button>
-              </>
+        {/* one row of three cells: text wraps inside its own cell, never onto a row of its own */}
+        <div className="mt-2 grid grid-cols-3 items-start gap-3 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-footer">
+          <div className="min-w-0">
+            {questionLocationStatus && (
+              <p data-test-id="chat-main-area-question-location">
+                <span data-test-id="chat-main-area-question-location-status">
+                  {questionLocationStatus === 'granted'
+                    ? 'Using your current location'
+                    : questionLocationStatus === 'asking'
+                      ? 'Checking your location…'
+                      : 'Using your birth place'}
+                </span>
+                {onChangeQuestionLocation && questionLocationStatus !== 'asking' && (
+                  <>
+                    {' · '}
+                    <button
+                      type="button"
+                      data-test-id="chat-main-area-question-location-change"
+                      onClick={onChangeQuestionLocation}
+                      className="underline text-purple-300 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+                    >
+                      {questionLocationStatus === 'granted' ? 'Change' : 'Use my location'}
+                    </button>
+                  </>
+                )}
+              </p>
             )}
-          </p>
-        )}
-        <div className="flex items-center justify-center mt-2 px-2" data-test-id="chat-main-area-disclaimer">
-          <Disclaimer />
+          </div>
+          <div className="min-w-0" data-test-id="chat-main-area-disclaimer">
+            <Disclaimer />
+          </div>
+          <p className="min-w-0" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>
-        <p className="text-center text-[11px] text-gray-400 mt-1.5" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
       </div>
     </div>
   );
