@@ -295,6 +295,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
           {turnstile.isEnabled && (
             <span className="sr-only" />
           )}
+          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>
       </div>
     </div>
