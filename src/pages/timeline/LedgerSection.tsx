@@ -23,7 +23,12 @@ const panelCls = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blu
  * Life-event ledger (timeline P0): the person's own dated life events as plain facts.
  * Hidden (redirects to chat) when the server reports the feature is off (meta 404).
  */
-const LedgerSection: React.FC = () => {
+interface LedgerSectionProps {
+  /** Inside the Profile page: no redirect when the feature is off (render nothing) and a smaller heading. */
+  embedded?: boolean;
+}
+
+const LedgerSection: React.FC<LedgerSectionProps> = ({ embedded = false }) => {
   const { meta, loading: metaLoading } = useLedgerMeta();
   const [events, setEvents] = useState<LifeEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,12 +102,16 @@ const LedgerSection: React.FC = () => {
       </div>
     );
   }
-  if (!meta) return <Navigate to="/dashboard/chat" replace />;
+  if (!meta) return embedded ? null : <Navigate to="/dashboard/chat" replace />;
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 text-white sm:p-6">
+    <div className={embedded ? 'w-full space-y-6 text-white' : 'mx-auto w-full max-w-7xl space-y-6 p-4 text-white sm:p-6'}>
       <header>
-        <h2 className="text-2xl font-semibold">Life events</h2>
+        {embedded ? (
+          <h3 className="text-xl font-semibold">Life events</h3>
+        ) : (
+          <h2 className="text-2xl font-semibold">Life events</h2>
+        )}
         <p className="mt-1 text-sm text-gray-300">
           A dated list of things that happened in your life. Add them one by one, or describe a year in your own words.
         </p>

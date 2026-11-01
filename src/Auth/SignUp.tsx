@@ -1,375 +1,306 @@
-import React, { useState } from 'react';
-import { Star, UserIcon, Mail, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
-import { signup, EMAIL_EXISTS_CODE } from './api';
+import React, { useEffect, useRef, useState } from 'react';
+import { Star, UserIcon, Mail, ArrowLeft } from 'lucide-react';
+import { startSignup, verifySignupCode, EMAIL_EXISTS_CODE } from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileField from './TurnstileField';
 
 interface SignUpProps {
-  /** Called after the account is created; the user confirms the emailed code on the sign-in code step. */
-  onCodeSent: (email: string) => void;
+  /** Called when the emailed code is confirmed and the user is signed in; the next page is birth details. */
+  onVerified: (info: { email: string; name: string; userId?: string }) => void;
   /** Opens sign-in; the email is passed when the account already exists, to prefill that screen. */
   onSignIn: (email?: string) => void;
   onBack: () => void;
 }
 
-const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    age: '',
-    dateOfBirth: '',
-    placeOfBirth: '',
-    timeOfBirth: '',
-    email: '',
-    gender: 'M' // Default gender value
-  });
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [isLoading, setIsLoading] = useState(false);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CODE_MIN_LENGTH = 6;
+const CODE_MAX_LENGTH = 8;
+/** Seconds before another code can be requested. */
+export const RESEND_COOLDOWN_SECONDS = 30;
+export const EMAIL_EXISTS_MESSAGE = 'This email is already registered. Please sign in instead.';
+
+const inputCls =
+  'w-full bg-white/10 border rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 read-only:opacity-70';
+
+/**
+ * Page 1 of registration, "Create your account": name and email, then Next. After Next the code field
+ * appears below the email on this same page; a correct code signs the user in and hands over to page 2.
+ */
+const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string }>({});
+  const [error, setError] = useState('');
   const [emailExists, setEmailExists] = useState(false);
-  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const turnstile = useTurnstile();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (codeSent) codeRef.current?.focus();
+  }, [codeSent]);
+
+  const validate = () => {
+    const errs: { name?: string; email?: string } = {};
+    if (name.trim().length < 2) errs.name = 'Enter your name.';
+    if (!email.trim()) errs.email = 'Enter your email address.';
+    else if (!EMAIL_RE.test(email.trim())) errs.email = 'Enter a valid email address.';
+    setFieldErrors(errs);
+    if (errs.name) nameRef.current?.focus();
+    else if (errs.email) emailRef.current?.focus();
+    return !errs.name && !errs.email;
   };
 
-  const validateStep1 = () => {
-    const newErrors: {[key: string]: string} = {};
-
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.age || parseInt(formData.age) < 1 || parseInt(formData.age) > 120) {
-      newErrors.age = 'Valid age is required';
-    }
-    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
-    if (!formData.placeOfBirth.trim()) newErrors.placeOfBirth = 'Place of birth is required';
-    if (!formData.timeOfBirth) newErrors.timeOfBirth = 'Time of birth is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateStep2 = () => {
-    const newErrors: {[key: string]: string} = {};
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = 'Valid email is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleNext = () => {
-    if (validateStep1()) {
-      setStep(2);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** Sends the code. Used by Next and by Resend. */
+  const sendCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError('');
     setEmailExists(false);
-    if (!validateStep2()) return;
+    if (codeSent && cooldown > 0) return;
+    if (!validate()) return;
 
-    setIsLoading(true);
-
+    setLoading(true);
     try {
       const turnstileToken = turnstile.requireToken();
       if (turnstile.isEnabled && !turnstileToken) {
-        setErrors({
-          submit: 'Please complete the security check before signing up.',
-        });
-        setIsLoading(false);
+        setError('Please complete the security check before continuing.');
         return;
       }
-
-      const apiData = {
-        username: formData.name.replace(/\s+/g, '').toLowerCase(),
-        date_of_birth: formData.dateOfBirth,
-        place_of_birth: formData.placeOfBirth,
-        time_of_birth: formData.timeOfBirth + ':00',
-        email: formData.email,
-        gender: formData.gender,
-        age: parseInt(formData.age),
-        name: formData.name,
-        turnstileToken,
-      };
-
-      try {
-        // Call the API
-        const result = await signup(apiData);
-        
-        if (result.success) {
-          // Account created. The user is not signed in yet: they enter the emailed code next.
-          onCodeSent(formData.email.trim());
-        } else {
-          setEmailExists(result.code === EMAIL_EXISTS_CODE);
-          setErrors({ submit: result.message || 'Signup failed. Please try again.' });
-          turnstile.reset();
-        }
-      } catch (apiError) {
-        console.error("API error:", apiError);
-        setErrors({ submit: 'An error occurred while signing up. Please try again.' });
+      const r = await startSignup({ name, email, turnstileToken });
+      if (r.success) {
+        turnstile.reset();
+        setCode('');
+        setCodeSent(true);
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      } else if (r.code === EMAIL_EXISTS_CODE) {
+        setEmailExists(true);
+        turnstile.reset();
+      } else {
+        setError(r.message || 'Something went wrong. Please try again.');
         turnstile.reset();
       }
-    } catch (error) {
-      console.error("Signup error:", error);
-      setErrors({ submit: 'An unexpected error occurred. Please try again.' });
+    } catch (err) {
+      console.error('Start signup:', err);
+      setError('Something went wrong. Please try again.');
       turnstile.reset();
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  const verify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const codeNorm = code.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (codeNorm.length < CODE_MIN_LENGTH || codeNorm.length > CODE_MAX_LENGTH) {
+      setError('Enter the code we emailed you.');
+      codeRef.current?.focus();
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await verifySignupCode(email.trim(), codeNorm);
+      if (result.success) {
+        localStorage.setItem('isAuthenticated', 'true');
+        onVerified({ email: email.trim(), name: name.trim(), userId: result.user });
+      } else {
+        setError(result.message || 'That code did not match. Check the latest email or request a new code.');
+      }
+    } catch (err) {
+      console.error('Verify signup code:', err);
+      setError('That code did not match. Check the latest email or request a new code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const useDifferentEmail = () => {
+    setCodeSent(false);
+    setCode('');
+    setCooldown(0);
+    setError('');
+    setEmailExists(false);
+    emailRef.current?.focus();
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:px-6">
       <div className="w-full max-w-md">
-        {/* Back Button */}
         <button
-          onClick={step === 1 ? onBack : () => setStep(1)}
+          type="button"
+          onClick={onBack}
           className="flex items-center text-purple-300 hover:text-white mb-8 transition-colors duration-300"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          {step === 1 ? 'Back to Home' : 'Previous Step'}
+          Back to Home
         </button>
 
-        {/* Progress Indicator */}
-        <div className="flex justify-between mb-8">
-          <div className={`flex items-center ${step >= 1 ? 'text-purple-400' : 'text-gray-500'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-              step >= 1 ? 'border-purple-400 bg-purple-400/20' : 'border-gray-500'
-            }`}>
-              1
-            </div>
-            <span className="ml-2 text-sm">Birth Details</span>
-          </div>
-          <div className={`flex items-center ${step >= 2 ? 'text-purple-400' : 'text-gray-500'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-              step >= 2 ? 'border-purple-400 bg-purple-400/20' : 'border-gray-500'
-            }`}>
-              2
-            </div>
-            <span className="ml-2 text-sm">Account</span>
-          </div>
-        </div>
-
-        {/* Sign Up Form */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl">
-          <div className="text-center mb-8">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
+          <div className="text-center mb-6">
             <div className="flex justify-center mb-4">
               <Star className="w-12 h-12 text-purple-400" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
-            <p className="text-gray-300">
-              {step === 1 ? 'Enter your birth details for personalized insights' : 'Enter your email to create your account'}
-            </p>
+            <h2 className="text-3xl font-bold text-white mb-2">Create your account</h2>
+            <p className="text-gray-300">Your name and email. Birth details come next.</p>
           </div>
 
-          {errors.submit && (
-            <div role="alert" className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm">
-              <p>{errors.submit}</p>
-              {emailExists && (
+          <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-6">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+                Name
+              </label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  ref={nameRef}
+                  type="text"
+                  id="name"
+                  value={name}
+                  readOnly={codeSent}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  placeholder="Your name"
+                  aria-invalid={Boolean(fieldErrors.name)}
+                  className={`${inputCls} ${fieldErrors.name ? 'border-red-500' : 'border-white/20'}`}
+                />
+              </div>
+              {fieldErrors.name && <p className="text-red-300 text-sm mt-1">{fieldErrors.name}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                Email address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  ref={emailRef}
+                  type="email"
+                  id="email"
+                  value={email}
+                  readOnly={codeSent}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailExists(false);
+                  }}
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  className={`${inputCls} ${fieldErrors.email ? 'border-red-500' : 'border-white/20'}`}
+                />
+              </div>
+              {fieldErrors.email && <p className="text-red-300 text-sm mt-1">{fieldErrors.email}</p>}
+              {codeSent && (
                 <button
                   type="button"
-                  onClick={() => onSignIn(formData.email.trim())}
+                  onClick={useDifferentEmail}
+                  className="mt-2 text-sm text-purple-400 hover:text-purple-300 underline underline-offset-2"
+                >
+                  Use a different email
+                </button>
+              )}
+            </div>
+
+            {emailExists && (
+              <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
+                <p>{EMAIL_EXISTS_MESSAGE}</p>
+                <button
+                  type="button"
+                  onClick={() => onSignIn(email.trim())}
                   className="mt-2 text-purple-300 hover:text-white font-semibold underline underline-offset-2"
                 >
                   Sign in
                 </button>
-              )}
-            </div>
-          )}
-
-          {step === 1 && (
-            <form onSubmit={(e) => { e.preventDefault(); if (!isLoading) handleNext(); }} className="space-y-6">
-              {/* Name */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className={`w-full bg-white/10 border ${errors.name ? 'border-red-500' : 'border-white/20'} rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                {errors.name && <p className="text-red-300 text-sm mt-1">{errors.name}</p>}
               </div>
+            )}
 
-              {/* Age */}
+            {codeSent && (
               <div>
-                <label htmlFor="age" className="block text-sm font-medium text-gray-300 mb-2">
-                  Age
+                <div
+                  role="status"
+                  className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 px-4 py-3 rounded-lg mb-4 text-sm"
+                >
+                  We sent a verification code to <strong>{email.trim()}</strong>.
+                </div>
+                <label htmlFor="code" className="block text-sm font-medium text-gray-300 mb-2">
+                  Verification code
                 </label>
                 <input
-                  type="number"
-                  id="age"
-                  name="age"
-                  value={formData.age}
-                  onChange={handleChange}
-                  className={`w-full bg-white/10 border ${errors.age ? 'border-red-500' : 'border-white/20'} rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                  placeholder="Enter your age"
-                  min="1"
-                  max="120"
+                  ref={codeRef}
+                  type="text"
+                  id="code"
+                  value={code}
+                  onChange={(e) =>
+                    setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_MAX_LENGTH))
+                  }
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white text-center text-xl tracking-[0.35em] font-mono placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter code"
+                  maxLength={CODE_MAX_LENGTH}
+                  autoComplete="one-time-code"
                 />
-                {errors.age && <p className="text-red-300 text-sm mt-1">{errors.age}</p>}
-              </div>
-
-              {/* Date of Birth */}
-              <div>
-                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-300 mb-2">
-                  Date of Birth
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="date"
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    className={`w-full bg-white/10 border ${errors.dateOfBirth ? 'border-red-500' : 'border-white/20'} rounded-lg px-10 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                  />
+                <div className="flex justify-between items-center mt-2 text-sm">
+                  <span className="text-gray-400" aria-live="polite">
+                    {cooldown > 0 ? `You can ask for a new code in ${cooldown}s.` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => sendCode()}
+                    disabled={loading || cooldown > 0}
+                    className="text-purple-400 hover:text-purple-300 underline underline-offset-2 font-medium transition-colors disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
+                  >
+                    Resend code
+                  </button>
                 </div>
-                {errors.dateOfBirth && <p className="text-red-300 text-sm mt-1">{errors.dateOfBirth}</p>}
               </div>
+            )}
 
-              {/* Place of Birth */}
-              <div>
-                <label htmlFor="placeOfBirth" className="block text-sm font-medium text-gray-300 mb-2">
-                  Place of Birth
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    id="placeOfBirth"
-                    name="placeOfBirth"
-                    value={formData.placeOfBirth}
-                    onChange={handleChange}
-                    className={`w-full bg-white/10 border ${errors.placeOfBirth ? 'border-red-500' : 'border-white/20'} rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                    placeholder="City, Country"
-                  />
-                </div>
-                {errors.placeOfBirth && <p className="text-red-300 text-sm mt-1">{errors.placeOfBirth}</p>}
+            {turnstile.isEnabled && (
+              <TurnstileField
+                siteKey={turnstile.siteKey}
+                action="signup"
+                onSuccess={turnstile.onSuccess}
+                onExpire={turnstile.onExpire}
+                onError={turnstile.onError}
+                onRegisterReset={turnstile.registerReset}
+                className="flex justify-center"
+              />
+            )}
+
+            {(error || turnstile.error) && (
+              <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
+                {error || turnstile.error}
               </div>
+            )}
 
-              {/* Time of Birth */}
-              <div>
-                <label htmlFor="timeOfBirth" className="block text-sm font-medium text-gray-300 mb-2">
-                  Time of Birth
-                </label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="time"
-                    id="timeOfBirth"
-                    name="timeOfBirth"
-                    value={formData.timeOfBirth}
-                    onChange={handleChange}
-                    className={`w-full bg-white/10 border ${errors.timeOfBirth ? 'border-red-500' : 'border-white/20'} rounded-lg px-10 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                  />
-                </div>
-                {errors.timeOfBirth && <p className="text-red-300 text-sm mt-1">{errors.timeOfBirth}</p>}
-              </div>
-
-              {/* Gender */}
-              <div>
-                <label htmlFor="gender" className="block text-sm font-medium text-gray-300 mb-2">
-                  Gender
-                </label>
-                <select
-                  id="gender"
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                >
-                  <option value="M">Male</option>
-                  <option value="F">Female</option>
-                  <option value="O">Other</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 transform hover:scale-105"
-              >
-                Continue
-              </button>
-            </form>
-          )}
-
-          {step === 2 && (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full bg-white/10 border ${errors.email ? 'border-red-500' : 'border-white/20'} rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300`}
-                    placeholder="Enter your email"
-                  />
-                </div>
-                {errors.email && <p className="text-red-300 text-sm mt-1">{errors.email}</p>}
-              </div>
-
-              {turnstile.isEnabled && (
-                <TurnstileField
-                  siteKey={turnstile.siteKey}
-                  action="signup"
-                  onSuccess={turnstile.onSuccess}
-                  onExpire={turnstile.onExpire}
-                  onError={turnstile.onError}
-                  onRegisterReset={turnstile.registerReset}
-                  className="flex justify-center"
-                />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  {codeSent ? 'Verifying…' : 'Sending…'}
+                </>
+              ) : codeSent ? (
+                'Verify'
+              ) : (
+                'Next'
               )}
+            </button>
+          </form>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center"
-              >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    <span>Creating Account...</span>
-                  </div>
-                ) : (
-                  "Create Account"
-                )}
-              </button>
-
-              {turnstile.isEnabled && (
-                <p className="text-center text-xs text-gray-500">
-                  Protected by Cloudflare Turnstile.
-                </p>
-              )}
-            </form>
-          )}
-
-          {/* Sign In Link */}
           <div className="text-center mt-6">
             <p className="text-gray-300">
               Already have an account?{' '}
@@ -382,6 +313,10 @@ const SignUp: React.FC<SignUpProps> = ({ onCodeSent, onSignIn, onBack }) => {
               </button>
             </p>
           </div>
+
+          {turnstile.isEnabled && (
+            <p className="text-center text-xs text-gray-500 mt-4">Protected by Cloudflare Turnstile.</p>
+          )}
         </div>
       </div>
     </div>

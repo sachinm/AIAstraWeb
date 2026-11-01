@@ -1,8 +1,7 @@
 import React from 'react';
-import { Star, LogOut, BarChart3, Heart, BookOpen, MessageCircle, AlertTriangle, CalendarDays } from 'lucide-react';
+import { Star, LogOut, BarChart3, Heart, BookOpen, MessageCircle, AlertTriangle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ShriGaneshAvatar } from '../components/ShriGaneshAvatar';
-import { useLedgerMeta } from './timeline/useLedgerMeta';
 
 interface User {
   name: string;
@@ -20,14 +19,10 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
   const location = useLocation();
   const currentPath = location.pathname.split('/').pop() || 'chat';
 
-  // the life-events link shows only when the server has the timeline feature on (meta is not 404)
-  const { meta: ledgerMeta } = useLedgerMeta();
-
   const navItems: { id: string; path?: string; label: string; icon: typeof Star }[] = [
     { id: 'charts', label: 'Charts', icon: BarChart3 },
     { id: 'remedies', label: 'Remedies', icon: Heart },
     { id: 'mantras', label: 'Mantras/Horoscope', icon: BookOpen },
-    ...(ledgerMeta ? [{ id: 'ledger', path: 'timeline/ledger', label: 'Life events', icon: CalendarDays }] : []),
     { id: 'chat', label: 'Chat', icon: MessageCircle }
   ];
 
@@ -67,10 +62,16 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
 
           <div className="flex items-center space-x-4">
             {user && (
-              <div className="hidden sm:block text-right">
+              <button
+                type="button"
+                onClick={() => navigate('/profile')}
+                title="Your profile"
+                aria-label="Profile"
+                className="hidden sm:block text-right rounded-lg px-2 py-1 hover:bg-white/10"
+              >
                 <p className="text-white font-medium">{user.name}</p>
                 <p className="text-gray-400 text-sm">{user.email}</p>
-              </div>
+              </button>
             )}
             <ShriGaneshAvatar />
             <button
@@ -111,6 +112,13 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              className="sm:hidden flex items-center space-x-2 px-3 py-2 rounded-lg whitespace-nowrap text-gray-300 hover:text-white hover:bg-white/10"
+            >
+              <span className="text-sm font-medium">Profile</span>
+            </button>
           </div>
         </div>
       </div>

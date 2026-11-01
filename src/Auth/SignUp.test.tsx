@@ -1,115 +1,162 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import SignUp from './SignUp';
-import { signup } from './api';
+import { startSignup, verifySignupCode } from './api';
 
 vi.mock('./api', () => ({
-  signup: vi.fn(),
+  startSignup: vi.fn(),
+  verifySignupCode: vi.fn(),
   EMAIL_EXISTS_CODE: 'EMAIL_EXISTS',
 }));
 
-const mockOnCodeSent = vi.fn();
-const mockOnSignIn = vi.fn();
+const onVerified = vi.fn();
+const onSignIn = vi.fn();
 
-function renderSignUp() {
+function renderPage() {
   return render(
     <MemoryRouter>
-      <SignUp onCodeSent={mockOnCodeSent} onSignIn={mockOnSignIn} onBack={vi.fn()} />
+      <SignUp onVerified={onVerified} onSignIn={onSignIn} onBack={vi.fn()} />
     </MemoryRouter>
   );
 }
 
-/** Fills the birth-details step and moves to the account step. */
-async function goToAccountStep(user: ReturnType<typeof userEvent.setup>) {
-  fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Asha Rao' } });
-  fireEvent.change(screen.getByLabelText(/^age$/i), { target: { value: '34' } });
-  fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '1990-01-15' } });
-  fireEvent.change(screen.getByLabelText(/place of birth/i), { target: { value: 'Pune, India' } });
-  fireEvent.change(screen.getByLabelText(/time of birth/i), { target: { value: '10:30' } });
-  await user.click(screen.getByRole('button', { name: /continue/i }));
+async function fillAndNext(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText(/^name$/i), 'Asha Rao');
+  await user.type(screen.getByLabelText(/email address/i), 'asha@example.com');
+  await user.click(screen.getByRole('button', { name: /^next$/i }));
 }
 
-describe('SignUp', () => {
+/** One second at a time: the countdown re-arms its timer after each render. */
+async function tick(seconds: number) {
+  for (let i = 0; i < seconds; i++) {
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+  }
+}
+
+describe('SignUp page 1 (Create your account)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
-  it('account step asks only for email (no password or confirm password)', async () => {
-    const user = userEvent.setup();
-    renderSignUp();
-    await goToAccountStep(user);
-
+  it('asks only for name and email, with a Next button and no password or age', () => {
+    renderPage();
+    expect(screen.getByRole('heading', { name: /create your account/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/^password$/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/confirm password/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/password/i)).not.toBeInTheDocument();
-  }, 20000);
+    expect(screen.getByRole('button', { name: /^next$/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^age$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+  });
 
-  it('submits email and profile fields only, then hands over to the code step', async () => {
+  it('Next calls startSignup and reveals the code field below the email on the same page', async () => {
     const user = userEvent.setup();
-    vi.mocked(signup).mockResolvedValueOnce({ success: true });
-    renderSignUp();
-    await goToAccountStep(user);
+    vi.mocked(startSignup).mockResolvedValueOnce({ success: true });
+    const { container } = renderPage();
+    await fillAndNext(user);
 
-    await user.type(screen.getByLabelText(/email address/i), 'asha@example.com');
-    await user.click(screen.getByRole('button', { name: /create account/i }));
+    expect(startSignup).toHaveBeenCalledWith({ name: 'Asha Rao', email: 'asha@example.com', turnstileToken: null });
+    const code = await screen.findByLabelText(/verification code/i);
+    const email = screen.getByLabelText(/email address/i);
+    expect(email.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelectorAll('form')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /^verify$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /use a different email/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /resend code/i })).toBeDisabled();
+  });
 
-    await waitFor(() => expect(mockOnCodeSent).toHaveBeenCalledWith('asha@example.com'));
-    const sent = vi.mocked(signup).mock.calls[0][0] as unknown as Record<string, unknown>;
-    expect(sent).not.toHaveProperty('password');
-    expect(sent).toMatchObject({
-      username: 'asharao',
-      email: 'asha@example.com',
-      date_of_birth: '1990-01-15',
-      place_of_birth: 'Pune, India',
-    });
-  }, 20000);
-
-  it('shows the server message when signup is refused', async () => {
+  it('shows the duplicate-email message with a Sign in button that carries the email', async () => {
     const user = userEvent.setup();
-    vi.mocked(signup).mockResolvedValueOnce({ success: false, message: 'Username or email already exists' });
-    renderSignUp();
-    await goToAccountStep(user);
-
-    await user.type(screen.getByLabelText(/email address/i), 'taken@example.com');
-    await user.click(screen.getByRole('button', { name: /create account/i }));
-
-    expect(await screen.findByText('Username or email already exists')).toBeInTheDocument();
-    expect(mockOnCodeSent).not.toHaveBeenCalled();
-  }, 20000);
-
-  it('when the email is already registered, says so and offers a Sign in link prefilled with the email', async () => {
-    const user = userEvent.setup();
-    vi.mocked(signup).mockResolvedValueOnce({
-      success: false,
-      code: 'EMAIL_EXISTS',
-      message: 'This email is already registered. Please sign in instead.',
-    });
-    renderSignUp();
-    await goToAccountStep(user);
-
-    await user.type(screen.getByLabelText(/email address/i), 'taken@example.com');
-    await user.click(screen.getByRole('button', { name: /create account/i }));
+    vi.mocked(startSignup).mockResolvedValueOnce({ success: false, code: 'EMAIL_EXISTS', message: 'x' });
+    renderPage();
+    await fillAndNext(user);
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('This email is already registered. Please sign in instead.');
-    await user.click(within(alert).getByRole('button', { name: /^sign in$/i }));
-    expect(mockOnSignIn).toHaveBeenCalledWith('taken@example.com');
-    expect(mockOnCodeSent).not.toHaveBeenCalled();
-  }, 20000);
+    await user.click(within(alert).getByRole('button', { name: /sign in/i }));
+    expect(onSignIn).toHaveBeenCalledWith('asha@example.com');
+    expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+  });
 
-  it('other refusals do not offer the sign-in link', async () => {
+  it('validates name and email before calling the server', async () => {
     const user = userEvent.setup();
-    vi.mocked(signup).mockResolvedValueOnce({ success: false, message: 'Username already exists' });
-    renderSignUp();
-    await goToAccountStep(user);
+    renderPage();
+    await user.click(screen.getByRole('button', { name: /^next$/i }));
+    expect(startSignup).not.toHaveBeenCalled();
+    expect(screen.getByText(/enter your name/i)).toBeInTheDocument();
+    expect(screen.getByText(/enter your email address/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^name$/i)).toHaveFocus();
+  });
 
-    await user.type(screen.getByLabelText(/email address/i), 'new@example.com');
-    await user.click(screen.getByRole('button', { name: /create account/i }));
+  describe('resend cooldown', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
-    const alert = await screen.findByRole('alert');
-    expect(within(alert).queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument();
-  }, 20000);
+    it('counts down 30 seconds, then Resend sends another code', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      vi.mocked(startSignup).mockResolvedValue({ success: true });
+      renderPage();
+      await fillAndNext(user);
+
+      await screen.findByLabelText(/verification code/i);
+      expect(screen.getByText(/new code in 30s/i)).toBeInTheDocument();
+      const resend = screen.getByRole('button', { name: /resend code/i });
+      expect(resend).toBeDisabled();
+
+      await tick(10);
+      expect(screen.getByText(/new code in 20s/i)).toBeInTheDocument();
+
+      await tick(20);
+      await waitFor(() => expect(resend).toBeEnabled());
+      await user.click(resend);
+      await waitFor(() => expect(startSignup).toHaveBeenCalledTimes(2));
+      expect(screen.getByText(/new code in 30s/i)).toBeInTheDocument();
+    });
+  });
+
+  it('a correct code signs the user in and moves on to page 2', async () => {
+    const user = userEvent.setup();
+    vi.mocked(startSignup).mockResolvedValueOnce({ success: true });
+    vi.mocked(verifySignupCode).mockResolvedValueOnce({ success: true, user: 'u1' });
+    renderPage();
+    await fillAndNext(user);
+
+    await user.type(await screen.findByLabelText(/verification code/i), 'ab12cd');
+    await user.click(screen.getByRole('button', { name: /^verify$/i }));
+
+    await waitFor(() => expect(onVerified).toHaveBeenCalled());
+    expect(verifySignupCode).toHaveBeenCalledWith('asha@example.com', 'AB12CD');
+    expect(onVerified).toHaveBeenCalledWith({ email: 'asha@example.com', name: 'Asha Rao', userId: 'u1' });
+  });
+
+  it('a wrong code shows the error and stays on the page', async () => {
+    const user = userEvent.setup();
+    vi.mocked(startSignup).mockResolvedValueOnce({ success: true });
+    vi.mocked(verifySignupCode).mockResolvedValueOnce({ success: false, message: 'Wrong code.' });
+    renderPage();
+    await fillAndNext(user);
+    await user.type(await screen.findByLabelText(/verification code/i), '123456');
+    await user.click(screen.getByRole('button', { name: /^verify$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Wrong code.');
+    expect(onVerified).not.toHaveBeenCalled();
+  });
+
+  it('"Use a different email" returns to the form and clears the code', async () => {
+    const user = userEvent.setup();
+    vi.mocked(startSignup).mockResolvedValueOnce({ success: true });
+    renderPage();
+    await fillAndNext(user);
+    await user.click(await screen.findByRole('button', { name: /use a different email/i }));
+    expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/email address/i)).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: /^next$/i })).toBeInTheDocument();
+  });
 });
