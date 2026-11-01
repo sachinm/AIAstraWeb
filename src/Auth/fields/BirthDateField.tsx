@@ -75,7 +75,7 @@ const BirthDateField = forwardRef<HTMLInputElement, Props>(function BirthDateFie
   const link = 'text-sm text-purple-200 underline underline-offset-2';
 
   return (
-    <div className="relative" ref={wrapRef}>
+    <div className="relative" ref={wrapRef} onBlur={(e) => { if (!wrapRef.current?.contains(e.relatedTarget as Node | null)) onBlur?.(); }}>
       <div className="relative">
         <input
           ref={ref}

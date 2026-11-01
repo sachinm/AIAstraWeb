@@ -130,7 +130,7 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
             value={values.hour}
             onChange={(e) => onChange({ hour: e.target.value })}
             onBlur={() => onCheck('time')}
-            className={`${input} ${border('time')} px-3`}
+            className={`${input} ${border('time')} px-3 [color-scheme:dark] bg-slate-900`}
           >
             <option value="">Hour</option>
             {hours.map((h) => (
@@ -145,7 +145,7 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
             value={values.minute}
             onChange={(e) => onChange({ minute: e.target.value })}
             onBlur={() => onCheck('time')}
-            className={`${input} ${border('time')} px-3`}
+            className={`${input} ${border('time')} px-3 [color-scheme:dark] bg-slate-900`}
           >
             <option value="">Min</option>
             {minutes.map((m) => (
@@ -159,7 +159,7 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
             value={values.ampm}
             onChange={(e) => onChange({ ampm: e.target.value as BirthValues['ampm'] })}
             onBlur={() => onCheck('time')}
-            className={`${input} ${border('time')} px-3`}
+            className={`${input} ${border('time')} px-3 [color-scheme:dark] bg-slate-900`}
           >
             <option value="">AM/PM</option>
             <option value="AM">AM</option>
