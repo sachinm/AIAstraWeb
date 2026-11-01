@@ -20,6 +20,7 @@ export function useRefreshMe(): () => Promise<void> {
 
 /** Re-check the chart status this often while it is not ready. */
 const POLL_MS = 3_000;
+const REST_POLL_MS = 15_000;
 
 /**
  * Wraps the signed-in app. A user whose registration is unfinished (profile_complete false) is sent to the
@@ -46,14 +47,17 @@ export function ProfileGate() {
     if (m) setMe(m);
   }, []);
 
-  const notReady = me !== null && me.kundli_status !== 'ready';
+  // Chat is open while the rest of the chart builds, so that wait is checked less often.
+  const restBuilding = me?.chart?.status === 'chat_ready';
+  const notReady = me !== null && (me.kundli_status !== 'ready' || restBuilding);
+  const pollMs = restBuilding ? REST_POLL_MS : POLL_MS;
   useEffect(() => {
     if (!notReady) return undefined;
     const t = setInterval(() => {
       void fetchMe().then((m) => m && setMe(m));
-    }, POLL_MS);
+    }, pollMs);
     return () => clearInterval(t);
-  }, [notReady]);
+  }, [notReady, pollMs]);
 
   if (!checked) return <SessionLoadingScreen />;
   if (me && !me.profile_complete) return <Navigate to="/signup/details" replace />;

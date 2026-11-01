@@ -147,7 +147,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6">
+    // Pinned from the top, not centred: a centred card jumps up when the code field appears, which reads as a reload.
+    <div className="min-h-screen flex items-start justify-center px-6 py-[8vh]">
       <div className="w-full max-w-md">
         <button
           onClick={onBack}
@@ -286,6 +287,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
             <TurnstileField
               siteKey={turnstile.siteKey}
               action="login"
+              quiet
               className="flex justify-center mt-6"
               onSuccess={turnstile.onSuccess}
               onExpire={turnstile.onExpire}
