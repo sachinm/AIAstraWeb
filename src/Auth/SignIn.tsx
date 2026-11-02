@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { Star, Mail, ArrowLeft, KeyRound } from 'lucide-react';
 import { requestMagicLinkEmail, loginWithMagicLink, LOGIN_FAILED_GENERIC } from './api';
 import { useTurnstile } from './useTurnstile';
-import TurnstileField from './TurnstileField';
+import TurnstileGate from './TurnstileGate';
 
 interface SignInProps {
   onSignUp: () => void;
@@ -293,18 +293,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
             </p>
           </div>
 
-          {turnstile.isEnabled && (
-            <TurnstileField
-              siteKey={turnstile.siteKey}
-              action="login"
-              quiet
-              className="flex justify-center mt-6"
-              onSuccess={turnstile.onSuccess}
-              onExpire={turnstile.onExpire}
-              onError={turnstile.onError}
-              onRegisterReset={turnstile.registerReset}
-            />
-          )}
+          <TurnstileGate turnstile={turnstile} action="login" />
         </div>
       </div>
     </div>
