@@ -77,6 +77,9 @@ export const PUBLIC_PAGES: ReadonlyArray<PageSeo> = [
   },
 ];
 
+/** Prerendered for speed like the public pages, but never indexed and not in the sitemap. */
+export const PRERENDERED_PRIVATE_PATHS: ReadonlyArray<string> = ['/signin', '/signup'];
+
 /**
  * Path prefixes that are never indexed: the sign-in and sign-up flow and the signed-in app. Listed in robots.txt as
  * `Disallow`, sent as `X-Robots-Tag: noindex` by the host, and rendered as `<meta name="robots" content="noindex">`.

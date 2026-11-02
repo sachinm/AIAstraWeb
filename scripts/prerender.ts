@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build, type Plugin, type ResolvedConfig } from 'vite';
-import { PUBLIC_PAGES, trimSiteUrl } from '../src/lib/seoConfig';
+import { PRERENDERED_PRIVATE_PATHS, PUBLIC_PAGES, trimSiteUrl } from '../src/lib/seoConfig';
 import { injectPage, prerenderFiles } from '../src/lib/prerenderHtml';
 
 interface EntryServer {
@@ -60,15 +60,16 @@ export function prerenderPublicPages(env: Record<string, string>): Plugin {
         } else if (String(env.VITE_SEO_INDEX ?? '1').trim() !== '0') {
           config.logger.warn('[prerender] VITE_SITE_URL is not set: canonical, og:url and og:image are relative paths.');
         }
-        for (const page of PUBLIC_PAGES) {
-          const html = injectPage(template, entry.renderRoute(page.path), entry.headTagsFor(page.path, origin, hostname));
-          for (const file of prerenderFiles(page.path)) {
+        const paths = [...PUBLIC_PAGES.map((p) => p.path), ...PRERENDERED_PRIVATE_PATHS];
+        for (const path of paths) {
+          const html = injectPage(template, entry.renderRoute(path), entry.headTagsFor(path, origin, hostname));
+          for (const file of prerenderFiles(path)) {
             const target = resolve(outDir, file);
             mkdirSync(dirname(target), { recursive: true });
             writeFileSync(target, html);
           }
         }
-        config.logger.info(`[prerender] ${PUBLIC_PAGES.length} public pages written to ${config.build.outDir}`);
+        config.logger.info(`[prerender] ${paths.length} pages written to ${config.build.outDir}`);
       },
     },
   };

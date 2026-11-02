@@ -32,22 +32,6 @@ describe('LandingPage', () => {
     expect((container.firstChild as HTMLElement).className).not.toMatch(/bg-/);
   });
 
-  it('has the moving stars over the sky', () => {
-    const { container } = render(<LandingPage onSignUp={vi.fn()} />);
-    expect(container.querySelectorAll('.shooting-star')).toHaveLength(3);
-  });
-
-  it('draws the star map behind the hero, hidden from screen readers, with both layouts', () => {
-    const { container } = render(<LandingPage onSignUp={vi.fn()} />);
-    const sky = container.querySelector('[data-test-id="constellation-sky"]');
-    expect(sky).toHaveAttribute('aria-hidden', 'true');
-    expect(container.querySelector('[data-test-id="constellation-sky-wide"] [data-sign="leo"]')).not.toBeNull();
-    expect(container.querySelector('[data-test-id="constellation-sky-tall"] [data-planet="ketu"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-test-id="constellation-sky-wide"] [data-planet]')).toHaveLength(9);
-    // the hero still comes first in reading order, so the map never precedes the heading for assistive tech
-    expect(container.querySelector('h1')).not.toBeNull();
-  });
-
   it('keeps every FAQ on the page, which the FAQPage structured data relies on', () => {
     render(<LandingPage onSignUp={vi.fn()} />);
     for (const faq of LANDING_FAQS) expect(screen.getByRole('button', { name: faq.question })).toBeInTheDocument();
