@@ -169,8 +169,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   );
 
   return (
-    // Pinned from the top, not centred: a centred card jumps up when the code field appears, which reads as a reload.
-    <div className="min-h-full flex items-start justify-center px-6 pt-3 pb-6">
+    // Centred on the screen by default (Sachin, 2026-11-02). The card grows a little when the code field appears.
+    <div className="min-h-full flex items-center justify-center px-6 py-6">
       <div className="w-full max-w-3xl">
         <div className="flex items-center justify-between mb-4">
         <button
