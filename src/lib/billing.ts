@@ -21,7 +21,7 @@ export interface PlanStatus {
   limit: number | null;
   /** null when unlimited or exempt */
   remaining: number | null;
-  window: 'month' | 'none';
+  window: 'month' | 'day' | 'none';
   resets_at: string | null;
   exempt: boolean;
 }

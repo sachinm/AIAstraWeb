@@ -11,6 +11,14 @@ const UpgradeCard: React.FC<{ plan: PlanStatus }> = ({ plan }) => {
   const date = plan.resets_at
     ? new Date(plan.resets_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
     : null;
+  // Unlimited stops only at the daily guard, and there is no higher plan to offer
+  if (plan.window === 'day') {
+    return (
+      <div role="status" data-test-id="upgrade-card" className="rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-sm text-gray-100">
+        <p>{t('quota.dayRenews', { limit })}</p>
+      </div>
+    );
+  }
   const words = date ? t('quota.monthRenews', { limit, date }) : t('quota.month', { limit });
   return (
     <div role="status" data-test-id="upgrade-card" className="rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-sm text-gray-100">

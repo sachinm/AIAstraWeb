@@ -1,3 +1,9 @@
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+  }
+}
+
 /**
  * Fires when the user sends a chat question from the dashboard chat UI. Sends the length only: a question can hold health,
  * money or family details, which must not go to Google Analytics.

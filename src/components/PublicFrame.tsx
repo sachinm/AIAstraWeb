@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ArrowRight, Star } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import Disclaimer from './Disclaimer';
+import Disclaimer, { DISCLAIMER_SHORT } from './Disclaimer';
 import LegalLinks from './LegalLinks';
 import { PRODUCT_NAME, SUPPORT_EMAIL } from '../lib/legal';
 
@@ -54,9 +54,9 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
 
       <footer className="z-20 shrink-0 border-t border-white/15 bg-slate-950/85 px-4 pb-2 backdrop-blur sm:px-6" data-test-id="public-footer">
         <div className="mx-auto max-w-7xl">
-          <div className="flex flex-wrap items-center justify-between gap-x-6">
-            <p className="py-1 text-xs text-gray-400" data-test-id="copyright-notice">
-              &copy; 2026 {PRODUCT_NAME}. All rights reserved.
+          <div className="flex items-center justify-between gap-x-3 sm:flex-wrap sm:gap-x-6">
+            <p className="shrink-0 py-1 text-xs text-gray-400" data-test-id="copyright-notice">
+              &copy; 2026 {PRODUCT_NAME}<span className="hidden sm:inline">. All rights reserved.</span>
             </p>
             <div className="flex flex-wrap items-center gap-x-3">
               <LegalLinks />
@@ -67,7 +67,11 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
               )}
             </div>
           </div>
-          <Disclaimer />
+          {/* three lines on a phone covered the page, so a phone gets one; the full text is in the Terms */}
+          <Disclaimer className="hidden sm:block" />
+          <p role="note" data-test-id="disclaimer-short" className="text-center text-xs leading-snug text-slate-400 sm:hidden">
+            {DISCLAIMER_SHORT}
+          </p>
         </div>
       </footer>
     </div>

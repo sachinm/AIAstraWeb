@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSpeechRecognition } from './useSpeechRecognition';
 
+type SpeechGlobal = { SpeechRecognition?: unknown };
+
 function createMockRecognition() {
   const handlers: {
     onresult?: (e: SpeechRecognitionEvent) => void;
@@ -16,8 +18,8 @@ function createMockRecognition() {
     interimResults: false,
     lang: '',
     maxAlternatives: 1,
-    set onresult(fn: (e: SpeechRecognitionEvent) => void) {
-      handlers.onresult = fn;
+    set onresult(fn: ((e: SpeechRecognitionEvent) => void) | null) {
+      handlers.onresult = fn ?? undefined;
     },
     get onresult() {
       return handlers.onresult ?? null;
@@ -44,7 +46,7 @@ function createMockResult(transcript: string, isFinal = true): SpeechRecognition
   return {
     length: 1,
     isFinal,
-    item: (i: number) => ({ transcript, confidence: 1 }),
+    item: () => ({ transcript, confidence: 1 }),
     0: { transcript, confidence: 1 },
   } as unknown as SpeechRecognitionResult;
 }
@@ -69,18 +71,18 @@ function createMockErrorEvent(error: string): SpeechRecognitionErrorEvent {
 }
 
 describe('useSpeechRecognition', () => {
-  const originalSpeechRecognition = (globalThis as unknown as Window).SpeechRecognition;
+  const originalSpeechRecognition = (globalThis as unknown as SpeechGlobal).SpeechRecognition;
   const originalWebkit = (globalThis as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
 
   afterEach(() => {
     vi.useRealTimers();
-    (globalThis as unknown as Window).SpeechRecognition = originalSpeechRecognition;
+    (globalThis as unknown as SpeechGlobal).SpeechRecognition = originalSpeechRecognition;
     (globalThis as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition = originalWebkit;
   });
 
   describe('when SpeechRecognition is not available', () => {
     beforeEach(() => {
-      delete (globalThis as unknown as Window).SpeechRecognition;
+      delete (globalThis as unknown as SpeechGlobal).SpeechRecognition;
       delete (globalThis as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
     });
 
@@ -105,7 +107,7 @@ describe('useSpeechRecognition', () => {
       vi.useFakeTimers();
       mockRecognition = createMockRecognition();
       const Ctor = vi.fn(() => mockRecognition);
-      (globalThis as unknown as Window).SpeechRecognition = Ctor;
+      (globalThis as unknown as SpeechGlobal).SpeechRecognition = Ctor;
     });
 
     it('returns isSupported: true', () => {

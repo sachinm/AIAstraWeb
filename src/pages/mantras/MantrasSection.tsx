@@ -12,7 +12,7 @@ interface MantrasSectionProps {
   user: User;
 }
 
-const MantrasSection: React.FC<MantrasSectionProps> = ({ user }) => {
+const MantrasSection: React.FC<MantrasSectionProps> = () => {
   const [apiData, setApiData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,6 @@ const MantrasSection: React.FC<MantrasSectionProps> = ({ user }) => {
 
   // Extract data from API response - correct path based on your API structure
   const mantrasData = apiData.content?.mantras?.mantras || [];
-  const birthDetails = apiData.content?.birthDetails || {};
 
   // Get planet icon based on mantra content
   const getPlanetIcon = (mantraText: string) => {
@@ -148,27 +147,6 @@ const MantrasSection: React.FC<MantrasSectionProps> = ({ user }) => {
       setPlayingMantra(mantraId);
     }
   };
-
-  // Generate horoscope based on API data
-  const generateHoroscope = () => {
-    const nakshatra = birthDetails.nakshatra || '';
-    const weekday = birthDetails.vedicWeekday || '';
-    const yoga = birthDetails.yoga || '';
-    
-    return {
-      daily: {
-        date: new Date().toLocaleDateString(),
-        prediction: nakshatra ? `Today's energy is influenced by your ${nakshatra} nakshatra and ${yoga} yoga. ${weekday} is a favorable day for spiritual practices. Focus on activities that align with your planetary strengths.` : 'Focus on spiritual practices and meditation today.',
-        luckyNumber: Math.floor(Math.random() * 9) + 1,
-        luckyColor: 'Purple',
-        luckyTime: '10:00 AM - 12:00 PM'
-      },
-      weekly: nakshatra ? `This week emphasizes spiritual growth influenced by your ${nakshatra} nakshatra. Your ruling planets are in favorable positions, bringing harmony to relationships.` : 'This week brings opportunities for spiritual growth and inner transformation.',
-      monthly: nakshatra ? `This month brings significant spiritual progress influenced by your ${nakshatra} nakshatra. The alignment of planets suggests enhanced intuition.` : 'This month focuses on spiritual development and connection with divine energies.'
-    };
-  };
-
-  const horoscope = generateHoroscope();
 
   return (
     <div className="p-6 space-y-8">
