@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Star, UserIcon, Mail, ArrowLeft } from 'lucide-react';
 import { startSignup, verifySignupCode, EMAIL_EXISTS_CODE } from './api';
 import { useTurnstile } from './useTurnstile';
-import TurnstileField from './TurnstileField';
+import TurnstileGate from './TurnstileGate';
 import { PRODUCT_NAME } from '../lib/legal';
 
 interface SignUpProps {
@@ -346,17 +346,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
             </p>
           </div>
 
-          {turnstile.isEnabled && (
-            <TurnstileField
-              siteKey={turnstile.siteKey}
-              action="register"
-              className="flex justify-center mt-6"
-              onSuccess={turnstile.onSuccess}
-              onExpire={turnstile.onExpire}
-              onError={turnstile.onError}
-              onRegisterReset={turnstile.registerReset}
-            />
-          )}
+          <TurnstileGate turnstile={turnstile} action="register" />
         </div>
       </div>
     </div>
