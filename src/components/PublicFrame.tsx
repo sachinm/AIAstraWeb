@@ -27,7 +27,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
   return (
     <div className="flex h-dvh flex-col overflow-hidden text-white">
       {nav ?? (
-        <header className="z-20 shrink-0 border-b border-white/15 bg-slate-950/85 px-4 py-3 backdrop-blur sm:px-6" data-test-id="public-header">
+        <header className="z-20 shrink-0 bg-transparent px-4 py-3 sm:px-6" data-test-id="public-header">
           <div className="flex w-full items-center justify-between gap-3">
             <Link to="/" className="flex items-center gap-2">
               <Star className="h-7 w-7 text-purple-400" aria-hidden="true" />
