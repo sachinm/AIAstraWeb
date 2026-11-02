@@ -64,7 +64,8 @@ describe('BirthDetails (page 2)', () => {
     expect(screen.getByRole('option', { name: 'Female' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Prefer not to say' })).toBeInTheDocument();
     expect(screen.getByLabelText('Referral code (optional)')).toBeInTheDocument();
-    expect(screen.getByRole('note')).toHaveTextContent('about 30 minutes after you register');
+    // the 30-minute notice belongs to the "generating your chart" overlay after Create my chart, not to the form
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^age$/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create my chart/i })).toBeEnabled();
@@ -223,6 +224,7 @@ describe('BirthDetails (page 2)', () => {
     renderPage();
     expect(await screen.findByText(/Generating your birth chart/i)).toBeInTheDocument();
     expect(document.querySelector('[data-test-id="birth-chart-generating-overlay"]')).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('about 30 minutes after you register');
     await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 5000 });
   });
 
