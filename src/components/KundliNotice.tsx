@@ -12,7 +12,7 @@ function noticeFor(me: Me): string | null {
   if (chart.status !== 'chat_ready' && chart.status !== 'ready') return READY_NOTICE;
   if (chart.reading_mode === 'legacy') return LEGACY_MODE_NOTICE;
   if (chart.status === 'ready') return null;
-  return `You can ask now. Your full chart is still being calculated (${chart.rest_done} of ${chart.rest_total}), and answers get more detailed as it completes.`;
+  return 'You can ask now. Your full chart is still being calculated, and answers get more detailed as it completes.';
 }
 
 /** Shown on the dashboard and chat until the full chart is ready and chat answers from it. */
