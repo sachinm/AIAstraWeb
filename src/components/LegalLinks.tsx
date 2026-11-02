@@ -3,7 +3,7 @@ import React from 'react';
 const LINKS = [
   { href: '/terms', label: 'Terms' },
   { href: '/privacy', label: 'Privacy' },
-  { href: '/refunds', label: 'Refunds' },
+  // The Refunds page exists at /refunds; its link is hidden for now.
 ];
 
 /** Opens in a new tab so a half-filled form or a running answer is not lost. */

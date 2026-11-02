@@ -23,7 +23,6 @@ import { useMe, usePlan, useRefreshMe } from '../../Auth/ProfileGate';
 import { isExhausted, QuotaExhaustedError } from '../../lib/billing';
 import UpgradeCard from '../../components/UpgradeCard';
 import ChartProgress from '../../components/ChartProgress';
-import KundliNotice from '../../components/KundliNotice';
 import {
   MAX_SIDEBAR_CHATS,
   mapApiMessagesToUi,
@@ -678,7 +677,6 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-    <KundliNotice />
     {/* the side rails are desktop only, so phones reach the same panels from here */}
     <div className="flex shrink-0 items-center gap-1 border-b border-white/10 bg-black/30 px-2 py-1 md:hidden" data-test-id="chat-phone-toolbar">
       <button type="button" aria-label="Open conversations" onClick={() => setIsSidebarOpen(true)} className="rounded-lg p-2.5 text-white hover:bg-white/10">
