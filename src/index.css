@@ -22,3 +22,30 @@ body {
     radial-gradient(ellipse at 15% 90%, rgba(40, 60, 130, 0.3), transparent 55%);
   background-size: 320px 320px, 320px 320px, 320px 320px, 320px 320px, 320px 320px, 320px 320px, 100% 100%, 100% 100%;
 }
+
+/* The front page's moving stars. */
+.shooting-star {
+  animation-name: shootingStar;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes shootingStar {
+  0% {
+    opacity: 0;
+    transform: translateX(0) translateY(0);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100vw) translateY(100vh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shooting-star {
+    animation: none;
+  }
+}

@@ -10,6 +10,7 @@
     "start:network": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",

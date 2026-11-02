@@ -16,7 +16,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
 
   return (
     <div className="min-h-full text-white">
-      <div className="max-w-3xl mx-auto px-6 py-20">
+      <div className="fixed inset-0 pointer-events-none" aria-hidden="true" data-test-id="shooting-stars">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="shooting-star absolute w-1 h-1 bg-white rounded-full opacity-0"
+            style={{ top: `${15 + i * 25}%`, left: '-5%', animationDuration: `${15 + i * 5}s`, animationDelay: `${i * 10}s` }}
+          />
+        ))}
+      </div>
+      <div className="relative max-w-3xl mx-auto px-6 py-20">
         <div className="text-center mb-20">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
             Discover Your Cosmic Blueprint

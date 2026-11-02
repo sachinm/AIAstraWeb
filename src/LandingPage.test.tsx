@@ -32,6 +32,11 @@ describe('LandingPage', () => {
     expect((container.firstChild as HTMLElement).className).not.toMatch(/bg-/);
   });
 
+  it('has the moving stars over the sky', () => {
+    const { container } = render(<LandingPage onSignUp={vi.fn()} />);
+    expect(container.querySelectorAll('.shooting-star')).toHaveLength(3);
+  });
+
   it('keeps every FAQ on the page, which the FAQPage structured data relies on', () => {
     render(<LandingPage onSignUp={vi.fn()} />);
     for (const faq of LANDING_FAQS) expect(screen.getByRole('button', { name: faq.question })).toBeInTheDocument();

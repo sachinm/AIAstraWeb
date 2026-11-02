@@ -4,6 +4,9 @@ import React from 'react';
 export const DISCLAIMER_TEXT =
   'For education and entertainment purposes only. Not medical, legal, financial or other professional advice. By using this service, you accept sole responsibility for your decisions.';
 
+/** The public footer on a phone. */
+export const DISCLAIMER_SHORT = 'For education and entertainment only. Not professional advice.';
+
 interface DisclaimerProps {
   className?: string;
 }
