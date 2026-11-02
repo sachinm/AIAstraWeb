@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { fetchPlanState, fetchProfile, updateProfile, type Gender, type Language } from '../../Auth/api';
+import { fetchProfile, updateProfile, type Gender } from '../../Auth/api';
 import BirthFields, {
   BIRTH_FIELD_LABEL,
   BIRTH_FIELD_ORDER,
@@ -13,11 +13,8 @@ import BirthFields, {
   type BirthValues,
 } from '../../Auth/fields/BirthFields';
 import { isoToTyped, parseTypedDate } from '../../Auth/fields/dateUtils';
-import LanguageField from '../../Auth/fields/LanguageField';
 import { useRefreshMe } from '../../Auth/ProfileGate';
 import { READY_NOTICE } from '../../Auth/readyNotice';
-import LedgerSection from '../timeline/LedgerSection';
-import PastLifeReadingSection from '../timeline/PastLifeReadingSection';
 
 export const REBUILD_WARNING =
   'Changing your birth details rebuilds your chart. Readings will use the new chart in about 30 minutes.';
@@ -50,9 +47,8 @@ const birthChanged = (a: Payload, b: Payload) =>
   a.country_code !== b.country_code ||
   a.city !== b.city;
 
-/** Profile page: name and birth details (same controls as registration page 2), then the life timeline. */
+/** The Details tab: name and birth details (same controls as registration page 2). */
 const ProfileSection: React.FC = () => {
-  const timelineEnabled = import.meta.env.VITE_TIMELINE_ENABLED === 'true';
   const refreshMe = useRefreshMe();
   const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -67,8 +63,6 @@ const ProfileSection: React.FC = () => {
   const [message, setMessage] = useState('');
   const [rebuild, setRebuild] = useState(false);
   const [saving, setSaving] = useState(false);
-  // null until read; a server that does not send it never gets a language back
-  const [language, setLanguage] = useState<Language | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const fieldsRef = useRef<BirthFieldsHandle>(null);
 
@@ -97,16 +91,6 @@ const ProfileSection: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    void fetchPlanState().then((s) => {
-      if (alive) setLanguage(s.language);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   const checkField = (f: BirthField, v: BirthValues = values) =>
     setErrors((p) => ({ ...p, [f]: validateBirth(v)[f] ?? '' }));
 
@@ -114,7 +98,7 @@ const ProfileSection: React.FC = () => {
     setSaving(true);
     setError('');
     try {
-      const r = await updateProfile(language ? { ...payload, language } : payload);
+      const r = await updateProfile(payload);
       if (r.success) {
         setSaved(payload);
         setConfirming(false);
@@ -210,16 +194,6 @@ const ProfileSection: React.FC = () => {
               onCheck={checkField}
             />
 
-            {language && (
-              <LanguageField
-                value={language}
-                onChange={(next) => {
-                  setLanguage(next);
-                  setMessage('');
-                }}
-              />
-            )}
-
             {confirming && (
               <div role="alert" className="rounded-lg border border-amber-400/40 bg-amber-500/15 px-4 py-3 text-sm text-amber-100">
                 <p>{REBUILD_WARNING}</p>
@@ -270,11 +244,6 @@ const ProfileSection: React.FC = () => {
         </section>
       )}
 
-      <section aria-label="Your life timeline" className="space-y-4">
-        <h3 className="text-xl font-semibold">Your life timeline</h3>
-        {timelineEnabled && <PastLifeReadingSection />}
-        <LedgerSection embedded />
-      </section>
     </div>
   );
 };

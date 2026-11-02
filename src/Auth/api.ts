@@ -454,6 +454,7 @@ const PROFILE_QUERY = `
   query MyProfile {
     me {
       name
+      email
       gender
       date_of_birth
       time_of_birth
@@ -465,6 +466,7 @@ const PROFILE_QUERY = `
 
 export interface Profile {
   name: string;
+  email?: string | null;
   gender: Gender | null;
   /** YYYY-MM-DD */
   date_of_birth: string | null;

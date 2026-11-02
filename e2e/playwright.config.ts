@@ -22,10 +22,11 @@ export default defineConfig({
     { name: 'phone', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   ],
   webServer: {
-    command: `npx vite --port ${PORT} --strictPort --mode e2e`,
+    // a built bundle, not the dev server: hundreds of module requests per page time out when memory is short
+    command: `npx vite build --mode e2e --outDir node_modules/.cache/e2e-dist --emptyOutDir && npx vite preview --port ${PORT} --strictPort --mode e2e --outDir node_modules/.cache/e2e-dist`,
     cwd: '..',
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
-    timeout: 60_000,
+    timeout: 180_000,
   },
 });

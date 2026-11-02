@@ -1,0 +1,42 @@
+# Amplify Hosting custom headers (read from the repo root at build time).
+# Search engines must not index the sign-in and sign-up flow or the signed-in app, even when they fetch the raw HTML
+# before the app sets <meta name="robots">. Keep these prefixes in step with NOINDEX_PREFIXES in src/lib/seoConfig.ts.
+customHeaders:
+  - pattern: '/signin'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '/signin/*'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '/signup'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '/signup/*'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '/dashboard'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '/dashboard/*'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '/profile'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '/profile/*'
+    headers:
+      - key: 'X-Robots-Tag'
+        value: 'noindex, nofollow'
+  - pattern: '**/*'
+    headers:
+      - key: 'X-Content-Type-Options'
+        value: 'nosniff'
+      - key: 'Referrer-Policy'
+        value: 'strict-origin-when-cross-origin'
