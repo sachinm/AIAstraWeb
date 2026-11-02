@@ -1,2 +1,7 @@
 # SPA fallback (Netlify-style). Render uses render.yaml; this helps other static hosts.
-/*    /index.html   200
+# Prerendered public pages first (keep in step with PUBLIC_PAGES), then everything else is the SPA.
+/pricing    /pricing/index.html   200
+/terms      /terms/index.html     200
+/privacy    /privacy/index.html   200
+/refunds    /refunds/index.html   200
+/*          /index.html           200

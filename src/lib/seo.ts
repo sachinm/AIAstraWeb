@@ -13,6 +13,7 @@ import {
   pageSeoFor,
   robotsContent,
   trimSiteUrl,
+  type HeadTag,
 } from './seoConfig';
 
 /** Absolute site URL for canonical links and the sitemap. Unset builds fall back to the page origin at runtime. */
@@ -24,11 +25,7 @@ export function siteUrlFor(origin: string): string {
   return SITE_URL || trimSiteUrl(origin);
 }
 
-export interface HeadTag {
-  tag: 'title' | 'meta' | 'link' | 'script';
-  attrs: Record<string, string>;
-  text?: string;
-}
+export type { HeadTag };
 
 /** The head tags for a route, as data: tested without a DOM, then written by `applySeo`. */
 export function headTagsFor(pathname: string, origin: string, hostname: string): HeadTag[] {
