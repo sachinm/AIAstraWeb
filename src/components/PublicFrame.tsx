@@ -52,7 +52,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
         {children}
       </main>
 
-      <footer className="z-20 shrink-0 border-t border-white/15 bg-slate-950/85 px-4 pb-2 backdrop-blur sm:px-6" data-test-id="public-footer">
+      <footer className="z-20 shrink-0 bg-gradient-to-t from-black/40 via-black/20 to-transparent px-4 pb-2 pt-6 sm:px-6" data-test-id="public-footer">
         <div className="w-full">
           <div className="flex items-center justify-between gap-x-3 sm:flex-wrap sm:gap-x-6">
             <p className="shrink-0 py-1 text-xs text-gray-400" data-test-id="copyright-notice">
