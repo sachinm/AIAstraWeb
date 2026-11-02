@@ -129,8 +129,22 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   const [hasNewBelow, setHasNewBelow] = useState(false);
   const lastSender = messages[messages.length - 1]?.sender;
   const lastText = messages[messages.length - 1]?.text ?? '';
+  // After the person sends a question the page goes to the end once; the answer that follows does not pull it further, so
+  // the start of the answer stays where it appeared and can be read at once. A different conversation starts fresh.
+  const holdRef = useRef(false);
+  const firstMessageId = messages[0]?.id;
   useEffect(() => {
-    if (lastSender === 'user' || nearBottomRef.current) {
+    holdRef.current = false;
+  }, [firstMessageId]);
+  useEffect(() => {
+    if (lastSender === 'user') {
+      endRef.current?.scrollIntoView?.({ block: 'end' });
+      setHasNewBelow(false);
+      holdRef.current = true;
+      return;
+    }
+    if (holdRef.current) return;
+    if (nearBottomRef.current) {
       endRef.current?.scrollIntoView?.({ block: 'end' });
       setHasNewBelow(false);
     } else {
