@@ -125,3 +125,13 @@ export function pickCorners(random: () => number = Math.random): { from: SkyCorn
   const b = (a + 1 + Math.floor(random() * (CORNERS.length - 1))) % CORNERS.length;
   return { from: CORNERS[a], to: CORNERS[b] };
 }
+
+/**
+ * How long a scene holds before the next begins, in seconds: VITE_SKY_HOLD_SECONDS, default 120 (two minutes). It is read when
+ * the page is built, so a new value needs a new build. Values under 10 are ignored. The 3 s transition is set in index.css.
+ */
+export const SKY_HOLD_DEFAULT_SECONDS = 120;
+export function skyHoldMs(raw: string | undefined = import.meta.env.VITE_SKY_HOLD_SECONDS): number {
+  const n = Number(raw);
+  return (Number.isFinite(n) && n >= 10 ? n : SKY_HOLD_DEFAULT_SECONDS) * 1000;
+}
