@@ -169,7 +169,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               <Star className="w-12 h-12 text-purple-400" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Sign up</h2>
-            <p className="text-gray-300">Join AI Astra with your name and email. Birth details come next.</p>
+            <p className="text-gray-300">Join AI AdAstra with your name and email. Birth details come next.</p>
           </div>
 
           <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-6">

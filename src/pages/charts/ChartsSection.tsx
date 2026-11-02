@@ -75,7 +75,7 @@ const BiodataPage: React.FC = () => {
           <Sparkles className="w-12 h-12 text-yellow-400" />
         </div>
         <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-          {data.username}'s AI Astra Biodata
+          {data.username}'s AI AdAstra Biodata
         </h1>
         <p className="text-gray-300 mt-2">
           Astrological profile based on your birth details
