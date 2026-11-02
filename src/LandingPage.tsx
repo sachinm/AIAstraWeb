@@ -3,6 +3,7 @@ import RegionSwitch from './components/RegionSwitch';
 import { useRegion } from './lib/region';
 import Disclaimer from './components/Disclaimer';
 import { PRODUCT_NAME, SUPPORT_EMAIL } from './lib/legal';
+import { LANDING_FAQS } from './lib/landingFaqs';
 import React, { useEffect, useState } from 'react';
 import { Star, Moon, Sun, Sparkles, ChevronDown, BookOpen, Globe, Shield, Users, ArrowRight, Check, Move3d } from 'lucide-react';
 
@@ -16,7 +17,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
   const { t } = useTranslation();
   const [region, setRegion] = useRegion();
   const [isVisible, setIsVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState('principles');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   useEffect(() => {
@@ -50,24 +50,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
     }
   ];
 
-  const faqs = [
-    {
-      question: "How is Vedic astrology different from Western astrology?",
-      answer: "Vedic astrology uses the sidereal zodiac which accounts for Earth's precession, whereas Western astrology uses the tropical zodiac. Vedic focuses more on karma, life purpose, and predictive techniques."
-    },
-    {
-      question: "What information do I need for a Vedic chart reading?",
-      answer: "We need your birth date, time, and place. They are used to calculate your ascendant (Lagna) and planetary positions."
-    },
-    {
-      question: "How often should I consult my Vedic chart?",
-      answer: "People often look at their chart during planetary transitions (Gochar) or at the start of new planetary periods (Dasha)."
-    },
-    {
-      question: "Can Vedic astrology predict future events?",
-      answer: "Readings describe what the tradition associates with a chart. They are for education and entertainment, and they are not predictions you should rely on."
-    }
-  ];
+  const faqs = LANDING_FAQS;
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden bg-gradient-to-b from-gray-900 via-indigo-900 to-gray-900">
