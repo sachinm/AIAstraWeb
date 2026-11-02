@@ -130,12 +130,13 @@ describe('SignIn (one page, email then code)', () => {
     expect(mockOnBack).toHaveBeenCalledTimes(1);
   });
 
-  it('has one sign-up prompt, under the heading, that calls onSignUp', async () => {
+  it('has one sign-up button, top right opposite Back to Home and outside the form panel, that calls onSignUp', async () => {
     const user = userEvent.setup();
     renderSignIn();
     const buttons = screen.getAllByRole('button', { name: /^sign up$/i });
     expect(buttons).toHaveLength(1);
-    expect(screen.getByText(/don.t have an account\?/i)).toBeInTheDocument();
+    expect(buttons[0]!.closest('form')).toBeNull();
+    expect(buttons[0]!.closest('.backdrop-blur-md')).toBeNull();
     await user.click(buttons[0]!);
     expect(mockOnSignUp).toHaveBeenCalledTimes(1);
   });

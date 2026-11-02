@@ -22,8 +22,7 @@ describe('public pages', () => {
     expect(titles.size).toBe(PUBLIC_PAGES.length);
     for (const p of PUBLIC_PAGES) {
       expect(p.index).toBe(true);
-      // 70 for every page; the home page title is the product's key phrase (Sachin, 2026-11-02) and may run to 130
-      expect(p.title.length).toBeLessThanOrEqual(p.path === '/' ? 130 : 70);
+      expect(p.title.length).toBeLessThanOrEqual(70);
       expect(p.description.length).toBeGreaterThan(50);
       expect(p.description.length).toBeLessThanOrEqual(160);
     }

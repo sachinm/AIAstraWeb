@@ -18,6 +18,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
     <div className="relative min-h-full text-white">
       <div className="sky-clear relative max-w-3xl mx-auto px-6 py-20">
         <div className="text-center mb-20 rounded-3xl border border-white/10 bg-[#f5f5f5]/10 px-6 py-10 backdrop-blur-sm">
+          <p className="mb-4 text-sm font-medium uppercase tracking-[0.2em] text-purple-200">
+            Your personal Vedic Astrology Assistant, mastered on the ancient text unabridged and astrological celestial sky
+          </p>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
             Discover Your Cosmic Blueprint
           </h1>
