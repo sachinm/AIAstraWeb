@@ -146,10 +146,32 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
     }
   };
 
+  const renderSubmit = (inline: boolean) => (
+      <button
+        type="submit"
+        disabled={loading}
+        className={`${inline ? 'sm:w-auto sm:shrink-0 sm:px-8 ' : ''}w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center`}
+      >
+        {loading ? (
+          <>
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+            {codeSent ? 'Verifying…' : 'Sending…'}
+          </>
+        ) : codeSent ? (
+          'Verify'
+        ) : (
+          <>
+            <KeyRound className="w-4 h-4 mr-2" />
+            Send me a code
+          </>
+        )}
+      </button>
+  );
+
   return (
     // Pinned from the top, not centred: a centred card jumps up when the code field appears, which reads as a reload.
     <div className="min-h-full flex items-start justify-center px-6 pt-3 pb-6">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-3xl">
         <div className="flex items-center justify-between mb-4">
         <button
           onClick={onBack}
@@ -158,20 +180,23 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </button>
-          <button
-            type="button"
-            onClick={onSignUp}
-            className="text-purple-300 hover:text-white font-semibold transition-colors duration-300"
-            data-test-id="switch-auth-page"
-          >
-            Sign up
-          </button>
         </div>
 
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
             <p className="text-gray-300">Sign in to AI AdAstra</p>
+            <p className="mt-2 text-gray-300">
+              Don&apos;t have an account?{' '}
+              <button
+                type="button"
+                onClick={onSignUp}
+                className="text-purple-400 hover:text-purple-300 font-semibold transition-colors duration-300"
+                data-test-id="switch-auth-page"
+              >
+                Sign up
+              </button>
+            </p>
           </div>
 
           {idleNotice && (
@@ -185,7 +210,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email address
               </label>
-              <div className="relative">
+              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="email"
@@ -200,6 +226,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                   autoComplete="email"
                   required
                 />
+              </div>
+              {!codeSent && renderSubmit(true)}
               </div>
             </div>
 
@@ -256,39 +284,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  {codeSent ? 'Verifying…' : 'Sending…'}
-                </>
-              ) : codeSent ? (
-                'Verify'
-              ) : (
-                <>
-                  <KeyRound className="w-4 h-4 mr-2" />
-                  Send me a code
-                </>
-              )}
-            </button>
+            {codeSent && renderSubmit(false)}
           </form>
-
-          <div className="text-center mt-6">
-            <p className="text-gray-300">
-              Don&apos;t have an account?{' '}
-              <button
-                type="button"
-                onClick={onSignUp}
-                className="text-purple-400 hover:text-purple-300 font-semibold transition-colors duration-300"
-              >
-                Sign up
-              </button>
-            </p>
-          </div>
 
           <TurnstileGate turnstile={turnstile} action="login" />
         </div>
