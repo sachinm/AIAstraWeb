@@ -109,7 +109,8 @@ export const TermsPage: React.FC = () => (
           'use the Service unlawfully or to harm, harass or deceive any person;',
           "enter another person's information without the right to do so;",
           'interfere with, overload or attempt to gain unauthorised access to the Service, or circumvent its limits or security;',
-          'copy, scrape, resell or reverse engineer the Service, or use it or its content to build a competing service.',
+          'copy, scrape, resell or reverse engineer the Service, or use it or its content to build a competing service;',
+          'copy or reproduce its scenery, imagery or text elsewhere without the explicit permission or approval of the site owner (see section 9).',
         ]}
       />
       <p>We may suspend or terminate access for any breach of these Terms.</p>
@@ -119,6 +120,11 @@ export const TermsPage: React.FC = () => (
         We and our licensors own the Service and its content. We grant you a limited, personal, non-exclusive, non-transferable and revocable
         licence to use the Service for your own non-commercial purposes. You retain your rights in what you submit, and you permit us to process it
         as needed to provide the Service.
+      </p>
+      <p>
+        None of the scenery, imagery, text or short text on the Service, including its headings, phrases, readings and design, may be copied or
+        reproduced anywhere else, in whole or in part, without the explicit permission or approval of the site owner. This includes screenshots,
+        scraped or re-typed copies and use in another website, app, publication or product. To ask for permission, use the contact details below.
       </p>
     </Section>
     <Section title="10. Mobile applications">
@@ -172,6 +178,10 @@ export const PrivacyPage: React.FC = () => (
         This Privacy Policy explains how {LEGAL_ENTITY} ("we", "us" or "our") handles personal information in the {PRODUCT_NAME} website, mobile
         applications and related services (the "Service"). The Service can only operate with the help of the service providers named in section 4,
         which handle information on our behalf.
+      </p>
+          <p>
+        The scenery, imagery and text of the Service are protected and may not be copied or reproduced elsewhere without the explicit permission or approval of
+        the site owner; see section 9 of our Terms of Service.
       </p>
     </Section>
     <Section title="2. Information we collect">

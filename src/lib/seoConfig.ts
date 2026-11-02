@@ -9,7 +9,7 @@ import { LANDING_FAQS } from './landingFaqs';
 
 export const PRODUCT_NAME = 'AI AdAstra';
 export const DEFAULT_DESCRIPTION =
-  'Vedic astrology (Jyotish) readings from your own birth chart. Ask AI AdAstra questions and read what the tradition sees, for education and entertainment.';
+  'Your personal Vedic astrology assistant. Ask about your birth chart, kundli and dasha, mastered on the ancient texts unabridged and the celestial sky.';
 /** Served from /public: 1200x630, made by scripts/generate-og-image.mjs. */
 export const DEFAULT_OG_IMAGE = '/images/og-aiastra.png';
 export const DEFAULT_LOCALE = 'en_US';
@@ -37,7 +37,7 @@ export interface PageSeo {
 export const PUBLIC_PAGES: ReadonlyArray<PageSeo> = [
   {
     path: '/',
-    title: `${PRODUCT_NAME} – Vedic astrology readings from your birth chart, with AI`,
+    title: `${PRODUCT_NAME} – Your Personal Vedic Astrology Assistant`,
     description: DEFAULT_DESCRIPTION,
     index: true,
     changefreq: 'weekly',
