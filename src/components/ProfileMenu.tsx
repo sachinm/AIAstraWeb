@@ -11,7 +11,7 @@ interface ProfileMenuProps {
 }
 
 const itemCls =
-  'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-gray-200 hover:bg-white/10 focus:bg-white/10 focus:outline-none';
+  'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left sm:min-h-0 text-sm text-gray-200 hover:bg-white/10 focus:bg-white/10 focus:outline-none';
 
 /** The avatar's dropdown: who is signed in, their plan, and where to go. */
 const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {

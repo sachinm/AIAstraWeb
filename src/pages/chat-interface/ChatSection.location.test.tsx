@@ -79,7 +79,7 @@ describe('ChatSection question location', () => {
     await ask(user, 'Will I get the job?');
     await waitFor(() => expect(UserData.sendChatMessageStream).toHaveBeenCalledTimes(1));
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(QUESTION_LOCATION_ASK_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText(QUESTION_LOCATION_ASK_TEXT)).not.toBeInTheDocument();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     expect(vi.mocked(UserData.sendChatMessageStream).mock.calls[0]![3]).toMatchObject({ location: { lat: 43.65, lon: -79.38, tz } });
     await waitFor(() => expect(screen.getByText('Using your current location')).toBeInTheDocument());
@@ -105,6 +105,19 @@ describe('ChatSection question location', () => {
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
     for (const call of vi.mocked(UserData.sendChatMessageStream).mock.calls) expect(call[3]?.location ?? null).toBeNull();
     expect(screen.getByRole('button', { name: 'Use my location' })).toBeInTheDocument();
+  });
+
+  it('explains the request above the input only while the browser is asking, and leaves nothing in the thread', async () => {
+    let answer: (p: unknown) => void = () => undefined;
+    getCurrentPosition.mockImplementation((ok: (p: unknown) => void) => {
+      answer = ok;
+    });
+    const user = userEvent.setup();
+    await renderReady();
+    await ask(user, 'Will I get the job?');
+    expect(await screen.findByText(QUESTION_LOCATION_ASK_TEXT)).toBeInTheDocument();
+    answer({ coords: { latitude: 19.076, longitude: 72.8777 } });
+    await waitFor(() => expect(screen.queryByText(QUESTION_LOCATION_ASK_TEXT)).not.toBeInTheDocument());
   });
 
   it('the change link asks again', async () => {

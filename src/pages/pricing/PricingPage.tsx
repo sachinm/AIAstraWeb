@@ -3,6 +3,8 @@ import { ArrowLeft, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { fetchPlanState } from '../../Auth/api';
+import Disclaimer from '../../components/Disclaimer';
+import LegalLinks from '../../components/LegalLinks';
 import RegionSwitch from '../../components/RegionSwitch';
 import {
   fetchPlans,
@@ -24,7 +26,7 @@ const signedIn = () => {
 };
 
 /** Public. The server picks the currency; the switch overrides the detected country. Nothing is charged until a gateway is set up. */
-const PricingPage: React.FC = () => {
+const PricingPage: React.FC<{ nav?: React.ReactNode }> = ({ nav }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [chosenRegion, setChosenRegion] = useState<Region | null>(loadRegion);
@@ -89,6 +91,13 @@ const PricingPage: React.FC = () => {
     }
   };
 
+  /** Whole months saved by paying yearly, from the catalog's own prices. */
+  const monthsFree = (p: CatalogPlan) => {
+    const month = p.prices?.month?.amount_minor;
+    const year = p.prices?.year?.amount_minor;
+    return month && year ? Math.round((month * 12 - year) / month) : 0;
+  };
+
   const limitWords = (p: CatalogPlan) =>
     p.limit === null ? t('pricing.limitUnlimited') : t('pricing.limitMonth', { limit: p.limit });
 
@@ -100,6 +109,8 @@ const PricingPage: React.FC = () => {
       : '');
 
   return (
+    <>
+    {nav}
     <div className="min-h-screen px-4 py-8 text-white sm:px-6">
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -163,6 +174,9 @@ const PricingPage: React.FC = () => {
                       ? t(interval === 'month' ? 'pricing.perMonth' : 'pricing.perYear', { price: formatPrice(price.amount_minor, price.currency) })
                       : t('pricing.freePrice')}
                   </p>
+                  {interval === 'year' && monthsFree(p) > 0 && (
+                    <p className="mt-1 text-sm font-medium text-emerald-300">{t('pricing.monthsFree', { count: monthsFree(p) })}</p>
+                  )}
                   <p className="mt-4 flex items-start gap-2 text-sm text-gray-200">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-purple-300" aria-hidden="true" />
                     {limitWords(p)}
@@ -194,8 +208,11 @@ const PricingPage: React.FC = () => {
             })}
           </div>
         )}
+        <Disclaimer className="mt-8" />
+        <LegalLinks className="mt-2" />
       </div>
     </div>
+    </>
   );
 };
 

@@ -94,14 +94,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('https://images.pexels.com/photos/1169754/pexels-photo-1169754.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1280&fit=crop')`,
-        }}
-      >
-        <div className="absolute inset-0 bg-black/40"></div>
-      </div>
+      <div className="app-sky fixed inset-0 z-0" aria-hidden="true" />
 
       <div className="relative z-10">
         <Router>

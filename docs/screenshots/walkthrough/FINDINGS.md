@@ -70,3 +70,5 @@ Checked, nothing to report: "Radha", "pyjhora" and "jhora" appear in no screensh
 Fixed on `feat/chat-footer-walkthrough`: F-01 (phone chat controls), F-02 (renewal date), F-07 (walkthrough now captures the birth details form), F-12 (opaque menu), F-18 in part (dark page background; the photo is still hot-linked), F-21 (billing doc changed to match the app), F-32 (a) and (c).
 
 Everything else is open and tracked from `AIAstra_Server/docs/TODOS.md`. The review read an earlier run; the PNGs here are from a later run of the same walkthrough with these fixes.
+
+Fixed on `fix/p1-launch-blockers` (2026-11-01): P1 F-03, F-04, F-05, F-06. P2 F-08, F-09, F-10, F-11, F-13, F-14, F-15, F-16 (the saving; no tax line yet), F-17 (a note above the input while the browser asks, nothing left in the thread), F-18 (photos replaced by a drawn background). Also F-30 in part: the star is hidden on phones. F-31 in part: the `<style jsx>` errors. Checked with unit tests, the stubbed walkthrough and a look at five screenshots, not by a second independent review. F-17 was not captured in a screenshot; a unit test covers it.

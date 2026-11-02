@@ -6,11 +6,7 @@
       "url": "/",
       "horizontalOverflowPx": 0,
       "pageScrollable": true,
-      "consoleErrors": [
-        "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.%s true jsx jsx true jsx \n    at style\n    at div\n    at LandingPage (http://localhost:5199/src/LandingPage.tsx:23:24)\n    at RenderedRoute (http://lo",
-        "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.%s true global global true global \n    at style\n    at div\n    at LandingPage (http://localhost:5199/src/LandingPage.tsx:23:24)\n    at RenderedRoute (",
-        "Failed to load resource: the server responded with a status of 404 ()"
-      ],
+      "consoleErrors": [],
       "failedRequests": []
     },
     {
@@ -72,7 +68,7 @@
       "step": "sign-up",
       "url": "/signup",
       "horizontalOverflowPx": 0,
-      "pageScrollable": false,
+      "pageScrollable": true,
       "consoleErrors": [],
       "failedRequests": []
     },
@@ -189,7 +185,7 @@
       "step": "page-charts",
       "url": "/dashboard/charts",
       "horizontalOverflowPx": 0,
-      "pageScrollable": true,
+      "pageScrollable": false,
       "consoleErrors": [],
       "failedRequests": []
     },

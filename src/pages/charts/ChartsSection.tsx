@@ -2,16 +2,19 @@ import React, { useEffect, useState } from "react";
 import { Loader, Sparkles } from "lucide-react";
 import { ShriGaneshAvatar } from "../../components/ShriGaneshAvatar";
 import { fetchUserBiodata, BiodataResponse } from "../UserData";
+import LoadError from "../../components/LoadError";
 
 const BiodataPage: React.FC = () => {
   const [data, setData] = useState<BiodataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const getData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const biodata = await fetchUserBiodata();
         setData(biodata);
       } catch (err) {
@@ -22,25 +25,23 @@ const BiodataPage: React.FC = () => {
     };
 
     getData();
-  }, []);
+  }, [attempt]);
 
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center ">
+      <div className="min-h-[50vh] flex items-center justify-center">
         <Loader className="w-10 h-10 animate-spin text-yellow-400" />
       </div>
     );
 
   if (error)
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-red-900 to-black text-red-300">
-        <p className="text-lg font-medium">{error}</p>
-      </div>
+      <LoadError detail={error} onRetry={() => setAttempt((a) => a + 1)} />
     );
 
   if (!data)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black text-gray-400">
+      <div className="min-h-[50vh] flex items-center justify-center text-gray-300">
         <p>No biodata available</p>
       </div>
     );

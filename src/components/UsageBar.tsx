@@ -34,7 +34,7 @@ const UsageBar: React.FC = () => {
           <div className={`h-full rounded-full transition-all duration-300 ${fill}`} style={{ width: `${percent}%` }} />
         </div>
       </div>
-      <Link to="/pricing" className="shrink-0 font-medium text-purple-300 hover:text-purple-200">
+      <Link to="/pricing" className="inline-flex min-h-11 shrink-0 items-center font-medium text-purple-300 hover:text-purple-200 sm:inline sm:min-h-0">
         {t('usage.upgrade')}
       </Link>
     </div>

@@ -7,3 +7,18 @@ html,
 body {
   background-color: #05060f;
 }
+
+/* The page background, drawn here so no third party controls how the app looks. */
+.app-sky {
+  background-color: #0b0a1f;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 34% 68%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 58% 14%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 76% 44%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 90% 82%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 22% 88%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(ellipse at 70% 10%, rgba(88, 56, 160, 0.35), transparent 60%),
+    radial-gradient(ellipse at 15% 90%, rgba(40, 60, 130, 0.3), transparent 55%);
+  background-size: 320px 320px, 320px 320px, 320px 320px, 320px 320px, 320px 320px, 320px 320px, 100% 100%, 100% 100%;
+}

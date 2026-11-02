@@ -35,6 +35,7 @@ export const en = {
     interval: 'Billing period',
     perMonth: '{{price}} / month',
     perYear: '{{price}} / year',
+    monthsFree: '{{count}} months free',
     freePrice: 'Free',
     limitMonth: '{{limit}} questions a month',
     limitUnlimited: 'Unlimited questions',
@@ -45,6 +46,9 @@ export const en = {
     loadFailed: 'Could not load the plans. Refresh the page to try again.',
     saveFailed: 'We could not save your choice. Please try again.',
     loading: 'Loading plans…',
+  },
+  errors: {
+    pageLoad: 'We could not load this page. Check your connection and try again.',
   },
   sidebar: {
     title: 'Your Kundli',
@@ -57,7 +61,7 @@ export const en = {
     birthStar: 'Nakshatra',
     lagna: 'D1 Lagna',
     lagnaStar: 'Lagna Nakshatra',
-    starPada: '{{star}}, pada {{pada}}',
+    starPada: '{{star}}, Quarter {{pada}}',
     notYet: 'Not available yet',
   },
   region: {

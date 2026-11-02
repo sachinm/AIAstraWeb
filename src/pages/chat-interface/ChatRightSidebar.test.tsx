@@ -24,8 +24,10 @@ describe('ChatRightSidebar', () => {
   it('shows only the birth details, Lagna and Nakshatra by default', async () => {
     vi.mocked(UserData.fetchKundliDisplayData).mockResolvedValue(base);
     render(<ChatRightSidebar isOpen onOpenChange={() => undefined} />);
-    expect(await screen.findByText('Vi')).toBeInTheDocument();
-    expect(screen.getByText('Hast, pada 4')).toBeInTheDocument();
+    expect(await screen.findByText('Virgo')).toBeInTheDocument();
+    expect(screen.getByText('27/04/1990')).toBeInTheDocument();
+    expect(screen.getByText('10:30 AM')).toBeInTheDocument();
+    expect(screen.getByText('Hast, Quarter 4')).toBeInTheDocument();
     expect(screen.getByText('Kaettai, Quarter 3')).toBeInTheDocument();
     expect(screen.getByText('Pune, IN')).toBeInTheDocument();
     for (const title of ['D7', 'D9', 'D10', 'Vimsottari Dasa', 'Narayana Dasa']) expect(screen.queryByText(title)).not.toBeInTheDocument();
@@ -44,7 +46,7 @@ describe('ChatRightSidebar', () => {
     expect(await screen.findByText(/could not load your Kundli/i)).toBeInTheDocument();
     expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(screen.getByText('Vi')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Virgo')).toBeInTheDocument());
     expect(UserData.fetchKundliDisplayData).toHaveBeenCalledTimes(2);
   });
 
