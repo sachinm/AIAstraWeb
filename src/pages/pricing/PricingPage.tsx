@@ -3,8 +3,6 @@ import { ArrowLeft, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { fetchPlanState } from '../../Auth/api';
-import Disclaimer from '../../components/Disclaimer';
-import LegalLinks from '../../components/LegalLinks';
 import RegionSwitch from '../../components/RegionSwitch';
 import {
   fetchPlans,
@@ -26,7 +24,7 @@ const signedIn = () => {
 };
 
 /** Public. The server picks the currency; the switch overrides the detected country. Nothing is charged until a gateway is set up. */
-const PricingPage: React.FC<{ nav?: React.ReactNode }> = ({ nav }) => {
+const PricingPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [chosenRegion, setChosenRegion] = useState<Region | null>(loadRegion);
@@ -109,9 +107,7 @@ const PricingPage: React.FC<{ nav?: React.ReactNode }> = ({ nav }) => {
       : '');
 
   return (
-    <>
-    {nav}
-    <div className="min-h-screen px-4 py-8 text-white sm:px-6">
+    <div className="min-h-full px-4 py-8 text-white sm:px-6">
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button
@@ -208,11 +204,8 @@ const PricingPage: React.FC<{ nav?: React.ReactNode }> = ({ nav }) => {
             })}
           </div>
         )}
-        <Disclaimer className="mt-8" />
-        <LegalLinks className="mt-2" />
       </div>
     </div>
-    </>
   );
 };
 

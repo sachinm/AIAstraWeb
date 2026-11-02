@@ -1,21 +1,13 @@
-import { useTranslation } from 'react-i18next';
-import RegionSwitch from './components/RegionSwitch';
-import { useRegion } from './lib/region';
-import Disclaimer from './components/Disclaimer';
-import { PRODUCT_NAME, SUPPORT_EMAIL } from './lib/legal';
+import { PRODUCT_NAME } from './lib/legal';
 import { LANDING_FAQS } from './lib/landingFaqs';
 import React, { useEffect, useState } from 'react';
-import { Star, Moon, Sun, Sparkles, ChevronDown, BookOpen, Globe, Shield, Users, ArrowRight, Check, Move3d } from 'lucide-react';
+import { Star, ChevronDown, BookOpen, Globe, Shield, Users, Check, Move3d } from 'lucide-react';
 
 interface LandingPageProps {
-  onPricing?: () => void;
-  onSignIn: () => void;
   onSignUp: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing }) => {
-  const { t } = useTranslation();
-  const [region, setRegion] = useRegion();
+const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
@@ -39,8 +31,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
       icon: <Globe className="w-6 h-6 text-blue-400" />
     },
     {
-      title: "Remedial Solutions",
-      description: "The tradition offers remedies such as mantras, gemstones, and rituals for working with planetary energies.",
+      title: "Harmonize Your Actions",
+      description: "Learn how planet placements, dasha systems and your yearly charts work together, so your actions move with the planetary energies that drive you.",
       icon: <Shield className="w-6 h-6 text-yellow-400" />
     },
     {
@@ -53,7 +45,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
   const faqs = LANDING_FAQS;
 
   return (
-    <div className="min-h-screen text-white relative overflow-hidden bg-gradient-to-b from-gray-900 via-indigo-900 to-gray-900">
+    <div className="min-h-full text-white relative overflow-hidden bg-gradient-to-b from-gray-900 via-indigo-900 to-gray-900">
       {/* Animated Shooting Stars */}
       <div className="fixed inset-0 pointer-events-none">
         {[...Array(3)].map((_, i) => (
@@ -70,38 +62,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
         ))}
       </div>
 
-      {/* Header */}
-      <header className="relative z-20 p-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Star className="text-purple-400 w-8 h-8 animate-pulse" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              {PRODUCT_NAME}
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <RegionSwitch value={region} onChange={setRegion} />
-            {onPricing && (
-              <button type="button" onClick={onPricing} className="text-gray-200 hover:text-white">
-                {t('region.pricing')}
-              </button>
-            )}
-            <button type="button" onClick={onSignIn} className="text-gray-200 hover:text-white">
-              Sign in
-            </button>
-            <button
-              onClick={onSignUp}
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 flex items-center group"
-            >
-              Get Started
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </button>
-          </div>
-        </div>
-      </header>
-
       {/* Hero Section */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 py-20">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-20">
         <div className={`text-center mb-20 transition-all duration-1000 delay-300 ${
           isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
         }`}>
@@ -110,9 +72,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
               <Move3d className="mr-2 w-5 h-5" /> Vedic astrology with AI
             </span>
           </div>
-          <h2 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+          <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
             Discover Your Cosmic Blueprint
-          </h2>
+          </h1>
           <h3 className="text-5xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
             Through Vedic Wisdom
           </h3>
@@ -206,47 +168,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
-            {[
-              {
-                icon: <Moon className="w-8 h-8 text-blue-400" />,
-                title: "Birth Chart Analysis",
-                description: "Deep insights into your Rasi (Moon sign), Navamsa (Soul sign), and planetary positions revealing karmic patterns and life purpose."
-              },
-              {
-                icon: <Sun className="w-8 h-8 text-yellow-400" />,
-                title: "Remedial Guidance",
-                description: "What the tradition suggests for your chart: gemstones, rituals, and spiritual practices."
-              },
-              {
-                icon: <Sparkles className="w-8 h-8 text-purple-400" />,
-                title: "Mantra & Meditation",
-                description: "Traditional mantras and meditation techniques related to your chart."
-              },
-              {
-                icon: <Star className="w-8 h-8 text-pink-400" />,
-                title: "AI Astrologer",
-                description: "Ask an AI about your chart whenever you like."
-              }
-            ].map((card, index) => (
-              <div
-                key={index}
-                className={`bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-500 transform hover:scale-105 delay-${index * 100} ${
-                  isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
-                }`}
-                style={{ transitionDelay: `${1000 + index * 100}ms` }}
-              >
-                <div className="mb-4">
-                  {card.icon}
-                </div>
-                <h4 className="text-xl font-semibold mb-3 text-white">
-                  {card.title}
-                </h4>
-                <p className="text-gray-300 leading-relaxed">
-                  {card.description}
-                </p>
+          <div className="max-w-2xl mx-auto mb-20">
+            <div
+              className={`bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-500 transform ${
+                isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
+              }`}
+              style={{ transitionDelay: '1000ms' }}
+            >
+              <div className="mb-4">
+                <Star className="w-8 h-8 text-pink-400" />
               </div>
-            ))}
+              <h4 className="text-xl font-semibold mb-3 text-white">
+                Birth Chart Analysis and AI Astrologer
+              </h4>
+              <p className="text-gray-300 leading-relaxed">
+                Your Rasi chart, Navamsa and planetary positions, computed from your birth details. Ask AI Astra about your chart whenever you like.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -259,7 +197,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
               Explore Your Life Through Cosmic Wisdom
             </h3>
             <p className="text-lg text-gray-300 max-w-4xl mx-auto mb-12 leading-relaxed">
-              Vedic astrology has much to say about dharma, relationships, career, and the spiritual path.
+              Vedic astrology has much to say about dharma, relationships, career, and the spiritual path.{' '}
               {PRODUCT_NAME} brings that tradition and modern AI together in readings based on your own chart.
             </p>
           </div>
@@ -360,54 +298,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
             </button>
           </div>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-white/20">
-        <div className="max-w-7xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Star className="text-purple-400 w-6 h-6" />
-                <span className="text-white font-bold text-xl">{PRODUCT_NAME}</span>
-              </div>
-              <p className="text-gray-400 mb-4">
-                Vedic astrology and modern AI, for education and entertainment
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Product</h4>
-              <ul className="space-y-3">
-                <li><button type="button" onClick={onSignUp} className="text-gray-400 hover:text-purple-300 transition-colors">Create an account</button></li>
-                <li><button type="button" onClick={onSignIn} className="text-gray-400 hover:text-purple-300 transition-colors">Sign in</button></li>
-                {onPricing && <li><button type="button" onClick={onPricing} className="text-gray-400 hover:text-purple-300 transition-colors">Pricing</button></li>}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Legal</h4>
-              <ul className="space-y-3">
-                <li><a href="/terms" className="text-gray-400 hover:text-purple-300 transition-colors">Terms of Service</a></li>
-                <li><a href="/privacy" className="text-gray-400 hover:text-purple-300 transition-colors">Privacy Policy</a></li>
-                <li><a href="/refunds" className="text-gray-400 hover:text-purple-300 transition-colors">Refund Policy</a></li>
-              </ul>
-            </div>
-
-            {SUPPORT_EMAIL && (
-              <div>
-                <h4 className="text-lg font-semibold text-white mb-4">Contact</h4>
-                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-gray-400 hover:text-purple-300 transition-colors">{SUPPORT_EMAIL}</a>
-              </div>
-            )}
-          </div>
-
-          <div className="text-center text-gray-400 mt-12 pt-8 border-t border-white/10">
-            <Disclaimer className="mb-4" />
-            <p>&copy; 2026 {PRODUCT_NAME}. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      </div>
 
       <style>{`
         @keyframes float {

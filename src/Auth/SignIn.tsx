@@ -1,4 +1,3 @@
-import LegalLinks from '../components/LegalLinks';
 import React, { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { Star, Mail, ArrowLeft, KeyRound } from 'lucide-react';
@@ -149,15 +148,25 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
   return (
     // Pinned from the top, not centred: a centred card jumps up when the code field appears, which reads as a reload.
-    <div className="min-h-screen flex items-start justify-center px-6 py-[8vh]">
+    <div className="min-h-full flex items-start justify-center px-6 py-[8vh]">
       <div className="w-full max-w-md">
+        <div className="flex items-center justify-between mb-8">
         <button
           onClick={onBack}
-          className="flex items-center text-purple-300 hover:text-white mb-8 transition-colors duration-300"
+          className="flex items-center text-purple-300 hover:text-white transition-colors duration-300"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </button>
+          <button
+            type="button"
+            onClick={onSignUp}
+            className="text-purple-300 hover:text-white font-semibold transition-colors duration-300"
+            data-test-id="switch-auth-page"
+          >
+            Sign up
+          </button>
+        </div>
 
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
@@ -296,8 +305,6 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
               onRegisterReset={turnstile.registerReset}
             />
           )}
-          <LegalLinks className="mt-6" />
-          <p className="text-center text-xs text-gray-400 mt-2" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>
       </div>
     </div>
