@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import LandingPage from './LandingPage';
 import PublicFrame from './components/PublicFrame';
+import SkyLayout from './components/SkyLayout';
 import SignIn from './Auth/SignIn';
 import SignUp from './Auth/SignUp';
 import BirthDetails from './Auth/BirthDetails';
@@ -50,20 +51,46 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
     <>
     <SeoHead />
     <Routes>
-      <Route
-        path="/"
-        element={
-          !sessionReady ? (
-            <SessionLoadingScreen />
-          ) : isAuthenticated ? (
-            <Navigate to="/dashboard/chat" replace />
-          ) : (
-            <PublicFrame>
+      {/* one sky across these three: it keeps playing as the visitor moves between them */}
+      <Route element={<SkyLayout />}>
+        <Route
+          path="/"
+          element={
+            !sessionReady ? (
+              <SessionLoadingScreen />
+            ) : isAuthenticated ? (
+              <Navigate to="/dashboard/chat" replace />
+            ) : (
               <LandingPage onSignUp={() => navigate('/signup')} />
-            </PublicFrame>
-          )
-        }
-      />
+            )
+          }
+        />
+        <Route element={<GuestRoute {...gateProps} />}>
+          <Route
+            path="/signin"
+            element={
+              <SignIn
+                onSignUp={() => navigate('/signup')}
+                onBack={() => navigate('/')}
+                handleSignIn={handleSignIn}
+              />
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <SignUp
+                onVerified={({ email, name }) => {
+                  handleSignIn({ name, email, dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' });
+                  navigate('/signup/details', { replace: true });
+                }}
+                onSignIn={(email) => navigate('/signin', { state: email ? { email } : undefined })}
+                onBack={() => navigate('/')}
+              />
+            }
+          />
+        </Route>
+      </Route>
 
       {/* public, and with the signed-in nav and question count when there is a session */}
       <Route element={isAuthenticated && user ? <ProfileGate /> : <Outlet />}>
@@ -75,36 +102,6 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       <Route path="/terms" element={<PublicFrame><TermsPage /></PublicFrame>} />
       <Route path="/privacy" element={<PublicFrame><PrivacyPage /></PublicFrame>} />
       <Route path="/refunds" element={<PublicFrame><RefundsPage /></PublicFrame>} />
-
-      <Route element={<GuestRoute {...gateProps} />}>
-        <Route
-          path="/signin"
-          element={
-            <PublicFrame>
-              <SignIn
-              onSignUp={() => navigate('/signup')}
-              onBack={() => navigate('/')}
-              handleSignIn={handleSignIn}
-            />
-            </PublicFrame>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <PublicFrame>
-              <SignUp
-              onVerified={({ email, name }) => {
-                handleSignIn({ name, email, dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' });
-                navigate('/signup/details', { replace: true });
-              }}
-              onSignIn={(email) => navigate('/signin', { state: email ? { email } : undefined })}
-              onBack={() => navigate('/')}
-              />
-            </PublicFrame>
-          }
-        />
-      </Route>
 
       <Route element={<ProtectedRoute {...gateProps} />}>
         <Route

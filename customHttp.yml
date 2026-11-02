@@ -34,6 +34,10 @@ customHeaders:
     headers:
       - key: 'X-Robots-Tag'
         value: 'noindex, nofollow'
+  - pattern: '/skies/*'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=2592000'
   - pattern: '**/*'
     headers:
       - key: 'X-Content-Type-Options'

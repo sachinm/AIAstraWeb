@@ -44,56 +44,93 @@ body {
   }
 }
 
-/* The home page star map: stars breathe, the rulership lines flow, the planets pulse. */
-.sky-twinkle {
-  animation: skyTwinkle 4s ease-in-out infinite;
-}
-.sky-twinkle-1 {
-  animation-delay: -1.3s;
-  animation-duration: 5s;
-}
-.sky-twinkle-2 {
-  animation-delay: -2.6s;
-  animation-duration: 6.5s;
-}
-.sky-flow {
-  animation: skyFlow 6s linear infinite;
-}
-.sky-pulse {
-  animation: skyPulse 7s ease-in-out infinite;
+/* The home page scenes: one blooms in from a corner while the last dissolves toward another. Holds 3 s, see CosmicSky. */
+@property --sky-reveal {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 150%;
 }
 
-@keyframes skyTwinkle {
-  0%,
-  100% {
-    opacity: 0.35;
+.sky-in {
+  -webkit-mask-image: radial-gradient(ellipse farthest-corner at var(--sky-x, 50%) var(--sky-y, 50%), #000 calc(var(--sky-reveal) - 45%), transparent var(--sky-reveal));
+  mask-image: radial-gradient(ellipse farthest-corner at var(--sky-x, 50%) var(--sky-y, 50%), #000 calc(var(--sky-reveal) - 45%), transparent var(--sky-reveal));
+  animation: skyIn 3s cubic-bezier(0.45, 0, 0.3, 1) both;
+}
+.sky-out {
+  animation: skyOut 3s ease-in both;
+}
+.sky-bloom {
+  background: radial-gradient(ellipse farthest-corner at var(--sky-x, 50%) var(--sky-y, 50%), rgba(190, 150, 255, 0.55), rgba(240, 190, 120, 0.18) 35%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: skyBloom 3s ease-in-out both;
+}
+.sky-drift {
+  animation: skyDrift 16s linear both;
+}
+.sky-caption {
+  animation: skyCaption 1.5s ease-out 1.5s both;
+}
+
+.sky-page {
+  animation: skyPage 0.6s ease-out backwards;
+}
+
+@keyframes skyPage {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  50% {
+}
+@keyframes skyIn {
+  from {
+    --sky-reveal: 0%;
+    opacity: 0.2;
+  }
+  to {
+    --sky-reveal: 150%;
     opacity: 1;
   }
 }
-
-@keyframes skyFlow {
+@keyframes skyOut {
   to {
-    stroke-dashoffset: -60;
+    opacity: 0;
+    transform: translate(var(--sky-dx, 0), var(--sky-dy, 0)) scale(1.06);
   }
 }
-
-@keyframes skyPulse {
+@keyframes skyBloom {
   0%,
   100% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 1;
+  }
+}
+@keyframes skyDrift {
+  from {
     transform: scale(1);
   }
-  50% {
-    transform: scale(1.12);
+  to {
+    transform: scale(1.09);
+  }
+}
+@keyframes skyCaption {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .shooting-star,
-  .sky-twinkle,
-  .sky-flow,
-  .sky-pulse {
+  .sky-in,
+  .sky-out,
+  .sky-bloom,
+  .sky-drift,
+  .sky-caption,
+  .sky-page {
     animation: none;
   }
 }
