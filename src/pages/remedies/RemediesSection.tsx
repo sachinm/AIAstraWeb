@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Gem, Flame, Droplets, Leaf, Sun, Moon, Star } from 'lucide-react';
+import { Heart, Gem, Flame, Sun, Moon, Star } from 'lucide-react';
 import { fetchUserContent } from '../UserData';
 import LoadError from '../../components/LoadError';
 
@@ -12,7 +12,7 @@ interface RemediesSectionProps {
   user: User;
 }
 
-const RemediesSection: React.FC<RemediesSectionProps> = ({ user }) => {
+const RemediesSection: React.FC<RemediesSectionProps> = () => {
   const [apiData, setApiData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

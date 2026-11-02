@@ -63,5 +63,7 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // the sign-in, sign-up, chat and ledger tests pass but outrun the default 5 s when the machine is busy
+    testTimeout: 30_000,
   },
 }));

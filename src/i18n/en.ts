@@ -27,6 +27,7 @@ export const en = {
     freeNext: 'Choose a plan to keep asking. Your earlier answers stay here.',
     month: "You have used this month's {{limit}} questions.",
     monthRenews: "You have used this month's {{limit}} questions. They renew on {{date}}.",
+    dayRenews: "You have reached today's limit of {{limit}} questions. It resets at midnight UTC.",
     choose: 'Choose a plan',
   },
   pricing: {

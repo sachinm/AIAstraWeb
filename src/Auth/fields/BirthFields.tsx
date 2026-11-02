@@ -3,7 +3,7 @@ import { Clock } from 'lucide-react';
 import type { Gender } from '../api';
 import BirthDateField from './BirthDateField';
 import CountrySelect from './CountrySelect';
-import { dateError } from './dateUtils';
+import { dateError, isoToTyped, longDate, parseTypedDate, swappedDate } from './dateUtils';
 
 /** Birth-detail entries as typed. Shared by the registration page 2 and the Profile page. */
 export interface BirthValues {
@@ -99,6 +99,8 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
   const border = (f: BirthField) => (errors[f] ? 'border-red-500' : 'border-white/20');
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1));
   const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+  const dobIso = parseTypedDate(values.dob);
+  const dobSwapped = swappedDate(values.dob);
 
   return (
     <>
@@ -121,6 +123,23 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
         <p id="dob-help" className={errors.dob ? errCls : hint}>
           {errors.dob || 'Type it as day / month / year, or use the calendar.'}
         </p>
+        {dobIso && !errors.dob && (
+          <p data-test-id="dob-readback" className="mt-1 text-sm text-purple-200" aria-live="polite">
+            That is {longDate(dobIso)}.
+            {dobSwapped && (
+              <button
+                type="button"
+                className="ml-2 underline underline-offset-2 hover:text-white"
+                onClick={() => {
+                  onChange({ dob: isoToTyped(dobSwapped) });
+                  if (errors.dob) onCheck('dob', { ...values, dob: isoToTyped(dobSwapped) });
+                }}
+              >
+                Did you mean {longDate(dobSwapped)}?
+              </button>
+            )}
+          </p>
+        )}
       </div>
 
       <fieldset>

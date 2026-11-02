@@ -128,6 +128,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             element={<ChatSection user={user!} activeChatId={null} />}
           />
           <Route path="charts" element={<ChartsSection />} />
+          <Route path="chart" element={<Navigate to="/dashboard/charts" replace />} />
           <Route path="mantras" element={<MantrasSection user={user!} />} />
           <Route path="remedies" element={<RemediesSection user={user!} />} />
           <Route path="timeline/ledger" element={<Navigate to="/profile/timeline" replace />} />

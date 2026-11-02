@@ -92,6 +92,7 @@ function ledgerErrorMessage(status: number, code?: string): string {
   if (status === 404) return 'Not found.';
   if (code === 'ledger_unavailable') return 'The life-event list is not available yet. Please try again later.';
   if (code === 'interview_unavailable') return 'The interview helper is not available right now. You can still add events with the form.';
+  if (code === 'plan_required') return 'The interview helper is part of the paid plans. You can still add events with the form.';
   if (status === 503) return 'Service unavailable. Please try again later.';
   if (status === 400) return code ? humaniseCode(code) : 'Please check this value.';
   return code ? humaniseCode(code) : `Request failed (${status})`;
