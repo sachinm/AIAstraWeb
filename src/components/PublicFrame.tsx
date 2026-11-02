@@ -28,7 +28,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
     <div className="flex h-dvh flex-col overflow-hidden text-white">
       {nav ?? (
         <header className="z-20 shrink-0 border-b border-white/15 bg-slate-950/85 px-4 py-3 backdrop-blur sm:px-6" data-test-id="public-header">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="flex w-full items-center justify-between gap-3">
             <Link to="/" className="flex items-center gap-2">
               <Star className="h-7 w-7 text-purple-400" aria-hidden="true" />
               <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-2xl font-bold text-transparent">
@@ -53,7 +53,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
       </main>
 
       <footer className="z-20 shrink-0 border-t border-white/15 bg-slate-950/85 px-4 pb-2 backdrop-blur sm:px-6" data-test-id="public-footer">
-        <div className="mx-auto max-w-7xl">
+        <div className="w-full">
           <div className="flex items-center justify-between gap-x-3 sm:flex-wrap sm:gap-x-6">
             <p className="shrink-0 py-1 text-xs text-gray-400" data-test-id="copyright-notice">
               &copy; 2026 {PRODUCT_NAME}<span className="hidden sm:inline">. All rights reserved.</span>
