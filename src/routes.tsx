@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import LandingPage from './LandingPage';
+import PublicFrame from './components/PublicFrame';
 import SignIn from './Auth/SignIn';
 import SignUp from './Auth/SignUp';
 import BirthDetails from './Auth/BirthDetails';
@@ -57,11 +58,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           ) : isAuthenticated ? (
             <Navigate to="/dashboard/chat" replace />
           ) : (
-            <LandingPage
-              onSignIn={() => navigate('/signin')}
-              onSignUp={() => navigate('/signup')}
-              onPricing={() => navigate('/pricing')}
-            />
+            <PublicFrame>
+              <LandingPage onSignUp={() => navigate('/signup')} />
+            </PublicFrame>
           )
         }
       />
@@ -70,35 +69,39 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       <Route element={isAuthenticated && user ? <ProfileGate /> : <Outlet />}>
         <Route
           path="/pricing"
-          element={<PricingPage nav={isAuthenticated && user ? <TopNavigation user={user} onLogout={handleLogout} /> : undefined} />}
+          element={<PublicFrame nav={isAuthenticated && user ? <TopNavigation user={user} onLogout={handleLogout} /> : undefined}><PricingPage /></PublicFrame>}
         />
       </Route>
-      <Route path="/terms" element={<TermsPage />} />
-      <Route path="/privacy" element={<PrivacyPage />} />
-      <Route path="/refunds" element={<RefundsPage />} />
+      <Route path="/terms" element={<PublicFrame><TermsPage /></PublicFrame>} />
+      <Route path="/privacy" element={<PublicFrame><PrivacyPage /></PublicFrame>} />
+      <Route path="/refunds" element={<PublicFrame><RefundsPage /></PublicFrame>} />
 
       <Route element={<GuestRoute {...gateProps} />}>
         <Route
           path="/signin"
           element={
-            <SignIn
+            <PublicFrame>
+              <SignIn
               onSignUp={() => navigate('/signup')}
               onBack={() => navigate('/')}
               handleSignIn={handleSignIn}
             />
+            </PublicFrame>
           }
         />
         <Route
           path="/signup"
           element={
-            <SignUp
+            <PublicFrame>
+              <SignUp
               onVerified={({ email, name }) => {
                 handleSignIn({ name, email, dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' });
                 navigate('/signup/details', { replace: true });
               }}
               onSignIn={(email) => navigate('/signin', { state: email ? { email } : undefined })}
               onBack={() => navigate('/')}
-            />
+              />
+            </PublicFrame>
           }
         />
       </Route>
@@ -124,7 +127,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             path="chat"
             element={<ChatSection user={user!} activeChatId={null} />}
           />
-          <Route path="charts" element={<ChartsSection user={user!} />} />
+          <Route path="charts" element={<ChartsSection />} />
           <Route path="mantras" element={<MantrasSection user={user!} />} />
           <Route path="remedies" element={<RemediesSection user={user!} />} />
           <Route path="timeline/ledger" element={<Navigate to="/profile/timeline" replace />} />

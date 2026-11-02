@@ -498,7 +498,8 @@ export interface UpdateProfileInput {
   language?: Language;
 }
 
-export async function updateProfile(input: UpdateProfileInput): Promise<{ success: boolean; message?: string }> {
+/** The server merges a partial update, so a language can be saved alone. */
+export async function updateProfile(input: Partial<UpdateProfileInput>): Promise<{ success: boolean; message?: string }> {
   try {
     const { data, errors } = await runGraphQL<{ updateProfile?: { success: boolean; message?: string | null } }>(
       UPDATE_PROFILE_MUTATION,

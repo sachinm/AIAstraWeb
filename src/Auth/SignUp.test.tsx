@@ -38,7 +38,7 @@ async function tick(seconds: number) {
   }
 }
 
-describe('SignUp page 1 (Create your account)', () => {
+describe('SignUp page 1 (Sign up)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -46,7 +46,7 @@ describe('SignUp page 1 (Create your account)', () => {
 
   it('asks only for name and email, with a Next button and no password or age', () => {
     renderPage();
-    expect(screen.getByRole('heading', { name: /create your account/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^sign up$/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^next$/i })).toBeInTheDocument();

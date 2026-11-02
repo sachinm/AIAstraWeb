@@ -19,7 +19,7 @@ const robots = () => document.head.querySelector('meta[name="robots"]')?.getAttr
 describe('SeoHead', () => {
   it('sets the title and robots for the route it is rendered on', () => {
     renderAt('/signup');
-    expect(document.title).toBe('Create your account – AI Astra');
+    expect(document.title).toBe('Sign up – AI Astra');
     expect(robots()).toBe('noindex, nofollow');
   });
   it('a public route on the jsdom localhost host is still noindex (never index a local build)', () => {

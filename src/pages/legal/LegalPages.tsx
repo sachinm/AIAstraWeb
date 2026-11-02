@@ -1,8 +1,6 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import Disclaimer from '../../components/Disclaimer';
-import LegalLinks from '../../components/LegalLinks';
 import { LEGAL_ENTITY, LEGAL_UPDATED, PRODUCT_NAME, SUPPORT_EMAIL } from '../../lib/legal';
 
 const Contact: React.FC = () =>
@@ -32,7 +30,7 @@ const List: React.FC<{ items: React.ReactNode[] }> = ({ items }) => (
 const LegalShell: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen px-4 py-8 text-white sm:px-6">
+    <div className="min-h-full px-4 py-8 text-white sm:px-6">
       <div className="mx-auto max-w-3xl">
         <button
           type="button"
@@ -47,8 +45,6 @@ const LegalShell: React.FC<{ title: string; children: React.ReactNode }> = ({ ti
           <p className="mt-2 text-sm text-gray-400">Last updated {LEGAL_UPDATED}</p>
           {children}
         </article>
-        <Disclaimer className="mt-6" />
-        <LegalLinks className="mt-2" />
       </div>
     </div>
   );

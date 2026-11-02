@@ -86,7 +86,7 @@ export const NOINDEX_PREFIXES: ReadonlyArray<string> = ['/signin', '/signup', '/
 /** Titles for the private pages, so the browser tab reads well even though search engines skip them. */
 const PRIVATE_TITLES: ReadonlyArray<{ prefix: string; title: string }> = [
   { prefix: '/signup/details', title: `Your birth details – ${PRODUCT_NAME}` },
-  { prefix: '/signup', title: `Create your account – ${PRODUCT_NAME}` },
+  { prefix: '/signup', title: `Sign up – ${PRODUCT_NAME}` },
   { prefix: '/signin', title: `Sign in – ${PRODUCT_NAME}` },
   { prefix: '/dashboard/charts', title: `Your charts – ${PRODUCT_NAME}` },
   { prefix: '/dashboard/mantras', title: `Mantras – ${PRODUCT_NAME}` },
