@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ArrowRight, Star } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import AssistantWidget from './AssistantWidget';
 import Disclaimer, { DISCLAIMER_SHORT } from './Disclaimer';
 import LegalLinks from './LegalLinks';
 import { PRODUCT_NAME, SUPPORT_EMAIL } from '../lib/legal';
@@ -74,6 +75,8 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
           </p>
         </div>
       </footer>
+      {/* for visitors on the public pages: not on sign-in, not for someone signed in */}
+      {!nav && pathname.replace(/\/+$/, '') !== '/signin' && <AssistantWidget />}
     </div>
   );
 };
