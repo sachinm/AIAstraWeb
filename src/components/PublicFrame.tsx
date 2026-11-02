@@ -1,15 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { ArrowRight, Star } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import AssistantWidget from './AssistantWidget';
 import Disclaimer, { DISCLAIMER_SHORT } from './Disclaimer';
 import LegalLinks from './LegalLinks';
+import { logVisit } from '../lib/assistantApi';
 import { PRODUCT_NAME, SUPPORT_EMAIL } from '../lib/legal';
 
 /** Sign-up and sign-in have their own switch between the two, so the header does not repeat it. */
 const NO_CTA_PATHS = ['/signin', '/signup', '/signup/details'];
-/** The guide is for visitors deciding, so not on sign-in, and not for someone already filling in their details. */
-const NO_ASSISTANT_PATHS = ['/signin', '/signup/details'];
+/** The visit log is for visitors on the public pages, not someone signing in or already filling in their details. */
+const NO_VISIT_LOG_PATHS = ['/signin', '/signup/details'];
 
 interface PublicFrameProps {
   children: React.ReactNode;
@@ -27,6 +27,10 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
   useEffect(() => {
     scroller.current?.scrollTo?.({ top: 0 });
   }, [pathname]);
+
+  useEffect(() => {
+    if (!nav && !NO_VISIT_LOG_PATHS.includes(path)) void logVisit();
+  }, [nav, path]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden text-white">
@@ -78,8 +82,6 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
           </p>
         </div>
       </footer>
-      {/* for visitors on the public pages: not on sign-in, not for someone signed in */}
-      {!nav && !NO_ASSISTANT_PATHS.includes(path) && <AssistantWidget />}
     </div>
   );
 };

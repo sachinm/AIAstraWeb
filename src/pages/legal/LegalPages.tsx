@@ -194,7 +194,6 @@ export const PrivacyPage: React.FC = () => (
           'Location, only if you allow it: your approximate current location, rounded before it is sent to us.',
           'Technical information: your country, derived from your connection, and basic device, browser and usage information.',
           'Visits to our public pages: your IP address, browser type (user agent), country, language, the page you visited and the page that sent you there, with a random visit number kept in your browser. We do this whether or not you have an account.',
-          'The assistant on our public pages: what you type into it and the answer it gives, with the visit details above.',
           'Voice, only if you use the microphone: your speech is converted to text by your browser or device, and we receive the resulting text.',
         ]}
       />
@@ -221,7 +220,7 @@ export const PrivacyPage: React.FC = () => (
           'Render: database hosting.',
           'Cloudflare: delivery of our website and the security check on sign-in forms.',
           'Google Analytics: measuring how the Service is used, with advertising features turned off and without the text of your questions.',
-          'Artificial intelligence providers: your questions and the chart details needed to answer them are sent to generate answers. What you type into the assistant on our public pages is also sent, without your IP address or visit details.',
+          'Artificial intelligence providers: your questions and the chart details needed to answer them are sent to generate answers.',
           'Payment and app store providers: handling payment, once paid plans open. We do not store full card numbers.',
         ]}
       />
@@ -246,7 +245,7 @@ export const PrivacyPage: React.FC = () => (
     </Section>
     <Section title="8. Retention">
       <p>We keep personal information while your account is open. When you ask us to delete your account, we delete or anonymise your personal information, except what we must keep by law.</p>
-      <p>Visit and assistant records are kept separately from accounts: your full IP address for 30 days, what you typed into the assistant for 90 days, and the rest of a visit record, with only the first part of the IP address, for 400 days. We may keep a record longer if the law requires it or to investigate a security incident.</p>
+      <p>Visit records are kept separately from accounts: your full IP address for 30 days, and the rest of the record, with only the first part of the IP address, for 400 days. We may keep a record longer if the law requires it or to investigate a security incident.</p>
     </Section>
     <Section title="9. Your rights">
       <p>
