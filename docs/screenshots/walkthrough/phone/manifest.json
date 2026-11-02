@@ -181,7 +181,34 @@
       "failedRequests": []
     },
     {
-      "file": "21-page-charts.png",
+      "file": "21-page-profile-plan.png",
+      "step": "page-profile-plan",
+      "url": "/profile/plan",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "22-page-profile-timeline.png",
+      "step": "page-profile-timeline",
+      "url": "/profile/timeline",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": false,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "23-page-profile-settings.png",
+      "step": "page-profile-settings",
+      "url": "/profile/settings",
+      "horizontalOverflowPx": 0,
+      "pageScrollable": true,
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "24-page-charts.png",
       "step": "page-charts",
       "url": "/dashboard/charts",
       "horizontalOverflowPx": 0,
@@ -190,7 +217,7 @@
       "failedRequests": []
     },
     {
-      "file": "22-page-remedies.png",
+      "file": "25-page-remedies.png",
       "step": "page-remedies",
       "url": "/dashboard/remedies",
       "horizontalOverflowPx": 0,
@@ -199,7 +226,7 @@
       "failedRequests": []
     },
     {
-      "file": "23-page-mantras.png",
+      "file": "26-page-mantras.png",
       "step": "page-mantras",
       "url": "/dashboard/mantras",
       "horizontalOverflowPx": 0,
@@ -208,7 +235,7 @@
       "failedRequests": []
     },
     {
-      "file": "24-page-profile.png",
+      "file": "27-page-profile.png",
       "step": "page-profile",
       "url": "/profile",
       "horizontalOverflowPx": 0,

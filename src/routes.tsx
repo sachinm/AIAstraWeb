@@ -7,6 +7,10 @@ import ProfileGate from './Auth/ProfileGate';
 import Dashboard from './pages/Dashboard';
 import TopNavigation from './pages/TopNavigation';
 import ProfileSection from './pages/profile/ProfileSection';
+import ProfileLayout from './pages/profile/ProfileLayout';
+import ProfilePlan from './pages/profile/ProfilePlan';
+import ProfileSettings from './pages/profile/ProfileSettings';
+import ProfileTimeline from './pages/profile/ProfileTimeline';
 import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
@@ -120,7 +124,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <Route path="charts" element={<ChartsSection user={user!} />} />
           <Route path="mantras" element={<MantrasSection user={user!} />} />
           <Route path="remedies" element={<RemediesSection user={user!} />} />
-          <Route path="timeline/ledger" element={<Navigate to="/profile" replace />} />
+          <Route path="timeline/ledger" element={<Navigate to="/profile/timeline" replace />} />
         </Route>
         <Route
           path="/profile"
@@ -132,7 +136,12 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             )
           }
         >
-          <Route index element={<ProfileSection />} />
+          <Route element={<ProfileLayout />}>
+            <Route index element={<ProfileSection />} />
+            <Route path="plan" element={<ProfilePlan />} />
+            <Route path="settings" element={<ProfileSettings />} />
+            <Route path="timeline" element={<ProfileTimeline />} />
+          </Route>
         </Route>
         </Route>
       </Route>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarChart3, BookOpen, ChevronDown, Heart, LogOut, MessageCircle, Sparkles, User as UserIcon } from 'lucide-react';
+import { BarChart3, BookOpen, ChevronDown, CreditCard, Heart, History, LogOut, MessageCircle, Settings, Sparkles, User as UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
@@ -123,6 +123,18 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
             <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile')}>
               <UserIcon className="h-4 w-4" aria-hidden="true" />
               {t('menu.profile')}
+            </button>
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/plan')}>
+              <CreditCard className="h-4 w-4" aria-hidden="true" />
+              {t('menu.plan')}
+            </button>
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/timeline')}>
+              <History className="h-4 w-4" aria-hidden="true" />
+              {t('menu.timeline')}
+            </button>
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/settings')}>
+              <Settings className="h-4 w-4" aria-hidden="true" />
+              {t('menu.settings')}
             </button>
             <button
               type="button"
