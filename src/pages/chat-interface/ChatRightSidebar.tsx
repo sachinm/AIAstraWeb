@@ -124,43 +124,44 @@ const ChatRightSidebar: React.FC<ChatRightSidebarProps> = ({ isOpen, onOpenChang
         />
       )}
 
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={handleToggle}
+          className="absolute right-4 top-2 z-20 hidden rounded-lg bg-black/60 p-2 text-white backdrop-blur-sm transition hover:bg-black/80 md:block"
+          aria-label="Expand right sidebar"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </button>
+      )}
+
       <div
         ref={sidebarRef}
         data-test-id="chat-right-sidebar"
-        className={`absolute inset-y-0 right-0 md:relative md:inset-auto z-30 h-full shrink-0 transition-all duration-300 ease-in-out bg-black/40 border-l border-white/10
+        className={`absolute inset-y-0 right-0 md:relative md:inset-auto z-30 h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out bg-black/40
           ${
             isOpen
-              ? 'translate-x-0 w-[85vw] md:w-[360px] max-w-[360px]'
-              : 'translate-x-full w-[85vw] md:translate-x-0 md:w-10'
+              ? 'translate-x-0 w-[85vw] md:w-[360px] max-w-[360px] border-l border-white/10'
+              : 'translate-x-full w-[85vw] md:translate-x-0 md:w-0'
           }
         `}
       >
         <div className="flex h-full">
-          {/* Collapsed rail */}
-          <div
-            className="hidden md:flex flex-col items-center gap-4 p-3 w-10 bg-black/60 border-l border-white/10"
-            data-test-id="chat-right-sidebar-rail"
-          >
-            <button
-              onClick={handleToggle}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
-              aria-label={isOpen ? 'Collapse right sidebar' : 'Expand right sidebar'}
-            >
-              {isOpen ? (
-                <PanelRightOpen className="w-4 h-4" />
-              ) : (
-                <PanelLeftOpen className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-
           {/* Content */}
           {isOpen && (
             <div className="flex-1 bg-black/80 px-3 py-4 overflow-y-auto">
-              <div className="mb-3">
+              <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 className="text-xs font-semibold text-white tracking-wide">
                   {t('sidebar.title')}
                 </h2>
+                <button
+                  type="button"
+                  onClick={handleToggle}
+                  className="hidden rounded-lg bg-white/10 p-2 text-white transition hover:bg-white/20 md:block"
+                  aria-label="Collapse right sidebar"
+                >
+                  <PanelRightOpen className="h-4 w-4" />
+                </button>
               </div>
 
               {loading && (

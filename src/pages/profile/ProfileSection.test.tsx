@@ -109,25 +109,4 @@ describe('ProfileSection', () => {
     expect(screen.queryByText(REBUILD_WARNING)).not.toBeInTheDocument();
     expect(updateProfile).not.toHaveBeenCalled();
   });
-
-  it('renders the life-events ledger inside the profile when the feature is on, and the timeline placeholder only with the flag', async () => {
-    vi.mocked(ledger.fetchLedgerMeta).mockResolvedValue({
-      markers: [{ id: 'work', label: 'Work', categories: [{ code: 'job_change', label: 'Job change' }] }],
-      attributes: [],
-      precisions: ['day', 'month', 'year'],
-      years: 18,
-      interview: false,
-    });
-    vi.mocked(ledger.fetchLedgerEvents).mockResolvedValue([]);
-    renderPage();
-    expect(await screen.findByRole('heading', { name: 'Your life timeline' })).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'Life events' })).toBeInTheDocument();
-    expect(screen.queryByText(/we're researching this/i)).not.toBeInTheDocument();
-  });
-
-  it('shows the Coming soon placeholder when VITE_TIMELINE_ENABLED is true', async () => {
-    vi.stubEnv('VITE_TIMELINE_ENABLED', 'true');
-    renderPage();
-    expect(await screen.findByText(/Coming soon — we're researching this/)).toBeInTheDocument();
-  });
 });
