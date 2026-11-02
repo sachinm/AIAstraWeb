@@ -176,6 +176,9 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
                 </p>
               </>
             )}
+            <p role="note" className="mt-5 rounded-lg border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-left text-sm text-purple-100">
+              {READY_NOTICE}
+            </p>
           </div>
         </div>
       )}
@@ -187,10 +190,6 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Your birth details</h2>
             <p className="text-gray-300">We use these to calculate your chart.</p>
-          </div>
-
-          <div role="note" className="bg-purple-500/15 border border-purple-400/30 text-purple-100 px-4 py-3 rounded-lg mb-6 text-sm">
-            {READY_NOTICE}
           </div>
 
           <form onSubmit={submit} noValidate className="space-y-6">
