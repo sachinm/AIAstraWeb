@@ -77,13 +77,13 @@ const CosmicSky: React.FC = () => {
         const motion = leaving ? 'sky-out' : turn > 0 ? 'sky-in' : '';
         return (
           <div key={SKY_SCENES[index].id} className={`absolute inset-0 ${motion}`} style={style} data-scene={SKY_SCENES[index].id}>
-            <img src={skySrc(SKY_SCENES[index].id)} alt="" className="sky-drift h-full w-full object-cover" draggable={false} />
+            <img src={skySrc(SKY_SCENES[index].id)} alt="" className="sky-image sky-drift h-full w-full object-cover" draggable={false} />
           </div>
         );
       })}
       {from && previous !== null && <div key={turn} className="sky-bloom absolute inset-0" style={{ '--sky-x': from.x, '--sky-y': from.y } as React.CSSProperties} />}
       {/* keeps the words readable on every scene */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#05060f]/70 via-[#05060f]/60 to-[#05060f]/80 sm:from-[#05060f]/55 sm:via-[#05060f]/45 sm:to-[#05060f]/70" />
+      <div className="sky-scrim absolute inset-0 bg-gradient-to-b from-[#05060f]/70 via-[#05060f]/60 to-[#05060f]/80 sm:from-[#05060f]/55 sm:via-[#05060f]/45 sm:to-[#05060f]/70" />
       {[0, 1, 2].map((i) => (
         <div
           key={i}
