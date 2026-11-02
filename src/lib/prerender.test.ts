@@ -39,7 +39,8 @@ describe('prerendered public pages', () => {
     prod = join(tmp, 'prod');
     staging = join(tmp, 'staging');
     build('production', prod, { VITE_SITE_URL: SITE, VITE_SEO_INDEX: '1' });
-    build('staging', staging, { VITE_SITE_URL: '' });
+    // the noindex path, set here because .env.staging's value follows what the domain serves
+    build('staging', staging, { VITE_SITE_URL: '', VITE_SEO_INDEX: '0' });
   }, 280_000);
 
   afterAll(() => {
@@ -74,7 +75,7 @@ describe('prerendered public pages', () => {
     expect(shell).toContain(`<meta name="robots" content="${robotsContent(true)}" data-seo />`);
   });
 
-  it('keeps staging noindex on every page and robots.txt disallowing everything', () => {
+  it('with VITE_SEO_INDEX=0, every page is noindex and robots.txt disallows everything', () => {
     for (const page of PUBLIC_PAGES) {
       for (const file of prerenderFiles(page.path)) {
         const html = read(staging, file);
