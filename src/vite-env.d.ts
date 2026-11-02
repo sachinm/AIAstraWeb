@@ -18,6 +18,12 @@ declare interface ImportMetaEnv {
   readonly VITE_CHAT_STREAM?: string;
   /** Cloudflare Turnstile site key (public). Pair with server TURNSTILE_SECRET_KEY. */
   readonly VITE_TURNSTILE_SITE_KEY?: string;
+  /** Absolute public site URL (no trailing slash) for canonical links, Open Graph and the sitemap. */
+  readonly VITE_SITE_URL?: string;
+  /** Set to 0 on builds that must never be indexed (staging, previews). Default indexable. */
+  readonly VITE_SEO_INDEX?: string;
+  readonly VITE_LEGAL_ENTITY?: string;
+  readonly VITE_SUPPORT_EMAIL?: string;
 }
 
 declare interface ImportMeta {

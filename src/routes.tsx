@@ -13,6 +13,7 @@ import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
 import PricingPage from './pages/pricing/PricingPage';
 import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
+import SeoHead from './components/SeoHead';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -41,6 +42,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   const gateProps = { sessionReady, isAuthenticated };
 
   return (
+    <>
+    <SeoHead />
     <Routes>
       <Route
         path="/"
@@ -150,6 +153,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         }
       />
     </Routes>
+    </>
   );
 };
 
