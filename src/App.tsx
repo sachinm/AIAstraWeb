@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import AppRoutes from './routes';
+import AppFrame from './components/AppFrame';
 import AuthProvider from './Auth/AuthProvider';
 import { clearClientSession, performLogout } from './Auth/logout';
 import { restoreSessionFromStorage } from './Auth/sessionRestore';
@@ -93,29 +94,25 @@ const App = () => {
   }, [sessionReady, isAuthenticated, applyLogoutState]);
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
-      <div className="app-sky fixed inset-0 z-0" aria-hidden="true" />
-
-      <div className="relative z-10">
-        <Router>
-          <AuthProvider
+    <AppFrame>
+      <Router>
+        <AuthProvider
+          user={user}
+          setUser={setUser}
+          isAuthenticated={isAuthenticated}
+          setIsAuthenticated={setIsAuthenticated}
+        >
+          <AppRoutes
             user={user}
-            setUser={setUser}
             isAuthenticated={isAuthenticated}
-            setIsAuthenticated={setIsAuthenticated}
-          >
-            <AppRoutes
-              user={user}
-              isAuthenticated={isAuthenticated}
-              sessionReady={sessionReady}
-              handleSignIn={handleSignIn}
-              handleSignUp={handleSignUp}
-              handleLogout={handleLogout}
-            />
-          </AuthProvider>
-        </Router>
-      </div>
-    </div>
+            sessionReady={sessionReady}
+            handleSignIn={handleSignIn}
+            handleSignUp={handleSignUp}
+            handleLogout={handleLogout}
+          />
+        </AuthProvider>
+      </Router>
+    </AppFrame>
   );
 };
 
