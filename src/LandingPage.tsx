@@ -1,6 +1,7 @@
 import { LANDING_FAQS } from './lib/landingFaqs';
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import ConstellationSky from './components/ConstellationSky';
 
 interface LandingPageProps {
   onSignUp: () => void;
@@ -15,7 +16,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-full text-white">
+    <div className="relative min-h-full text-white">
+      <ConstellationSky />
       <div className="fixed inset-0 pointer-events-none" aria-hidden="true" data-test-id="shooting-stars">
         {[0, 1, 2].map((i) => (
           <div
@@ -26,7 +28,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
         ))}
       </div>
       <div className="relative max-w-3xl mx-auto px-6 py-20">
-        <div className="text-center mb-20">
+        {/* a soft dark pool behind the hero words, so they read over the star map */}
+        <div className="text-center mb-20 rounded-[3rem] bg-[radial-gradient(ellipse_at_center,rgba(11,10,31,0.8)_20%,rgba(11,10,31,0.35)_55%,transparent_75%)] px-4 py-10">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
             Discover Your Cosmic Blueprint
           </h1>
