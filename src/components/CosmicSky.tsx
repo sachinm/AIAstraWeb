@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SKY_SCENES, pickCorners, shuffledRound, skySrc, type SkyCorner } from '../lib/skies';
+import { SKY_SCENES, pickCorners, shuffledRound, skyHoldMs, skySrc, type SkyCorner } from '../lib/skies';
 
-/** How long a scene holds before the next begins. Keep in step with the 3 s transition in index.css. */
-const HOLD_MS = 9000;
+/** How long a scene holds before the next begins (VITE_SKY_HOLD_SECONDS, default 2 minutes; see lib/skies.ts). */
+const HOLD_MS = skyHoldMs();
 const TRANSITION_MS = 3000;
 
 interface Stage {

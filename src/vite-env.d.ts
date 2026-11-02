@@ -22,6 +22,7 @@ declare interface ImportMetaEnv {
   readonly VITE_SITE_URL?: string;
   /** Set to 0 on builds that must never be indexed (staging, previews). Default indexable. */
   readonly VITE_SEO_INDEX?: string;
+  readonly VITE_SKY_HOLD_SECONDS?: string;
   readonly VITE_LEGAL_ENTITY?: string;
   readonly VITE_SUPPORT_EMAIL?: string;
 }
