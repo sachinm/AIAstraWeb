@@ -182,7 +182,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         </button>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl">
+        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
             <p className="text-gray-300">Sign in to AI AdAstra</p>

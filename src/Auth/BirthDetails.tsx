@@ -152,7 +152,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:px-6">
+    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-6 sm:px-6">
       {loading && (
         <div
           role="status"
@@ -183,7 +183,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
         </div>
       )}
       <div className="w-full max-w-md">
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
+        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-white mb-2">Your birth details</h2>
             <p className="text-gray-300">We use these to calculate your chart.</p>
