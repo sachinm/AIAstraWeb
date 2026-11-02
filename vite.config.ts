@@ -3,14 +3,18 @@ import { copyFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { prerenderPublicPages } from './scripts/prerender';
 import { buildRobotsTxt, buildSitemapXml, robotsContent, trimSiteUrl } from './src/lib/seoConfig';
 
 /** Some static hosts serve 404.html for unknown paths — duplicate index.html for SPA deep links. */
-function spaFallback404() {
+function spaFallback404(): Plugin {
+  let distDir = resolve(__dirname, 'dist');
   return {
     name: 'spa-fallback-404',
+    configResolved(config) {
+      distDir = resolve(config.root, config.build.outDir);
+    },
     closeBundle() {
-      const distDir = resolve(__dirname, 'dist');
       const index = resolve(distDir, 'index.html');
       const notFound = resolve(distDir, '404.html');
       if (existsSync(index)) {
@@ -45,7 +49,12 @@ function seoFiles(env: Record<string, string>): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), spaFallback404(), seoFiles(loadEnv(mode, process.cwd(), 'VITE_'))],
+  plugins: [
+    react(),
+    spaFallback404(),
+    seoFiles(loadEnv(mode, process.cwd(), 'VITE_')),
+    prerenderPublicPages(loadEnv(mode, process.cwd(), 'VITE_')),
+  ],
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

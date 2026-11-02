@@ -8,6 +8,19 @@ services:
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     routes:
+      # Prerendered public pages (dist/<path>/index.html), ahead of the SPA catch-all. Keep in step with PUBLIC_PAGES.
+      - type: rewrite
+        source: /pricing
+        destination: /pricing/index.html
+      - type: rewrite
+        source: /terms
+        destination: /terms/index.html
+      - type: rewrite
+        source: /privacy
+        destination: /privacy/index.html
+      - type: rewrite
+        source: /refunds
+        destination: /refunds/index.html
       - type: rewrite
         source: /*
         destination: /index.html

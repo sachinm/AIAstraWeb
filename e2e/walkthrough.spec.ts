@@ -79,9 +79,11 @@ test('signed-out walkthrough, then the free plan to its limit', async ({ page, c
   await page.goto('/');
   await w.shot('landing-top');
   await w.shot('landing-full', { fullPage: true });
-  await page.getByRole('radio', { name: /India/i }).or(page.getByRole('button', { name: /India/i })).first().click();
-  await w.shot('landing-india-selected');
+  // the public frame scrolls inside its middle, so a full-page shot stops at the first screen
+  await page.getByRole('region', { name: /9,500 records/ }).scrollIntoViewIfNeeded();
+  await w.shot('landing-chart-records');
   await page.goto('/pricing');
+  await page.getByRole('radio', { name: /India/i }).or(page.getByRole('button', { name: /India/i })).first().click();
   await w.shot('pricing-india-rupees', { fullPage: true });
   await page.getByRole('button', { name: /annual|year/i }).first().click();
   await w.shot('pricing-india-annual', { fullPage: true });

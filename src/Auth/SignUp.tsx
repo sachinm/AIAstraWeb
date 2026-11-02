@@ -3,7 +3,6 @@ import { Star, UserIcon, Mail, ArrowLeft } from 'lucide-react';
 import { startSignup, verifySignupCode, EMAIL_EXISTS_CODE } from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileField from './TurnstileField';
-import LegalLinks from '../components/LegalLinks';
 import { PRODUCT_NAME } from '../lib/legal';
 
 interface SignUpProps {
@@ -26,7 +25,7 @@ const inputCls =
   'w-full bg-white/10 border rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 read-only:opacity-70';
 
 /**
- * Page 1 of registration, "Create your account": name and email, then Next. After Next the code field
+ * Page 1 of registration, "Sign up": name and email, then Next. After Next the code field
  * appears below the email on this same page; a correct code signs the user in and hands over to page 2.
  */
 const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
@@ -143,23 +142,33 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:px-6">
+    <div className="min-h-full flex items-center justify-center px-4 py-8 sm:px-6">
       <div className="w-full max-w-md">
+        <div className="flex items-center justify-between mb-8">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center text-purple-300 hover:text-white mb-8 transition-colors duration-300"
+          className="flex items-center text-purple-300 hover:text-white transition-colors duration-300"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </button>
+          <button
+            type="button"
+            onClick={() => onSignIn()}
+            className="text-purple-300 hover:text-white font-semibold transition-colors duration-300"
+            data-test-id="switch-auth-page"
+          >
+            Sign in
+          </button>
+        </div>
 
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
             <div className="flex justify-center mb-4">
               <Star className="w-12 h-12 text-purple-400" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-2">Create your account</h2>
+            <h2 className="text-3xl font-bold text-white mb-2">Sign up</h2>
             <p className="text-gray-300">Join AI Astra with your name and email. Birth details come next.</p>
           </div>
 
@@ -348,8 +357,6 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               onRegisterReset={turnstile.registerReset}
             />
           )}
-          <LegalLinks className="mt-6" />
-          <p className="text-center text-xs text-gray-400 mt-2" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>
       </div>
     </div>

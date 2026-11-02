@@ -10,9 +10,16 @@ import { LANDING_FAQS } from './landingFaqs';
 export const PRODUCT_NAME = 'AI Astra';
 export const DEFAULT_DESCRIPTION =
   'Vedic astrology (Jyotish) readings from your own birth chart. Ask AI Astra questions and read what the tradition sees, for education and entertainment.';
-/** Served from /public. Replace with a 1200x630 image when one is designed. */
-export const DEFAULT_OG_IMAGE = '/images/shriGanesh.jpg';
+/** Served from /public: 1200x630, made by scripts/generate-og-image.mjs. */
+export const DEFAULT_OG_IMAGE = '/images/og-aiastra.png';
 export const DEFAULT_LOCALE = 'en_US';
+
+/** One tag for `<head>`, as data: `headTagsFor()` makes them, the browser and the prerender each write them. */
+export interface HeadTag {
+  tag: 'title' | 'meta' | 'link' | 'script';
+  attrs: Record<string, string>;
+  text?: string;
+}
 
 export interface PageSeo {
   /** Full `<title>`. Public pages end with the product name; private pages carry only a label. */
@@ -79,7 +86,7 @@ export const NOINDEX_PREFIXES: ReadonlyArray<string> = ['/signin', '/signup', '/
 /** Titles for the private pages, so the browser tab reads well even though search engines skip them. */
 const PRIVATE_TITLES: ReadonlyArray<{ prefix: string; title: string }> = [
   { prefix: '/signup/details', title: `Your birth details – ${PRODUCT_NAME}` },
-  { prefix: '/signup', title: `Create your account – ${PRODUCT_NAME}` },
+  { prefix: '/signup', title: `Sign up – ${PRODUCT_NAME}` },
   { prefix: '/signin', title: `Sign in – ${PRODUCT_NAME}` },
   { prefix: '/dashboard/charts', title: `Your charts – ${PRODUCT_NAME}` },
   { prefix: '/dashboard/mantras', title: `Mantras – ${PRODUCT_NAME}` },
