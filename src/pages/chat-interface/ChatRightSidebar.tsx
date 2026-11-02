@@ -19,6 +19,27 @@ export function birthStar(value: unknown): string {
   return quarter ? `${name}, Quarter ${quarter}` : name;
 }
 
+/** Display names for the stored sign abbreviations. A label only: the sign itself comes from the stored chart. */
+const RASI_NAMES: Record<string, string> = {
+  Ar: 'Aries', Ta: 'Taurus', Ge: 'Gemini', Cn: 'Cancer', Le: 'Leo', Vi: 'Virgo',
+  Li: 'Libra', Sc: 'Scorpio', Sg: 'Sagittarius', Cp: 'Capricorn', Aq: 'Aquarius', Pi: 'Pisces',
+};
+
+/** Same formats as the profile page; anything unexpected is shown as stored. */
+export function displayDate(value: unknown): string {
+  const text = asText(value);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : text;
+}
+
+export function displayTime(value: unknown): string {
+  const text = asText(value);
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(text);
+  if (!m) return text;
+  const hour = Number(m[1]);
+  return `${hour % 12 || 12}:${m[2]} ${hour < 12 ? 'AM' : 'PM'}`;
+}
+
 const ChatRightSidebar: React.FC<ChatRightSidebarProps> = ({ isOpen, onOpenChange }) => {
   const { t } = useTranslation();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -85,11 +106,11 @@ const ChatRightSidebar: React.FC<ChatRightSidebarProps> = ({ isOpen, onOpenChang
   const lagnaStar = asText(lagna?.nakshatra);
   const lagnaPada = asText(lagna?.pada);
   const facts: [string, string][] = [
-    [t('sidebar.date'), asText(biodata.date)],
-    [t('sidebar.time'), asText(biodata.time)],
+    [t('sidebar.date'), displayDate(biodata.date)],
+    [t('sidebar.time'), displayTime(biodata.time)],
     [t('sidebar.place'), asText(biodata.place_name)],
     [t('sidebar.birthStar'), birthStar(biodata.nakshatra)],
-    [t('sidebar.lagna'), asText(lagna?.rasi)],
+    [t('sidebar.lagna'), RASI_NAMES[asText(lagna?.rasi)] ?? asText(lagna?.rasi)],
     [t('sidebar.lagnaStar'), lagnaStar && lagnaPada ? t('sidebar.starPada', { star: lagnaStar, pada: lagnaPada }) : lagnaStar],
   ];
 

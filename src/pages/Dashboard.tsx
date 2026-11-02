@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import TopNavigation from './TopNavigation';
 import Disclaimer from '../components/Disclaimer';
+import LegalLinks from '../components/LegalLinks';
 import KundliNotice from '../components/KundliNotice';
 
 interface User {
@@ -43,6 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       {!onChat && (
         <footer className="border-t border-white/10 px-4 py-3">
           <Disclaimer />
+          <LegalLinks className="mt-1" />
         </footer>
       )}
     </div>

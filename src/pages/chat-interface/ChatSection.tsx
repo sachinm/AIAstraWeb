@@ -16,7 +16,7 @@ import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
 import ChatMainArea from './ChatMainArea';
 import { useSpeechRecognition } from './useSpeechRecognition';
-import { useQuestionLocation, QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
+import { useQuestionLocation } from './useQuestionLocation';
 import { applyReadingEvent, nextPartsOf, type NextPart } from './readingProgress';
 import { trackChatQuestionSent } from '../../lib/analytics';
 import { useMe, usePlan, useRefreshMe } from '../../Auth/ProfileGate';
@@ -102,14 +102,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     ensureLocation,
     currentLocation,
     reask: reaskLocation,
-  } = useQuestionLocation({
-    onAsk: () =>
-      setMessages((prev) =>
-        prev.some((m) => m.id === 'question-location-ask')
-          ? prev
-          : [...prev, { id: 'question-location-ask', text: QUESTION_LOCATION_ASK_TEXT, sender: 'system', timestamp: '' }]
-      ),
-  });
+  } = useQuestionLocation();
 
   const handleStartListening = useCallback(() => {
     inputTextAtSpeechStartRef.current = inputText;

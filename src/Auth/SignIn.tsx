@@ -1,3 +1,4 @@
+import LegalLinks from '../components/LegalLinks';
 import React, { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { Star, Mail, ArrowLeft, KeyRound } from 'lucide-react';
@@ -164,7 +165,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
               <Star className="w-12 h-12 text-purple-400" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
-            <p className="text-gray-300">Sign in to continue your cosmic journey</p>
+            <p className="text-gray-300">Sign in to AI Astra</p>
           </div>
 
           {idleNotice && (
@@ -295,7 +296,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
               onRegisterReset={turnstile.registerReset}
             />
           )}
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+          <LegalLinks className="mt-6" />
+          <p className="text-center text-xs text-gray-400 mt-2" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
         </div>
       </div>
     </div>

@@ -1,16 +1,18 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import LandingPage from './LandingPage';
 import SignIn from './Auth/SignIn';
 import SignUp from './Auth/SignUp';
 import BirthDetails from './Auth/BirthDetails';
 import ProfileGate from './Auth/ProfileGate';
 import Dashboard from './pages/Dashboard';
+import TopNavigation from './pages/TopNavigation';
 import ProfileSection from './pages/profile/ProfileSection';
 import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
 import PricingPage from './pages/pricing/PricingPage';
+import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -57,7 +59,16 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         }
       />
 
-      <Route path="/pricing" element={<PricingPage />} />
+      {/* public, and with the signed-in nav and question count when there is a session */}
+      <Route element={isAuthenticated && user ? <ProfileGate /> : <Outlet />}>
+        <Route
+          path="/pricing"
+          element={<PricingPage nav={isAuthenticated && user ? <TopNavigation user={user} onLogout={handleLogout} /> : undefined} />}
+        />
+      </Route>
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/refunds" element={<RefundsPage />} />
 
       <Route element={<GuestRoute {...gateProps} />}>
         <Route
