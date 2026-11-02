@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Star, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { completeProfile, fetchMe, isChartOpen, type ChartStatus, type Gender, type Language } from './api';
 import ChartProgress from '../components/ChartProgress';
 import BirthFields, {
@@ -185,9 +185,6 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
       <div className="w-full max-w-md">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
-            <div className="flex justify-center mb-4">
-              <Star className="w-12 h-12 text-purple-400" />
-            </div>
             <h2 className="text-3xl font-bold text-white mb-2">Your birth details</h2>
             <p className="text-gray-300">We use these to calculate your chart.</p>
           </div>

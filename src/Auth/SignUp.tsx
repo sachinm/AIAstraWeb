@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Star, UserIcon, Mail, ArrowLeft } from 'lucide-react';
+import { UserIcon, Mail, ArrowLeft } from 'lucide-react';
 import { startSignup, verifySignupCode, EMAIL_EXISTS_CODE } from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileGate from './TurnstileGate';
@@ -142,9 +142,9 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
   };
 
   return (
-    <div className="min-h-full flex items-center justify-center px-4 py-8 sm:px-6">
+    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-6 sm:px-6">
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
         <button
           type="button"
           onClick={onBack}
@@ -165,9 +165,6 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
 
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
-            <div className="flex justify-center mb-4">
-              <Star className="w-12 h-12 text-purple-400" />
-            </div>
             <h2 className="text-3xl font-bold text-white mb-2">Sign up</h2>
             <p className="text-gray-300">Join AI AdAstra with your name and email. Birth details come next.</p>
           </div>
