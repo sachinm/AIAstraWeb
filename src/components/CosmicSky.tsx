@@ -14,12 +14,10 @@ interface Stage {
   turn: number;
 }
 
-const reducedMotion = (): boolean => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /**
  * The home page background: one full-screen scene at a time, pinned while the page scrolls over it, in an endless loop
  * of random order, each scene once per round. Each one blooms in from a random corner while the last dissolves toward
- * another. Only the current and next images are ever loaded. With reduced motion on, the first scene stays still.
+ * another. Only the current and next images are ever loaded. With reduced motion on the scenes still change, by a plain crossfade with no movement (index.css): many Windows PCs have that setting on, and freezing left them on one scene.
  */
 const CosmicSky: React.FC = () => {
   const [stage, setStage] = useState<Stage>({ current: 0, previous: null, from: null, to: null, turn: 0 });
@@ -27,7 +25,6 @@ const CosmicSky: React.FC = () => {
   const roundRef = useRef<number[]>([]);
 
   useEffect(() => {
-    if (reducedMotion()) return undefined;
     let cancelled = false;
     let clearOld: ReturnType<typeof setTimeout> | undefined;
 
@@ -80,13 +77,13 @@ const CosmicSky: React.FC = () => {
         const motion = leaving ? 'sky-out' : turn > 0 ? 'sky-in' : '';
         return (
           <div key={SKY_SCENES[index].id} className={`absolute inset-0 ${motion}`} style={style} data-scene={SKY_SCENES[index].id}>
-            <img src={skySrc(SKY_SCENES[index].id)} alt="" className="sky-drift h-full w-full object-cover" draggable={false} />
+            <img src={skySrc(SKY_SCENES[index].id)} alt="" className="sky-image sky-drift h-full w-full object-cover" draggable={false} />
           </div>
         );
       })}
       {from && previous !== null && <div key={turn} className="sky-bloom absolute inset-0" style={{ '--sky-x': from.x, '--sky-y': from.y } as React.CSSProperties} />}
       {/* keeps the words readable on every scene */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#05060f]/70 via-[#05060f]/60 to-[#05060f]/80 sm:from-[#05060f]/55 sm:via-[#05060f]/45 sm:to-[#05060f]/70" />
+      <div className="sky-scrim absolute inset-0 bg-gradient-to-b from-[#05060f]/70 via-[#05060f]/60 to-[#05060f]/80 sm:from-[#05060f]/55 sm:via-[#05060f]/45 sm:to-[#05060f]/70" />
       {[0, 1, 2].map((i) => (
         <div
           key={i}

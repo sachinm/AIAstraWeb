@@ -65,7 +65,8 @@ body {
   animation: skyBloom 3s ease-in-out both;
 }
 .sky-drift {
-  animation: skyDrift 16s linear both;
+  /* a little longer than a scene holds, so the slow move never stops on screen */
+  animation: skyDrift 125s linear both;
 }
 .sky-caption {
   animation: skyCaption 1.5s ease-out 1.5s both;
@@ -114,6 +115,11 @@ body {
     transform: scale(1.09);
   }
 }
+@keyframes skyFadeOut {
+  to {
+    opacity: 0;
+  }
+}
 @keyframes skyCaption {
   from {
     opacity: 0;
@@ -123,14 +129,47 @@ body {
   }
 }
 
+/*
+ * An upright screen would crop a wide scene to a narrow strip, so on iPhone and iPad the whole picture shrinks to the
+ * screen's width under the header, its edges fading into the starfield. The hero starts below it.
+ */
+@media (orientation: portrait) {
+  .sky-image {
+    position: absolute;
+    top: 56px;
+    left: 0;
+    /* the picture's own height, so the fade below falls on its real edges */
+    height: auto;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+  }
+  .sky-clear {
+    padding-top: 46vw;
+  }
+  .sky-caption {
+    top: calc(56px + 46vw - 3.75rem);
+    bottom: auto !important;
+  }
+  /* no words sit over the picture here, so it can be brighter than on a wide screen */
+  .sky-scrim {
+    background-image: linear-gradient(to bottom, rgba(5, 6, 15, 0.08), rgba(5, 6, 15, 0.08) calc(56px + 46vw), rgba(5, 6, 15, 0.6) calc(56px + 60vw)) !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shooting-star,
-  .sky-in,
-  .sky-out,
   .sky-bloom,
   .sky-drift,
-  .sky-caption,
   .sky-page {
     animation: none;
+  }
+  /* still changes scene, as a plain crossfade with no reveal or drift */
+  .sky-in {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: skyCaption 3s ease-in-out both;
+  }
+  .sky-out {
+    animation: skyFadeOut 3s ease-in-out both;
   }
 }
