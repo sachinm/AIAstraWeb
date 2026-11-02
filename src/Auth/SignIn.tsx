@@ -180,23 +180,20 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </button>
+          <button
+            type="button"
+            onClick={onSignUp}
+            className="text-purple-300 hover:text-white font-semibold transition-colors duration-300"
+            data-test-id="switch-auth-page"
+          >
+            Sign up
+          </button>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl">
+        <div className="bg-slate-950/60 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
             <p className="text-gray-300">Sign in to AI AdAstra</p>
-            <p className="mt-2 text-gray-300">
-              Don&apos;t have an account?{' '}
-              <button
-                type="button"
-                onClick={onSignUp}
-                className="text-purple-400 hover:text-purple-300 font-semibold transition-colors duration-300"
-                data-test-id="switch-auth-page"
-              >
-                Sign up
-              </button>
-            </p>
           </div>
 
           {idleNotice && (
