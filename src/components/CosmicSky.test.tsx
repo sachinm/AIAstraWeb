@@ -22,17 +22,28 @@ describe('CosmicSky timing', () => {
     vi.unstubAllGlobals();
   });
 
+  it('starts on a random scene, not always the same one', () => {
+    const seen = new Set<string | null>();
+    for (let i = 0; i < 40; i++) {
+      const { container, unmount } = render(<CosmicSky />);
+      seen.add(scenes(container)[0]);
+      unmount();
+    }
+    expect(seen.size).toBeGreaterThan(5);
+  });
+
   it('holds a scene for 120 seconds, then changes, with reduced motion on', async () => {
     const { container } = render(<CosmicSky />);
+    const start = scenes(container)[0];
     await act(() => vi.advanceTimersByTimeAsync(119_000));
-    expect(scenes(container)).toEqual(['ashwini']);
+    expect(scenes(container)).toEqual([start]);
     await act(() => vi.advanceTimersByTimeAsync(1_500));
     const during = scenes(container);
     expect(during).toHaveLength(2);
-    expect(during[0]).toBe('ashwini');
+    expect(during[0]).toBe(start);
     await act(() => vi.advanceTimersByTimeAsync(3_000));
     const after = scenes(container);
     expect(after).toHaveLength(1);
-    expect(after[0]).not.toBe('ashwini');
+    expect(after[0]).not.toBe(start);
   });
 });

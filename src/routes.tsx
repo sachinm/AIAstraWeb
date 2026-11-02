@@ -90,6 +90,12 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             }
           />
         </Route>
+        <Route element={<ProtectedRoute {...gateProps} />}>
+          <Route
+            path="/signup/details"
+            element={<BirthDetails onDone={() => navigate('/dashboard/chat', { replace: true })} />}
+          />
+        </Route>
       </Route>
 
       {/* public, and with the signed-in nav and question count when there is a session */}
@@ -104,10 +110,6 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       <Route path="/refunds" element={<PublicFrame><RefundsPage /></PublicFrame>} />
 
       <Route element={<ProtectedRoute {...gateProps} />}>
-        <Route
-          path="/signup/details"
-          element={<BirthDetails onDone={() => navigate('/dashboard/chat', { replace: true })} />}
-        />
         <Route element={<ProfileGate />}>
         <Route
           path="/dashboard"

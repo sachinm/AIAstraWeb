@@ -59,6 +59,9 @@ body {
 .sky-out {
   animation: skyOut 3s ease-in both;
 }
+.sky-first {
+  animation: skyCaption 1.2s ease-out both;
+}
 .sky-bloom {
   background: radial-gradient(ellipse farthest-corner at var(--sky-x, 50%) var(--sky-y, 50%), rgba(190, 150, 255, 0.55), rgba(240, 190, 120, 0.18) 35%, transparent 70%);
   mix-blend-mode: screen;
@@ -143,7 +146,8 @@ body {
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
   }
-  .sky-clear {
+  .sky-clear,
+  .sky-form-page > div {
     padding-top: 46vw;
   }
   .sky-caption {
@@ -156,7 +160,68 @@ body {
   }
 }
 
+/* A short screen (small phone, or any phone on its side): a tighter hero, so its button is on the first screen. */
+@media (max-height: 720px) {
+  .sky-clear > :first-child {
+    margin-bottom: 2rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  .sky-clear h1 {
+    margin-bottom: 0.5rem;
+    font-size: 1.875rem;
+    line-height: 1.15;
+  }
+  .sky-clear > :first-child p {
+    margin-bottom: 1rem;
+    font-size: 0.9375rem;
+    line-height: 1.4;
+  }
+  .sky-clear > :first-child button {
+    padding: 0.625rem 1.75rem;
+    font-size: 1rem;
+  }
+}
+@media (max-height: 720px) and (orientation: landscape) {
+  .sky-clear {
+    padding-top: 0.75rem;
+  }
+}
+
+/*
+ * A wide screen has room beside the scene: the form takes a left column and the scene moves right, its left edge fading
+ * into the starfield, so the figure stays in view. It glides back on the way to the home page.
+ */
+.sky-stage {
+  transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (orientation: landscape) and (min-width: 700px) {
+  .sky-side {
+    transform: translateX(22%);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 24%);
+    mask-image: linear-gradient(to right, transparent, #000 24%);
+  }
+  .sky-form-page > div {
+    justify-content: flex-start;
+    padding-left: clamp(1.5rem, 5vw, 6rem);
+    padding-right: 1.5rem;
+  }
+  .sky-form-page > div > div {
+    max-width: 27rem;
+  }
+  /* the column is too narrow for sign-in's email and button on one row */
+  .sky-form-page form .sm\:flex-row {
+    flex-direction: column;
+  }
+  .sky-form-page form .sm\:w-auto {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .sky-stage {
+    transition: none;
+  }
   .shooting-star,
   .sky-bloom,
   .sky-drift,

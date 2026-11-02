@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SKY_SCENES, pickCorners, shuffledRound, skyHoldMs, skySrc, type SkyCorner } from '../lib/skies';
+import { SKY_SCENES, pickCorners, randomScene, shuffledRound, skyHoldMs, skySrc, type SkyCorner } from '../lib/skies';
 
 /** How long a scene holds before the next begins (VITE_SKY_HOLD_SECONDS, default 2 minutes; see lib/skies.ts). */
 const HOLD_MS = skyHoldMs();
@@ -19,9 +19,12 @@ interface Stage {
  * of random order, each scene once per round. Each one blooms in from a random corner while the last dissolves toward
  * another. Only the current and next images are ever loaded. With reduced motion on the scenes still change, by a plain crossfade with no movement (index.css): many Windows PCs have that setting on, and freezing left them on one scene.
  */
-const CosmicSky: React.FC = () => {
-  const [stage, setStage] = useState<Stage>({ current: 0, previous: null, from: null, to: null, turn: 0 });
-  const currentRef = useRef(0);
+const CosmicSky: React.FC<{ side?: boolean }> = ({ side = false }) => {
+  // A build has no visitor, so the prerendered page carries no scene, or everyone would start on the same one. The browser
+  // picks here, and that scene fades in over the starfield.
+  const [first] = useState<number | null>(() => (typeof window === 'undefined' ? null : randomScene()));
+  const [stage, setStage] = useState<Stage>({ current: first ?? 0, previous: null, from: null, to: null, turn: 0 });
+  const currentRef = useRef(first ?? 0);
   const roundRef = useRef<number[]>([]);
 
   useEffect(() => {
@@ -63,10 +66,12 @@ const CosmicSky: React.FC = () => {
   const { current, previous, from, to, turn } = stage;
   const scene = SKY_SCENES[current];
   // the keys keep each image's element alive as it goes from current to previous, so its slow drift never jumps
-  const layers = previous === null ? [current] : [previous, current];
+  const layers = first === null ? [] : previous === null ? [current] : [previous, current];
 
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true" data-test-id="cosmic-sky">
+      {/* on a wide screen a form page moves the scene aside, so the form does not sit on the figure (index.css) */}
+      <div className={`sky-stage absolute inset-0${side ? ' sky-side' : ''}`} data-test-id="sky-stage">
       {layers.map((index) => {
         const leaving = index === previous;
         const style = leaving && to
@@ -74,7 +79,7 @@ const CosmicSky: React.FC = () => {
           : from
             ? ({ '--sky-x': from.x, '--sky-y': from.y } as React.CSSProperties)
             : undefined;
-        const motion = leaving ? 'sky-out' : turn > 0 ? 'sky-in' : '';
+        const motion = leaving ? 'sky-out' : turn > 0 ? 'sky-in' : 'sky-first';
         return (
           <div key={SKY_SCENES[index].id} className={`absolute inset-0 ${motion}`} style={style} data-scene={SKY_SCENES[index].id}>
             <img src={skySrc(SKY_SCENES[index].id)} alt="" className="sky-image sky-drift h-full w-full object-cover" draggable={false} />
@@ -82,6 +87,7 @@ const CosmicSky: React.FC = () => {
         );
       })}
       {from && previous !== null && <div key={turn} className="sky-bloom absolute inset-0" style={{ '--sky-x': from.x, '--sky-y': from.y } as React.CSSProperties} />}
+      </div>
       {/* keeps the words readable on every scene */}
       <div className="sky-scrim absolute inset-0 bg-gradient-to-b from-[#05060f]/70 via-[#05060f]/60 to-[#05060f]/80 sm:from-[#05060f]/55 sm:via-[#05060f]/45 sm:to-[#05060f]/70" />
       {[0, 1, 2].map((i) => (
@@ -91,6 +97,7 @@ const CosmicSky: React.FC = () => {
           style={{ top: `${15 + i * 25}%`, left: '-5%', animationDuration: `${15 + i * 5}s`, animationDelay: `${i * 10}s` }}
         />
       ))}
+      {first !== null && (
       <div key={scene.id} className="sky-caption absolute bottom-24 right-4 text-right text-amber-50 [text-shadow:0_1px_6px_rgba(0,0,0,0.9)] sm:bottom-24 sm:right-8" data-test-id="sky-caption">
         <p className="text-base font-semibold sm:text-xl">
           <span lang="hi">{scene.nameHi}</span> · {scene.name}
@@ -110,6 +117,7 @@ const CosmicSky: React.FC = () => {
           </p>
         )}
       </div>
+      )}
     </div>
   );
 };

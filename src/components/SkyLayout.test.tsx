@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SkyLayout from './SkyLayout';
 
 const renderAt = (path: string) =>
@@ -16,6 +16,10 @@ const renderAt = (path: string) =>
   );
 
 describe('the shared sky', () => {
+  // the first scene is random: this holds it on the first in the list
+  beforeEach(() => void vi.spyOn(Math, 'random').mockReturnValue(0));
+  afterEach(() => void vi.restoreAllMocks());
+
   it('pins one scene behind the page, hidden from screen readers, and loads only that scene', () => {
     const { container } = renderAt('/');
     const sky = container.querySelector('[data-test-id="cosmic-sky"]');
@@ -28,6 +32,14 @@ describe('the shared sky', () => {
     expect(caption).toHaveTextContent('घोड़ा · the horse');
     expect(caption).toHaveTextContent('मेष Aries');
     expect(container.querySelectorAll('.shooting-star')).toHaveLength(3);
+  });
+
+  it('moves the scene aside only on a form page', () => {
+    const { container } = renderAt('/signin/');
+    expect(container.querySelector('[data-test-id="sky-stage"]')?.className).toContain('sky-side');
+    expect(container.querySelector('[data-test-id="sky-page"]')?.className).toContain('sky-form-page');
+    const home = renderAt('/');
+    expect(home.container.querySelector('[data-test-id="sky-stage"]')?.className).not.toContain('sky-side');
   });
 
   it('keeps the same sky and image when moving to sign-in, and changes only the page', () => {
