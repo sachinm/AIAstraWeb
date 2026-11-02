@@ -31,8 +31,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
       icon: <Globe className="w-6 h-6 text-blue-400" />
     },
     {
-      title: "Harmonize Your Actions",
-      description: "Learn how planet placements, dasha systems and your yearly charts work together, so your actions move with the planetary energies that drive you.",
+      title: "Learn Your Chart",
+      description: "Learn how planet placements, dasha systems and your yearly charts fit together, and what the tradition says about the energies they describe.",
       icon: <Shield className="w-6 h-6 text-yellow-400" />
     },
     {
