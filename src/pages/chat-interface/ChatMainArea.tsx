@@ -449,9 +449,9 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         </div>
         )}
 
-        {/* phones: one short wrapped line, the full text is in the terms. Wider: three cells, the side ones stay narrow and wrap, so the middle keeps the room */}
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 px-2 text-center text-xs text-gray-400 sm:mt-1.5 sm:grid sm:grid-cols-[minmax(0,7rem)_minmax(0,1fr)_minmax(0,7rem)] sm:items-start sm:gap-3" data-test-id="chat-main-area-footer">
-          <div className="min-w-0">
+        {/* phones: one short wrapped line, the full text is in the terms. Wider: three cells; the side ones take only what their text needs and stay on one line, the middle takes the rest */}
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 px-2 text-center text-xs text-gray-400 sm:mt-1.5 sm:grid sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start sm:gap-3" data-test-id="chat-main-area-footer">
+          <div className="min-w-0 sm:whitespace-nowrap sm:text-left">
             {questionLocationStatus && (
               <p data-test-id="chat-main-area-question-location">
                 {(questionLocationStatus === 'granted' || questionLocationStatus === 'asking') && (
@@ -479,7 +479,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             <Disclaimer className="hidden sm:block" />
             <p className="sm:hidden">Education and entertainment only. Not advice.</p>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 sm:flex sm:items-center sm:justify-end sm:gap-x-3 sm:whitespace-nowrap">
             <p className="hidden sm:block" data-test-id="copyright-notice">© 2026. All rights reserved.</p>
             <LegalLinks />
           </div>
