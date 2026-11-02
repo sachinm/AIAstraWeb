@@ -10,7 +10,7 @@ const LINKS = [
 const LegalLinks: React.FC<{ className?: string }> = ({ className = '' }) => (
   <nav aria-label="Legal" className={`flex flex-wrap justify-center gap-x-3 text-xs text-gray-400 ${className}`}>
     {LINKS.map((l) => (
-      <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-white">
+      <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline underline-offset-2 hover:text-white sm:inline sm:min-h-0">
         {l.label}
       </a>
     ))}

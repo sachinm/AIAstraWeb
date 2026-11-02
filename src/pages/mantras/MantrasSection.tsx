@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Play, Pause, Volume2, Star, Sun, Moon, Zap } from 'lucide-react';
 import { fetchUserContent } from '../UserData';
+import LoadError from '../../components/LoadError';
 
 interface User {
   name: string;
@@ -15,12 +16,14 @@ const MantrasSection: React.FC<MantrasSectionProps> = ({ user }) => {
   const [apiData, setApiData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [playingMantra, setPlayingMantra] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await fetchUserContent();
         setApiData(data);
       } catch (err) {
@@ -31,7 +34,7 @@ const MantrasSection: React.FC<MantrasSectionProps> = ({ user }) => {
     };
 
     fetchData();
-  }, []);
+  }, [attempt]);
 
   if (loading) {
     return (
@@ -42,11 +45,7 @@ const MantrasSection: React.FC<MantrasSectionProps> = ({ user }) => {
   }
 
   if (error) {
-    return (
-      <div className="p-6 flex justify-center items-center h-64">
-        <div className="text-red-400 text-lg">Error: {error}</div>
-      </div>
-    );
+    return <LoadError detail={error} onRetry={() => setAttempt((a) => a + 1)} />;
   }
 
   if (!apiData) {

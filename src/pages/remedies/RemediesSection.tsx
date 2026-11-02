@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Gem, Flame, Droplets, Leaf, Sun, Moon, Star } from 'lucide-react';
 import { fetchUserContent } from '../UserData';
+import LoadError from '../../components/LoadError';
 
 interface User {
   name: string;
@@ -15,11 +16,13 @@ const RemediesSection: React.FC<RemediesSectionProps> = ({ user }) => {
   const [apiData, setApiData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await fetchUserContent();
         setApiData(data);
       } catch (err) {
@@ -30,7 +33,7 @@ const RemediesSection: React.FC<RemediesSectionProps> = ({ user }) => {
     };
 
     fetchData();
-  }, []);
+  }, [attempt]);
 
   if (loading) {
     return (
@@ -41,11 +44,7 @@ const RemediesSection: React.FC<RemediesSectionProps> = ({ user }) => {
   }
 
   if (error) {
-    return (
-      <div className="p-6 flex justify-center items-center h-64">
-        <div className="text-red-400 text-lg">Error: {error}</div>
-      </div>
-    );
+    return <LoadError detail={error} onRetry={() => setAttempt((a) => a + 1)} />;
   }
 
   if (!apiData) {

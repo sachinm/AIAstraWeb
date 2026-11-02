@@ -59,7 +59,9 @@ describe('PricingPage', () => {
     const unlimited = screen.getByRole('region', { name: 'Unlimited' });
     expect(within(unlimited).getByText('Unlimited questions')).toBeInTheDocument();
 
+    expect(screen.queryByText('2 months free')).not.toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Annual' }));
+    expect(screen.getAllByText('2 months free')).toHaveLength(2);
     expect(within(plus).getByText('$500 / year')).toBeInTheDocument();
     expect(within(unlimited).getByText('$2,000 / year')).toBeInTheDocument();
   });

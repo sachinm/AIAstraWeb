@@ -10,6 +10,7 @@ import type { ReadingProgress } from './readingProgress';
 import ReadingStagesPanel, { ReadingMadeLink } from './ReadingStagesPanel';
 import Disclaimer from '../../components/Disclaimer';
 import LegalLinks from '../../components/LegalLinks';
+import { QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
 import ClarifyCard from './ClarifyCard';
 import ThinkingPanel from './ThinkingPanel';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
@@ -363,6 +364,11 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             Listening...
           </p>
         )}
+        {questionLocationStatus === 'asking' && (
+          <p role="status" data-test-id="chat-main-area-location-note" className="mb-1.5 px-2 text-center text-xs text-purple-200">
+            {QUESTION_LOCATION_ASK_TEXT}
+          </p>
+        )}
         {inputBlockedCard ? (
           inputBlockedCard
         ) : (
@@ -374,11 +380,11 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder={INPUT_PLACEHOLDER}
-            className="block w-full min-h-[4rem] max-h-60 resize-none overflow-y-auto bg-white/10 border border-white/20 rounded-xl py-2 pl-3 pr-24 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300"
+            className="block w-full min-h-[4rem] max-h-60 resize-none overflow-y-auto bg-white/10 border border-white/20 rounded-xl py-2 pl-3 pr-28 sm:pr-24 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300"
             rows={2}
             disabled={inputDisabled}
           />
-          <div className="pointer-events-none absolute right-3 top-2">
+          <div className="pointer-events-none absolute right-3 top-2 hidden sm:block">
             <Star className="h-4 w-4 text-purple-400" />
           </div>
           {/* on the box's bottom row, below the star */}
@@ -389,7 +395,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                 data-test-id="chat-main-area-stop-listening-button"
                 onClick={onStopListening}
                 aria-label="Stop listening"
-                className="p-1.5 rounded-lg bg-red-500/90 hover:bg-red-500 text-white focus:outline-none focus:ring-2 focus:ring-red-400 transition-all"
+                className="flex h-11 w-11 items-center justify-center sm:h-auto sm:w-auto sm:p-1.5 rounded-lg bg-red-500/90 hover:bg-red-500 text-white focus:outline-none focus:ring-2 focus:ring-red-400 transition-all"
               >
                 <Square className="w-4 h-4 fill-current" />
               </button>
@@ -413,7 +419,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                       ? 'Microphone access denied; click to try again'
                       : 'Start voice input'
                 }
-                className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                className="flex h-11 w-11 items-center justify-center sm:h-auto sm:w-auto sm:p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
                 <Mic className="w-4 h-4" />
               </button>
@@ -424,7 +430,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
               onClick={onSend}
               disabled={!inputText.trim() || inputDisabled}
               aria-label="Send"
-              className="p-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              className="flex h-11 w-11 items-center justify-center sm:h-auto sm:w-auto sm:p-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -432,8 +438,8 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         </div>
         )}
 
-        {/* one row of three cells: the side cells stay narrow and wrap, so the middle keeps the room */}
-        <div className="mt-1.5 grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_minmax(0,7rem)] items-start gap-3 px-2 text-center text-xs text-gray-400" data-test-id="chat-main-area-footer">
+        {/* phones: one short wrapped line, the full text is in the terms. Wider: three cells, the side ones stay narrow and wrap, so the middle keeps the room */}
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 px-2 text-center text-xs text-gray-400 sm:mt-1.5 sm:grid sm:grid-cols-[minmax(0,7rem)_minmax(0,1fr)_minmax(0,7rem)] sm:items-start sm:gap-3" data-test-id="chat-main-area-footer">
           <div className="min-w-0">
             {questionLocationStatus && (
               <p data-test-id="chat-main-area-question-location">
@@ -449,7 +455,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                       type="button"
                       data-test-id="chat-main-area-question-location-change"
                       onClick={onChangeQuestionLocation}
-                      className="underline text-purple-300 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+                      className="inline-flex min-h-11 items-center underline text-purple-300 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded sm:inline sm:min-h-0"
                     >
                       {questionLocationStatus === 'granted' ? 'Change' : 'Use my location'}
                     </button>
@@ -459,10 +465,11 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             )}
           </div>
           <div className="min-w-0" data-test-id="chat-main-area-disclaimer">
-            <Disclaimer />
+            <Disclaimer className="hidden sm:block" />
+            <p className="sm:hidden">Education and entertainment only. Not advice.</p>
           </div>
           <div className="min-w-0">
-            <p data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+            <p className="hidden sm:block" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
             <LegalLinks />
           </div>
         </div>

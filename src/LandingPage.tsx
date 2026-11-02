@@ -3,7 +3,7 @@ import RegionSwitch from './components/RegionSwitch';
 import { useRegion } from './lib/region';
 import Disclaimer from './components/Disclaimer';
 import { PRODUCT_NAME, SUPPORT_EMAIL } from './lib/legal';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Star, Moon, Sun, Sparkles, ChevronDown, BookOpen, Globe, Shield, Users, ArrowRight, Check, Move3d } from 'lucide-react';
 
 interface LandingPageProps {
@@ -18,36 +18,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('principles');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const starsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsVisible(true);
-    
-    const handleScroll = () => {
-      setScrollPosition(window.scrollY);
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    if (starsRef.current) {
-      starsRef.current.style.transform = `translateY(${-scrollPosition * 0.2}px)`;
-    }
-  }, [scrollPosition]);
 
   const toggleFaq = (index: number) => {
     setActiveFaq(activeFaq === index ? null : index);
   };
-
-  const chakraImages = [
-    'https://images.pexels.com/photos/4056723/pexels-photo-4056723.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
-    'https://images.pexels.com/photos/6231351/pexels-photo-6231351.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
-    'https://images.pexels.com/photos/8134843/pexels-photo-8134843.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
-    'https://images.pexels.com/photos/5938553/pexels-photo-5938553.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop'
-  ];
 
   const vedicPrinciples = [
     {
@@ -93,40 +71,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden bg-gradient-to-b from-gray-900 via-indigo-900 to-gray-900">
-      {/* Floating Chakra Images */}
-      <div className="absolute inset-0 pointer-events-none">
-        {chakraImages.map((img, index) => (
-          <div
-            key={index}
-            className={`absolute opacity-20 rounded-full transition-all duration-1000 delay-${index * 200} ${
-              isVisible ? 'translate-y-0 opacity-20' : 'translate-y-10 opacity-0'
-            }`}
-            style={{
-              top: `${20 + (index * 20)}%`,
-              left: `${10 + (index * 20)}%`,
-              width: '80px',
-              height: '80px',
-              backgroundImage: `url('${img}')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              animation: `float ${3 + index}s ease-in-out infinite`
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Stars Background with Parallax Effect */}
-      <div 
-        ref={starsRef}
-        className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 pointer-events-none"
-        style={{ 
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          transition: 'transform 0.1s ease-out',
-          transform: `translateY(${-scrollPosition * 0.2}px)`
-        }}
-      />
-
       {/* Animated Shooting Stars */}
       <div className="fixed inset-0 pointer-events-none">
         {[...Array(3)].map((_, i) => (
@@ -248,10 +192,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
 
         {/* Parallax Scrolling Section */}
         <div className="relative h-[500px] rounded-2xl overflow-hidden my-20 border border-purple-400/30">
-          <div 
-            className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1534447677768-be436bb09401?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1790&q=80')] bg-cover bg-center"
-            style={{ transform: `translateY(${-scrollPosition * 0.3}px)` }}
-          />
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-purple-900/70 to-gray-900" />
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
             <h3 className="text-4xl font-bold mb-6 bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
@@ -486,7 +426,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignUp, onPricing
         </div>
       </footer>
 
-      <style jsx global>{`
+      <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }
