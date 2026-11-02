@@ -163,10 +163,9 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
           </button>
         </div>
 
-        <div className="bg-slate-950/60 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-white mb-2">Sign up</h2>
-            <p className="text-gray-300">Join AI AdAstra with your name and email. Birth details come next.</p>
+        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
+          <div className="text-center mb-4">
+            <h2 className="text-3xl font-bold text-white">Sign up</h2>
           </div>
 
           <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-6">
