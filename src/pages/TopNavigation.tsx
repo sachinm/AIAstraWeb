@@ -20,7 +20,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
     className="sticky top-0 z-50 w-screen shrink-0 border-b border-white/10 bg-black/45 backdrop-blur-md ml-[calc(50%-50vw)]"
     aria-label="Main"
   >
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       <div className="flex h-16 items-center justify-between gap-3">
         <Link to="/dashboard/chat" className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
           <Star className="w-8 h-8 text-purple-400" />
