@@ -98,6 +98,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
           </div>
         </div>
 
+        {/* Chart data */}
+        <section aria-labelledby="chart-records" className="max-w-3xl mx-auto mb-20 text-center bg-white/10 backdrop-blur-sm rounded-xl p-8 border border-white/20">
+          <h3 id="chart-records" className="text-3xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            About 9,500 records of astrological data for your chart
+          </h3>
+          <p className="text-lg text-gray-300 leading-relaxed">
+            Your divisional charts, dasha systems, strengths, annual charts and transits come to about 9,500 records of
+            astrological data, available for every chart. That is more than anyone can work through for every person, every
+            time. Each reading draws on the records that bear on your question, so every astrology enthusiast can explore
+            their own chart this way.
+          </p>
+        </section>
+
         {/* Vedic Principles */}
         <div id="vedic-principles" className={`py-16 transition-all duration-1000 delay-700 ${
           isVisible ? 'opacity-100' : 'opacity-0 translate-y-10'
