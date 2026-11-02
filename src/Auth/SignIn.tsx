@@ -174,7 +174,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
               <Star className="w-12 h-12 text-purple-400" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
-            <p className="text-gray-300">Sign in to AI Astra</p>
+            <p className="text-gray-300">Sign in to AI AdAstra</p>
           </div>
 
           {idleNotice && (

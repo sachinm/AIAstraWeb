@@ -195,7 +195,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
                 Birth Chart Analysis and AI Astrologer
               </h4>
               <p className="text-gray-300 leading-relaxed">
-                Your Rasi chart, Navamsa and planetary positions, computed from your birth details. Ask AI Astra about your chart whenever you like.
+                Your Rasi chart, Navamsa and planetary positions, computed from your birth details. Ask AI AdAstra about your chart whenever you like.
               </p>
             </div>
           </div>

@@ -111,7 +111,7 @@ describe('head tags', () => {
 
   it('a public page gets index/follow, canonical, Open Graph, Twitter and JSON-LD', () => {
     const tags = headTagsFor('/pricing', ORIGIN, HOST);
-    expect(find(tags, 'tag', 'title')?.text).toMatch(/^Pricing – AI Astra$/);
+    expect(find(tags, 'tag', 'title')?.text).toMatch(/^Pricing – AI AdAstra$/);
     expect(find(tags, '', 'robots')?.attrs.content).toMatch(/^index, follow/);
     expect(find(tags, '', 'canonical')?.attrs.href).toBe(`${SITE}/pricing`);
     expect(find(tags, '', 'og:url')?.attrs.content).toBe(`${SITE}/pricing`);
@@ -142,13 +142,13 @@ describe('head tags', () => {
     doc.head.appendChild(stale);
 
     applySeo(doc, '/terms', ORIGIN, HOST);
-    expect(doc.title).toBe('Terms of Service – AI Astra');
+    expect(doc.title).toBe('Terms of Service – AI AdAstra');
     expect(doc.head.querySelectorAll('meta[name="description"]').length).toBe(1);
     expect(doc.head.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`${SITE}/terms`);
     expect(doc.head.querySelector('meta[name="viewport"]')).toBe(keep);
 
     applySeo(doc, '/signin', ORIGIN, HOST);
-    expect(doc.title).toBe('Sign in – AI Astra');
+    expect(doc.title).toBe('Sign in – AI AdAstra');
     expect(doc.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, nofollow');
     expect(doc.head.querySelector('link[rel="canonical"]')).toBeNull();
     expect(doc.head.querySelectorAll('meta[name="description"]').length).toBe(1);
