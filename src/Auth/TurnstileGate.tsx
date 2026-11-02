@@ -14,11 +14,17 @@ const SLOW_AFTER_MS = 15_000;
 
 /**
  * The security check, kept inside the first screen. Cloudflare does not start checking a widget that sits below the fold, so
- * the widget lives in a full-screen "Getting things ready" overlay until it has a token, then shrinks to an unseen 1px box
- * that stays in view so the next check (a token is single use) runs by itself.
+ * the widget lives in a full-screen "Getting things ready" overlay until it has its first token, then shrinks to an unseen
+ * 1px box that stays in view so the next check (a token is single use) runs by itself, without the overlay.
  */
 const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
-  const waiting = turnstile.isEnabled && !turnstile.token;
+  // The overlay is for the first check only. A token is single use, so every request resets the widget; that second
+  // check runs unseen, and the page keeps showing what the first request did (for example the code field).
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    if (turnstile.token) setSeen(true);
+  }, [turnstile.token]);
+  const waiting = turnstile.isEnabled && !turnstile.token && !seen;
   const [slow, setSlow] = useState(false);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TurnstileGate from './TurnstileGate';
 
@@ -21,7 +21,10 @@ const state = (over: Record<string, unknown> = {}) =>
 
 describe('TurnstileGate', () => {
   beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   it('renders nothing when the check is not configured', () => {
     const { container } = render(<TurnstileGate turnstile={state({ isEnabled: false })} action="login" />);
@@ -33,6 +36,13 @@ describe('TurnstileGate', () => {
     expect(screen.getByText('Getting things ready…')).toBeInTheDocument();
     expect(document.querySelector('[data-test-id="turnstile-field"]')).not.toBeNull();
     rerender(<TurnstileGate turnstile={state({ token: 'abc' })} action="login" />);
+    expect(screen.queryByText('Getting things ready…')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-test-id="turnstile-field"]')).not.toBeNull();
+  });
+
+  it('does not bring the overlay back when the token is used up and the widget resets', () => {
+    const { rerender } = render(<TurnstileGate turnstile={state({ token: 'abc' })} action="register" />);
+    rerender(<TurnstileGate turnstile={state({ token: null })} action="register" />);
     expect(screen.queryByText('Getting things ready…')).not.toBeInTheDocument();
     expect(document.querySelector('[data-test-id="turnstile-field"]')).not.toBeNull();
   });
