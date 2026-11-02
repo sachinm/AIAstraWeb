@@ -14,7 +14,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:walkthrough": "playwright test --config e2e/playwright.config.ts"
+    "test:walkthrough": "playwright test --config e2e/playwright.config.ts",
+    "voice:testbed": "node testbed/voice/run.mjs",
+    "voice:testbed:live": "node testbed/voice/live.mjs"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.2",
