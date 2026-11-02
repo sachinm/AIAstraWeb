@@ -9,7 +9,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DEFAULT_OG_IMAGE, NOINDEX_PREFIXES, PUBLIC_PAGES, robotsContent } from './seoConfig';
+import { DEFAULT_OG_IMAGE, NOINDEX_PREFIXES, PRERENDERED_PRIVATE_PATHS, PUBLIC_PAGES, robotsContent } from './seoConfig';
 import { injectPage, prerenderFiles, renderHeadTags } from './prerenderHtml';
 
 const SITE = 'https://www.aiastra.example';
@@ -65,8 +65,9 @@ describe('prerendered public pages', () => {
     }
   });
 
-  it('writes nothing for the private prefixes, and 404.html stays the empty SPA shell', () => {
-    for (const prefix of NOINDEX_PREFIXES) {
+  it('writes nothing for the signed-in app, and 404.html stays the empty SPA shell', () => {
+    // sign-in and sign-up are the exception, prerendered for speed and still noindex (tested below)
+    for (const prefix of NOINDEX_PREFIXES.filter((x) => !PRERENDERED_PRIVATE_PATHS.includes(x))) {
       expect(existsSync(join(prod, prefix.slice(1))), prefix).toBe(false);
       expect(existsSync(join(prod, `${prefix.slice(1)}.html`)), prefix).toBe(false);
     }
@@ -86,6 +87,17 @@ describe('prerendered public pages', () => {
     }
     expect(read(staging, 'robots.txt')).toContain('Disallow: /\n');
     expect(existsSync(join(staging, 'sitemap.xml'))).toBe(false);
+  });
+
+  it('prerenders sign-in and sign-up, kept out of search, with the shared sky', () => {
+    for (const [file, title] of [['signin/index.html', 'Sign in'], ['signup/index.html', 'Sign up']]) {
+      const html = read(prod, file);
+      expect(metaContent(html, 'name', 'robots'), file).toBe(robotsContent(false));
+      expect(html, file).toContain(`<title>${title}`);
+      expect(html, file).toContain('data-test-id="cosmic-sky"');
+      expect(html, file).not.toContain('Discover Your Cosmic');
+    }
+    expect(read(prod, 'sitemap.xml')).not.toContain('signin');
   });
 
   it('is rewritten ahead of the SPA catch-all on Render and Netlify-style hosts', () => {

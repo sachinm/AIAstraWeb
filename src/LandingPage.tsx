@@ -1,7 +1,6 @@
 import { LANDING_FAQS } from './lib/landingFaqs';
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import ConstellationSky from './components/ConstellationSky';
 
 interface LandingPageProps {
   onSignUp: () => void;
@@ -11,25 +10,14 @@ const HEADING = 'text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pin
 const PRIMARY_BUTTON =
   'px-10 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-2xl';
 
-/** The front page: what it is, what it holds, common questions. The sky behind it comes from AppFrame. */
+/** The front page: what it is, what it holds, common questions. The scenes behind it come from SkyLayout. */
 const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   return (
     <div className="relative min-h-full text-white">
-      <ConstellationSky />
-      <div className="fixed inset-0 pointer-events-none" aria-hidden="true" data-test-id="shooting-stars">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="shooting-star absolute w-1 h-1 bg-white rounded-full opacity-0"
-            style={{ top: `${15 + i * 25}%`, left: '-5%', animationDuration: `${15 + i * 5}s`, animationDelay: `${i * 10}s` }}
-          />
-        ))}
-      </div>
       <div className="relative max-w-3xl mx-auto px-6 py-20">
-        {/* a soft dark pool behind the hero words, so they read over the star map */}
-        <div className="text-center mb-20 rounded-[3rem] bg-[radial-gradient(ellipse_at_center,rgba(11,10,31,0.8)_20%,rgba(11,10,31,0.35)_55%,transparent_75%)] px-4 py-10">
+        <div className="text-center mb-20">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
             Discover Your Cosmic Blueprint
           </h1>
