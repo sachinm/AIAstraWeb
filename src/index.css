@@ -44,8 +44,56 @@ body {
   }
 }
 
+/* The home page star map: stars breathe, the rulership lines flow, the planets pulse. */
+.sky-twinkle {
+  animation: skyTwinkle 4s ease-in-out infinite;
+}
+.sky-twinkle-1 {
+  animation-delay: -1.3s;
+  animation-duration: 5s;
+}
+.sky-twinkle-2 {
+  animation-delay: -2.6s;
+  animation-duration: 6.5s;
+}
+.sky-flow {
+  animation: skyFlow 6s linear infinite;
+}
+.sky-pulse {
+  animation: skyPulse 7s ease-in-out infinite;
+}
+
+@keyframes skyTwinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes skyFlow {
+  to {
+    stroke-dashoffset: -60;
+  }
+}
+
+@keyframes skyPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .shooting-star {
+  .shooting-star,
+  .sky-twinkle,
+  .sky-flow,
+  .sky-pulse {
     animation: none;
   }
 }
