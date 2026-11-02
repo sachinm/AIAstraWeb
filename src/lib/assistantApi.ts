@@ -1,4 +1,4 @@
-/** The public assistant and the visit log. No sign-in. See docs/assistant/01 in the server repo. */
+/** The visit log, and the question route the voice agent will use. No sign-in. See docs/assistant/02 in the server repo. */
 import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
 
