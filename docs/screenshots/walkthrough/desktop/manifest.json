@@ -5,7 +5,7 @@
       "step": "landing-top",
       "url": "/",
       "horizontalOverflowPx": 0,
-      "pageScrollable": true,
+      "pageScrollable": false,
       "consoleErrors": [],
       "failedRequests": []
     },
@@ -14,16 +14,16 @@
       "step": "landing-full",
       "url": "/",
       "horizontalOverflowPx": 0,
-      "pageScrollable": true,
+      "pageScrollable": false,
       "consoleErrors": [],
       "failedRequests": []
     },
     {
-      "file": "03-landing-india-selected.png",
-      "step": "landing-india-selected",
+      "file": "03-landing-chart-records.png",
+      "step": "landing-chart-records",
       "url": "/",
       "horizontalOverflowPx": 0,
-      "pageScrollable": true,
+      "pageScrollable": false,
       "consoleErrors": [],
       "failedRequests": []
     },
@@ -167,7 +167,7 @@
       "step": "pricing-signed-in",
       "url": "/pricing",
       "horizontalOverflowPx": 0,
-      "pageScrollable": true,
+      "pageScrollable": false,
       "consoleErrors": [],
       "failedRequests": []
     },
@@ -176,7 +176,7 @@
       "step": "pricing-choice-saved",
       "url": "/pricing",
       "horizontalOverflowPx": 0,
-      "pageScrollable": true,
+      "pageScrollable": false,
       "consoleErrors": [],
       "failedRequests": []
     },
