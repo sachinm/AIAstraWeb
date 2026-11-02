@@ -130,14 +130,14 @@ describe('SignIn (one page, email then code)', () => {
     expect(mockOnBack).toHaveBeenCalledTimes(1);
   });
 
-  it('has sign-up buttons, at the top and under the form, that call onSignUp', async () => {
+  it('has one sign-up prompt, under the heading, that calls onSignUp', async () => {
     const user = userEvent.setup();
     renderSignIn();
     const buttons = screen.getAllByRole('button', { name: /^sign up$/i });
-    expect(buttons).toHaveLength(2);
-    await user.click(buttons[0]);
-    await user.click(buttons[1]);
-    expect(mockOnSignUp).toHaveBeenCalledTimes(2);
+    expect(buttons).toHaveLength(1);
+    expect(screen.getByText(/don.t have an account\?/i)).toBeInTheDocument();
+    await user.click(buttons[0]!);
+    expect(mockOnSignUp).toHaveBeenCalledTimes(1);
   });
 
   it('does not send a code for an invalid email', async () => {
