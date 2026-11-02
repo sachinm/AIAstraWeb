@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Voice Testbed</title>
+<style>
+  :root { --bg:#10141c; --ink:#e6e9ef; --soft:#9aa3b2; --line:#2a3140; --live:#1f9d6b; --device:#d9902f; --tap:#c0453c }
+  * { box-sizing:border-box }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui,sans-serif }
+  h1 { font-size:20px; margin:0 0 4px }
+  button { background:#1b2230; color:var(--ink); border:1px solid var(--line); border-radius:4px; padding:6px 10px; margin:2px; cursor:pointer }
+  button:hover { border-color:var(--soft) }
+  #tier { font-size:18px; font-weight:600 }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px; margin-top:12px }
+  canvas { width:100%; height:80px; display:block; border:1px solid var(--line); border-radius:3px }
+  .now { color:var(--soft) }
+  #log { margin-top:12px; font-size:13px; max-height:240px; overflow:auto; border-top:1px solid var(--line); padding-top:6px; white-space:pre-wrap }
+</style>
+<h1>Voice testbed</h1>
+<p>Tier: <span id="tier">waiting</span> <span class="now" id="network"></span></p>
+<div>
+  <button data-p='{}'>Clear</button>
+  <button data-p='{"lossPct":5}'>Loss 5%</button>
+  <button data-p='{"lossPct":15}'>Loss 15%</button>
+  <button data-p='{"lossPct":30}'>Loss 30%</button>
+  <button data-p='{"delayMs":450}'>Latency 900 ms</button>
+  <button data-p='{"jitterMs":350}'>Jitter</button>
+  <button data-p='{"rateKbps":64}'>64 kbps</button>
+  <button data-p='{"rateKbps":24}'>24 kbps</button>
+  <button data-p='{"rateKbps":16}'>16 kbps</button>
+  <button data-p='{"blackout":true}'>Blackout</button>
+  <button data-a='{"fail":true}'>Answers fail</button>
+  <button data-a='{"delayMs":9000,"fail":false}'>Answers slow</button>
+  <button data-a='{"delayMs":0,"fail":false}'>Answers normal</button>
+</div>
+<div class="grid" id="charts"></div>
+<div id="log"></div>
+<script>
+  const METRICS = [['lossPct', 'Loss %', 10], ['jitterMs', 'Jitter ms', 60], ['rttMs', 'Round trip ms', 400], ['kbps', 'Bitrate kbps', 60], ['concealedPct', 'Concealed audio %', 10], ['bufferMs', 'Jitter buffer ms', 100]];
+  const COLOR = { live: '#1f9d6b', device: '#d9902f', tap: '#c0453c' };
+  const post = (u, b) => fetch(u, { method: 'POST', body: b });
+  document.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => post('/profile', b.dataset.p)));
+  document.querySelectorAll('[data-a]').forEach((b) => (b.onclick = () => post('/ask-mode', b.dataset.a)));
+  const box = document.getElementById('charts');
+  const canvases = METRICS.map(([key, label]) => {
+    const d = document.createElement('div');
+    d.innerHTML = `<div>${label} <span class="now" data-now></span></div><canvas width="560" height="160"></canvas>`;
+    box.append(d);
+    return { key, canvas: d.querySelector('canvas'), now: d.querySelector('[data-now]') };
+  });
+  const draw = (samples) => {
+    METRICS.forEach(([key, , ceiling], i) => {
+      const { canvas, now } = canvases[i];
+      const g = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      g.clearRect(0, 0, w, h);
+      const shown = samples.slice(-120);
+      const values = shown.map((e) => e.sample[key] ?? 0);
+      const top = Math.max(ceiling, ...values, 1);
+      const step = w / 120;
+      shown.forEach((e, n) => {
+        g.fillStyle = COLOR[e.tier] + '30';
+        g.fillRect(n * step, 0, step + 1, h);
+      });
+      g.strokeStyle = '#e6e9ef';
+      g.beginPath();
+      values.forEach((v, n) => g[n ? 'lineTo' : 'moveTo'](n * step, h - (v / top) * (h - 6)));
+      g.stroke();
+      now.textContent = values.length ? values[values.length - 1].toFixed(1) : '';
+    });
+  };
+  const line = (e) => {
+    const t = new Date(e.at).toLocaleTimeString();
+    if (e.type === 'tier') return `${t}  ${e.from} to ${e.tier} because ${e.reason}`;
+    if (e.type === 'answer') return `${t}  answered by ${e.tier} in ${e.ms} ms: ${e.question}`;
+    if (e.type === 'unanswered') return `${t}  told to try again: ${e.question}`;
+    if (e.type === 'speech') return `${t}  device voice (${e.outcome}): ${e.text}`;
+    if (e.type === 'connection') return `${t}  connection ${e.state}`;
+    return `${t}  ${e.text}`;
+  };
+  setInterval(async () => {
+    const s = await fetch('/state').then((r) => r.json());
+    const samples = s.events.filter((e) => e.type === 'sample');
+    draw(samples);
+    const latest = samples[samples.length - 1];
+    document.getElementById('tier').textContent = latest ? latest.tier : 'waiting';
+    document.getElementById('tier').style.color = latest ? COLOR[latest.tier] : '';
+    document.getElementById('network').textContent = `network ${JSON.stringify(s.profile)}, answers ${JSON.stringify(s.askMode)}`;
+    document.getElementById('log').textContent = s.events.filter((e) => e.type !== 'sample').slice(-60).reverse().map(line).join('\n');
+  }, 1000);
+</script>
+</html>

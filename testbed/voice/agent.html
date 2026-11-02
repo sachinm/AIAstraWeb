@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Voice testbed: agent</title>
+<audio id="heard" autoplay></audio>
+<script>
+  // The other end of the call. Sends audio from the browser's fake device, and answers questions over the data channel, standing
+  // in for the real worker: speech recognized on a server, checked, then spoken.
+  const pc = new RTCPeerConnection({ iceServers: [], bundlePolicy: 'max-bundle' });
+  const post = (message) => fetch('/signal/agent', { method: 'POST', body: JSON.stringify(message) }).catch(() => undefined);
+  pc.onicecandidate = (e) => e.candidate && post({ candidate: e.candidate.toJSON() });
+  pc.ontrack = (e) => {
+    document.getElementById('heard').srcObject = e.streams[0] ?? new MediaStream([e.track]);
+  };
+  pc.ondatachannel = (e) => {
+    const channel = e.channel;
+    channel.onmessage = async (m) => {
+      const { type, id, question } = JSON.parse(m.data);
+      if (type !== 'question') return;
+      const r = await fetch('/ask', { method: 'POST', body: JSON.stringify({ question }) }).catch(() => null);
+      const body = r && r.ok ? await r.json() : null;
+      if (body && channel.readyState === 'open') channel.send(JSON.stringify({ type: 'answer', id, answer: body.answer }));
+    };
+  };
+  let mic = null;
+  const poll = async () => {
+    const messages = await fetch('/signal/agent').then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    for (const m of messages) {
+      if (m.sdp) {
+        await pc.setRemoteDescription(m.sdp);
+        if (!mic) {
+          mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mic.getTracks().forEach((t) => pc.addTrack(t, mic));
+        }
+        await pc.setLocalDescription(await pc.createAnswer());
+        await post({ sdp: pc.localDescription.toJSON() });
+      }
+      if (m.candidate) await pc.addIceCandidate(m.candidate).catch(() => undefined);
+    }
+  };
+  window.agent = { pc };
+  setInterval(poll, 200);
+</script>
