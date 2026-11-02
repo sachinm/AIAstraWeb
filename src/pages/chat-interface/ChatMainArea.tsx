@@ -7,7 +7,7 @@ import { ShriGaneshAvatar } from '../../components/ShriGaneshAvatar';
 import { askWaitMessage } from './chatWaitCopy';
 import type { UiMessage } from './chatThreadUtils';
 import type { ReadingProgress } from './readingProgress';
-import ReadingStagesPanel, { ReadingMadeLink } from './ReadingStagesPanel';
+import ReadingStagesPanel from './ReadingStagesPanel';
 import Disclaimer from '../../components/Disclaimer';
 import LegalLinks from '../../components/LegalLinks';
 import { QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
@@ -258,9 +258,6 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                     ) : (
                       <p className="leading-relaxed">{message.text}</p>
                     )}
-                    {message.sender === 'ai' && !message.clarify && message.id !== streamingMessageId && (
-                      <ReadingMadeLink progress={message.progress} />
-                    )}
                     <p
                       className={`text-xs mt-2 ${
                         message.sender === 'user' ? 'text-blue-200' : 'text-gray-400'
@@ -307,6 +304,27 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             </div>
           </div>
         )}
+        {showQuickQuestions && (
+          <div className="pb-2" data-test-id="chat-main-area-quick-questions">
+            <h3 className="text-white font-medium mb-3 flex items-center">
+              <Sparkles className="w-4 h-4 text-purple-400 mr-2" />
+              Quick Questions to Get Started:
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {quickQuestions.map((question, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  data-test-id="chat-main-area-quick-question-button"
+                  onClick={() => setInputText(question)}
+                  className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all duration-300 text-sm"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div ref={endRef} data-test-id="chat-main-area-end" />
         {hasNewBelow && (
           <button
@@ -324,27 +342,6 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         )}
       </div>
 
-      {showQuickQuestions && (
-        <div className="px-4 pb-4" data-test-id="chat-main-area-quick-questions">
-          <h3 className="text-white font-medium mb-3 flex items-center">
-            <Sparkles className="w-4 h-4 text-purple-400 mr-2" />
-            Quick Questions to Get Started:
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {quickQuestions.map((question, index) => (
-              <button
-                key={index}
-                type="button"
-                data-test-id="chat-main-area-quick-question-button"
-                onClick={() => setInputText(question)}
-                className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all duration-300 text-sm"
-              >
-                {question}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       </div>
       {rightPanel}

@@ -3,7 +3,7 @@ vi.mock('../pages/TopNavigation', () => ({ default: () => null }));
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import Disclaimer, { DISCLAIMER_TEXT } from './Disclaimer';
+import Disclaimer, { DISCLAIMER_LINE_1, DISCLAIMER_TEXT } from './Disclaimer';
 import Dashboard from '../pages/Dashboard';
 
 const user = { name: 'A', email: 'a@b.c', age: 30, dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' };
@@ -31,10 +31,10 @@ describe('Disclaimer', () => {
   });
   it('appears in the dashboard footer on dashboard pages', () => {
     renderAt('/dashboard/charts');
-    expect(screen.getByText(DISCLAIMER_TEXT)).toBeInTheDocument();
+    expect(screen.getByText(DISCLAIMER_LINE_1)).toBeInTheDocument();
   });
   it('is left to the chat page itself on the chat route (shown under the input there)', () => {
     renderAt('/dashboard/chat');
-    expect(screen.queryByText(DISCLAIMER_TEXT)).not.toBeInTheDocument();
+    expect(screen.queryByText(DISCLAIMER_LINE_1)).not.toBeInTheDocument();
   });
 });
