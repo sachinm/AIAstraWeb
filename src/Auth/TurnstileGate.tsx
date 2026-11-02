@@ -52,7 +52,7 @@ const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
           <div role="status" aria-live="polite" data-test-id="turnstile-waiting">
             <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-purple-300 border-t-transparent" />
             <p className="font-semibold text-white">Getting things ready…</p>
-            <p className="mt-1 text-sm text-gray-300">We are checking that you are a person. This takes a moment, and the page opens by itself.</p>
+            <p className="mt-1 text-sm text-gray-300">We are checking that you are a person. This takes a moment.</p>
             {(turnstile.error || slow) && (
               <div className="mt-3">
                 <p role="alert" className="text-sm text-red-300">
