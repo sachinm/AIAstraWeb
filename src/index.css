@@ -65,7 +65,8 @@ body {
   animation: skyBloom 3s ease-in-out both;
 }
 .sky-drift {
-  animation: skyDrift 16s linear both;
+  /* a little longer than a scene holds, so the slow move never stops on screen */
+  animation: skyDrift 125s linear both;
 }
 .sky-caption {
   animation: skyCaption 1.5s ease-out 1.5s both;
@@ -114,6 +115,11 @@ body {
     transform: scale(1.09);
   }
 }
+@keyframes skyFadeOut {
+  to {
+    opacity: 0;
+  }
+}
 @keyframes skyCaption {
   from {
     opacity: 0;
@@ -125,12 +131,18 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .shooting-star,
-  .sky-in,
-  .sky-out,
   .sky-bloom,
   .sky-drift,
-  .sky-caption,
   .sky-page {
     animation: none;
+  }
+  /* still changes scene, as a plain crossfade with no reveal or drift */
+  .sky-in {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: skyCaption 3s ease-in-out both;
+  }
+  .sky-out {
+    animation: skyFadeOut 3s ease-in-out both;
   }
 }

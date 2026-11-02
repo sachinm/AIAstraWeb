@@ -14,12 +14,10 @@ interface Stage {
   turn: number;
 }
 
-const reducedMotion = (): boolean => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /**
  * The home page background: one full-screen scene at a time, pinned while the page scrolls over it, in an endless loop
  * of random order, each scene once per round. Each one blooms in from a random corner while the last dissolves toward
- * another. Only the current and next images are ever loaded. With reduced motion on, the first scene stays still.
+ * another. Only the current and next images are ever loaded. With reduced motion on the scenes still change, by a plain crossfade with no movement (index.css): many Windows PCs have that setting on, and freezing left them on one scene.
  */
 const CosmicSky: React.FC = () => {
   const [stage, setStage] = useState<Stage>({ current: 0, previous: null, from: null, to: null, turn: 0 });
@@ -27,7 +25,6 @@ const CosmicSky: React.FC = () => {
   const roundRef = useRef<number[]>([]);
 
   useEffect(() => {
-    if (reducedMotion()) return undefined;
     let cancelled = false;
     let clearOld: ReturnType<typeof setTimeout> | undefined;
 
