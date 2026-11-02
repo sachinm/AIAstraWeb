@@ -139,7 +139,7 @@ describe('SignIn (one page, email then code)', () => {
     const buttons = screen.getAllByRole('button', { name: /^sign up$/i });
     expect(buttons).toHaveLength(1);
     expect(buttons[0]!.closest('form')).toBeNull();
-    expect(buttons[0]!.closest('.backdrop-blur-md')).toBeNull();
+    expect(buttons[0]!.closest('.backdrop-blur-sm')).toBeNull();
     await user.click(buttons[0]!);
     expect(mockOnSignUp).toHaveBeenCalledTimes(1);
   });

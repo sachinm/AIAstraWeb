@@ -190,7 +190,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
           </button>
         </div>
 
-        <div className="bg-slate-950/60 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-white/20 shadow-2xl">
+        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-white/20 shadow-2xl">
           <h2 className="sr-only">Sign in</h2>
 
           {idleNotice && (
