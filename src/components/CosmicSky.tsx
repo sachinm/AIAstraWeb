@@ -71,7 +71,7 @@ const CosmicSky: React.FC<{ side?: boolean }> = ({ side = false }) => {
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true" data-test-id="cosmic-sky">
       {/* on a wide screen a form page moves the scene aside, so the form does not sit on the figure (index.css) */}
-      <div className={`sky-stage absolute inset-0${side ? ' sky-side' : ''}`} data-test-id="sky-stage">
+      <div className={`sky-stage absolute${side ? ' sky-side' : ''}`} data-test-id="sky-stage">
       {layers.map((index) => {
         const leaving = index === previous;
         const style = leaving && to
