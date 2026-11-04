@@ -146,7 +146,6 @@ body {
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
   }
-  .sky-clear,
   .sky-form-page > div {
     padding-top: 46vw;
   }
@@ -160,31 +159,176 @@ body {
   }
 }
 
-/* A short screen (small phone, or any phone on its side): a tighter hero, so its button is on the first screen. */
-@media (max-height: 720px) {
-  .sky-clear > :first-child {
-    margin-bottom: 2rem;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+/*
+ * The home page's parchment scrolls. An open one sits beside the scene, its middle at 66% of the page's height, and is never taller
+ * than fits around that point, so it never runs off the page. Its own words scroll if a screen is too short.
+ */
+.parchment {
+  position: absolute;
+  z-index: 20;
+  top: 66%;
+  width: min(27rem, calc(100% - 2rem));
+  max-height: calc(68% - 2rem);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1.75rem 1.75rem;
+  color: #3b2410;
+  background:
+    radial-gradient(ellipse at 20% 15%, rgba(255, 250, 230, 0.9), transparent 55%),
+    radial-gradient(ellipse at 85% 90%, rgba(196, 150, 84, 0.35), transparent 60%),
+    linear-gradient(170deg, #f6e9c6, #ead6a4 55%, #e2c88e);
+  border-left: 1px solid rgba(120, 78, 30, 0.35);
+  border-right: 1px solid rgba(120, 78, 30, 0.35);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.55),
+    inset 0 0 40px rgba(140, 95, 40, 0.28);
+  transform-origin: center;
+  transition:
+    transform 0.55s cubic-bezier(0.3, 0.9, 0.3, 1),
+    opacity 0.4s ease,
+    visibility 0s linear 0s;
+}
+/* the wooden rods the paper rolls onto */
+.parchment::before,
+.parchment::after {
+  content: '';
+  position: absolute;
+  left: -0.6rem;
+  right: -0.6rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, #d49a55, #9a6430 55%, #6b4220);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.parchment::before {
+  top: -0.45rem;
+}
+.parchment::after {
+  bottom: -0.45rem;
+}
+.parchment:focus {
+  outline: none;
+}
+.parchment-body {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.scroll-side-left {
+  left: 1rem;
+}
+.scroll-side-right {
+  right: 1rem;
+}
+.parchment-open {
+  transform: translateY(-50%) scaleY(1);
+  opacity: 1;
+  visibility: visible;
+}
+/* rolled up: out of sight and out of reach, but its words stay in the page for search */
+.parchment-closed {
+  transform: translateY(-50%) scaleY(0.04);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 0.45s ease-in,
+    opacity 0.35s ease-in 0.1s,
+    visibility 0s linear 0.45s;
+}
+/* a phone has no side to spare, so a scroll takes the width */
+@media (max-width: 639px) {
+  .scroll-side-left,
+  .scroll-side-right {
+    left: 1rem;
+    right: auto;
   }
-  .sky-clear h1 {
+  .parchment {
+    padding: 1.75rem 1.25rem 1.25rem;
+  }
+}
+
+/* a phone on its side leaves a strip of page, too short for the 66% rule: a scroll uses the whole strip, in smaller type */
+@media (max-height: 520px) {
+  .parchment {
+    top: 50%;
+    max-height: calc(100% - 1.25rem);
+    padding: 1.1rem 1.25rem 0.9rem;
+  }
+  .parchment h1 {
     margin-bottom: 0.5rem;
-    font-size: 1.875rem;
-    line-height: 1.15;
+    font-size: 1.6rem;
   }
-  .sky-clear > :first-child p {
-    margin-bottom: 1rem;
-    font-size: 0.9375rem;
+  .parchment h2 {
+    margin-bottom: 0.35rem;
+    font-size: 1.15rem;
+  }
+  .parchment p {
+    font-size: 0.95rem;
     line-height: 1.4;
   }
-  .sky-clear > :first-child button {
-    padding: 0.625rem 1.75rem;
+  .parchment button.px-8 {
+    padding: 0.5rem 1.5rem;
     font-size: 1rem;
   }
 }
-@media (max-height: 720px) and (orientation: landscape) {
-  .sky-clear {
-    padding-top: 0.75rem;
+
+.scroll-icon {
+  filter: drop-shadow(0 0 6px rgba(255, 210, 140, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+  animation: scrollFloat 4.4s ease-in-out infinite;
+}
+.scroll-icon:hover,
+.scroll-icon:focus-visible,
+.scroll-icon-open {
+  filter: drop-shadow(0 0 12px rgba(255, 215, 150, 0.95)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+}
+.scroll-label {
+  position: absolute;
+  white-space: nowrap;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.375rem;
+  background: rgba(20, 12, 4, 0.85);
+  color: #fbecc8;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.scroll-icon:hover .scroll-label,
+.scroll-icon:focus-visible .scroll-label {
+  opacity: 1;
+}
+.scroll-label-top {
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 0.35rem);
+}
+.scroll-label-bottom {
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -0.35rem);
+}
+.scroll-label-left {
+  left: 100%;
+  top: 50%;
+  transform: translate(0.35rem, -50%);
+}
+.scroll-label-right {
+  right: 100%;
+  top: 50%;
+  transform: translate(-0.35rem, -50%);
+}
+@keyframes scrollFloat {
+  0%,
+  100% {
+    margin-top: 0;
+  }
+  50% {
+    margin-top: -4px;
   }
 }
 
@@ -225,8 +369,17 @@ body {
   .shooting-star,
   .sky-bloom,
   .sky-drift,
-  .sky-page {
+  .sky-page,
+  .scroll-icon {
     animation: none;
+  }
+  /* scrolls appear and go, with no unrolling */
+  .parchment,
+  .parchment-closed {
+    transition: none;
+  }
+  .parchment-closed {
+    transform: translateY(-50%);
   }
   /* still changes scene, as a plain crossfade with no reveal or drift */
   .sky-in {

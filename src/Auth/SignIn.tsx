@@ -169,8 +169,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   );
 
   return (
-    // Pinned from the top, not centred: a centred card jumps up when the code field appears, which reads as a reload.
-    <div className="min-h-full flex items-start justify-center px-6 pt-3 pb-6">
+    // Centred on the screen by default (Sachin, 2026-11-02). The card grows a little when the code field appears.
+    <div className="min-h-full flex items-center justify-center px-6 py-6">
       <div className="w-full max-w-3xl">
         <div className="flex items-center justify-between mb-4">
         <button
@@ -190,11 +190,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
           </button>
         </div>
 
-        <div className="bg-slate-950/60 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
-            <p className="text-gray-300">Sign in to AI AdAstra</p>
-          </div>
+        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-white/20 shadow-2xl">
+          <h2 className="sr-only">Sign in</h2>
 
           {idleNotice && (
             <div className="bg-amber-500/20 border border-amber-500/30 text-amber-200 px-4 py-3 rounded-lg mb-6">

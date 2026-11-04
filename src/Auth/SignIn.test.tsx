@@ -30,7 +30,10 @@ describe('SignIn (one page, email then code)', () => {
 
   it('renders the email field and "Send me a code" with no password field and no code field yet', () => {
     renderSignIn();
-    expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^sign in$/i })).toBeInTheDocument(); // screen readers only
+    expect(screen.queryByText(/welcome back/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sign in to ai adastra/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/don.t have an account/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send me a code/i })).toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
@@ -136,7 +139,7 @@ describe('SignIn (one page, email then code)', () => {
     const buttons = screen.getAllByRole('button', { name: /^sign up$/i });
     expect(buttons).toHaveLength(1);
     expect(buttons[0]!.closest('form')).toBeNull();
-    expect(buttons[0]!.closest('.backdrop-blur-md')).toBeNull();
+    expect(buttons[0]!.closest('.backdrop-blur-sm')).toBeNull();
     await user.click(buttons[0]!);
     expect(mockOnSignUp).toHaveBeenCalledTimes(1);
   });
