@@ -12,6 +12,8 @@ export const DEFAULT_DESCRIPTION =
   'Your personal Vedic astrology assistant. Ask about your birth chart, kundli and dasha, mastered on the ancient texts unabridged and the celestial sky.';
 /** Served from /public: 1200x630, made by scripts/generate-og-image.mjs. */
 export const DEFAULT_OG_IMAGE = '/images/og-aiastra.png';
+/** What the share picture says, for screen readers and for crawlers that read an image's alt. */
+export const SHARE_IMAGE_ALT = `${PRODUCT_NAME} – Your Personal Vedic Astrology Assistant`;
 export const DEFAULT_LOCALE = 'en_US';
 
 /** One tag for `<head>`, as data: `headTagsFor()` makes them, the browser and the prerender each write them. */
@@ -187,6 +189,7 @@ export function jsonLdFor(siteUrl: string, pathname: string): JsonLd[] {
     '@type': 'Organization',
     '@id': `${base}/#organization`,
     name: PRODUCT_NAME,
+    slogan: 'Your Personal Vedic Astrology Assistant',
     url: `${base}/`,
     logo: `${base}${DEFAULT_OG_IMAGE}`,
   };
@@ -194,6 +197,7 @@ export function jsonLdFor(siteUrl: string, pathname: string): JsonLd[] {
     '@type': 'WebSite',
     '@id': `${base}/#website`,
     name: PRODUCT_NAME,
+    alternateName: `${PRODUCT_NAME} – Your Personal Vedic Astrology Assistant`,
     url: `${base}/`,
     inLanguage: 'en',
     publisher: { '@id': `${base}/#organization` },

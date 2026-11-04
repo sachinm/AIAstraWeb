@@ -293,7 +293,7 @@ body {
 .scroll-label {
   position: absolute;
   white-space: nowrap;
-  max-width: 16rem;
+  max-width: min(16rem, 48vw);
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 0.2rem 0.55rem;
