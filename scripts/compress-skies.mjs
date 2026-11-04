@@ -63,10 +63,10 @@ for (const name of readdirSync(inDir).filter((f) => f.endsWith('.png'))) {
       out.shadowBlur = 4;
       out.font = '600 24px Georgia, serif';
       out.textAlign = 'right';
-      out.fillText('AI AdAstra', canvas.width - 28, canvas.height - 26);
+      out.fillText('AdAstra AI', canvas.width - 28, canvas.height - 26);
       out.textAlign = 'center';
       out.fillStyle = 'rgba(255, 255, 255, 0.24)';
-      out.fillText('AI AdAstra', canvas.width / 2, Math.round(canvas.height * 0.78));
+      out.fillText('AdAstra AI', canvas.width / 2, Math.round(canvas.height * 0.78));
       return canvas.toDataURL('image/webp', quality);
     },
     { src, width: WIDTH, quality: QUALITY }

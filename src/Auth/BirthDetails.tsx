@@ -240,7 +240,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
               )}
             </button>
           </form>
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">Copyright © 2026. All rights reserved.</p>
+          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">© 2026 AdAstra AI (vedic-astrology.app). All rights reserved.</p>
         </div>
       </div>
     </div>

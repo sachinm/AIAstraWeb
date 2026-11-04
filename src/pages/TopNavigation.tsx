@@ -25,7 +25,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
         <Link to="/dashboard/chat" className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
           <Star className="w-8 h-8 text-purple-400" />
           <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            AI AdAstra
+            AdAstra AI
           </h1>
         </Link>
 

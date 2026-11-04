@@ -17,7 +17,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.VOICE_TESTBED_OUT || HERE;
 
 const MAX_STALL_MS = 500;
-const Q = ['What can AI AdAstra help with?', 'Can you read my birth chart?', 'Is there a free plan?', 'Can you answer questions about illness?'];
+const Q = ['What can AdAstra AI help with?', 'Can you read my birth chart?', 'Is there a free plan?', 'Can you answer questions about illness?'];
 
 const samples = (r, from = 0, to = Infinity) => r.events.filter((e) => e.type === 'sample' && e.sample.at - r.t0 >= from * 1000 && e.sample.at - r.t0 < to * 1000).map((e) => e.sample);
 const tiers = (r) => r.events.filter((e) => e.type === 'tier');

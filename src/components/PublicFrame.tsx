@@ -64,7 +64,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
         <div className="w-full">
           <div className="flex items-center justify-between gap-x-3 sm:flex-wrap sm:gap-x-6">
             <p className="shrink-0 py-1 text-xs text-gray-400" data-test-id="copyright-notice">
-              &copy; 2026 {PRODUCT_NAME}<span className="hidden sm:inline">. All rights reserved.</span>
+              &copy; 2026 {PRODUCT_NAME} (vedic-astrology.app)<span className="hidden sm:inline">. All rights reserved.</span>
             </p>
             <div className="flex flex-wrap items-center gap-x-3">
               <LegalLinks />

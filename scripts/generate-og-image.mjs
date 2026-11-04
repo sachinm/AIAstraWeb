@@ -27,7 +27,7 @@ const svg = `
     <path fill="url(#g)" d="M32 8l5.8 15.9L54 30l-16.2 6.1L32 52l-5.8-15.9L10 30l16.2-6.1z"/>
   </g>
   <g font-family="Segoe UI, Helvetica, Arial, sans-serif" fill="#ffffff">
-    <text x="540" y="290" font-size="112" font-weight="700">AI AdAstra</text>
+    <text x="540" y="290" font-size="112" font-weight="700">AdAstra AI</text>
     <text x="544" y="370" font-size="38" fill="#d1d5db">Vedic astrology readings</text>
     <text x="544" y="420" font-size="38" fill="#d1d5db">from your birth chart</text>
   </g>

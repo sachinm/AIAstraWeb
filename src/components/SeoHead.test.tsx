@@ -19,13 +19,13 @@ const robots = () => document.head.querySelector('meta[name="robots"]')?.getAttr
 describe('SeoHead', () => {
   it('sets the title and robots for the route it is rendered on', () => {
     renderAt('/signup');
-    expect(document.title).toBe('Sign up – AI AdAstra');
+    expect(document.title).toBe('Sign up – AdAstra AI');
     expect(robots()).toBe('noindex, nofollow');
   });
   it('a public route on the jsdom localhost host is still noindex (never index a local build)', () => {
     renderAt('/pricing');
-    expect(document.title).toBe('Pricing – AI AdAstra');
+    expect(document.title).toBe('Pricing – AdAstra AI');
     expect(robots()).toBe('noindex, nofollow');
-    expect(document.head.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe('Pricing – AI AdAstra');
+    expect(document.head.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe('Pricing – AdAstra AI');
   });
 });

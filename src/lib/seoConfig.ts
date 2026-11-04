@@ -7,7 +7,7 @@
  */
 import { LANDING_FAQS } from './landingFaqs';
 
-export const PRODUCT_NAME = 'AI AdAstra';
+export const PRODUCT_NAME = 'AdAstra AI';
 export const DEFAULT_DESCRIPTION =
   'Your personal Vedic astrology assistant. Ask about your birth chart, kundli and dasha, mastered on the ancient texts unabridged and the celestial sky.';
 /** Served from /public: 1200x630, made by scripts/generate-og-image.mjs. */
