@@ -79,9 +79,10 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
 
     setLoading(true);
     try {
-      const turnstileToken = turnstile.requireToken();
+      // a fast autofill submit can come before the check has finished: wait for it, then carry on
+      const turnstileToken = await turnstile.waitForToken();
       if (turnstile.isEnabled && !turnstileToken) {
-        setError('Please complete the security check before continuing.');
+        setError('The security check did not finish. Please try again.');
         return;
       }
       const r = await startSignup({ name, email, turnstileToken });

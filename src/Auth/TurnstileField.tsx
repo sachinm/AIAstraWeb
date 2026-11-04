@@ -9,6 +9,9 @@ interface TurnstileFieldProps {
   onExpire?: () => void;
   onError?: () => void;
   onRegisterReset?: (reset: () => void) => void;
+  /** Cloudflare is about to ask the person to click, and stops asking */
+  onBeforeInteractive?: () => void;
+  onAfterInteractive?: () => void;
   /** Draw the widget only when Cloudflare needs the person to act, so a reset does not visibly redraw the page. */
   quiet?: boolean;
 }
@@ -21,6 +24,8 @@ const TurnstileField: React.FC<TurnstileFieldProps> = ({
   onExpire,
   onError,
   onRegisterReset,
+  onBeforeInteractive,
+  onAfterInteractive,
   quiet = false,
 }) => {
   const ref = useRef<TurnstileInstance>(null);
@@ -48,6 +53,8 @@ const TurnstileField: React.FC<TurnstileFieldProps> = ({
           onSuccess(token);
         }}
         onExpire={onExpire}
+        onBeforeInteractive={onBeforeInteractive}
+        onAfterInteractive={onAfterInteractive}
         onError={() => {
           setLoaded(true);
           onError?.();
