@@ -341,17 +341,40 @@ body {
 }
 
 /*
- * A wide screen has room beside the scene: the form takes a left column and the scene moves right, its left edge fading
- * into the starfield, so the figure stays in view. It glides back on the way to the home page.
+ * A wide screen has room beside the form: the form takes a left column, and the whole scene shrinks into the space to its
+ * right, edge to edge, so nothing in it is cut off (all seven of Surya's horses, the whale's mouth). Its edges fade into the
+ * starfield. It glides back to full screen on the way to the home page.
  */
 .sky-stage {
-  transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition:
+    top 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 @media (orientation: landscape) and (min-width: 700px) {
   .sky-side {
-    transform: translateX(22%);
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 24%);
-    mask-image: linear-gradient(to right, transparent, #000 24%);
+    --sky-form-edge: calc(clamp(1.5rem, 5vw, 6rem) + 27rem + 1rem);
+    /* the box keeps the scenes' own 16:9 shape, as large as fits beside the form, so the cover crop has nothing to cut */
+    left: var(--sky-form-edge);
+    width: min(calc(100vw - var(--sky-form-edge)), calc(100dvh * 16 / 9));
+    height: min(100dvh, calc((100vw - var(--sky-form-edge)) * 9 / 16));
+    top: calc((100dvh - min(100dvh, calc((100vw - var(--sky-form-edge)) * 9 / 16))) / 2);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
+    mask-composite: intersect;
+  }
+  /* the slow zoom would crop the edges again, and some scenes are not quite 16:9, so the whole picture is fitted, not filled */
+  .sky-side .sky-drift {
+    animation: none;
+  }
+  .sky-side .sky-image {
+    object-fit: contain;
   }
   .sky-form-page > div {
     justify-content: flex-start;
