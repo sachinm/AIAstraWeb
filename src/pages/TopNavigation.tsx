@@ -28,8 +28,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
           <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             AdAstra AI
           </h1>
-          <span className="hidden xl:inline bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-sm text-transparent" data-test-id="header-tagline">
-            – {PRODUCT_TAGLINE}
+          <span className="hidden xl:inline self-center ml-1 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-sm text-transparent" data-test-id="header-tagline">
+            {PRODUCT_TAGLINE}
           </span>
         </Link>
 

@@ -40,10 +40,9 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
             <Link to="/" className="flex min-w-0 items-center gap-2" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`}>
               <Star className="h-7 w-7 shrink-0 text-purple-400" aria-hidden="true" />
               {/* The tagline sits under the name on phones and beside it from tablet width up. */}
-              <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent md:flex-row md:items-baseline md:gap-2">
+              <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent md:flex-row md:items-center md:gap-3">
                 <span className="text-2xl font-bold leading-tight">{PRODUCT_NAME}</span>
                 <span className="text-[11px] leading-tight md:text-sm" data-test-id="header-tagline">
-                  <span className="hidden md:inline" aria-hidden="true">– </span>
                   {PRODUCT_TAGLINE}
                 </span>
               </span>
