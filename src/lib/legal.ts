@@ -2,4 +2,4 @@
 export const PRODUCT_NAME = 'AI AdAstra';
 export const LEGAL_ENTITY = (import.meta.env.VITE_LEGAL_ENTITY as string | undefined)?.trim() || `the operator of ${PRODUCT_NAME}`;
 export const SUPPORT_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string | undefined)?.trim() || '';
-export const LEGAL_UPDATED = '1 November 2026';
+export const LEGAL_UPDATED = '2 November 2026';

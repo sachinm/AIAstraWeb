@@ -95,6 +95,7 @@ describe('prerendered public pages', () => {
       expect(metaContent(html, 'name', 'robots'), file).toBe(robotsContent(false));
       expect(html, file).toContain(`<title>${title}`);
       expect(html, file).toContain('data-test-id="cosmic-sky"');
+      expect(html, file).not.toContain('/skies/');
       expect(html, file).not.toContain('Discover Your Cosmic');
     }
     expect(read(prod, 'sitemap.xml')).not.toContain('signin');

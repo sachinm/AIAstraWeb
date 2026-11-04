@@ -152,7 +152,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:px-6">
+    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-6 sm:px-6">
       {loading && (
         <div
           role="status"

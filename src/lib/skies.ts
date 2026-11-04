@@ -90,6 +90,11 @@ export const SKY_SCENES: SkyScene[] = (() => {
 
 export const skySrc = (id: string): string => `/skies/${id}.webp`;
 
+/** Any scene, for the first one a visitor sees. `random` returns 0 to <1. */
+export function randomScene(count: number = SKY_SCENES.length, random: () => number = Math.random): number {
+  return Math.floor(random() * count) % count;
+}
+
 /**
  * Every scene once, in random order, for the next round. `last` is the scene on screen, which never plays first, so the
  * same scene cannot show twice in a row across rounds. `random` returns 0 to <1.

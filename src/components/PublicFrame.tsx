@@ -3,10 +3,13 @@ import { ArrowRight, Star } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Disclaimer, { DISCLAIMER_SHORT } from './Disclaimer';
 import LegalLinks from './LegalLinks';
+import { logVisit } from '../lib/assistantApi';
 import { PRODUCT_NAME, SUPPORT_EMAIL } from '../lib/legal';
 
 /** Sign-up and sign-in have their own switch between the two, so the header does not repeat it. */
-const NO_CTA_PATHS = ['/signin', '/signup'];
+const NO_CTA_PATHS = ['/signin', '/signup', '/signup/details'];
+/** The visit log is for visitors on the public pages, not someone signing in or already filling in their details. */
+const NO_VISIT_LOG_PATHS = ['/signin', '/signup/details'];
 
 interface PublicFrameProps {
   children: React.ReactNode;
@@ -17,12 +20,17 @@ interface PublicFrameProps {
 /** Every public page: header and footer stay at the top and bottom of the viewport, and only the middle scrolls. */
 const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
   const { pathname } = useLocation();
+  const path = pathname.replace(/\/+$/, '');
   const scroller = useRef<HTMLElement>(null);
 
   // The scroller outlives a route change, so a new page would otherwise open part way down.
   useEffect(() => {
     scroller.current?.scrollTo?.({ top: 0 });
   }, [pathname]);
+
+  useEffect(() => {
+    if (!nav && !NO_VISIT_LOG_PATHS.includes(path)) void logVisit();
+  }, [nav, path]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden text-white">
@@ -35,7 +43,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
                 {PRODUCT_NAME}
               </span>
             </Link>
-            {!NO_CTA_PATHS.includes(pathname) && (
+            {!NO_CTA_PATHS.includes(path) && (
               <Link
                 to="/signup"
                 className="group flex items-center rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2 text-white transition-all duration-300 hover:from-purple-700 hover:to-pink-700"
