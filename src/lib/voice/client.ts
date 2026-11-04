@@ -47,9 +47,9 @@ export const RETRY_LINE = "Sorry, that didn't reach me. Please try again.";
 
 /** With no connection these are all it can say: nothing about any chart, and nothing that goes out of date. */
 export const TAP_ANSWERS: ReadonlyArray<{ question: string; answer: string }> = [
-  { question: 'What can AI AdAstra help with?', answer: "With your birth details, readings can look at career, study, relationships, home, and the timing of life's chapters. It is for education and entertainment." },
+  { question: 'What can AdAstra AI help with?', answer: "With your birth details, readings can look at career, study, relationships, home, and the timing of life's chapters. It is for education and entertainment." },
   { question: 'Can you read my birth chart?', answer: "Not here. Sign up for an account, add your birth details, and let's look at it together." },
-  { question: 'Can you answer questions about illness?', answer: 'No. AI AdAstra does not read health or give medical advice. For your health, please see a doctor.' },
+  { question: 'Can you answer questions about illness?', answer: 'No. AdAstra AI does not read health or give medical advice. For your health, please see a doctor.' },
   { question: 'Is there a free plan?', answer: 'Yes. There is a free plan of twenty questions a month.' },
 ];
 

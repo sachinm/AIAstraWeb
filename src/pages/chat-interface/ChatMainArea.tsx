@@ -480,7 +480,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             <p className="sm:hidden">Education and entertainment only. Not advice.</p>
           </div>
           <div className="min-w-0 sm:flex sm:items-center sm:justify-end sm:gap-x-3 sm:whitespace-nowrap">
-            <p className="hidden sm:block" data-test-id="copyright-notice">© 2026. All rights reserved.</p>
+            <p className="hidden sm:block" data-test-id="copyright-notice">© 2026 AdAstra AI (vedic-astrology.app). All rights reserved.</p>
             <LegalLinks />
           </div>
         </div>

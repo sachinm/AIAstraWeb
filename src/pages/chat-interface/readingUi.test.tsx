@@ -40,7 +40,7 @@ describe('clarify events', () => {
   it('maps clarify, propose and declined events to card views', () => {
     expect(toClarifyView({ type: 'clarify', runId: 'r', question: 'Which period?', chips: [{ label: 'Next 6 months', value: '6m' }] })).toMatchObject({ type: 'clarify', runId: 'r', allowFreeText: true });
     expect(toClarifyView({ type: 'propose', runId: 'r', exactQuery: 'I will read: …' })).toMatchObject({ type: 'propose' });
-    expect(toClarifyView({ type: 'declined', reply: 'AI AdAstra cannot help with that.' })).toMatchObject({ type: 'declined' });
+    expect(toClarifyView({ type: 'declined', reply: 'AdAstra AI cannot help with that.' })).toMatchObject({ type: 'declined' });
     expect(toClarifyView({ type: 'stage' })).toBeNull();
   });
 });
@@ -76,7 +76,7 @@ describe('ClarifyCard', () => {
     expect(onChange).toHaveBeenCalled();
   });
   it('a declined reply is plain text with nothing to tap', () => {
-    render(<ClarifyCard view={{ type: 'declined', reply: 'AI AdAstra does not answer questions about children under 18.' }} onChip={vi.fn()} onText={vi.fn()} onConfirm={vi.fn()} onChange={vi.fn()} />);
+    render(<ClarifyCard view={{ type: 'declined', reply: 'AdAstra AI does not answer questions about children under 18.' }} onChip={vi.fn()} onText={vi.fn()} onConfirm={vi.fn()} onChange={vi.fn()} />);
     expect(screen.getByText(/children under 18/)).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
   });
