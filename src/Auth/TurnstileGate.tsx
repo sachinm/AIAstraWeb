@@ -9,51 +9,62 @@ interface TurnstileGateProps {
   action: string;
 }
 
-/** After this long without a token the overlay says so and offers a retry. */
+/** A submit that has waited this long for the check gets a "Finishing the security check" box. */
+const SHOW_AFTER_MS = 1_500;
+/** After this long without a token the box says so and offers a retry. */
 const SLOW_AFTER_MS = 15_000;
 
 /**
- * The security check, kept inside the first screen. Cloudflare does not start checking a widget that sits below the fold, so
- * the widget lives in a full-screen "Getting things ready" overlay until it has its first token, then shrinks to an unseen
- * 1px box that stays in view so the next check (a token is single use) runs by itself, without the overlay.
+ * The security check, run unseen so the form can be used at once. The widget sits in a 1px box that stays inside the first
+ * screen, because Cloudflare does not start checking a widget below the fold. The box opens into an overlay only when
+ * Cloudflare wants the person to click, or when a submit has been waiting for the token for a moment (fast autofill).
  */
 const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
-  // The overlay is for the first check only. A token is single use, so every request resets the widget; that second
-  // check runs unseen, and the page keeps showing what the first request did (for example the code field).
-  const [seen, setSeen] = useState(false);
-  useEffect(() => {
-    if (turnstile.token) setSeen(true);
-  }, [turnstile.token]);
-  const waiting = turnstile.isEnabled && !turnstile.token && !seen;
+  const { awaiting, needsInteraction } = turnstile;
+  const [showWait, setShowWait] = useState(false);
   const [slow, setSlow] = useState(false);
 
   useEffect(() => {
-    if (!waiting) {
+    if (!awaiting) {
+      setShowWait(false);
       setSlow(false);
       return undefined;
     }
-    const id = window.setTimeout(() => setSlow(true), SLOW_AFTER_MS);
-    return () => window.clearTimeout(id);
-  }, [waiting]);
+    const show = window.setTimeout(() => setShowWait(true), SHOW_AFTER_MS);
+    const late = window.setTimeout(() => setSlow(true), SLOW_AFTER_MS);
+    return () => {
+      window.clearTimeout(show);
+      window.clearTimeout(late);
+    };
+  }, [awaiting]);
 
   if (!turnstile.isEnabled) return null;
+
+  const failed = awaiting && Boolean(turnstile.error);
+  const open = needsInteraction || (awaiting && (showWait || failed));
 
   return (
     <div
       data-test-id="turnstile-gate"
       className={
-        waiting
+        open
           ? 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm'
           : 'pointer-events-none fixed bottom-0 left-0 h-px w-px overflow-hidden opacity-0'
       }
     >
-      <div className={waiting ? 'w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900/90 p-6 text-center shadow-xl' : ''}>
-        {waiting && (
+      <div className={open ? 'w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900/90 p-6 text-center shadow-xl' : ''}>
+        {open && (
           <div role="status" aria-live="polite" data-test-id="turnstile-waiting">
-            <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-purple-300 border-t-transparent" />
-            <p className="font-semibold text-white">Getting things ready…</p>
-            <p className="mt-1 text-sm text-gray-300">We are checking that you are a person. This takes a moment.</p>
-            {(turnstile.error || slow) && (
+            {needsInteraction ? (
+              <p className="font-semibold text-white">Please confirm you are a person.</p>
+            ) : (
+              <>
+                <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-purple-300 border-t-transparent" />
+                <p className="font-semibold text-white">Finishing the security check…</p>
+                <p className="mt-1 text-sm text-gray-300">Your details are kept. This carries on by itself.</p>
+              </>
+            )}
+            {(failed || slow) && (
               <div className="mt-3">
                 <p role="alert" className="text-sm text-red-300">
                   {turnstile.error || 'This is taking longer than usual.'}
@@ -77,6 +88,8 @@ const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
           onSuccess={turnstile.onSuccess}
           onExpire={turnstile.onExpire}
           onError={turnstile.onError}
+          onBeforeInteractive={turnstile.onBeforeInteractive}
+          onAfterInteractive={turnstile.onAfterInteractive}
           onRegisterReset={turnstile.registerReset}
         />
       </div>

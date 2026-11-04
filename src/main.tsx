@@ -3,6 +3,8 @@ import type { ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { checkGraphQLStartupHealth } from './lib/graphql';
+import { installAuthPrewarm } from './Auth/prewarm';
+import { TURNSTILE_SITE_KEY } from './Auth/useTurnstile';
 import './i18n';
 import './index.css';
 
@@ -25,6 +27,9 @@ function AppWithStartupChecks(): ReactElement {
 
   return <App />;
 }
+
+// heading for sign-up or sign-in starts fetching the security check's script (Auth/prewarm.ts)
+if (TURNSTILE_SITE_KEY) installAuthPrewarm();
 
 const rootElement = document.getElementById('root');
 
