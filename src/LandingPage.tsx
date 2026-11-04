@@ -99,21 +99,10 @@ const ScrollIcon: React.FC = () => (
   </svg>
 );
 
-const iconPosition = (p: Placement): React.CSSProperties => {
-  switch (p.edge) {
-    case 'top':
-      return { top: '0.5rem', left: `${p.at}%`, transform: 'translateX(-50%)' };
-    case 'bottom':
-      return { bottom: '0.5rem', left: `${p.at}%`, transform: 'translateX(-50%)' };
-    case 'left':
-      return { left: '0.5rem', top: `${p.at}%`, transform: 'translateY(-50%)' };
-    default:
-      return { right: '0.5rem', top: `${p.at}%`, transform: 'translateY(-50%)' };
-  }
-};
+const iconPosition = (p: Placement): React.CSSProperties => ({ left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%, -50%)' });
 
 /**
- * The front page: no column to scroll. Each piece of it is a parchment scroll resting on an edge of the screen, and opens beside
+ * The front page: no column to scroll. Each piece of it is a parchment scroll resting somewhere on the screen, and opens beside
  * the scene rather than over it. The first one shows by itself, then rolls up. The scenes behind come from SkyLayout.
  */
 const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {

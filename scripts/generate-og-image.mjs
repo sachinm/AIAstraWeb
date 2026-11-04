@@ -28,8 +28,8 @@ const svg = `
   </g>
   <g font-family="Segoe UI, Helvetica, Arial, sans-serif" fill="#ffffff">
     <text x="540" y="290" font-size="112" font-weight="700">AdAstra AI</text>
-    <text x="544" y="370" font-size="38" fill="#d1d5db">Vedic astrology readings</text>
-    <text x="544" y="420" font-size="38" fill="#d1d5db">from your birth chart</text>
+    <text x="544" y="370" font-size="38" fill="#d1d5db">Your Personal Vedic</text>
+    <text x="544" y="420" font-size="38" fill="#d1d5db">Astrology Assistant</text>
   </g>
   <rect x="544" y="460" width="160" height="6" rx="3" fill="url(#g)"/>
 </svg>`;

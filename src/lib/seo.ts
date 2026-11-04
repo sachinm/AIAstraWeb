@@ -7,6 +7,7 @@ import {
   DEFAULT_LOCALE,
   DEFAULT_OG_IMAGE,
   PRODUCT_NAME,
+  SHARE_IMAGE_ALT,
   absoluteUrl,
   hostIsIndexable,
   jsonLdFor,
@@ -45,10 +46,12 @@ export function headTagsFor(pathname: string, origin: string, hostname: string):
     { tag: 'meta', attrs: { property: 'og:description', content: page.description } },
     { tag: 'meta', attrs: { property: 'og:url', content: url } },
     { tag: 'meta', attrs: { property: 'og:image', content: image } },
+    { tag: 'meta', attrs: { property: 'og:image:alt', content: SHARE_IMAGE_ALT } },
     { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
     { tag: 'meta', attrs: { name: 'twitter:title', content: page.title } },
     { tag: 'meta', attrs: { name: 'twitter:description', content: page.description } },
     { tag: 'meta', attrs: { name: 'twitter:image', content: image } },
+    { tag: 'meta', attrs: { name: 'twitter:image:alt', content: SHARE_IMAGE_ALT } },
   ];
   if (index) {
     tags.push({ tag: 'link', attrs: { rel: 'canonical', href: url } });

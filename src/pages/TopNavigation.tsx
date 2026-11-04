@@ -3,6 +3,7 @@ import { Star, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProfileMenu from '../components/ProfileMenu';
 import UsageBar from '../components/UsageBar';
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from '../lib/legal';
 
 interface User {
   name: string;
@@ -22,11 +23,14 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
   >
     <div className="w-full px-4 sm:px-6 lg:px-8">
       <div className="flex h-16 items-center justify-between gap-3">
-        <Link to="/dashboard/chat" className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+        <Link to="/dashboard/chat" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
           <Star className="w-8 h-8 text-purple-400" />
           <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             AdAstra AI
           </h1>
+          <span className="hidden xl:inline bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-sm text-transparent" data-test-id="header-tagline">
+            – {PRODUCT_TAGLINE}
+          </span>
         </Link>
 
         <UsageBar />

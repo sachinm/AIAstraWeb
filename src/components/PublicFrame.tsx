@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import Disclaimer, { DISCLAIMER_SHORT } from './Disclaimer';
 import LegalLinks from './LegalLinks';
 import { logVisit } from '../lib/assistantApi';
-import { PRODUCT_NAME, SUPPORT_EMAIL } from '../lib/legal';
+import { PRODUCT_NAME, PRODUCT_TAGLINE, SUPPORT_EMAIL } from '../lib/legal';
 
 /** Sign-up and sign-in have their own switch between the two, so the header does not repeat it. */
 const NO_CTA_PATHS = ['/signin', '/signup', '/signup/details'];
@@ -37,16 +37,21 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
       {nav ?? (
         <header className="z-20 shrink-0 bg-transparent px-4 py-3 sm:px-6" data-test-id="public-header">
           <div className="flex w-full items-center justify-between gap-3">
-            <Link to="/" className="flex items-center gap-2">
-              <Star className="h-7 w-7 text-purple-400" aria-hidden="true" />
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-2xl font-bold text-transparent">
-                {PRODUCT_NAME}
+            <Link to="/" className="flex min-w-0 items-center gap-2" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`}>
+              <Star className="h-7 w-7 shrink-0 text-purple-400" aria-hidden="true" />
+              {/* The tagline sits under the name on phones and beside it from tablet width up. */}
+              <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent md:flex-row md:items-baseline md:gap-2">
+                <span className="text-2xl font-bold leading-tight">{PRODUCT_NAME}</span>
+                <span className="text-[11px] leading-tight md:text-sm" data-test-id="header-tagline">
+                  <span className="hidden md:inline" aria-hidden="true">– </span>
+                  {PRODUCT_TAGLINE}
+                </span>
               </span>
             </Link>
             {!NO_CTA_PATHS.includes(path) && (
               <Link
                 to="/signup"
-                className="group flex items-center rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2 text-white transition-all duration-300 hover:from-purple-700 hover:to-pink-700"
+                className="group flex shrink-0 items-center whitespace-nowrap rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-white sm:px-5 transition-all duration-300 hover:from-purple-700 hover:to-pink-700"
               >
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
