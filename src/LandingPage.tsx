@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { LANDING_FAQS } from './lib/landingFaqs';
 import { openSide, placeScrolls, type Placement } from './lib/scrollPlacement';
@@ -117,7 +117,7 @@ const iconPosition = (p: Placement): React.CSSProperties => {
  * the scene rather than over it. The first one shows by itself, then rolls up. The scenes behind come from SkyLayout.
  */
 const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
-  const scrolls = scrollsFor(onSignUp);
+  const scrolls = useMemo(() => scrollsFor(onSignUp), [onSignUp]);
   const [placements, setPlacements] = useState<Placement[]>(() => placeScrolls(scrolls.length));
   const [open, setOpen] = useState<string | null>(FIRST);
   const holding = useRef(false);
@@ -130,6 +130,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
     const portrait = window.matchMedia?.('(orientation: portrait)').matches ?? false;
     setPlacements(placeScrolls(scrolls.length, Math.random, portrait));
   }, [scrolls.length]);
+
+  // each scroll knows where its icon is, so it grows out of the icon and shrinks back into it
+  const root = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const aim = () => {
+      const box = root.current?.getBoundingClientRect();
+      if (!box) return;
+      for (const s of scrolls) {
+        const panel = panels.current[s.id];
+        const icon = icons.current[s.id]?.getBoundingClientRect();
+        if (!panel || !icon) continue;
+        // the panel's middle before its transform: top is its middle, since it is pulled up by half its height
+        const px = panel.offsetLeft + panel.offsetWidth / 2;
+        const py = panel.offsetTop;
+        panel.style.setProperty('--from-x', `${icon.left + icon.width / 2 - box.left - px}px`);
+        panel.style.setProperty('--from-y', `${icon.top + icon.height / 2 - box.top - py}px`);
+      }
+    };
+    aim();
+    window.addEventListener('resize', aim);
+    return () => window.removeEventListener('resize', aim);
+  }, [placements, scrolls]);
 
   // the opening scroll rolls up after a while, but never out from under someone reading it
   useEffect(() => {
@@ -179,7 +201,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
   }, [open, close]);
 
   return (
-    <div className="landing-scrolls relative h-full overflow-hidden text-white" data-test-id="landing-scrolls">
+    <div ref={root} className="landing-scrolls relative h-full overflow-hidden text-white" data-test-id="landing-scrolls">
       {scrolls.map((s, i) => {
         const p = placements[i]!;
         const isOpen = open === s.id;
@@ -215,7 +237,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
               onPointerLeave={() => (holding.current = false)}
               onFocus={() => (holding.current = true)}
               onBlur={() => (holding.current = false)}
-              className={`parchment scroll-side-${openSide(p)} ${isOpen ? 'parchment-open' : 'parchment-closed'}`}
+              className={`parchment scroll-side-${openSide(p)}${s.id === FIRST ? ' parchment-high' : ''} ${isOpen ? 'parchment-open' : 'parchment-closed'}`}
               data-test-id={`scroll-${s.id}`}
             >
               <button
