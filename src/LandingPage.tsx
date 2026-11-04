@@ -39,7 +39,7 @@ function scrollsFor(onSignUp: () => void): Scroll[] {
       body: (
         <div className="text-center">
           <h1 className={`${INK_HEADING} mb-5 text-4xl leading-tight sm:text-5xl`}>Discover Your Cosmic Blueprint</h1>
-          <button type="button" onClick={onSignUp} className={PRIMARY_BUTTON}>
+          <button type="button" onClick={onSignUp} className={PRIMARY_BUTTON} data-auth-intent>
             Generate My Chart
           </button>
         </div>
