@@ -88,7 +88,13 @@ export const SKY_SCENES: SkyScene[] = (() => {
   return out;
 })();
 
-export const skySrc = (id: string): string => `/skies/${id}.webp`;
+/**
+ * The scene files are bundled, so a build names each one by a hash of its contents (vite.config.ts) and the host caches it
+ * for a year (customHttp.yml). Nothing in a URL says which scene it is, so the set is not one easy download.
+ */
+const SKY_FILES = import.meta.glob<string>('../assets/skies/*.webp', { eager: true, query: '?url', import: 'default' });
+
+export const skySrc = (id: string): string => SKY_FILES[`../assets/skies/${id}.webp`] ?? '';
 
 /** Any scene, for the first one a visitor sees. `random` returns 0 to <1. */
 export function randomScene(count: number = SKY_SCENES.length, random: () => number = Math.random): number {

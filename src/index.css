@@ -141,8 +141,9 @@ body {
     position: absolute;
     top: 56px;
     left: 0;
-    /* the picture's own height, so the fade below falls on its real edges */
+    /* the scenes' own shape, so the fade below falls on their real edges */
     height: auto;
+    aspect-ratio: 16 / 9;
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
   }
@@ -374,24 +375,18 @@ body {
     height 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 @media (orientation: landscape) and (min-width: 700px) {
+  /*
+   * A form page keeps the scene full-screen, as on the home page, with no edges. The stage only grows to the right, so the
+   * picture's middle sits 8% right of the screen's middle and the figure clears the form. The form floats over it.
+   */
   .sky-side {
-    --sky-form-edge: calc(clamp(1.5rem, 5vw, 6rem) + 27rem + 1rem);
-    /* the box keeps the scenes' own 16:9 shape, as large as fits beside the form, so the cover crop has nothing to cut */
-    left: var(--sky-form-edge);
-    width: min(calc(100vw - var(--sky-form-edge)), calc(100dvh * 16 / 9));
-    height: min(100dvh, calc((100vw - var(--sky-form-edge)) * 9 / 16));
-    top: calc((100dvh - min(100dvh, calc((100vw - var(--sky-form-edge)) * 9 / 16))) / 2);
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
-    mask-composite: intersect;
+    width: 116%;
   }
-  /* the slow zoom would crop the edges again, and some scenes are not quite 16:9, so the whole picture is fitted, not filled */
-  .sky-side .sky-drift {
-    animation: none;
-  }
-  .sky-side .sky-image {
-    object-fit: contain;
+  /* a soft shade under the form column keeps its words readable without hiding the scene behind it */
+  .sky-side ~ .sky-scrim {
+    background-image:
+      linear-gradient(to right, rgba(5, 6, 15, 0.55), rgba(5, 6, 15, 0.4) calc(clamp(1.5rem, 5vw, 6rem) + 28rem), rgba(5, 6, 15, 0) 70%),
+      linear-gradient(to bottom, rgba(5, 6, 15, 0.35), rgba(5, 6, 15, 0.2) 50%, rgba(5, 6, 15, 0.55)) !important;
   }
   .sky-form-page > div {
     justify-content: flex-start;
