@@ -13,6 +13,7 @@ export interface Chat {
   name: string | null;
   /** docs/reading-engine/51: general | today | you | love | work | lucky */
   category?: string | null;
+  pinned?: boolean | null;
   last_message?: string;
   created_at: string | null;
   is_active: boolean | null;
@@ -31,7 +32,7 @@ const CHATS_QUERY = `
   query Chats {
     chats {
       success
-      chats { id user_id name category is_active created_at }
+      chats { id user_id name category pinned is_active created_at }
       error
     }
   }
@@ -160,5 +161,25 @@ export const fetchChatMessages = async (chatId: string): Promise<Message[]> => {
     return data.chatMessages.messages ?? [];
   } catch {
     return [];
+  }
+};
+
+const SET_CHAT_PINNED_MUTATION = `
+  mutation SetChatPinned($chatId: ID!, $pinned: Boolean!) {
+    setChatPinned(chatId: $chatId, pinned: $pinned) {
+      success
+      error
+    }
+  }
+`;
+
+/** Pins or unpins a thread at the top of the conversation list (docs/reading-engine/51). */
+export const setChatPinned = async (chatId: string, pinned: boolean): Promise<boolean> => {
+  if (!getUserId()) return false;
+  try {
+    const { data, errors } = await runGraphQL<{ setChatPinned: { success: boolean } }>(SET_CHAT_PINNED_MUTATION, { chatId, pinned });
+    return !errors?.length && !!data?.setChatPinned?.success;
+  } catch {
+    return false;
   }
 };

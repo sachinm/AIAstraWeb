@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Menu, PanelRightOpen, Plus } from 'lucide-react';
+import { track } from '../../lib/events';
 import {
   sendChatMessage,
   sendChatMessageStream,
@@ -11,7 +12,7 @@ import {
   createChat,
 } from '../UserData';
 import { SUBJECT_CHIPS, shouldSendOnKey, toClarifyView, loadSidebarPrefs, saveSidebarPrefs, browserTimeZone, LOCATION_CRITERION } from './readingUi';
-import { fetchAllChats, fetchChatMessages } from './chatAPI';
+import { fetchAllChats, fetchChatMessages, setChatPinned } from './chatAPI';
 import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
 import ChatMainArea from './ChatMainArea';
@@ -716,6 +717,13 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         onChatSelect={handleChatSelect}
         onClose={() => setIsSidebarOpen(false)}
         chatListDisabled={chatListDisabled}
+        onTogglePin={(chatId, pinned) => {
+          setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned } : c)));
+          track('chip_select', 'chat', pinned ? 'pin' : 'unpin');
+          void setChatPinned(chatId, pinned).then((ok) => {
+            if (!ok) setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned: !pinned } : c)));
+          });
+        }}
       />
 
       <ChatMainArea

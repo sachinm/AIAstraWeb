@@ -2,7 +2,7 @@
 export const CATEGORY_ORDER = ['general', 'today', 'you', 'love', 'work', 'lucky'];
 
 export const CATEGORY_LABELS: Record<string, string> = {
-  general: 'General Reading',
+  general: 'General',
   today: 'Today',
   you: 'You',
   love: 'Love',

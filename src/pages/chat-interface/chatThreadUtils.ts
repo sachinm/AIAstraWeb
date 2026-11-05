@@ -32,6 +32,7 @@ export interface SidebarChatRow {
   lastMessage: string;
   timestamp: string;
   category: string;
+  pinned?: boolean;
 }
 
 export function chatToSidebarRow(chat: Chat): SidebarChatRow {
@@ -42,6 +43,7 @@ export function chatToSidebarRow(chat: Chat): SidebarChatRow {
     lastMessage: 'Tap to continue',
     timestamp: formatChatTimestamp(chat.created_at),
     category: chat.category ?? 'general',
+    pinned: !!chat.pinned,
   };
 }
 

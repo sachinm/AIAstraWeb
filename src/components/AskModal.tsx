@@ -38,7 +38,7 @@ export default function AskModal({ user, category, onClose }: { user: User; cate
       document.body.style.overflow = prev;
     };
   }, [onClose]);
-  const title = `Ask about ${CATEGORY_LABELS[category] ?? category}`;
+  const title = category === 'general' ? 'General Reading' : `Ask about ${CATEGORY_LABELS[category] ?? category}`;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70" role="presentation">
       <div

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, MessageCircle, X } from 'lucide-react';
+import { Plus, MessageCircle, X, Pin, PinOff } from 'lucide-react';
 import type { SidebarChatRow } from './chatThreadUtils';
 import { CATEGORY_LABELS, CATEGORY_ORDER } from './categories';
 
@@ -10,6 +10,8 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   onClose: () => void;
   chatListDisabled?: boolean;
+  /** pin or unpin a thread at the top of the list */
+  onTogglePin?: (chatId: string, pinned: boolean) => void;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -19,6 +21,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onNewChat,
   onClose,
   chatListDisabled = false,
+  onTogglePin,
 }) => {
   return (
     <div className="w-full min-w-0 bg-black/40 backdrop-blur-md border-r border-white/10 h-full max-h-screen overflow-y-auto flex flex-col">
@@ -54,10 +57,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         ) : (
           groupByCategory(chats).map(([category, rows]) => (
             <div key={category} className="space-y-2">
-              <div className="px-1 pt-2 text-xs uppercase tracking-wide text-gray-400">{CATEGORY_LABELS[category] ?? category}</div>
+              <div className="px-1 pt-2 text-xs uppercase tracking-wide text-gray-400">{category === 'pinned' ? 'Pinned' : (CATEGORY_LABELS[category] ?? category)}</div>
               {rows.map((chat) => (
+            <div key={chat.id} className="group relative">
             <button
-              key={chat.id}
               type="button"
               disabled={chatListDisabled}
               onClick={() => onChatSelect(chat.id)}
@@ -78,6 +81,18 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 </div>
               </div>
             </button>
+            {onTogglePin && (
+              <button
+                type="button"
+                aria-label={chat.pinned ? `Unpin ${chat.name}` : `Pin ${chat.name}`}
+                aria-pressed={!!chat.pinned}
+                onClick={() => onTogglePin(chat.id, !chat.pinned)}
+                className={`absolute right-2 top-2 rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white ${chat.pinned ? 'text-purple-300' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+              >
+                {chat.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+              </button>
+            )}
+            </div>
               ))}
             </div>
           ))
@@ -99,12 +114,14 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
 export default ChatSidebar;
 /** Rows grouped under their category, General Reading first, in the fixed order of docs/reading-engine/51. */
-function groupByCategory(chats: SidebarChatRow[]): Array<[string, SidebarChatRow[]]> {
+export function groupByCategory(chats: SidebarChatRow[]): Array<[string, SidebarChatRow[]]> {
   const groups = new Map<string, SidebarChatRow[]>();
-  for (const c of chats) {
+  const pinned = chats.filter((c) => c.pinned);
+  for (const c of chats.filter((x) => !x.pinned)) {
     const k = CATEGORY_ORDER.includes(c.category) ? c.category : 'general';
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k)!.push(c);
   }
-  return CATEGORY_ORDER.filter((k) => groups.has(k)).map((k) => [k, groups.get(k)!]);
+  const out: Array<[string, SidebarChatRow[]]> = CATEGORY_ORDER.filter((k) => groups.has(k)).map((k) => [k, groups.get(k)!]);
+  return pinned.length ? [['pinned', pinned], ...out] : out;
 }

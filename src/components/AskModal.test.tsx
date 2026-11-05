@@ -11,7 +11,7 @@ vi.mock('../pages/chat-interface/ChatSection', () => ({
 }));
 
 import BoardAsk from './BoardAsk';
-import ChatSidebar from '../pages/chat-interface/ChatSidebar';
+import ChatSidebar, { groupByCategory } from '../pages/chat-interface/ChatSidebar';
 
 describe('Ask everywhere (docs/reading-engine/51)', () => {
   it('the board icon opens a 98% modal with the chat set to that board', () => {
@@ -36,8 +36,26 @@ describe('Ask everywhere (docs/reading-engine/51)', () => {
         <ChatSidebar chats={rows} activeChatId={null} onChatSelect={() => undefined} onNewChat={() => undefined} onClose={() => undefined} />
       </MemoryRouter>,
     );
-    const headings = screen.getAllByText(/^(General Reading|Work)$/).map((e) => e.textContent);
-    expect(headings).toEqual(['General Reading', 'Work']);
+    const headings = screen.getAllByText(/^(General|Work)$/).map((e) => e.textContent);
+    expect(headings).toEqual(['General', 'Work']);
     expect(screen.getByText('Old')).toBeInTheDocument();
+  });
+  it('pinned threads sit above every category; the pin button toggles', () => {
+    const rows = [
+      { id: '1', name: 'Job change?', lastMessage: '', timestamp: '', category: 'work' },
+      { id: '2', name: 'My nature', lastMessage: '', timestamp: '', category: 'general', pinned: true },
+      { id: '3', name: 'Today?', lastMessage: '', timestamp: '', category: 'today' },
+    ];
+    expect(groupByCategory(rows).map(([k, r]) => [k, r.map((x) => x.id)])).toEqual([['pinned', ['2']], ['today', ['3']], ['work', ['1']]]);
+    const onTogglePin = vi.fn();
+    render(
+      <MemoryRouter>
+        <ChatSidebar chats={rows} activeChatId={null} onChatSelect={() => undefined} onNewChat={() => undefined} onClose={() => undefined} onTogglePin={onTogglePin} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Pinned')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unpin My nature' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pin Job change?' }));
+    expect(onTogglePin.mock.calls).toEqual([['2', false], ['1', true]]);
   });
 });
