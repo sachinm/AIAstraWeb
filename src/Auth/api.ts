@@ -33,7 +33,7 @@ const LOGIN_WITH_MAGIC_LINK_MUTATION = `
 `;
 
 /** Matches server MAGIC_LINK_LOGIN_FAILED: never reveal whether the email exists or the code was wrong. */
-export const LOGIN_FAILED_GENERIC = 'Unable to sign in. Check your code and try again.';
+export const LOGIN_FAILED_GENERIC = 'That code did not work. It may be mistyped or expired: codes last 3 minutes. Send a new code and try again.';
 
 export interface LoginResult {
   success: boolean;
@@ -99,7 +99,7 @@ export async function loginWithMagicLink(
   turnstileToken?: string | null
 ): Promise<LoginResult> {
   const CODE_FAILED =
-    'Unable to sign in. Check your code and try again.';
+    'That code did not work. It may be mistyped or expired: codes last 3 minutes. Send a new code and try again.';
   try {
     const { data, errors } = await runGraphQL<{
       loginWithMagicLink?: {
