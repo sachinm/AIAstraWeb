@@ -30,7 +30,8 @@ describe('SignIn (one page, email then code)', () => {
 
   it('renders the email field and "Send me a code" with no password field and no code field yet', () => {
     renderSignIn();
-    expect(screen.getByRole('heading', { name: /^sign in$/i })).toBeInTheDocument(); // screen readers only
+    expect(screen.getByRole('heading', { name: /^sign in$/i })).toBeVisible();
+    expect(screen.getByPlaceholderText('Email address')).toBeInTheDocument();
     expect(screen.queryByText(/welcome back/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/sign in to ai adastra/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/don.t have an account/i)).not.toBeInTheDocument();

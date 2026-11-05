@@ -306,9 +306,9 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
 
             {turnstile.isEnabled && <span className="sr-only" />}
 
-            {(error || turnstile.error) && (
+            {error && (
               <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
-                {error || turnstile.error}
+                {error}
               </div>
             )}
 
