@@ -25,3 +25,6 @@ dist-ssr
 .env
 testbed/voice/report.json
 testbed/voice/report.html
+
+# MediaPipe wasm runtime, copied from node_modules at build (scripts/copy-mediapipe.mjs)
+public/mediapipe/wasm/

@@ -19,7 +19,7 @@ interface Stage {
  * of random order, each scene once per round. Each one blooms in from a random corner while the last dissolves toward
  * another. Only the current and next images are ever loaded. With reduced motion on the scenes still change, by a plain crossfade with no movement (index.css): many Windows PCs have that setting on, and freezing left them on one scene.
  */
-const CosmicSky: React.FC = () => {
+const CosmicSky: React.FC<{ caption?: boolean; className?: string }> = ({ caption = true, className = '' }) => {
   // A build has no visitor, so the prerendered page carries no scene, or everyone would start on the same one. The browser
   // picks here, and that scene fades in over the starfield.
   const [first] = useState<number | null>(() => (typeof window === 'undefined' ? null : randomScene()));
@@ -69,7 +69,7 @@ const CosmicSky: React.FC = () => {
   const layers = first === null ? [] : previous === null ? [current] : [previous, current];
 
   return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true" data-test-id="cosmic-sky">
+    <div className={`pointer-events-none fixed inset-0 overflow-hidden ${className}`} aria-hidden="true" data-test-id="cosmic-sky">
       <div className="sky-stage absolute inset-0" data-test-id="sky-stage">
       {layers.map((index) => {
         const leaving = index === previous;
@@ -96,7 +96,7 @@ const CosmicSky: React.FC = () => {
           style={{ top: `${15 + i * 25}%`, left: '-5%', animationDuration: `${15 + i * 5}s`, animationDelay: `${i * 10}s` }}
         />
       ))}
-      {first !== null && (
+      {caption && first !== null && (
       <div key={scene.id} className="sky-caption absolute bottom-24 right-4 text-right text-amber-50 [text-shadow:0_1px_6px_rgba(0,0,0,0.9)] sm:bottom-24 sm:right-8" data-test-id="sky-caption">
         <p className="text-base font-semibold sm:text-xl">
           <span lang="hi">{scene.nameHi}</span> · {scene.name}

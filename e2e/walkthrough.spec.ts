@@ -172,7 +172,7 @@ test('signed-out walkthrough, then the free plan to its limit', async ({ page, c
     await w.shot('pricing-choice-saved', { fullPage: true });
   }
 
-  for (const [name, url] of [['profile-plan', '/profile/plan'], ['profile-timeline', '/profile/timeline'], ['profile-settings', '/profile/settings']] as const) {
+  for (const [name, url] of [['profile-plan', '/profile/plan'], ['profile-timeline', '/profile/timeline'], ['profile-locale', '/profile/locale'], ['profile-legal', '/profile/legal']] as const) {
     await page.goto(url);
     await w.shot(`page-${name}`, { fullPage: true });
   }

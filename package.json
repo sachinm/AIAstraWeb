@@ -16,10 +16,13 @@
     "test:run": "vitest run",
     "test:walkthrough": "playwright test --config e2e/playwright.config.ts",
     "voice:testbed": "node testbed/voice/run.mjs",
-    "voice:testbed:live": "node testbed/voice/live.mjs"
+    "voice:testbed:live": "node testbed/voice/live.mjs",
+    "predev": "node scripts/copy-mediapipe.mjs",
+    "prebuild": "node scripts/copy-mediapipe.mjs"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.2",
+    "@mediapipe/tasks-vision": "^0.10.14",
     "axios": "^1.11.0",
     "i18next": "^26.6.0",
     "lucide-react": "^0.344.0",
