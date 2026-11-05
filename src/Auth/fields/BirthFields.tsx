@@ -69,7 +69,8 @@ const selectCls =
 const optionCls = 'bg-slate-900 text-white';
 const label = 'block text-sm font-medium text-gray-300 mb-2';
 const errCls = 'text-red-300 text-sm mt-1';
-const hint = 'text-gray-400 text-sm mt-1';
+// hints give way on a very short window, so a step fits without scrolling; errors always show
+const hint = 'text-gray-400 text-sm mt-1 [@media(max-height:480px)]:hidden';
 
 export interface BirthFieldsHandle {
   focus: (field: BirthField) => void;
@@ -81,9 +82,11 @@ interface Props {
   onChange: (patch: Partial<BirthValues>) => void;
   /** Validate one field (on blur, or on change once it has an error). `next` is the values after the change. */
   onCheck: (field: BirthField, next?: BirthValues) => void;
+  /** Draw only these fields (sign-up shows them a few at a time); every field when left out. */
+  only?: BirthField[];
 }
 
-const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ values, errors, onChange, onCheck }, handle) {
+const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ values, errors, onChange, onCheck, only }, handle) {
   const dobRef = useRef<HTMLInputElement>(null);
   const hourRef = useRef<HTMLSelectElement>(null);
   const countryRef = useRef<HTMLInputElement>(null);
@@ -101,9 +104,11 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
   const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
   const dobIso = parseTypedDate(values.dob);
   const dobSwapped = swappedDate(values.dob);
+  const show = (f: BirthField) => !only || only.includes(f);
 
   return (
     <>
+      {show('dob') && (
       <div>
         <label htmlFor="dob" className={label}>
           Date of birth (DD/MM/YYYY)
@@ -141,7 +146,9 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
           </p>
         )}
       </div>
+      )}
 
+      {show('time') && (
       <fieldset>
         <legend className={label}>Time of birth</legend>
         <div className="flex items-center gap-2">
@@ -195,7 +202,9 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
           {errors.time || "If you don't know the exact time, use your best estimate."}
         </p>
       </fieldset>
+      )}
 
+      {show('country') && (
       <div>
         <label htmlFor="country" className={label}>
           Country of birth
@@ -218,7 +227,9 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
           </p>
         )}
       </div>
+      )}
 
+      {show('city') && (
       <div>
         <label htmlFor="city" className={label}>
           City of birth
@@ -237,7 +248,9 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
         />
         {errors.city && <p className={errCls}>{errors.city}</p>}
       </div>
+      )}
 
+      {show('gender') && (
       <div>
         <label htmlFor="gender" className={label}>
           Gender
@@ -268,6 +281,7 @@ const BirthFields = forwardRef<BirthFieldsHandle, Props>(function BirthFields({ 
         </select>
         {errors.gender && <p className={errCls}>{errors.gender}</p>}
       </div>
+      )}
     </>
   );
 });
