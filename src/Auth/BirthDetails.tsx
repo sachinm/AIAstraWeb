@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Loader2 } from 'lucide-react';
 import { completeProfile, fetchMe, isChartOpen, type ChartStatus, type Gender, type Language } from './api';
 import ChartProgress from '../components/ChartProgress';
@@ -28,7 +28,56 @@ interface Props {
 type Values = BirthValues & { referral: string; language?: Language };
 
 const STORAGE_KEY = 'aiastra.registration.details';
+const STEP_KEY = 'aiastra.registration.details.step';
 const EMPTY: Values = { ...EMPTY_BIRTH, referral: '' };
+
+/** What a step can hold: the birth fields, plus the language choice and the referral code. */
+type StepPart = BirthField | 'language' | 'referral';
+interface Step {
+  title: string;
+  parts: StepPart[];
+}
+
+/**
+ * Small steps, so the page never needs a scroll bar (docs/product/birth-details-three-steps.md, server repo): three on a
+ * normal window, and one question at a time on a short one (a small laptop window, a phone on its side).
+ */
+const STEPS: Step[] = [
+  { title: 'When were you born?', parts: ['dob', 'time'] },
+  { title: 'Where were you born?', parts: ['country', 'city'] },
+  { title: 'A little about you', parts: ['gender', 'language', 'referral'] },
+];
+const SHORT_STEPS: Step[] = [
+  { title: 'When were you born?', parts: ['dob'] },
+  { title: 'What time were you born?', parts: ['time'] },
+  { title: 'Which country were you born in?', parts: ['country'] },
+  { title: 'Which city were you born in?', parts: ['city'] },
+  { title: 'A little about you', parts: ['gender'] },
+  { title: 'Your language', parts: ['language'] },
+  { title: 'Referral code', parts: ['referral'] },
+];
+const SHORT_QUERY = '(max-height: 599px)';
+
+function subscribeShort(onChange: () => void) {
+  if (typeof window === 'undefined' || !window.matchMedia) return () => {};
+  const mq = window.matchMedia(SHORT_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+}
+const isShort = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.(SHORT_QUERY).matches);
+
+const birthParts = (st: Step) => st.parts.filter((x): x is BirthField => x !== 'language' && x !== 'referral');
+
+/** The step is saved by its first part, so it survives a switch between the two layouts. */
+function loadStepPart(): StepPart {
+  try {
+    const v = sessionStorage.getItem(STEP_KEY);
+    if (v && SHORT_STEPS.some((st) => st.parts[0] === v)) return v as StepPart;
+  } catch {
+    /* storage unavailable */
+  }
+  return 'dob';
+}
 
 function loadDraft(): Values {
   try {
@@ -41,7 +90,7 @@ function loadDraft(): Values {
 }
 
 const input =
-  'w-full bg-white/10 border rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent';
+  'w-full bg-white/10 border rounded-lg px-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent';
 const label = 'block text-sm font-medium text-gray-300 mb-2';
 
 const BirthDetails: React.FC<Props> = ({ onDone }) => {
@@ -54,6 +103,14 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
   const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [chart, setChart] = useState<ChartStatus | null>(null);
+  const short = useSyncExternalStore(subscribeShort, isShort, () => false);
+  const steps = short ? SHORT_STEPS : STEPS;
+  const last = steps.length - 1;
+  // the step is kept as the part it starts with, so turning a phone or resizing keeps the person's place
+  const [stepPart, setStepPart] = useState<StepPart>(loadStepPart);
+  const found = steps.findIndex((st) => st.parts.includes(stepPart));
+  const step = found < 0 ? 0 : found;
+  const setStep = (i: number) => setStepPart(steps[Math.max(0, Math.min(last, i))].parts[0]);
 
   const fieldsRef = useRef<BirthFieldsHandle>(null);
 
@@ -92,10 +149,32 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
   useEffect(() => {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+      sessionStorage.setItem(STEP_KEY, stepPart);
     } catch {
       /* storage unavailable: nothing to save to */
     }
-  }, [values]);
+  }, [values, stepPart]);
+
+  /** Checks the given fields; names and focuses what is missing. True when they are all fine. */
+  const checkFields = (fields: BirthField[]): boolean => {
+    const found = validateBirth(values);
+    const bad = BIRTH_FIELD_ORDER.filter((f) => fields.includes(f) && found[f]);
+    setErrors((p) => ({ ...p, ...Object.fromEntries(fields.map((f) => [f, found[f] ?? ''])) }));
+    if (bad.length === 0) {
+      setSummary('');
+      return true;
+    }
+    setSummary(`Still needed: ${bad.map((f) => BIRTH_FIELD_LABEL[f]).join(', ')}.`);
+    setStep(steps.findIndex((st) => st.parts.includes(bad[0])));
+    // the field is drawn on the next render when the step changes
+    setTimeout(() => fieldsRef.current?.focus(bad[0]), 0);
+    return false;
+  };
+
+  const goBack = () => {
+    setSummary('');
+    setStep(step - 1);
+  };
 
   const checkField = (f: BirthField, v: BirthValues = values) => {
     const msg = validateBirth(v)[f] ?? '';
@@ -106,15 +185,12 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
     e.preventDefault();
     if (loading) return;
     setSubmitError('');
-    const found = validateBirth(values);
-    setErrors(found);
-    const bad = BIRTH_FIELD_ORDER.filter((f) => found[f]);
-    if (bad.length > 0) {
-      setSummary(`Still needed: ${bad.map((f) => BIRTH_FIELD_LABEL[f]).join(', ')}.`);
-      fieldsRef.current?.focus(bad[0]);
+    if (step < last) {
+      if (checkFields(birthParts(steps[step]))) setStep(step + 1);
       return;
     }
-    setSummary('');
+    // the last step checks everything, and goes back to the first step with a gap
+    if (!checkFields(BIRTH_FIELD_ORDER)) return;
     setLoading(true);
     try {
       const result = await completeProfile({
@@ -129,6 +205,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
       if (result.success) {
         try {
           sessionStorage.removeItem(STORAGE_KEY);
+          sessionStorage.removeItem(STEP_KEY);
         } catch {
           /* ignore */
         }
@@ -152,7 +229,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
   };
 
   return (
-    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-6 sm:px-6">
+    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-3 sm:px-6 [@media(max-height:480px)]:pt-1 [@media(max-height:480px)]:pb-1">
       {loading && (
         <div
           role="status"
@@ -183,23 +260,35 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
         </div>
       )}
       <div className="w-full max-w-md">
-        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-white mb-2">Your birth details</h2>
-            <p className="text-gray-300">We use these to calculate your chart.</p>
+        <div className="bg-slate-950/35 backdrop-blur-[3px] rounded-2xl p-5 sm:p-6 [@media(max-height:480px)]:p-3 border border-white/20 shadow-2xl">
+          <div className="text-center mb-3">
+            <h2 className="text-xl font-bold text-white [@media(max-height:480px)]:sr-only">Your birth details</h2>
+            <p className="mt-0.5 text-gray-200" data-test-id="details-step-title">{steps[step].title}</p>
+            <div className="mt-1.5 flex items-center justify-center gap-1.5" data-test-id="details-step">
+              {steps.map((st, i) => (
+                <span key={st.title} className={`h-1.5 ${short ? 'w-4' : 'w-8'} rounded-full ${i <= step ? 'bg-purple-400' : 'bg-white/20'}`} aria-hidden="true" />
+              ))}
+              <span className="ml-1 text-xs text-gray-400">
+                Step {step + 1} of {steps.length}
+              </span>
+            </div>
           </div>
 
-          <form onSubmit={submit} noValidate className="space-y-6">
+          <form onSubmit={submit} noValidate className="space-y-3 [@media(max-height:480px)]:space-y-2">
             <BirthFields
               ref={fieldsRef}
               values={values}
               errors={errors}
               onChange={(patch) => setValues((p) => ({ ...p, ...patch }))}
               onCheck={checkField}
+              only={birthParts(steps[step])}
             />
 
-            <LanguageField value={values.language ?? 'en'} onChange={(language) => setValues((p) => ({ ...p, language }))} />
+            {steps[step].parts.includes('language') && (
+              <LanguageField value={values.language ?? 'en'} onChange={(language) => setValues((p) => ({ ...p, language }))} />
+            )}
 
+            {steps[step].parts.includes('referral') && (
             <div>
               <label htmlFor="referral" className={label}>
                 Referral code (optional)
@@ -213,6 +302,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
                 className={`${input} border-white/20`}
               />
             </div>
+            )}
 
             {summary && (
               <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
@@ -225,22 +315,34 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
               </div>
             )}
 
+            <div className="flex gap-3">
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={goBack}
+                className="rounded-lg border border-white/20 px-5 py-2.5 font-semibold text-gray-200 hover:bg-white/10"
+              >
+                Back
+              </button>
+            )}
             <button
               type="submit"
               aria-busy={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 flex justify-center items-center"
+              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 flex justify-center items-center"
             >
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                   Creating your chart…
                 </>
+              ) : step < last ? (
+                'Next'
               ) : (
                 'Create my chart'
               )}
             </button>
+            </div>
           </form>
-          <p className="text-center text-xs text-gray-400 mt-6" data-test-id="copyright-notice">© 2026 AdAstra AI (vedic-astrology.app). All rights reserved.</p>
         </div>
       </div>
     </div>
