@@ -11,6 +11,7 @@ import TopNavigation from './pages/TopNavigation';
 import ProfileSection from './pages/profile/ProfileSection';
 import ProfileLayout from './pages/profile/ProfileLayout';
 import ProfilePlan from './pages/profile/ProfilePlan';
+import GaPageViews from './components/GaPageViews';
 import ProfileLocale from './pages/profile/ProfileLocale';
 import ProfileLegal from './pages/profile/ProfileLegal';
 import ProfileTimeline from './pages/profile/ProfileTimeline';
@@ -53,6 +54,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   return (
     <>
     <SeoHead />
+    <GaPageViews />
     <Routes>
       {/* one sky across these three: it keeps playing as the visitor moves between them */}
       <Route element={<SkyLayout />}>

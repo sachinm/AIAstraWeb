@@ -5,6 +5,7 @@
  */
 import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
+import { gaEvent } from './ga';
 
 export type EventName =
   | 'page_view'
@@ -55,6 +56,7 @@ function sessionId(): string {
 export function track(event: EventName, surface: string, target?: string, props?: Record<string, string | number | boolean>): void {
   if (typeof window === 'undefined') return;
   queue.push({ event, surface, target: target?.slice(0, 80), props, at: new Date().toISOString() });
+  gaEvent(event, surface, target?.slice(0, 80), props);
   if (queue.length >= FLUSH_AT) void flushEvents();
   else if (!timer) timer = setTimeout(() => void flushEvents(), FLUSH_MS);
 }

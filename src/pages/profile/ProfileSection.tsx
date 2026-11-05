@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from '../../lib/legal';
 import React, { useEffect, useRef, useState } from 'react';
 import { fetchProfile, updateProfile, type Gender } from '../../Auth/api';
 import BirthFields, {
@@ -255,6 +256,22 @@ const ProfileSection: React.FC = () => {
         </section>
       )}
 
+      <section className="glass rounded-2xl p-4 sm:p-6" aria-label="Close your account">
+        <h3 className="font-semibold">Close your account</h3>
+        <p className="mt-1 text-sm text-gray-300">
+          {SUPPORT_EMAIL ? (
+            <>
+              To close your account and delete your information, write to{' '}
+              <a href={`mailto:${SUPPORT_EMAIL}?subject=Close%20my%20account`} className="underline underline-offset-2 hover:text-white" data-test-id="close-account">
+                {SUPPORT_EMAIL}
+              </a>
+              .
+            </>
+          ) : (
+            'You will be able to close your account and delete your information here. A support address will be published before paid plans open.'
+          )}
+        </p>
+      </section>
     </div>
   );
 };

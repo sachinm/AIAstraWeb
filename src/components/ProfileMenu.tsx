@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, CreditCard, Globe, History, LogOut, Mail, MessageCircle, Sparkles, User as UserIcon, Clock, Briefcase } from 'lucide-react';
+import { ChevronDown, CreditCard, Globe, LogOut, Sparkles, User as UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
 import UserAvatar from './UserAvatar';
-import { SUPPORT_EMAIL } from '../lib/legal';
 
 interface ProfileMenuProps {
   user?: { name: string; email?: string } | null;
@@ -105,22 +104,6 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
                 {t('menu.upgrade')}
               </button>
             )}
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/chat')}>
-              <MessageCircle className="h-4 w-4" aria-hidden="true" />
-              {t('menu.chat')}
-            </button>
-            {import.meta.env.VITE_AREA_ENABLED === '1' && (
-              <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/work')}>
-                <Briefcase className="h-4 w-4" aria-hidden="true" />
-                {t('menu.work')}
-              </button>
-            )}
-            {import.meta.env.VITE_LUCKY_ENABLED === '1' && (
-              <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/lucky')}>
-                <Clock className="h-4 w-4" aria-hidden="true" />
-                {t('menu.lucky')}
-              </button>
-            )}
             <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile')}>
               <UserIcon className="h-4 w-4" aria-hidden="true" />
               {t('menu.profile')}
@@ -129,21 +112,10 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
               <CreditCard className="h-4 w-4" aria-hidden="true" />
               {t('menu.plan')}
             </button>
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/timeline')}>
-              <History className="h-4 w-4" aria-hidden="true" />
-              {t('menu.timeline')}
-            </button>
             <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/locale')}>
               <Globe className="h-4 w-4" aria-hidden="true" />
               {t('menu.locale')}
             </button>
-            {/* the account lives here (Sachin, 2026-11-05): who is signed in sits at the top, closing it here */}
-            {SUPPORT_EMAIL && (
-              <a role="menuitem" className={itemCls} href={`mailto:${SUPPORT_EMAIL}?subject=Close%20my%20account`} data-test-id="profile-menu-close-account">
-                <Mail className="h-4 w-4" aria-hidden="true" />
-                {t('menu.closeAccount')}
-              </a>
-            )}
             <button
               type="button"
               role="menuitem"
