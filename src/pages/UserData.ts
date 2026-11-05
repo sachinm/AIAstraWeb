@@ -94,7 +94,7 @@ async function consumeChatAskSse(
       } else if (ev.type === 'error') {
         if (ev.code === 'quota_exhausted') throw new QuotaExhaustedError((ev.usage as PlanStatus | undefined) ?? null, ev.message);
         throw new Error(ev.message || 'Stream error');
-      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'thought' || ev.type === 'next') {
+      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'next') {
         // reading-engine progress; older servers never send these
         onEvent?.(ev as ReadingStreamEvent);
       }

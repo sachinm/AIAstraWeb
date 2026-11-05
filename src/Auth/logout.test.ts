@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { clearClientSession, performLogout } from './logout';
+import { clearClientSession, KEPT_LOCAL_STORAGE_KEYS, performLogout } from './logout';
+import { readSignupDraft, saveSignupDraft } from './signupDraft';
 
 vi.mock('../lib/graphql', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/graphql')>();
@@ -125,5 +126,79 @@ describe('logout', () => {
     localStorage.removeItem('token');
     performLogout({ reason: 'manual', redirect: false });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe('sign-out wipes what the app wrote (privacy B0.3)', () => {
+    const SENTINEL = 'SENTINEL-personal-27/04/1990-Pune';
+
+    function fillEveryAppKey() {
+      // localStorage: every key the app writes, plus an unknown key holding a personal value
+      localStorage.setItem('token', 'jwt');
+      localStorage.setItem('userId', 'u1');
+      localStorage.setItem('astroUser', JSON.stringify({ name: 'Asha', dateOfBirth: '1990-04-27', placeOfBirth: 'Pune', timeOfBirth: '00:05' }));
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('aa_visit', 'v1');
+      localStorage.setItem('sessionLogoutAt', '1');
+      localStorage.setItem('aiastra.region', 'IN');
+      localStorage.setItem('aiastra.chat.sidebars', JSON.stringify({ leftOpen: false, rightOpen: true }));
+      localStorage.setItem('someFutureKey', SENTINEL);
+      // sessionStorage: every key the app writes or wrote in older builds, plus a sentinel
+      sessionStorage.setItem('lastActivityAt', String(Date.now()));
+      sessionStorage.setItem('aa_visit_logged', '1');
+      sessionStorage.setItem('aiastra.registration.details', JSON.stringify({ city: 'Pune', dob: '27/04/1990' }));
+      sessionStorage.setItem('aiastra.questionLocation', JSON.stringify({ status: 'granted', location: { lat: 18.52, lon: 73.86 } }));
+      sessionStorage.setItem('someFutureKey', SENTINEL);
+      saveSignupDraft({ city: 'Pune', dob: '27/04/1990' });
+    }
+
+    function storageText(store: Storage): string {
+      let out = '';
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i)!;
+        out += `${k}=${store.getItem(k)};`;
+      }
+      return out;
+    }
+
+    it('keeps only the region switch and the reading-UI preferences', () => {
+      expect([...KEPT_LOCAL_STORAGE_KEYS].sort()).toEqual(['aiastra.chat.sidebars', 'aiastra.region']);
+    });
+
+    it.each([
+      ['manual', { reason: 'manual' as const, redirect: false }],
+      ['idle', { reason: 'idle' as const, redirect: false }],
+      ['expired', { reason: 'expired' as const, redirect: false, broadcast: false }],
+      ['broadcast from another tab', { reason: 'idle' as const, redirect: false, broadcast: false }],
+    ])('after a %s sign-out sessionStorage is empty and localStorage holds only the kept keys', (_label, opts) => {
+      fillEveryAppKey();
+      performLogout(opts);
+
+      expect(sessionStorage.length).toBe(0);
+      const remaining: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) remaining.push(localStorage.key(i)!);
+      expect(remaining.sort()).toEqual([...KEPT_LOCAL_STORAGE_KEYS].sort());
+      expect(localStorage.getItem('aiastra.region')).toBe('IN');
+      expect(storageText(localStorage)).not.toContain('SENTINEL');
+      expect(storageText(localStorage)).not.toContain('Pune');
+      expect(readSignupDraft()).toBeNull();
+    });
+
+    it('sign-out works when storage throws', () => {
+      fillEveryAppKey();
+      const spy = vi.spyOn(Storage.prototype, 'clear').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      expect(() => performLogout({ reason: 'manual', redirect: false })).not.toThrow();
+      spy.mockRestore();
+      expect(readSignupDraft()).toBeNull();
+    });
+
+    it('the start-up auth clear (no session) leaves the anonymous visit id alone', () => {
+      fillEveryAppKey();
+      clearClientSession();
+      expect(localStorage.getItem('aa_visit')).toBe('v1');
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('astroUser')).toBeNull();
+    });
   });
 });

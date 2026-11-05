@@ -8,6 +8,7 @@ import KundliNotice from '../components/KundliNotice';
 import { completeProfile, fetchMe, type Me } from './api';
 import { COUNTRIES } from './fields/countries';
 import { todayISO } from './fields/dateUtils';
+import { clearSignupDraft } from './signupDraft';
 
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
@@ -45,7 +46,9 @@ async function fillAll(user: U, over: { dob?: string } = {}) {
 describe('BirthDetails (page 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearSignupDraft();
     sessionStorage.clear();
+    localStorage.clear();
     vi.mocked(fetchMe).mockResolvedValue(me());
   });
 
@@ -174,9 +177,11 @@ describe('BirthDetails (page 2)', () => {
     expect(screen.getByLabelText(/country of birth/i)).toHaveValue('United States');
   });
 
-  it('autosaves entries to sessionStorage and restores them after a refresh', async () => {
+  it('keeps entries in memory across leaving and returning to the page, and writes nothing to storage', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
     const user = userEvent.setup();
     const first = renderPage();
+    await user.type(screen.getByLabelText(/date of birth/i), '27/04/1990');
     await user.type(screen.getByLabelText(/city of birth/i), 'Pune');
     await user.selectOptions(screen.getByLabelText('Gender'), 'male');
     first.unmount();
@@ -184,6 +189,21 @@ describe('BirthDetails (page 2)', () => {
     renderPage();
     expect(screen.getByLabelText(/city of birth/i)).toHaveValue('Pune');
     expect(screen.getByLabelText('Gender')).toHaveValue('male');
+    expect(setItem).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+    expect(localStorage.length).toBe(0);
+    setItem.mockRestore();
+  });
+
+  it('forgets the draft once it is cleared (sign-out or a refresh)', async () => {
+    const user = userEvent.setup();
+    const first = renderPage();
+    await user.type(screen.getByLabelText(/city of birth/i), 'Pune');
+    first.unmount();
+    clearSignupDraft();
+
+    renderPage();
+    expect(screen.getByLabelText(/city of birth/i)).toHaveValue('');
   });
 
   it('shows the server message and keeps the entries when saving fails', async () => {

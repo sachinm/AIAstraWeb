@@ -81,7 +81,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             element={
               <SignUp
                 onVerified={({ email, name }) => {
-                  handleSignIn({ name, email, dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' });
+                  handleSignIn({ name, email });
                   navigate('/signup/details', { replace: true });
                 }}
                 onSignIn={(email) => navigate('/signin', { state: email ? { email } : undefined })}

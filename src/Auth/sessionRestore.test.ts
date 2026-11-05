@@ -22,7 +22,8 @@ describe('sessionRestore', () => {
 
     expect(isAuthSessionValid()).toBe(true);
     const user = resolveUserForSession();
-    expect(user?.email).toBe('u1');
+    // the placeholder carries the name only: no user id shown as an email, no birth fields
+    expect(user).toEqual({ name: 'User' });
     const restored = restoreSessionFromStorage();
     expect(restored.isAuthenticated).toBe(true);
     expect(restored.user).not.toBeNull();

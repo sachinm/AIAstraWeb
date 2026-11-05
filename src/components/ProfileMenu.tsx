@@ -6,7 +6,7 @@ import { usePlan } from '../Auth/ProfileGate';
 import { ShriGaneshAvatar } from './ShriGaneshAvatar';
 
 interface ProfileMenuProps {
-  user?: { name: string; email: string } | null;
+  user?: { name: string; email?: string } | null;
   onLogout: () => void;
 }
 
@@ -88,7 +88,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
           {user && (
             <div className="border-b border-white/10 px-3 py-2">
               <p className="truncate font-medium text-white">{user.name}</p>
-              <p className="truncate text-sm text-gray-400">{user.email}</p>
+              {user.email && <p className="truncate text-sm text-gray-400">{user.email}</p>}
             </div>
           )}
           {planName && !plan?.exempt && (

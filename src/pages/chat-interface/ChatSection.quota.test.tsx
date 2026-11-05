@@ -47,7 +47,7 @@ const plan = (used: number): PlanStatus => ({
 const renderChat = () =>
   render(
     <MemoryRouter>
-      <ChatSection user={{ name: 'A', dateOfBirth: '', placeOfBirth: '' }} activeChatId={null} />
+      <ChatSection user={{ name: 'A' }} activeChatId={null} />
     </MemoryRouter>
   );
 

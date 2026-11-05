@@ -7,10 +7,7 @@ import KundliNotice from '../components/KundliNotice';
 
 interface User {
   name: string;
-  email: string;
-  dateOfBirth: string;
-  placeOfBirth: string;
-  timeOfBirth: string;
+  email?: string;
 }
 
 interface DashboardProps {

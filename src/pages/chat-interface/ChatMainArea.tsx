@@ -12,7 +12,6 @@ import Disclaimer from '../../components/Disclaimer';
 import LegalLinks from '../../components/LegalLinks';
 import { QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
 import ClarifyCard from './ClarifyCard';
-import ThinkingPanel from './ThinkingPanel';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
 import type { QuestionLocationStatus } from './useQuestionLocation';
 
@@ -23,17 +22,14 @@ const PartHeader: React.FC<{ text: string }> = ({ text }) => (
   </p>
 );
 
-/** Understanding line + collapsible thinking for a reading-engine answer (the stages live in ReadingStagesPanel). */
-const ReadingProgressView: React.FC<{ progress?: ReadingProgress; working: boolean; answering?: boolean }> = ({ progress, working, answering = false }) => {
-  if (!progress || (!progress.understood && !progress.thinking)) return null;
+/** Understanding line for a reading-engine answer (the stages live in ReadingStagesPanel). */
+const ReadingProgressView: React.FC<{ progress?: ReadingProgress }> = ({ progress }) => {
+  if (!progress?.understood) return null;
   return (
     <div className="not-prose mb-3 flex flex-col gap-2" data-test-id="reading-progress" aria-live="polite">
-      {progress.understood && (
-        <p className="text-sm italic text-gray-300 leading-snug" data-test-id="reading-understood">
-          {progress.understood}
-        </p>
-      )}
-      {progress.thinking && <ThinkingPanel text={progress.thinking} answering={answering} working={working} />}
+      <p className="text-sm italic text-gray-300 leading-snug" data-test-id="reading-understood">
+        {progress.understood}
+      </p>
     </div>
   );
 };
@@ -246,7 +242,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                       message.id === streamingMessageId && !message.text.trim() ? (
                         <div className="not-prose flex flex-col gap-2" aria-live="polite">
                           {message.partHeader && <PartHeader text={message.partHeader} />}
-                          <ReadingProgressView progress={message.progress} working />
+                          <ReadingProgressView progress={message.progress} />
                           <div className="flex space-x-2" aria-hidden>
                             <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
                             <div
@@ -263,7 +259,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
                       ) : (
                         <>
                           {message.partHeader && <PartHeader text={message.partHeader} />}
-                          <ReadingProgressView progress={message.progress} working={message.id === streamingMessageId} answering />
+                          <ReadingProgressView progress={message.progress} />
                           <ReactMarkdown remarkPlugins={[remarkGfm]} components={aiMarkdownComponents}>
                             {message.text}
                           </ReactMarkdown>

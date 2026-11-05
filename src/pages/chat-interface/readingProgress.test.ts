@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyReadingEvent, emptyProgress, formatSeconds, MAX_THINKING_CHARS, nextPartsOf, panelStages, stageCounts, stageReason, visibleChips, type ReadingProgress } from './readingProgress';
+import { applyReadingEvent, emptyProgress, formatSeconds, nextPartsOf, panelStages, stageCounts, stageReason, visibleChips, type ReadingProgress, type ReadingStreamEvent } from './readingProgress';
 
 describe('applyReadingEvent', () => {
   it('captures the understanding line and subjects from the intent event', () => {
@@ -63,29 +63,20 @@ describe('applyReadingEvent', () => {
   });
 });
 
-describe('thought events', () => {
-  it('accumulates thought text in order without touching stages or the understanding line', () => {
+describe('thought events (no longer sent by the server)', () => {
+  it('ignores a thought event and leaves the progress unchanged', () => {
     let p: ReadingProgress = emptyProgress();
     p = applyReadingEvent(p, { type: 'intent', intent: { text: 'About your career.' } });
-    p = applyReadingEvent(p, { type: 'thought', delta: '**Checking** the 10th lord. ' });
-    p = applyReadingEvent(p, { type: 'thought', delta: 'Weighing the dasha.' });
-    expect(p.thinking).toBe('**Checking** the 10th lord. Weighing the dasha.');
-    expect(p.understood).toBe('About your career.');
-    expect(p.stages).toEqual([]);
+    p = applyReadingEvent(p, { type: 'stage', name: 'dasha', status: 'start' }, 1000);
+    const thought = { type: 'thought', delta: 'Weighing the 10th lord.' } as unknown as ReadingStreamEvent;
+    const after = applyReadingEvent(p, thought, 2000);
+    expect(after).toEqual(p);
+    expect(JSON.stringify(after)).not.toContain('10th lord');
   });
 
-  it('ignores empty or non-string deltas', () => {
-    let p: ReadingProgress = emptyProgress();
-    p = applyReadingEvent(p, { type: 'thought', delta: '' });
-    p = applyReadingEvent(p, { type: 'thought', delta: 42 as unknown as string });
-    expect(p.thinking).toBeUndefined();
-  });
-
-  it('keeps at most MAX_THINKING_CHARS', () => {
-    let p: ReadingProgress = emptyProgress();
-    p = applyReadingEvent(p, { type: 'thought', delta: 'a'.repeat(MAX_THINKING_CHARS - 10) });
-    p = applyReadingEvent(p, { type: 'thought', delta: 'b'.repeat(500) });
-    expect(p.thinking!.length).toBe(MAX_THINKING_CHARS);
+  it('ignores any other unknown event safely', () => {
+    const odd = { type: 'something-new', payload: { x: 1 } } as unknown as ReadingStreamEvent;
+    expect(applyReadingEvent(undefined, odd)).toEqual(emptyProgress());
   });
 });
 
