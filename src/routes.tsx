@@ -17,6 +17,7 @@ import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
+import LuckyTimesPage from './pages/lucky/LuckyTimesPage';
 import PricingPage from './pages/pricing/PricingPage';
 import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import SeoHead from './components/SeoHead';
@@ -130,6 +131,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <Route path="chart" element={<Navigate to="/dashboard/charts" replace />} />
           <Route path="mantras" element={<MantrasSection user={user!} />} />
           <Route path="remedies" element={<RemediesSection user={user!} />} />
+          <Route path="lucky" element={<LuckyTimesPage />} />
           <Route path="timeline/ledger" element={<Navigate to="/profile/timeline" replace />} />
         </Route>
         <Route
