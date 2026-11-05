@@ -30,16 +30,37 @@ function renderPage() {
   return render(<BirthDetails onDone={onDone} />);
 }
 
-async function fillAll(user: U, over: { dob?: string } = {}) {
+const next = (user: U) => user.click(screen.getByRole('button', { name: /^next$/i }));
+
+/** Step 1: date and time, then Next. */
+async function fillWhen(user: U, over: { dob?: string } = {}) {
   await user.type(screen.getByLabelText(/date of birth/i), over.dob ?? '27/04/1990');
   await user.selectOptions(screen.getByLabelText('Hour'), '12');
   await user.selectOptions(screen.getByLabelText('Minute'), '05');
   await user.selectOptions(screen.getByLabelText(/am or pm/i), 'AM');
+  await next(user);
+}
+
+/** Step 2: country and city, then Next. */
+async function fillWhere(user: U) {
   await user.clear(screen.getByLabelText(/country of birth/i));
   await user.type(screen.getByLabelText(/country of birth/i), 'Ind');
   await user.click(await screen.findByRole('option', { name: 'India' }));
   await user.type(screen.getByLabelText(/city of birth/i), 'Pune');
+  await next(user);
+}
+
+/** All three steps, leaving the last one open with its button. */
+async function fillAll(user: U, over: { dob?: string } = {}) {
+  await fillWhen(user, over);
+  await fillWhere(user);
   await user.selectOptions(screen.getByLabelText('Gender'), 'female');
+}
+
+/** Opens the page on the last step, as a refresh there would. */
+function renderOnLastStep() {
+  sessionStorage.setItem('aiastra.registration.details.step', 'gender');
+  return renderPage();
 }
 
 describe('BirthDetails (page 2)', () => {
@@ -49,16 +70,25 @@ describe('BirthDetails (page 2)', () => {
     vi.mocked(fetchMe).mockResolvedValue(me());
   });
 
-  it('has the required controls, the format label, the estimate hint and the 30-minute notice; no age or password', () => {
+  it('has the required controls, a few per step, the format label and the estimate hint; no notice, age or password', async () => {
+    const user = userEvent.setup();
     renderPage();
     expect(screen.getByRole('heading', { name: /your birth details/i })).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
     expect(screen.getByText(/date of birth \(DD\/MM\/YYYY\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText('Hour')).toBeInTheDocument();
     expect(screen.getByLabelText('Minute')).toBeInTheDocument();
     expect(screen.getByLabelText(/am or pm/i)).toBeInTheDocument();
     expect(screen.getByText("If you don't know the exact time, use your best estimate.")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/country of birth/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument();
+    await fillWhen(user);
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/date of birth/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/country of birth/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/city of birth/i)).toHaveAttribute('type', 'text');
+    await fillWhere(user);
+    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument();
     expect(screen.getByLabelText('Gender')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Male' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Female' })).toBeInTheDocument();
@@ -71,22 +101,55 @@ describe('BirthDetails (page 2)', () => {
     expect(screen.getByRole('button', { name: /create my chart/i })).toBeEnabled();
   });
 
-  it('requires every field except the referral code, names what is missing and focuses the first', async () => {
+  it('Next names only that step\'s missing fields and focuses the first; every step is required but the referral', async () => {
     const user = userEvent.setup();
     renderPage();
-    // the country defaults from the browser locale; clear it to prove it is required
-    await user.clear(screen.getByLabelText(/country of birth/i));
-    await user.click(screen.getByRole('button', { name: /create my chart/i }));
-
-    expect(completeProfile).not.toHaveBeenCalled();
-    const alert = screen.getByRole('alert');
+    await next(user);
+    let alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Date of birth');
     expect(alert).toHaveTextContent('Time of birth');
+    expect(alert).not.toHaveTextContent('City');
+    await waitFor(() => expect(screen.getByLabelText(/date of birth/i)).toHaveFocus());
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
+
+    await fillWhen(user);
+    // the country defaults from the browser locale; clear it to prove it is required
+    await user.clear(screen.getByLabelText(/country of birth/i));
+    await next(user);
+    alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Country');
     expect(alert).toHaveTextContent('City');
+
+    await fillWhere(user);
+    await user.click(screen.getByRole('button', { name: /create my chart/i }));
+    expect(completeProfile).not.toHaveBeenCalled();
+    alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Gender');
     expect(alert).not.toHaveTextContent(/referral/i);
-    expect(screen.getByLabelText(/date of birth/i)).toHaveFocus();
+  });
+
+  it('asks one question per step on a short window', async () => {
+    const user = userEvent.setup();
+    const spy = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (q: string) => ({ matches: q.includes('max-height'), media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList
+    );
+    renderPage();
+    expect(screen.getByText('Step 1 of 7')).toBeInTheDocument();
+    expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Hour')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/date of birth/i), '27/04/1990');
+    await next(user);
+    expect(screen.getByText('Step 2 of 7')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hour')).toBeInTheDocument();
+    spy.mockRestore();
+  });
+
+  it('Back keeps what was typed', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await fillWhen(user);
+    await user.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByLabelText(/date of birth/i)).toHaveValue('27/04/1990');
   });
 
   it('rejects a future date of birth', async () => {
@@ -138,11 +201,11 @@ describe('BirthDetails (page 2)', () => {
     const user = userEvent.setup();
     vi.mocked(completeProfile).mockResolvedValueOnce({ success: true, referral_code: 'ABC' });
     renderPage();
+    await fillAll(user);
     expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
     expect(screen.queryByText(/Hindi is coming soon/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: 'हिन्दी (Hindi)' }));
     expect(screen.getByText('Hindi is coming soon. Until then, your readings and the app are in English.')).toBeInTheDocument();
-    await fillAll(user);
     await user.click(screen.getByRole('button', { name: /create my chart/i }));
     await waitFor(() => expect(completeProfile).toHaveBeenCalled());
     expect(vi.mocked(completeProfile).mock.calls[0][0].language).toBe('hi');
@@ -150,7 +213,7 @@ describe('BirthDetails (page 2)', () => {
 
   it('defaults to Hindi for a browser set to Hindi', () => {
     const spy = vi.spyOn(navigator, 'language', 'get').mockReturnValue('hi-IN');
-    renderPage();
+    renderOnLastStep();
     expect(screen.getByRole('radio', { name: 'हिन्दी (Hindi)' })).toBeChecked();
     spy.mockRestore();
   });
@@ -170,20 +233,21 @@ describe('BirthDetails (page 2)', () => {
   });
 
   it('defaults the country from the browser locale', () => {
+    sessionStorage.setItem('aiastra.registration.details.step', 'country');
     renderPage();
     expect(screen.getByLabelText(/country of birth/i)).toHaveValue('United States');
   });
 
-  it('autosaves entries to sessionStorage and restores them after a refresh', async () => {
+  it('autosaves entries and the step to sessionStorage and restores them after a refresh', async () => {
     const user = userEvent.setup();
     const first = renderPage();
+    await fillWhen(user);
     await user.type(screen.getByLabelText(/city of birth/i), 'Pune');
-    await user.selectOptions(screen.getByLabelText('Gender'), 'male');
     first.unmount();
 
     renderPage();
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
     expect(screen.getByLabelText(/city of birth/i)).toHaveValue('Pune');
-    expect(screen.getByLabelText('Gender')).toHaveValue('male');
   });
 
   it('shows the server message and keeps the entries when saving fails', async () => {
@@ -193,6 +257,8 @@ describe('BirthDetails (page 2)', () => {
     await fillAll(user);
     await user.click(screen.getByRole('button', { name: /create my chart/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Try later.');
+    expect(screen.getByLabelText('Gender')).toHaveValue('female');
+    await user.click(screen.getByRole('button', { name: /back/i }));
     expect(screen.getByLabelText(/city of birth/i)).toHaveValue('Pune');
     expect(onDone).not.toHaveBeenCalled();
   });

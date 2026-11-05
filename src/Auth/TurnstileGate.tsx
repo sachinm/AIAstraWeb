@@ -42,10 +42,22 @@ const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
   if (!turnstile.isEnabled) return null;
 
   const failed = awaiting && Boolean(turnstile.error);
+  // Cloudflare wants a click: the whole page waits on it. The wrappers are always there and only their classes change,
+  // so the widget is never remounted (that would restart the check).
+  const open = turnstile.needsInteraction;
 
   return (
-    <div data-test-id="turnstile-gate">
-      {awaiting && (showWait || failed) && (
+    <div
+      data-test-id="turnstile-gate"
+      className={open ? 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm' : ''}
+    >
+      <div className={open ? 'w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900/95 p-6 text-center shadow-xl' : ''}>
+      {open && (
+        <p role="status" data-test-id="turnstile-click" className="mb-3 font-semibold text-white">
+          Please confirm you are a person.
+        </p>
+      )}
+      {!open && awaiting && (showWait || failed) && (
         <div role="status" aria-live="polite" data-test-id="turnstile-waiting" className="mt-4 text-center text-sm">
           <p className="text-gray-300">Finishing the security check… your request goes on by itself.</p>
           {(failed || slow) && (
@@ -76,6 +88,7 @@ const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
         onAfterInteractive={turnstile.onAfterInteractive}
         onRegisterReset={turnstile.registerReset}
       />
+      </div>
     </div>
   );
 };

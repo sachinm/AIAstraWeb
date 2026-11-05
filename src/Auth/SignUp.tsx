@@ -143,9 +143,9 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
   };
 
   return (
-    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-3 sm:px-6">
+    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-3 sm:px-6 [@media(max-height:480px)]:pt-1 [@media(max-height:480px)]:pb-1">
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 [@media(max-height:480px)]:mb-1 [@media(max-height:480px)]:text-sm">
         <button
           type="button"
           onClick={onBack}
@@ -164,12 +164,12 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
           </button>
         </div>
 
-        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-white/20 shadow-2xl">
-          <div className="text-center mb-3 [@media(max-height:560px)]:mb-2">
-            <h2 className="text-3xl font-bold text-white [@media(max-height:560px)]:text-2xl">Sign up</h2>
+        <div className="bg-slate-950/35 backdrop-blur-[3px] rounded-2xl p-5 sm:p-6 [@media(max-height:480px)]:p-3 border border-white/20 shadow-2xl">
+          <div className="text-center mb-3 [@media(max-height:560px)]:mb-2 [@media(max-height:480px)]:mb-0">
+            <h2 className="text-3xl font-bold text-white [@media(max-height:560px)]:text-2xl [@media(max-height:480px)]:sr-only">Sign up</h2>
           </div>
 
-          <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-4">
+          <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-4 [@media(max-height:480px)]:space-y-2">
             <div>
               <label htmlFor="name" className="sr-only">
                 Name
@@ -299,7 +299,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
                   <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-300 underline underline-offset-2 hover:text-white">
                     Privacy Policy
                   </a>
-                  . {PRODUCT_NAME} is for education and entertainment only and is not advice.
+                  .<span className="[@media(max-height:480px)]:hidden"> {PRODUCT_NAME} is for education and entertainment only and is not advice.</span>
                 </span>
               </label>
             )}
@@ -330,9 +330,10 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               )}
             </button>
           </form>
-
-          <TurnstileGate turnstile={turnstile} action="register" />
         </div>
+
+        {/* outside the card: its backdrop blur would hold the full-page click overlay inside the card */}
+        <TurnstileGate turnstile={turnstile} action="register" />
       </div>
     </div>
   );
