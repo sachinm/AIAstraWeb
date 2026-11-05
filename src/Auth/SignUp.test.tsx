@@ -87,6 +87,7 @@ describe('SignUp page 1 (Sign up)', () => {
   it('validates name and email before calling the server', async () => {
     const user = userEvent.setup();
     renderPage();
+    await user.click(screen.getByRole('checkbox', { name: /accept the terms/i }));
     await user.click(screen.getByRole('button', { name: /^next$/i }));
     expect(startSignup).not.toHaveBeenCalled();
     expect(screen.getByText(/enter your name/i)).toBeInTheDocument();
@@ -94,14 +95,17 @@ describe('SignUp page 1 (Sign up)', () => {
     expect(screen.getByLabelText(/^name$/i)).toHaveFocus();
   });
 
-  it('will not send a code until the terms are accepted', async () => {
+  it('keeps Next disabled until the terms are accepted', async () => {
     const user = userEvent.setup();
     renderPage();
     await user.type(screen.getByLabelText(/^name$/i), 'Asha Rao');
     await user.type(screen.getByLabelText(/email address/i), 'asha@example.com');
-    await user.click(screen.getByRole('button', { name: /^next$/i }));
+    const next = screen.getByRole('button', { name: /^next$/i });
+    expect(next).toBeDisabled();
+    await user.click(next);
     expect(startSignup).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/accept the terms of service/i);
+    await user.click(screen.getByRole('checkbox', { name: /accept the terms/i }));
+    expect(next).toBeEnabled();
     expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms');
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy');
   });
