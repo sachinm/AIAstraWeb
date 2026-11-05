@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import {
   useQuestionLocation,
   roundCoord,
-  QUESTION_LOCATION_STORAGE_KEY,
+  forgetQuestionLocation,
   QUESTION_LOCATION_TIMEOUT_MS,
 } from './useQuestionLocation';
 
@@ -22,6 +22,7 @@ function deny() {
 describe('useQuestionLocation', () => {
   beforeEach(() => {
     getCurrentPosition.mockReset();
+    forgetQuestionLocation();
     sessionStorage.clear();
     localStorage.clear();
     Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
@@ -57,8 +58,9 @@ describe('useQuestionLocation', () => {
     expect(result.current.status).toBe('granted');
   });
 
-  it('caches the location for later questions and in sessionStorage only', async () => {
+  it('caches the location for later questions in memory only, never in storage', async () => {
     grant();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
     const { result, unmount } = renderHook(() => useQuestionLocation());
     await act(async () => {
       await result.current.ensureLocation();
@@ -67,8 +69,10 @@ describe('useQuestionLocation', () => {
       await result.current.ensureLocation();
     });
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(sessionStorage.getItem(QUESTION_LOCATION_STORAGE_KEY)!)).toMatchObject({ status: 'granted', location: { lat: 43.65, lon: -79.38 } });
+    expect(setItem).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
     expect(localStorage.length).toBe(0);
+    setItem.mockRestore();
     unmount();
 
     // a remount in the same session reuses it without asking
@@ -80,6 +84,10 @@ describe('useQuestionLocation', () => {
     });
     expect(loc).toMatchObject({ lat: 43.65, lon: -79.38 });
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+
+    // sign-out forgets it: the next mount has not asked
+    forgetQuestionLocation();
+    expect(renderHook(() => useQuestionLocation()).result.current.status).toBe('unasked');
   });
 
   it('denied gives no location and is not asked again this session', async () => {
@@ -156,7 +164,7 @@ describe('useQuestionLocation', () => {
     expect(result.current.status).toBe('granted');
   });
 
-  it('survives blocked sessionStorage', async () => {
+  it('works when storage is blocked', async () => {
     grant();
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked');

@@ -1,5 +1,9 @@
 import { clearAuth } from '../lib/graphql';
+import { REGION_KEY } from '../lib/region';
+import { PREFS_KEY as READING_UI_PREFS_KEY } from '../pages/chat-interface/readingUi';
+import { forgetQuestionLocation } from '../pages/chat-interface/useQuestionLocation';
 import { requestServerLogout } from './api';
+import { clearSignupDraft } from './signupDraft';
 import {
   broadcastLogoutToOtherTabs,
   stopIdleSessionWatcher,
@@ -15,6 +19,38 @@ export interface PerformLogoutOptions {
   redirect?: boolean;
 }
 
+/**
+ * The only localStorage keys that survive sign-out: the region switch (lib/region.ts) and the reading-UI sidebar
+ * preferences (readingUi.ts). Neither is personal. Everything else the app writes goes: token, userId, astroUser,
+ * isAuthenticated, aa_visit (visit id) and the cross-tab logout signal (server docs/privacy/02 §4.3).
+ */
+export const KEPT_LOCAL_STORAGE_KEYS: readonly string[] = [REGION_KEY, READING_UI_PREFS_KEY];
+
+/**
+ * Sign-out wipe: all of sessionStorage, every localStorage key except KEPT_LOCAL_STORAGE_KEYS, and the in-memory
+ * sign-up draft and question location. Storage can throw (private mode, blocked site data), so each part is guarded.
+ */
+export function clearAppStorage(): void {
+  try {
+    sessionStorage.clear();
+  } catch {
+    /* storage unavailable: nothing was written there */
+  }
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k !== null && !KEPT_LOCAL_STORAGE_KEYS.includes(k)) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
+  } catch {
+    /* storage unavailable: nothing was written there */
+  }
+  clearSignupDraft();
+  forgetQuestionLocation();
+}
+
+/** Auth keys only; used at start-up for a missing or expired session. Sign-out also runs clearAppStorage. */
 export function clearClientSession(): void {
   clearAuth();
   localStorage.removeItem('astroUser');
@@ -35,6 +71,7 @@ export function performLogout(options?: PerformLogoutOptions): void {
     void requestServerLogout();
   }
   clearClientSession();
+  clearAppStorage();
 
   window.dispatchEvent(
     new CustomEvent('auth:logout', { detail: { reason } })

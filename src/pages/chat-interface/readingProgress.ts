@@ -37,8 +37,6 @@ export interface ReadingProgress {
   horizonLabel?: string;
   stages: StageChip[];
   windowsCount?: number;
-  /** Thought summaries streamed while the answer is prepared (event `thought`). Shown in a collapsible panel, never saved. */
-  thinking?: string;
   /** Parts of the question still to answer, in order (event `next`); the chat reads them one after another. */
   next?: NextPart[];
 }
@@ -57,13 +55,10 @@ export function nextPartsOf(ev: Record<string, unknown>): NextPart[] {
     .map((p) => ({ id: p.id, label: p.label }));
 }
 
-/** Longest thinking text kept in memory for one answer. */
-export const MAX_THINKING_CHARS = 20_000;
-
 export interface ReadingStreamEvent {
   /** with type `usage`: the question count after this request (not a reading stage) */
   usage?: PlanStatus;
-  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'thought' | 'next' | 'usage';
+  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'next' | 'usage';
   [k: string]: unknown;
 }
 
@@ -84,6 +79,10 @@ export function stageLabel(name: string): string {
 
 export const emptyProgress = (): ReadingProgress => ({ stages: [] });
 
+/**
+ * Folds one stream event into the progress state. Any other event type, including `thought` (the server stopped
+ * streaming thought summaries, server docs/privacy/02 §4.3), leaves the state as it was.
+ */
 export function applyReadingEvent(prev: ReadingProgress | undefined, ev: ReadingStreamEvent, now: number = Date.now()): ReadingProgress {
   const p: ReadingProgress = prev ? { ...prev, stages: [...prev.stages] } : emptyProgress();
   if (ev.type === 'intent') {
@@ -96,11 +95,6 @@ export function applyReadingEvent(prev: ReadingProgress | undefined, ev: Reading
   if (ev.type === 'next') {
     const parts = nextPartsOf(ev);
     if (parts.length) p.next = parts;
-    return p;
-  }
-  if (ev.type === 'thought') {
-    const delta = typeof ev.delta === 'string' ? ev.delta : '';
-    if (delta) p.thinking = ((p.thinking ?? '') + delta).slice(0, MAX_THINKING_CHARS);
     return p;
   }
   if (ev.type === 'windows') {

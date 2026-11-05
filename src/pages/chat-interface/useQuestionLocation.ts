@@ -15,7 +15,6 @@ export interface QuestionLocation {
 /** `unasked`: not asked yet this session. `asking`: the browser prompt is open. `denied` covers unavailable and timeout. */
 export type QuestionLocationStatus = 'unasked' | 'asking' | 'granted' | 'denied';
 
-export const QUESTION_LOCATION_STORAGE_KEY = 'aiastra.questionLocation';
 export const QUESTION_LOCATION_TIMEOUT_MS = 5000;
 export const QUESTION_LOCATION_ASK_TEXT =
   "Allow location so readings about 'right now' use where you are. Otherwise we use your birth place.";
@@ -27,34 +26,29 @@ export function roundCoord(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * This tab's answer, in memory only (server docs/privacy/02 §4.3): never in sessionStorage or localStorage. It outlives
+ * a remount of the chat, not a page refresh; sign-out forgets it.
+ */
+let remembered: Stored | null = null;
+
 function readStored(): Stored | null {
-  try {
-    const raw = sessionStorage.getItem(QUESTION_LOCATION_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Stored;
-    if (parsed?.status === 'denied') return { status: 'denied' };
-    if (parsed?.status === 'granted' && Number.isFinite(parsed.location?.lat) && Number.isFinite(parsed.location?.lon)) {
-      return parsed;
-    }
-  } catch {
-    // storage blocked or bad JSON: treat as not asked
-  }
-  return null;
+  return remembered;
 }
 
 function writeStored(value: Stored | null): void {
-  try {
-    if (value) sessionStorage.setItem(QUESTION_LOCATION_STORAGE_KEY, JSON.stringify(value));
-    else sessionStorage.removeItem(QUESTION_LOCATION_STORAGE_KEY);
-  } catch {
-    // storage blocked: the in-memory state still holds for this page
-  }
+  remembered = value;
+}
+
+/** Forget this tab's answer (sign-out, tests). */
+export function forgetQuestionLocation(): void {
+  remembered = null;
 }
 
 /**
  * Asks for the browser's position once per session, and only when `ensureLocation` is first called (after the first
  * question is sent), never on page load. Denied, unavailable or timed out means no location and no second ask; `reask`
- * is the only way to ask again (the "change" link). The result lives in sessionStorage only.
+ * is the only way to ask again (the "change" link). The result lives in memory only, for the tab's life.
  */
 export function useQuestionLocation(options?: { onAsk?: () => void }) {
   const [initial] = useState(readStored);
@@ -100,7 +94,7 @@ export function useQuestionLocation(options?: { onAsk?: () => void }) {
         resolve(value);
       };
       // The browser's own timeout does not count the time its permission prompt is open, so cap the wait here too.
-      // A late answer still lands in storage for the next question.
+      // A late answer is still remembered for the next question.
       const cap = setTimeout(() => {
         if (storedRef.current?.status !== 'granted') settle({ status: 'denied' });
         finish(null);

@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import ChatSection from './ChatSection';
 import * as UserData from '../UserData';
 import * as chatAPI from './chatAPI';
-import { QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
+import { forgetQuestionLocation, QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
 
 vi.mock('../UserData', () => ({
   fetchUserDetails: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock('./useSpeechRecognition', () => ({
 }));
 
 const getCurrentPosition = vi.fn();
-const mockUser = { name: 'Test User', dateOfBirth: '1990-01-01', placeOfBirth: 'Mumbai' };
+const mockUser = { name: 'Test User' };
 
 async function ask(user: ReturnType<typeof userEvent.setup>, text: string) {
   const input = screen.getByPlaceholderText(/Ask about work, money/i);
@@ -53,6 +53,7 @@ async function renderReady() {
 describe('ChatSection question location', () => {
   beforeEach(() => {
     sessionStorage.clear();
+    forgetQuestionLocation();
     getCurrentPosition.mockReset();
     Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
     vi.mocked(UserData.fetchUserDetails).mockResolvedValue({ success: true, kundli_added: true, queue_status: 'completed' });

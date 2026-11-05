@@ -22,7 +22,7 @@ export const EMAIL_EXISTS_MESSAGE = 'This email is already registered. Please si
 export const TERMS_REQUIRED_MESSAGE = 'Please accept the Terms of Service and Privacy Policy to continue.';
 
 const inputCls =
-  'w-full bg-white/10 border rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 read-only:opacity-70';
+  'w-full bg-white/10 border rounded-lg px-10 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 read-only:opacity-70';
 
 /**
  * Page 1 of registration, "Sign up": name and email, then Next. After Next the code field
@@ -143,9 +143,9 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
   };
 
   return (
-    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-6 sm:px-6">
+    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-3 sm:px-6 [@media(max-height:480px)]:pt-1 [@media(max-height:480px)]:pb-1">
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2 [@media(max-height:480px)]:mb-1 [@media(max-height:480px)]:text-sm">
         <button
           type="button"
           onClick={onBack}
@@ -164,14 +164,14 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
           </button>
         </div>
 
-        <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
-          <div className="text-center mb-4">
-            <h2 className="text-3xl font-bold text-white">Sign up</h2>
+        <div className="bg-slate-950/35 backdrop-blur-[3px] rounded-2xl p-5 sm:p-6 [@media(max-height:480px)]:p-3 border border-white/20 shadow-2xl">
+          <div className="text-center mb-3 [@media(max-height:560px)]:mb-2 [@media(max-height:480px)]:mb-0">
+            <h2 className="text-3xl font-bold text-white [@media(max-height:560px)]:text-2xl [@media(max-height:480px)]:sr-only">Sign up</h2>
           </div>
 
-          <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-6">
+          <form onSubmit={codeSent ? verify : sendCode} noValidate className="space-y-4 [@media(max-height:480px)]:space-y-2">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="name" className="sr-only">
                 Name
               </label>
               <div className="relative">
@@ -184,7 +184,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
                   readOnly={codeSent}
                   onChange={(e) => setName(e.target.value)}
                   autoComplete="name"
-                  placeholder="Your name"
+                  placeholder="Name"
                   aria-invalid={Boolean(fieldErrors.name)}
                   className={`${inputCls} ${fieldErrors.name ? 'border-red-500' : 'border-white/20'}`}
                 />
@@ -193,7 +193,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="email" className="sr-only">
                 Email address
               </label>
               <div className="relative">
@@ -209,7 +209,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
                     setEmailExists(false);
                   }}
                   autoComplete="email"
-                  placeholder="you@example.com"
+                  placeholder="Email address"
                   aria-invalid={Boolean(fieldErrors.email)}
                   className={`${inputCls} ${fieldErrors.email ? 'border-red-500' : 'border-white/20'}`}
                 />
@@ -299,7 +299,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
                   <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-300 underline underline-offset-2 hover:text-white">
                     Privacy Policy
                   </a>
-                  . {PRODUCT_NAME} is for education and entertainment only and is not advice.
+                  .<span className="[@media(max-height:480px)]:hidden"> {PRODUCT_NAME} is for education and entertainment only and is not advice.</span>
                 </span>
               </label>
             )}
@@ -314,8 +314,9 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+              // Next waits for the terms box; Verify does not need it
+              disabled={loading || (!codeSent && !accepted)}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
             >
               {loading ? (
                 <>
@@ -329,9 +330,10 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               )}
             </button>
           </form>
-
-          <TurnstileGate turnstile={turnstile} action="register" />
         </div>
+
+        {/* outside the card: its backdrop blur would hold the full-page click overlay inside the card */}
+        <TurnstileGate turnstile={turnstile} action="register" />
       </div>
     </div>
   );

@@ -375,12 +375,15 @@ body {
 }
 @media (orientation: landscape) and (min-width: 700px) {
   .sky-side {
-    --sky-form-edge: calc(clamp(1.5rem, 5vw, 6rem) + 27rem + 1rem);
-    /* the box keeps the scenes' own 16:9 shape, as large as fits beside the form, so the cover crop has nothing to cut */
-    left: var(--sky-form-edge);
-    width: min(calc(100vw - var(--sky-form-edge)), calc(100dvh * 16 / 9));
-    height: min(100dvh, calc((100vw - var(--sky-form-edge)) * 9 / 16));
-    top: calc((100dvh - min(100dvh, calc((100vw - var(--sky-form-edge)) * 9 / 16))) / 2);
+    /*
+     * The scene's own 16:9 box, as large as fits in 92% of the window, its centre moved 7.5% right of the window's
+     * (never past the right edge). The form's see-through panel sits over its left side (Sachin, 2026-11-04).
+     */
+    --sky-w: min(92vw, calc(92dvh * 16 / 9));
+    width: var(--sky-w);
+    height: calc(var(--sky-w) * 9 / 16);
+    left: min(calc(57.5vw - var(--sky-w) / 2), calc(100vw - var(--sky-w)));
+    top: calc((100dvh - var(--sky-w) * 9 / 16) / 2);
     -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
     -webkit-mask-composite: source-in;
     mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);

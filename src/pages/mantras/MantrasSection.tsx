@@ -5,7 +5,6 @@ import LoadError from '../../components/LoadError';
 
 interface User {
   name: string;
-  dateOfBirth: string;
 }
 
 interface MantrasSectionProps {
