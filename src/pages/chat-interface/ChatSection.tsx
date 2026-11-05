@@ -36,8 +36,6 @@ import {
 
 interface User {
   name: string;
-  dateOfBirth: string;
-  placeOfBirth: string;
 }
 
 interface ChatSectionProps {

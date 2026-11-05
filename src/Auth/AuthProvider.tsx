@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../App';
 import { touchActivity } from './sessionIdle';
+import { readStoredUser, writeStoredUser } from './storedUser';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -22,10 +23,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const handleSignIn = () => {
     setIsAuthenticated(true);
-    const savedUser = localStorage.getItem('astroUser');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const savedUser = readStoredUser();
+    if (savedUser) setUser(savedUser);
   };
 
   const handleSignUp = () => {
@@ -35,12 +34,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const handleSuccessfulSignIn = (userData?: User) => {
     if (userData) {
       setUser(userData);
-      localStorage.setItem('astroUser', JSON.stringify(userData));
+      writeStoredUser(userData);
     } else {
-      const savedUser = localStorage.getItem('astroUser');
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
-      }
+      const savedUser = readStoredUser();
+      if (savedUser) setUser(savedUser);
     }
     setIsAuthenticated(true);
     touchActivity();
@@ -50,7 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const handleSuccessfulSignUp = (userData: User) => {
     setUser(userData);
     setIsAuthenticated(true);
-    localStorage.setItem('astroUser', JSON.stringify(userData));
+    writeStoredUser(userData);
     localStorage.setItem('isAuthenticated', 'true');
     touchActivity();
     navigate('/dashboard/chat', { replace: true });

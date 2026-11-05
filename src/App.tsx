@@ -4,19 +4,25 @@ import AppRoutes from './routes';
 import AppFrame from './components/AppFrame';
 import AuthProvider from './Auth/AuthProvider';
 import { clearClientSession, performLogout } from './Auth/logout';
-import { restoreSessionFromStorage } from './Auth/sessionRestore';
+import { resolveUserForSession, restoreSessionFromStorage } from './Auth/sessionRestore';
+import { toUser, writeStoredUser } from './Auth/storedUser';
 import {
   startIdleSessionWatcher,
   stopIdleSessionWatcher,
   touchActivity,
 } from './Auth/sessionIdle';
 
-export interface User {
+/**
+ * What `astroUser` in localStorage holds: the display name only. Birth details live on the server and are never kept
+ * in the browser (server docs/privacy/02 §4.3).
+ */
+export interface StoredUser {
   name: string;
-  email: string;
-  dateOfBirth: string;
-  placeOfBirth: string;
-  timeOfBirth: string;
+}
+
+/** The signed-in user in memory. The email is known only for this page's life (from sign-up) and is never stored. */
+export interface User extends StoredUser {
+  email?: string;
 }
 
 const App = () => {
@@ -30,9 +36,11 @@ const App = () => {
   }, []);
 
   const handleSignIn = (userData?: User) => {
-    if (userData) {
-      setUser(userData);
-      localStorage.setItem('astroUser', JSON.stringify(userData));
+    // code sign-in passes the user id string, not a user object: fall back to the stored name or the placeholder
+    const next = toUser(userData) ?? resolveUserForSession();
+    if (next) {
+      setUser(next);
+      writeStoredUser(next);
     }
     setIsAuthenticated(true);
     touchActivity();
@@ -41,7 +49,7 @@ const App = () => {
   const handleSignUp = (userData: User) => {
     setUser(userData);
     setIsAuthenticated(true);
-    localStorage.setItem('astroUser', JSON.stringify(userData));
+    writeStoredUser(userData);
     localStorage.setItem('isAuthenticated', 'true');
     touchActivity();
   };

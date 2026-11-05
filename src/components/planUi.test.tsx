@@ -219,7 +219,7 @@ describe('Dashboard page scroll', () => {
         <Routes>
           <Route
             path="/dashboard"
-            element={<Dashboard user={{ name: 'A', email: 'a@b.c', dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' }} onLogout={() => undefined} />}
+            element={<Dashboard user={{ name: 'A', email: 'a@b.c' }} onLogout={() => undefined} />}
           >
             <Route path="chat" element={<div />} />
             <Route path="charts" element={<div />} />

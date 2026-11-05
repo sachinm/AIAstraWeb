@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Disclaimer, { DISCLAIMER_LINE_1, DISCLAIMER_TEXT } from './Disclaimer';
 import Dashboard from '../pages/Dashboard';
 
-const user = { name: 'A', email: 'a@b.c', age: 30, dateOfBirth: '', placeOfBirth: '', timeOfBirth: '' };
+const user = { name: 'A', email: 'a@b.c' };
 
 function renderAt(path: string) {
   return render(

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchPlans, type Region } from './billing';
 
-const REGION_KEY = 'aiastra.region';
+export const REGION_KEY = 'aiastra.region';
 
 export function loadRegion(): Region | null {
   try {

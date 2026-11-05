@@ -17,6 +17,7 @@ import { defaultCountryFromLocale } from './fields/countries';
 import LanguageField, { defaultLanguage } from './fields/LanguageField';
 import { parseTypedDate } from './fields/dateUtils';
 import { READY_NOTICE } from './readyNotice';
+import { clearSignupDraft, readSignupDraft, readSignupStep, saveSignupDraft, saveSignupStep } from './signupDraft';
 
 export { to24Hour };
 
@@ -27,8 +28,6 @@ interface Props {
 
 type Values = BirthValues & { referral: string; language?: Language };
 
-const STORAGE_KEY = 'aiastra.registration.details';
-const STEP_KEY = 'aiastra.registration.details.step';
 const EMPTY: Values = { ...EMPTY_BIRTH, referral: '' };
 
 /** What a step can hold: the birth fields, plus the language choice and the referral code. */
@@ -68,25 +67,16 @@ const isShort = () => typeof window !== 'undefined' && Boolean(window.matchMedia
 
 const birthParts = (st: Step) => st.parts.filter((x): x is BirthField => x !== 'language' && x !== 'referral');
 
-/** The step is saved by its first part, so it survives a switch between the two layouts. */
+/** The step is kept by its first part, so it survives a switch between the two layouts. */
 function loadStepPart(): StepPart {
-  try {
-    const v = sessionStorage.getItem(STEP_KEY);
-    if (v && SHORT_STEPS.some((st) => st.parts[0] === v)) return v as StepPart;
-  } catch {
-    /* storage unavailable */
-  }
+  const v = readSignupStep();
+  if (v && SHORT_STEPS.some((st) => st.parts[0] === v)) return v as StepPart;
   return 'dob';
 }
 
+/** The draft and the step live in memory only (signupDraft.ts): never in sessionStorage or localStorage. */
 function loadDraft(): Values {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...EMPTY, ...(JSON.parse(raw) as Partial<Values>) };
-  } catch {
-    /* storage unavailable: start empty */
-  }
-  return { ...EMPTY };
+  return { ...EMPTY, ...(readSignupDraft<Values>() ?? {}) };
 }
 
 const input =
@@ -145,14 +135,10 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Autosave, so a refresh does not lose the entries.
+  // Keep the entries in memory while the user moves between the sign-up pages; a refresh loses them.
   useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(values));
-      sessionStorage.setItem(STEP_KEY, stepPart);
-    } catch {
-      /* storage unavailable: nothing to save to */
-    }
+    saveSignupDraft(values);
+    saveSignupStep(stepPart);
   }, [values, stepPart]);
 
   /** Checks the given fields; names and focuses what is missing. True when they are all fine. */
@@ -203,12 +189,7 @@ const BirthDetails: React.FC<Props> = ({ onDone }) => {
         language: values.language ?? 'en',
       });
       if (result.success) {
-        try {
-          sessionStorage.removeItem(STORAGE_KEY);
-          sessionStorage.removeItem(STEP_KEY);
-        } catch {
-          /* ignore */
-        }
+        clearSignupDraft();
         // Poll until chat opens (or if fetchMe is unavailable, proceed immediately).
         for (let attempt = 0; attempt < 30; attempt++) {
           const me = await fetchMe();

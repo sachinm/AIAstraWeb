@@ -32,7 +32,7 @@ export interface SidebarPrefs {
   leftOpen: boolean;
   rightOpen: boolean;
 }
-const PREFS_KEY = 'aiastra.chat.sidebars';
+export const PREFS_KEY = 'aiastra.chat.sidebars';
 
 /** Remembered per device; storage can be unavailable (private mode), so every access is guarded. */
 export function loadSidebarPrefs(fallback: SidebarPrefs): SidebarPrefs {

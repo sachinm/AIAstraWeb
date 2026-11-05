@@ -1,6 +1,7 @@
 import type { User } from '../App';
 import { getUserId } from '../lib/graphql';
 import { isJwtExpired, isSessionIdleExpired } from './sessionIdle';
+import { readStoredUser } from './storedUser';
 
 export function hasAuthToken(): boolean {
   if (typeof window === 'undefined') return false;
@@ -17,14 +18,9 @@ export function isAuthSessionValid(): boolean {
   return true;
 }
 
+/** The stored display name; legacy birth fields are dropped (see storedUser.ts). */
 export function parseStoredUser(): User | null {
-  const savedUser = localStorage.getItem('astroUser');
-  if (!savedUser) return null;
-  try {
-    return JSON.parse(savedUser) as User;
-  } catch {
-    return null;
-  }
+  return readStoredUser();
 }
 
 /** Profile from signup, or minimal placeholder when only JWT/userId exist (code login). */
@@ -35,13 +31,7 @@ export function resolveUserForSession(): User | null {
   const userId = getUserId();
   if (!userId || !hasAuthToken()) return null;
 
-  return {
-    name: 'User',
-    email: userId,
-    dateOfBirth: '',
-    placeOfBirth: '',
-    timeOfBirth: '',
-  };
+  return { name: 'User' };
 }
 
 export interface RestoredSession {

@@ -45,11 +45,7 @@ function setSpeechRecognitionMock(overrides: Partial<ReturnType<typeof useSpeech
   });
 }
 
-const mockUser = {
-  name: 'Test User',
-  dateOfBirth: '1990-01-01',
-  placeOfBirth: 'Mumbai',
-};
+const mockUser = { name: 'Test User' };
 
 describe('ChatSection syncing modal', () => {
   beforeEach(() => {

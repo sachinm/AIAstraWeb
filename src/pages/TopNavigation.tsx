@@ -7,7 +7,7 @@ import { PRODUCT_NAME, PRODUCT_TAGLINE } from '../lib/legal';
 
 interface User {
   name: string;
-  email: string;
+  email?: string;
 }
 
 interface TopNavigationProps {

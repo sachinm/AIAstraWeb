@@ -8,6 +8,7 @@ import KundliNotice from '../components/KundliNotice';
 import { completeProfile, fetchMe, type Me } from './api';
 import { COUNTRIES } from './fields/countries';
 import { todayISO } from './fields/dateUtils';
+import { clearSignupDraft, saveSignupStep } from './signupDraft';
 
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
@@ -59,14 +60,16 @@ async function fillAll(user: U, over: { dob?: string } = {}) {
 
 /** Opens the page on the last step, as a refresh there would. */
 function renderOnLastStep() {
-  sessionStorage.setItem('aiastra.registration.details.step', 'gender');
+  saveSignupStep('gender');
   return renderPage();
 }
 
 describe('BirthDetails (page 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearSignupDraft();
     sessionStorage.clear();
+    localStorage.clear();
     vi.mocked(fetchMe).mockResolvedValue(me());
   });
 
@@ -233,12 +236,13 @@ describe('BirthDetails (page 2)', () => {
   });
 
   it('defaults the country from the browser locale', () => {
-    sessionStorage.setItem('aiastra.registration.details.step', 'country');
+    saveSignupStep('country');
     renderPage();
     expect(screen.getByLabelText(/country of birth/i)).toHaveValue('United States');
   });
 
-  it('autosaves entries and the step to sessionStorage and restores them after a refresh', async () => {
+  it('keeps entries and the step in memory across leaving and returning to the page, and writes nothing to storage', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
     const user = userEvent.setup();
     const first = renderPage();
     await fillWhen(user);
@@ -248,6 +252,23 @@ describe('BirthDetails (page 2)', () => {
     renderPage();
     expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
     expect(screen.getByLabelText(/city of birth/i)).toHaveValue('Pune');
+    expect(setItem).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+    expect(localStorage.length).toBe(0);
+    setItem.mockRestore();
+  });
+
+  it('forgets the draft and the step once it is cleared (sign-out or a refresh)', async () => {
+    const user = userEvent.setup();
+    const first = renderPage();
+    await fillWhen(user);
+    await user.type(screen.getByLabelText(/city of birth/i), 'Pune');
+    first.unmount();
+    clearSignupDraft();
+
+    renderPage();
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
+    expect(screen.getByLabelText(/date of birth/i)).toHaveValue('');
   });
 
   it('shows the server message and keeps the entries when saving fails', async () => {
