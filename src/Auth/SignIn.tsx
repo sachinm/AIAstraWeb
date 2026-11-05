@@ -300,9 +300,10 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
             {codeSent && renderSubmit(false)}
           </form>
-
-          <TurnstileGate turnstile={turnstile} action="login" />
         </div>
+
+        {/* outside the card: its backdrop blur would hold the full-page click overlay inside the card */}
+        <TurnstileGate turnstile={turnstile} action="login" />
       </div>
     </div>
   );
