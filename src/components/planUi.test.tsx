@@ -92,7 +92,7 @@ describe('ProfileMenu', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Upgrade plan' })).toHaveFocus();
     await u.keyboard('{ArrowDown}');
     expect(within(menu).getByRole('menuitem', { name: 'Chat' })).toHaveFocus();
-    for (const name of ['Charts', 'Remedies', 'Mantras/Horoscope', 'Profile']) expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
+    for (const name of ['Profile', 'Plan and usage', 'Locale']) expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
     await u.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open profile menu' })).toHaveFocus();

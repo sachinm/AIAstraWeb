@@ -12,6 +12,8 @@ interface ChatSidebarProps {
   chatListDisabled?: boolean;
   /** pin or unpin a thread at the top of the list */
   onTogglePin?: (chatId: string, pinned: boolean) => void;
+  /** 'rail': drawn inside the app's left rail, with no frame or quote of its own */
+  variant?: 'panel' | 'rail';
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -22,13 +24,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onClose,
   chatListDisabled = false,
   onTogglePin,
+  variant = 'panel',
 }) => {
+  const rail = variant === 'rail';
   return (
-    <div className="w-full min-w-0 bg-black/40 backdrop-blur-md border-r border-white/10 h-full max-h-screen overflow-y-auto flex flex-col">
+    <div className={rail ? 'flex h-full min-h-0 w-full min-w-0 flex-col' : 'w-full min-w-0 bg-black/40 backdrop-blur-md border-r border-white/10 h-full max-h-screen overflow-y-auto flex flex-col'} data-testid={rail ? 'rail-conversations' : undefined}>
       {/* Header */}
-      <div className="p-4 border-b border-white/10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Conversations</h2>
+      <div className={rail ? 'p-2' : 'p-4 border-b border-white/10'}>
+        <div className={`flex items-center justify-between ${rail ? 'mb-2 px-1' : 'mb-4'}`}>
+          <h2 className={rail ? 'text-xs uppercase tracking-wide text-gray-400' : 'text-lg font-semibold text-white'}>Conversations</h2>
           <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-white transition-colors md:hidden"
@@ -47,7 +51,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className={`flex-1 overflow-y-auto space-y-2 ${rail ? 'px-2 pb-2' : 'p-4'}`}>
         {chats.length === 0 ? (
           <div className="text-center py-12">
             <MessageCircle className="w-12 h-12 text-gray-500 mx-auto mb-4" />
@@ -100,6 +104,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       </div>
 
       {/* Cosmic Quote */}
+      {!rail && (
       <div className="p-4 bg-gradient-to-t from-black/60 to-transparent">
         <div className="bg-white/5 rounded-lg p-3 border border-white/10">
           <p className="text-purple-300 text-sm italic">
@@ -108,6 +113,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           <p className="text-gray-500 text-xs mt-1">- Ancient Vedic Wisdom</p>
         </div>
       </div>
+      )}
     </div>
   );
 };

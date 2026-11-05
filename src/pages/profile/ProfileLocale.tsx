@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchPlanState, fetchProfile, updateProfile, type Language } from '../../Auth/api';
+import { fetchPlanState, updateProfile, type Language } from '../../Auth/api';
 import LanguageField from '../../Auth/fields/LanguageField';
 import RegionSwitch from '../../components/RegionSwitch';
-import { SUPPORT_EMAIL } from '../../lib/legal';
 import { useRegion } from '../../lib/region';
 
-const panelCls = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-6';
-const linkCls = 'inline-flex min-h-11 items-center underline underline-offset-2 hover:text-white sm:min-h-0';
+const panelCls = 'glass glass-lift rounded-2xl p-4 sm:p-6';
 
-const ProfileSettings: React.FC = () => {
+/** Language and region together (Sachin, 2026-11-05); the account is in the avatar menu and Legal has its own page. */
+const ProfileLocale: React.FC = () => {
   const { t } = useTranslation();
   const [region, setRegion] = useRegion();
-  const [email, setEmail] = useState('');
   const [language, setLanguage] = useState<Language | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -20,9 +18,6 @@ const ProfileSettings: React.FC = () => {
 
   useEffect(() => {
     let alive = true;
-    void fetchProfile().then((p) => {
-      if (alive && p?.email) setEmail(p.email);
-    });
     void fetchPlanState().then((s) => {
       if (alive) setLanguage(s.language);
     });
@@ -44,17 +39,10 @@ const ProfileSettings: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
+    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-10">
       <header>
-        <h2 className="text-2xl font-semibold">{t('profile.settingsTitle')}</h2>
+        <h2 className="text-2xl font-semibold">{t('profile.localeTitle')}</h2>
       </header>
-
-      {email && (
-        <section className={panelCls} aria-label={t('profile.account')}>
-          <h3 className="font-semibold">{t('profile.account')}</h3>
-          <p className="mt-2 break-all text-sm text-gray-300">{email}</p>
-        </section>
-      )}
 
       {language && (
         <section className={panelCls} aria-label={t('profile.language')}>
@@ -93,33 +81,8 @@ const ProfileSettings: React.FC = () => {
         <RegionSwitch value={region} onChange={setRegion} />
       </section>
 
-      <section className={panelCls} aria-label={t('profile.legal')}>
-        <h3 className="font-semibold">{t('profile.legal')}</h3>
-        <ul className="mt-2 text-sm text-gray-300 sm:space-y-2">
-          <li><a href="/terms" target="_blank" rel="noopener noreferrer" className={linkCls}>{t('profile.terms')}</a></li>
-          <li><a href="/privacy" target="_blank" rel="noopener noreferrer" className={linkCls}>{t('profile.privacy')}</a></li>
-          <li><a href="/refunds" target="_blank" rel="noopener noreferrer" className={linkCls}>{t('profile.refunds')}</a></li>
-        </ul>
-      </section>
-
-      <section className={panelCls} aria-label={t('profile.closeAccount')}>
-        <h3 className="font-semibold">{t('profile.closeAccount')}</h3>
-        <p className="mt-1 text-sm text-gray-300">
-          {SUPPORT_EMAIL ? (
-            <>
-              {t('profile.closeAccountEmail')}{' '}
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="underline underline-offset-2 hover:text-white">
-                {SUPPORT_EMAIL}
-              </a>
-              .
-            </>
-          ) : (
-            t('profile.closeAccountSoon')
-          )}
-        </p>
-      </section>
     </div>
   );
 };
 
-export default ProfileSettings;
+export default ProfileLocale;

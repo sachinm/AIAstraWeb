@@ -23,7 +23,7 @@ import { track } from '../../lib/events';
 import BoardAsk from '../../components/BoardAsk';
 import { ASK, AVOID_NAME, AVOID_PLAIN, GOOD_NAME, GOOD_PLAIN, LAYER_COLOURS, plainReasons, SHORT_DAY, SOURCE_LINE, whyLines } from './words';
 
-const panel = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-5';
+const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chipBase = 'inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm transition-colors';
 const SURFACE = 'lucky';
 
@@ -77,7 +77,7 @@ export default function LuckyTimesPage() {
         setSetup(s);
         if (s && !s.place) setPlaceOpen(true);
       })
-      .catch(() => setError('We could not load Lucky times. Try again in a moment.'));
+      .catch(() => setError('We could not load your happy hours. Try again in a moment.'));
   }, []);
 
   useEffect(() => {
@@ -140,7 +140,7 @@ export default function LuckyTimesPage() {
   };
 
   if (setup === undefined) return <div className="p-6 text-white/70">Loading…</div>;
-  if (setup === null) return <div className={`${panel} m-4 text-white/80`}>Lucky times is coming soon.</div>;
+  if (setup === null) return <div className={`${panel} m-4 text-white/80`}>Happy Hour(s) (Panchang) is coming soon.</div>;
 
   const picks = setup.picks;
   const shownPicks = picks.filter((p) => p.shown && scenarios.has(p.scenario));
@@ -148,9 +148,9 @@ export default function LuckyTimesPage() {
   const today = range?.days.find((d) => d.date === range.today) ?? null;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-24 pt-4 text-white sm:px-6" data-testid="lucky-page">
+    <div className="w-full px-4 pb-24 pt-4 text-white sm:px-6 lg:px-10" data-testid="lucky-page">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Lucky times</h1>
+        <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Happy Hour(s) (Panchang)</h1>
         <div className="flex items-center gap-2">
         <BoardAsk category="lucky" />
         <button type="button" aria-label="Settings" onClick={() => setPlaceOpen(true)} className="min-h-[44px] min-w-[44px] rounded-full border border-white/10 bg-white/5 text-white/80">
@@ -191,7 +191,7 @@ export default function LuckyTimesPage() {
 
       {picks.length > 0 && (
         <>
-          <div role="tablist" aria-label="View" className="mb-4 inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
+          <div role="tablist" aria-label="View" className="mb-4 inline-flex glass rounded-xl p-1">
             {(['today', 'calendar'] as View[]).map((v) => (
               <button
                 key={v}

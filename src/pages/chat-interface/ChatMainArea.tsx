@@ -8,8 +8,8 @@ import { askWaitMessage } from './chatWaitCopy';
 import type { UiMessage } from './chatThreadUtils';
 import type { ReadingProgress } from './readingProgress';
 import ReadingStagesPanel from './ReadingStagesPanel';
-import Disclaimer from '../../components/Disclaimer';
 import LegalLinks from '../../components/LegalLinks';
+import HeaderSlot from '../../components/HeaderSlot';
 import { QUESTION_LOCATION_ASK_TEXT } from './useQuestionLocation';
 import ClarifyCard from './ClarifyCard';
 import { INPUT_PLACEHOLDER, isNearBottom } from './readingUi';
@@ -447,41 +447,41 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
         </div>
         )}
 
-        {/* phones: one short wrapped line, the full text is in the terms. Wider: three cells; the side ones take only what their text needs and stay on one line, the middle takes the rest */}
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 px-2 text-center text-xs text-gray-400 sm:mt-1.5 sm:grid sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start sm:gap-3" data-test-id="chat-main-area-footer">
-          <div className="min-w-0 sm:whitespace-nowrap sm:text-left">
-            {questionLocationStatus && (
-              <p data-test-id="chat-main-area-question-location">
-                {(questionLocationStatus === 'granted' || questionLocationStatus === 'asking') && (
-                  <span data-test-id="chat-main-area-question-location-status">
-                    {questionLocationStatus === 'granted' ? 'Using your current location' : 'Checking your location…'}
-                  </span>
-                )}
-                {onChangeQuestionLocation && questionLocationStatus !== 'asking' && (
-                  <>
-                    {questionLocationStatus === 'granted' && ' · '}
-                    <button
-                      type="button"
-                      data-test-id="chat-main-area-question-location-change"
-                      onClick={onChangeQuestionLocation}
-                      className="inline-flex min-h-11 items-center underline text-purple-300 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded sm:inline sm:min-h-0"
-                    >
-                      {questionLocationStatus === 'granted' ? 'Change' : 'Use my location'}
-                    </button>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-          <div className="min-w-0" data-test-id="chat-main-area-disclaimer">
-            <Disclaimer className="hidden sm:block" />
-            <p className="sm:hidden">Education and entertainment only. Not advice.</p>
-          </div>
-          <div className="min-w-0 sm:flex sm:items-center sm:justify-end sm:gap-x-3 sm:whitespace-nowrap">
-            <p className="hidden sm:block" data-test-id="copyright-notice">© 2026 AdAstra AI (vedic-astrology.app). All rights reserved.</p>
-            <LegalLinks />
-          </div>
+        {/* one quiet line under the input: location, the disclaimer in one sentence, Terms and Privacy; wraps on a phone */}
+        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 px-2 text-center text-[11px] leading-5 text-gray-500" data-test-id="chat-main-area-footer">
+          <span data-test-id="chat-main-area-disclaimer">For education and entertainment only, not advice.</span>
+          <span aria-hidden="true">·</span>
+          <span data-test-id="copyright-notice">© 2026 AdAstra AI (vedic-astrology.app)</span>
+          <span aria-hidden="true">·</span>
+          <LegalLinks className="inline-flex" />
         </div>
+        {/* "Use my location" sits in the header (the page's, or the General Reading modal's), not in this footer */}
+        <HeaderSlot>
+          <span className="text-xs text-gray-400">
+              {questionLocationStatus && (
+                <span data-test-id="chat-main-area-question-location">
+                  {(questionLocationStatus === 'granted' || questionLocationStatus === 'asking') && (
+                    <span data-test-id="chat-main-area-question-location-status">
+                      {questionLocationStatus === 'granted' ? 'Using your current location' : 'Checking your location…'}
+                    </span>
+                  )}
+                  {onChangeQuestionLocation && questionLocationStatus !== 'asking' && (
+                    <>
+                      {questionLocationStatus === 'granted' && ' · '}
+                      <button
+                        type="button"
+                        data-test-id="chat-main-area-question-location-change"
+                        onClick={onChangeQuestionLocation}
+                        className="rounded text-purple-300 underline underline-offset-2 hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        {questionLocationStatus === 'granted' ? 'Change' : 'Use my location'}
+                      </button>
+                    </>
+                  )}
+                </span>
+              )}
+          </span>
+        </HeaderSlot>
       </div>
     </div>
   );

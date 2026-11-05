@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Menu, PanelRightOpen, Plus } from 'lucide-react';
+import { Loader2, Menu, MessagesSquare, PanelRightOpen, Plus } from 'lucide-react';
 import { track } from '../../lib/events';
 import {
   sendChatMessage,
@@ -15,6 +15,9 @@ import { SUBJECT_CHIPS, shouldSendOnKey, toClarifyView, loadSidebarPrefs, saveSi
 import { fetchAllChats, fetchChatMessages, setChatPinned } from './chatAPI';
 import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
+import ChatSidebar from './ChatSidebar';
+import { createPortal } from 'react-dom';
+import { useLeftRail } from '../../components/SideNav';
 import ChatMainArea from './ChatMainArea';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useQuestionLocation } from './useQuestionLocation';
@@ -148,7 +151,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
           pollIdRef.current = null;
         }
       } catch {
-        if (!cancelled) setKundliReady(false);
+        // the server could not be reached: keep what we knew and let the poll retry. Saying the chart is being
+        // generated here was wrong (it showed whenever the API blinked).
       }
     };
     check();
@@ -649,6 +653,19 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
   // subject chips replace the old quick questions (no remedies or mantras, which the app does not answer)
   const quickQuestions = SUBJECT_CHIPS.map((c) => c.question);
 
+  // On the chat page the conversations live in the app's one left rail (Sachin, 2026-11-05); General Reading's modal
+  // and the embedded board chats keep their own list.
+  const leftRail = useLeftRail();
+  const railSlot = !embedded ? leftRail?.slot ?? null : null;
+
+  const togglePin = (chatId: string, pinned: boolean) => {
+    setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned } : c)));
+    track('chip_select', 'chat', pinned ? 'pin' : 'unpin');
+    void setChatPinned(chatId, pinned).then((ok) => {
+      if (!ok) setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned: !pinned } : c)));
+    });
+  };
+
   const chatListDisabled = isTyping || !!streamingMessageId || historyLoading || !chatCreationDone;
   const mainBusy = historyLoading || !chatCreationDone;
   const inputDisabled = isTyping || mainBusy;
@@ -689,7 +706,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
     <div className="flex min-h-0 flex-1 flex-col">
     {/* the side rails are desktop only, so phones reach the same panels from here */}
     <div className="flex shrink-0 items-center gap-1 border-b border-white/10 bg-black/30 px-2 py-1 md:hidden" data-test-id="chat-phone-toolbar">
-      <button type="button" aria-label="Open conversations" onClick={() => setIsSidebarOpen(true)} className="rounded-lg p-2.5 text-white hover:bg-white/10">
+      <button type="button" aria-label="Open conversations" onClick={() => (railSlot ? leftRail?.setOpen(true) : setIsSidebarOpen(true))} className="rounded-lg p-2.5 text-white hover:bg-white/10">
         <Menu className="h-5 w-5" />
       </button>
       <button type="button" aria-label="Start new conversation" onClick={handleNewChat} className="rounded-lg p-2.5 text-white hover:bg-white/10">
@@ -707,24 +724,51 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         />
       )}
 
-      <ChatLeftSidebarLayout
-        sidebarRef={sidebarRef}
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
-        handleNewChat={handleNewChat}
-        chats={chats}
-        activeChatId={activeChat}
-        onChatSelect={handleChatSelect}
-        onClose={() => setIsSidebarOpen(false)}
-        chatListDisabled={chatListDisabled}
-        onTogglePin={(chatId, pinned) => {
-          setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned } : c)));
-          track('chip_select', 'chat', pinned ? 'pin' : 'unpin');
-          void setChatPinned(chatId, pinned).then((ok) => {
-            if (!ok) setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned: !pinned } : c)));
-          });
-        }}
-      />
+      {railSlot ? (
+        createPortal(
+          leftRail?.open ? (
+            <ChatSidebar
+              variant="rail"
+              chats={chats}
+              activeChatId={activeChat}
+              onChatSelect={handleChatSelect}
+              onNewChat={handleNewChat}
+              onClose={() => leftRail.setOpen(false)}
+              chatListDisabled={chatListDisabled}
+              onTogglePin={togglePin}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2 p-2" data-testid="rail-conversations-icons">
+              <button type="button" onClick={handleNewChat} title="New conversation" aria-label="Start new conversation" className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-600/80 text-white hover:bg-purple-600">
+                <Plus className="h-5 w-5" aria-hidden="true" />
+              </button>
+              <button type="button" onClick={() => leftRail?.setOpen(true)} title="Conversations" aria-label="Show conversations" className="flex h-11 w-11 items-center justify-center rounded-xl text-white/70 hover:bg-white/10 hover:text-white">
+                <MessagesSquare className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+          ),
+          railSlot
+        )
+      ) : (
+        <ChatLeftSidebarLayout
+          sidebarRef={sidebarRef}
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+          handleNewChat={handleNewChat}
+          chats={chats}
+          activeChatId={activeChat}
+          onChatSelect={handleChatSelect}
+          onClose={() => setIsSidebarOpen(false)}
+          chatListDisabled={chatListDisabled}
+          onTogglePin={(chatId, pinned) => {
+            setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned } : c)));
+            track('chip_select', 'chat', pinned ? 'pin' : 'unpin');
+            void setChatPinned(chatId, pinned).then((ok) => {
+              if (!ok) setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned: !pinned } : c)));
+            });
+          }}
+        />
+        )}
 
       <ChatMainArea
         messages={messages}

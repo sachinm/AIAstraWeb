@@ -7,7 +7,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   you: 'You',
   love: 'Love',
   work: 'Work',
-  lucky: 'Lucky times',
+  lucky: 'Happy Hour(s) (Panchang)',
 };
 
 /** The reading subject a board's questions are specialised to (a server FRAMES subject id). */

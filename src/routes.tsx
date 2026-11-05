@@ -11,15 +11,12 @@ import TopNavigation from './pages/TopNavigation';
 import ProfileSection from './pages/profile/ProfileSection';
 import ProfileLayout from './pages/profile/ProfileLayout';
 import ProfilePlan from './pages/profile/ProfilePlan';
-import ProfileSettings from './pages/profile/ProfileSettings';
+import ProfileLocale from './pages/profile/ProfileLocale';
+import ProfileLegal from './pages/profile/ProfileLegal';
 import ProfileTimeline from './pages/profile/ProfileTimeline';
-import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
-import MantrasSection from './pages/mantras/MantrasSection';
-import RemediesSection from './pages/remedies/RemediesSection';
 import LuckyTimesPage from './pages/lucky/LuckyTimesPage';
 import WorkPage from './pages/work/WorkPage';
-import TodayPage from './pages/today/TodayPage';
 import LovePage from './pages/love/LovePage';
 import WelcomeWizard from './pages/welcome/WelcomeWizard';
 import { boardsEnabled } from './components/BoardTabBar';
@@ -65,7 +62,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             !sessionReady ? (
               <SessionLoadingScreen />
             ) : isAuthenticated ? (
-              <Navigate to={boardsEnabled() ? '/dashboard/today' : '/dashboard/chat'} replace />
+              <Navigate to={boardsEnabled() ? '/dashboard/lucky' : '/dashboard/chat'} replace />
             ) : (
               <LandingPage onSignUp={() => navigate('/signup')} />
             )
@@ -118,7 +115,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       <Route element={<ProtectedRoute {...gateProps} />}>
         <Route element={<ProfileGate />}>
         <Route path="/welcome" element={<SkyLayout />}>
-          <Route index element={<WelcomeWizard onFinish={() => navigate(boardsEnabled() ? '/dashboard/today' : '/dashboard/chat', { replace: true })} />} />
+          <Route index element={<WelcomeWizard onFinish={() => navigate(boardsEnabled() ? '/dashboard/lucky' : '/dashboard/chat', { replace: true })} />} />
         </Route>
         <Route
           path="/dashboard"
@@ -135,13 +132,13 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             path="chat"
             element={<ChatSection user={user!} activeChatId={null} />}
           />
-          <Route path="charts" element={<ChartsSection />} />
+          <Route path="charts" element={<Navigate to={import.meta.env.VITE_BOARDS_ENABLED === '1' ? '/dashboard/lucky' : '/dashboard/chat'} replace />} />
           <Route path="chart" element={<Navigate to="/dashboard/charts" replace />} />
-          <Route path="mantras" element={<MantrasSection user={user!} />} />
-          <Route path="remedies" element={<RemediesSection user={user!} />} />
+          <Route path="mantras" element={<Navigate to={import.meta.env.VITE_BOARDS_ENABLED === '1' ? '/dashboard/lucky' : '/dashboard/chat'} replace />} />
+          <Route path="remedies" element={<Navigate to={import.meta.env.VITE_BOARDS_ENABLED === '1' ? '/dashboard/lucky' : '/dashboard/chat'} replace />} />
           <Route path="lucky" element={<LuckyTimesPage />} />
           <Route path="work" element={<WorkPage />} />
-          <Route path="today" element={<TodayPage />} />
+          <Route path="today" element={<Navigate to="/dashboard/lucky" replace />} />
           <Route path="love" element={<LovePage />} />
           <Route path="timeline/ledger" element={<Navigate to="/profile/timeline" replace />} />
         </Route>
@@ -158,7 +155,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <Route element={<ProfileLayout />}>
             <Route index element={<ProfileSection />} />
             <Route path="plan" element={<ProfilePlan />} />
-            <Route path="settings" element={<ProfileSettings />} />
+            <Route path="locale" element={<ProfileLocale />} />
+            <Route path="legal" element={<ProfileLegal />} />
+            <Route path="settings" element={<Navigate to="/profile/locale" replace />} />
             <Route path="timeline" element={<ProfileTimeline />} />
           </Route>
         </Route>

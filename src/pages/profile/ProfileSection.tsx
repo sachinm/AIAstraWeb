@@ -19,7 +19,7 @@ import { READY_NOTICE } from '../../Auth/readyNotice';
 export const REBUILD_WARNING =
   'Changing your birth details rebuilds your chart. Readings will use the new chart in about 30 minutes.';
 
-const panelCls = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-6';
+const panelCls = 'glass glass-lift rounded-2xl p-4 sm:p-6';
 
 interface Payload {
   name: string;
@@ -141,7 +141,7 @@ const ProfileSection: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 text-white sm:p-6">
+    <div className="w-full space-y-6 p-4 text-white sm:p-6 lg:p-10">
       <header>
         <h2 className="text-2xl font-semibold">Profile</h2>
         <p className="mt-1 text-sm text-gray-300">Your name and the birth details your chart is built from.</p>
@@ -182,7 +182,18 @@ const ProfileSection: React.FC = () => {
               {nameError && <p className="text-red-300 text-sm mt-1">{nameError}</p>}
             </div>
 
+            <div className="rounded-lg border border-white/10 bg-white/5 p-4" data-testid="birth-details-readonly">
+              <div className="mb-2 text-sm font-medium text-gray-300">Birth details</div>
+              <dl className="grid gap-2 text-sm sm:grid-cols-3">
+                <div><dt className="text-gray-400">Date of birth</dt><dd className="text-white">{values.dob || '—'}</dd></div>
+                <div><dt className="text-gray-400">Time of birth</dt><dd className="text-white">{values.hour ? `${values.hour}:${values.minute} ${values.ampm}` : '—'}</dd></div>
+                <div><dt className="text-gray-400">Place of birth</dt><dd className="text-white">{[values.city, values.country].filter(Boolean).join(', ') || '—'}</dd></div>
+              </dl>
+              <p className="mt-2 text-xs text-gray-400">These cannot be changed. If they are wrong, contact support.</p>
+            </div>
+
             <BirthFields
+              only={['gender']}
               ref={fieldsRef}
               values={values}
               errors={errors}

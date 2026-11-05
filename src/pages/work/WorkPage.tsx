@@ -9,7 +9,7 @@ import { fetchCareer, longDate, monthName, sendCheck, setWorkStatus, type Career
 import { track } from '../../lib/events';
 import BoardAsk from '../../components/BoardAsk';
 
-const panel = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-5';
+const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
 const SURFACE = 'work';
 type Page = 'now' | 'back' | 'ahead' | 'worries';
@@ -90,7 +90,7 @@ export default function WorkPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pb-24 pt-4 text-white sm:px-6" data-testid="work-page">
+    <div className="w-full px-4 pb-24 pt-4 text-white sm:px-6 lg:px-10" data-testid="work-page">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Work</h1>
         <BoardAsk category="work" />
@@ -121,7 +121,7 @@ export default function WorkPage() {
         </button>
       </section>
 
-      <div role="tablist" aria-label="Work pages" className="mb-4 flex gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/5 p-1">
+      <div role="tablist" aria-label="Work pages" className="mb-4 flex gap-1 overflow-x-auto glass rounded-xl p-1">
         {(['now', 'back', 'ahead', 'worries'] as Page[]).map((p) => (
           <button key={p} role="tab" type="button" aria-selected={page === p} onClick={() => { setPage(p); track('tab_select', SURFACE, p); }} className={`min-h-[44px] flex-1 whitespace-nowrap rounded-lg px-4 text-sm ${page === p ? 'bg-white/15 text-white' : 'text-white/60'}`}>
             {p === 'now' ? 'Now' : p === 'back' ? 'Looking back' : p === 'ahead' ? 'Ahead' : 'Your questions'}

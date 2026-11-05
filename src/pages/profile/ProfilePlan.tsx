@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { usePlan } from '../../Auth/ProfileGate';
 
-const panelCls = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-6';
+const panelCls = 'glass glass-lift rounded-2xl p-4 sm:p-6';
 
 /** What the account has now. Access comes from the plan the server reports; a choice not yet paid for is only shown as a choice. */
 const ProfilePlan: React.FC = () => {
@@ -47,7 +47,7 @@ const ProfilePlan: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
+    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-10">
       <header>
         <h2 className="text-2xl font-semibold">{t('profile.planTitle')}</h2>
       </header>
