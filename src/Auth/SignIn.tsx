@@ -171,10 +171,11 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   );
 
   return (
-    // Centred on the screen by default (Sachin, 2026-11-02). The card grows a little when the code field appears.
-    <div className="min-h-full flex items-center justify-center px-6 py-6">
+    // The same place as sign-up and the details form, so moving between them never shifts the card (auth-shell in
+    // index.css; Sachin, 2026-11-05). The card grows a little when the code field appears.
+    <div className="auth-shell min-h-full flex items-start justify-center px-4 pb-3 sm:px-6 [@media(max-height:480px)]:pb-1">
       <div className="w-full max-w-3xl">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2 [@media(max-height:480px)]:mb-1 [@media(max-height:480px)]:text-sm">
         <button
           onClick={onBack}
           className="flex items-center text-purple-300 hover:text-white transition-colors duration-300"
