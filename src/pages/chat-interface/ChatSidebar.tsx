@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, MessageCircle, X, Pin, PinOff } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Plus, MessageCircle, X, Pin, PinOff } from 'lucide-react';
 import type { SidebarChatRow } from './chatThreadUtils';
 import { CATEGORY_LABELS, CATEGORY_ORDER } from './categories';
 
@@ -27,12 +27,36 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   variant = 'panel',
 }) => {
   const rail = variant === 'rail';
+  const groups = groupByCategory(chats);
+  const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed);
+  useEffect(() => saveCollapsed(collapsed), [collapsed]);
+  const allCollapsed = groups.length > 0 && groups.every(([k]) => collapsed.has(k));
+  const toggleGroup = (k: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map(([k]) => k)));
   return (
     <div className={rail ? 'flex h-full min-h-0 w-full min-w-0 flex-col' : 'w-full min-w-0 bg-black/40 backdrop-blur-md border-r border-white/10 h-full max-h-screen overflow-y-auto flex flex-col'} data-testid={rail ? 'rail-conversations' : undefined}>
       {/* Header */}
       <div className={rail ? 'p-2' : 'p-4 border-b border-white/10'}>
         <div className={`flex items-center justify-between ${rail ? 'mb-2 px-1' : 'mb-4'}`}>
           <h2 className={rail ? 'text-xs uppercase tracking-wide text-gray-400' : 'text-lg font-semibold text-white'}>Conversations</h2>
+          {groups.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              aria-label={allCollapsed ? 'Expand all conversations' : 'Collapse all conversations'}
+              title={allCollapsed ? 'Expand all' : 'Collapse all'}
+              data-testid="conversations-toggle-all"
+              className="ml-auto mr-1 rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
+            >
+              {allCollapsed ? <ChevronsUpDown className="h-4 w-4" aria-hidden="true" /> : <ChevronsDownUp className="h-4 w-4" aria-hidden="true" />}
+            </button>
+          )}
           <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-white transition-colors md:hidden"
@@ -59,10 +83,20 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             <p className="text-gray-500 text-sm">Start your first chat to get cosmic insights</p>
           </div>
         ) : (
-          groupByCategory(chats).map(([category, rows]) => (
+          groups.map(([category, rows]) => (
             <div key={category} className="space-y-2">
-              <div className="px-1 pt-2 text-xs uppercase tracking-wide text-gray-400">{category === 'pinned' ? 'Pinned' : (CATEGORY_LABELS[category] ?? category)}</div>
-              {rows.map((chat) => (
+              <button
+                type="button"
+                onClick={() => toggleGroup(category)}
+                aria-expanded={!collapsed.has(category)}
+                data-testid={`conversation-group-${category}`}
+                className="flex w-full items-center gap-1 rounded-md px-1 pt-2 text-left text-xs uppercase tracking-wide text-gray-400 hover:text-white"
+              >
+                {collapsed.has(category) ? <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
+                <span>{category === 'pinned' ? 'Pinned' : (CATEGORY_LABELS[category] ?? category)}</span>
+                <span className="ml-auto normal-case tracking-normal text-gray-500">{rows.length}</span>
+              </button>
+              {!collapsed.has(category) && rows.map((chat) => (
             <div key={chat.id} className="group relative">
             <button
               type="button"
@@ -119,6 +153,25 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 };
 
 export default ChatSidebar;
+const COLLAPSED_KEY = 'astra_chat_groups_collapsed';
+
+function loadCollapsed(): Set<string> {
+  try {
+    const v = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
+    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveCollapsed(s: Set<string>): void {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...s]));
+  } catch {
+    // storage blocked
+  }
+}
+
 /** Rows grouped under their category, General Reading first, in the fixed order of docs/reading-engine/51. */
 export function groupByCategory(chats: SidebarChatRow[]): Array<[string, SidebarChatRow[]]> {
   const groups = new Map<string, SidebarChatRow[]>();
