@@ -88,6 +88,7 @@ export interface ChatMainAreaProps {
   onChangeQuestionLocation?: () => void;
   /** Sits beside the messages, between the header and the prompt bar. */
   rightPanel?: React.ReactNode;
+  placeholder?: string;
 }
 
 const ChatMainArea: React.FC<ChatMainAreaProps> = ({
@@ -115,6 +116,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
   questionLocationStatus,
   onChangeQuestionLocation,
   rightPanel,
+  placeholder,
 }) => {
   const showQuickQuestions = messages.length <= 1 && !historyLoading;
 
@@ -386,7 +388,7 @@ const ChatMainArea: React.FC<ChatMainAreaProps> = ({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={INPUT_PLACEHOLDER}
+            placeholder={placeholder ?? INPUT_PLACEHOLDER}
             className="block w-full min-h-[4rem] max-h-60 resize-none overflow-y-auto bg-white/10 border border-white/20 rounded-xl py-2 pl-3 pr-28 sm:pr-24 text-white leading-relaxed placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300"
             rows={2}
             disabled={inputDisabled}

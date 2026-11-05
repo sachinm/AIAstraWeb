@@ -21,6 +21,7 @@ import LuckyTimesPage from './pages/lucky/LuckyTimesPage';
 import WorkPage from './pages/work/WorkPage';
 import TodayPage from './pages/today/TodayPage';
 import LovePage from './pages/love/LovePage';
+import WelcomeWizard from './pages/welcome/WelcomeWizard';
 import { boardsEnabled } from './components/BoardTabBar';
 import PricingPage from './pages/pricing/PricingPage';
 import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
@@ -98,7 +99,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         <Route element={<ProtectedRoute {...gateProps} />}>
           <Route
             path="/signup/details"
-            element={<BirthDetails onDone={() => navigate('/dashboard/chat', { replace: true })} />}
+            element={<BirthDetails onDone={() => navigate('/welcome', { replace: true })} />}
           />
         </Route>
       </Route>
@@ -116,6 +117,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
 
       <Route element={<ProtectedRoute {...gateProps} />}>
         <Route element={<ProfileGate />}>
+        <Route path="/welcome" element={<SkyLayout />}>
+          <Route index element={<WelcomeWizard onFinish={() => navigate(boardsEnabled() ? '/dashboard/today' : '/dashboard/chat', { replace: true })} />} />
+        </Route>
         <Route
           path="/dashboard"
           element={

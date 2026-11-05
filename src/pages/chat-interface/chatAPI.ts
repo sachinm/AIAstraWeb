@@ -11,6 +11,8 @@ export { getUserId };
 export interface Chat {
   id: string;
   name: string | null;
+  /** docs/reading-engine/51: general | today | you | love | work | lucky */
+  category?: string | null;
   last_message?: string;
   created_at: string | null;
   is_active: boolean | null;
@@ -29,7 +31,7 @@ const CHATS_QUERY = `
   query Chats {
     chats {
       success
-      chats { id user_id name is_active created_at }
+      chats { id user_id name category is_active created_at }
       error
     }
   }

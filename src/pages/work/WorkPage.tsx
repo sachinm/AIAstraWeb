@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { fetchCareer, longDate, monthName, sendCheck, setWorkStatus, type CareerMap, type CareerState, type SubareaWindow, type Tone, type WorkStatus } from '../../lib/careerApi';
 import { track } from '../../lib/events';
+import BoardAsk from '../../components/BoardAsk';
 
 const panel = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
@@ -90,7 +91,10 @@ export default function WorkPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 pb-24 pt-4 text-white sm:px-6" data-testid="work-page">
-      <h1 className="mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Work</h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Work</h1>
+        <BoardAsk category="work" />
+      </div>
 
       {work === null && (
         <div className={`${panel} mb-4`} data-testid="work-question">

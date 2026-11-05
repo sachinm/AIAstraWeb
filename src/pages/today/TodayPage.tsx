@@ -10,6 +10,7 @@ import { clock, fetchLuckyRange, fetchLuckySetup, type LuckyRange, type LuckySet
 import { track } from '../../lib/events';
 import { headline, TONE_WORD } from '../work/WorkPage';
 import { GOOD_PLAIN } from '../lucky/words';
+import BoardAsk from '../../components/BoardAsk';
 
 const panel = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-5';
 const SURFACE = 'today';
@@ -51,7 +52,10 @@ export default function TodayPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 pb-28 pt-4 text-white sm:px-6" data-testid="today-page">
-      <div className="text-sm text-white/60">{todayTitle()}</div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm text-white/60">{todayTitle()}</div>
+        <BoardAsk category="today" />
+      </div>
       <h1 className="mt-1 text-2xl font-semibold leading-snug" data-testid="today-line">{line}</h1>
 
       <div className="mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible">

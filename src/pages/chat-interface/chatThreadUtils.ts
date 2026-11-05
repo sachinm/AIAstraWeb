@@ -31,6 +31,7 @@ export interface SidebarChatRow {
   name: string;
   lastMessage: string;
   timestamp: string;
+  category: string;
 }
 
 export function chatToSidebarRow(chat: Chat): SidebarChatRow {
@@ -40,6 +41,7 @@ export function chatToSidebarRow(chat: Chat): SidebarChatRow {
     name,
     lastMessage: 'Tap to continue',
     timestamp: formatChatTimestamp(chat.created_at),
+    category: chat.category ?? 'general',
   };
 }
 

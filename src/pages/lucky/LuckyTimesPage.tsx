@@ -20,6 +20,7 @@ import {
   type ScenarioEntry,
 } from '../../lib/luckyApi';
 import { track } from '../../lib/events';
+import BoardAsk from '../../components/BoardAsk';
 import { ASK, AVOID_NAME, AVOID_PLAIN, GOOD_NAME, GOOD_PLAIN, LAYER_COLOURS, plainReasons, SHORT_DAY, SOURCE_LINE, whyLines } from './words';
 
 const panel = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-5';
@@ -150,9 +151,12 @@ export default function LuckyTimesPage() {
     <div className="mx-auto w-full max-w-5xl px-4 pb-24 pt-4 text-white sm:px-6" data-testid="lucky-page">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Lucky times</h1>
+        <div className="flex items-center gap-2">
+        <BoardAsk category="lucky" />
         <button type="button" aria-label="Settings" onClick={() => setPlaceOpen(true)} className="min-h-[44px] min-w-[44px] rounded-full border border-white/10 bg-white/5 text-white/80">
           ⚙
         </button>
+        </div>
       </div>
 
       {/* plans: chips with their layer colour, and Add */}

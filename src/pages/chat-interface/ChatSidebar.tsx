@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, MessageCircle, X } from 'lucide-react';
 import type { SidebarChatRow } from './chatThreadUtils';
+import { CATEGORY_LABELS, CATEGORY_ORDER } from './categories';
 
 interface ChatSidebarProps {
   chats: SidebarChatRow[];
@@ -51,7 +52,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             <p className="text-gray-500 text-sm">Start your first chat to get cosmic insights</p>
           </div>
         ) : (
-          chats.map((chat) => (
+          groupByCategory(chats).map(([category, rows]) => (
+            <div key={category} className="space-y-2">
+              <div className="px-1 pt-2 text-xs uppercase tracking-wide text-gray-400">{CATEGORY_LABELS[category] ?? category}</div>
+              {rows.map((chat) => (
             <button
               key={chat.id}
               type="button"
@@ -74,6 +78,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 </div>
               </div>
             </button>
+              ))}
+            </div>
           ))
         )}
       </div>
@@ -92,3 +98,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 };
 
 export default ChatSidebar;
+/** Rows grouped under their category, General Reading first, in the fixed order of docs/reading-engine/51. */
+function groupByCategory(chats: SidebarChatRow[]): Array<[string, SidebarChatRow[]]> {
+  const groups = new Map<string, SidebarChatRow[]>();
+  for (const c of chats) {
+    const k = CATEGORY_ORDER.includes(c.category) ? c.category : 'general';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(c);
+  }
+  return CATEGORY_ORDER.filter((k) => groups.has(k)).map((k) => [k, groups.get(k)!]);
+}

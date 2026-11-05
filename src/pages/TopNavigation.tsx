@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, AlertTriangle } from 'lucide-react';
+import { Star, AlertTriangle, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProfileMenu from '../components/ProfileMenu';
 import UsageBar from '../components/UsageBar';
@@ -33,6 +33,10 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
           </span>
         </Link>
 
+        <Link to="/dashboard/chat" className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/85 hover:bg-white/10 sm:inline-flex" data-testid="general-reading-link">
+          <MessageCircle className="h-4 w-4 text-purple-300" aria-hidden="true" />
+          General Reading
+        </Link>
         <UsageBar />
 
         <ProfileMenu user={user} onLogout={onLogout} />

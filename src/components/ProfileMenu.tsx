@@ -3,7 +3,7 @@ import { BarChart3, BookOpen, ChevronDown, CreditCard, Heart, History, LogOut, M
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
-import { ShriGaneshAvatar } from './ShriGaneshAvatar';
+import UserAvatar from './UserAvatar';
 
 interface ProfileMenuProps {
   user?: { name: string; email?: string } | null;
@@ -74,7 +74,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1 rounded-full p-1 text-gray-300 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
       >
-        <ShriGaneshAvatar />
+        <UserAvatar />
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
 

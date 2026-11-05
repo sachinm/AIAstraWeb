@@ -390,8 +390,8 @@ const ASK_QUERY = `
 `;
 
 const CREATE_CHAT_MUTATION = `
-  mutation CreateChat {
-    createChat {
+  mutation CreateChat($category: String) {
+    createChat(category: $category) {
       success
       chat { id }
       error
@@ -438,10 +438,10 @@ export const fetchUserBiodata = async (): Promise<BiodataResponse> => {
  * Creates a new chat thread for the current user. Backend marks it active and returns its id.
  * Call on login (to start a fresh thread) and when the user clicks "New conversation".
  */
-export const createChat = async (): Promise<{ id: string }> => {
+export const createChat = async (category: string = 'general'): Promise<{ id: string }> => {
   const { data, errors } = await runGraphQL<{
     createChat: { success: boolean; chat: { id: string } | null; error: string | null };
-  }>(CREATE_CHAT_MUTATION);
+  }>(CREATE_CHAT_MUTATION, { category });
   if (errors?.length) throw new Error(errors[0].message || 'Failed to create chat');
   const result = data?.createChat;
   if (!result?.success || !result?.chat?.id) throw new Error(result?.error || 'Failed to create chat');

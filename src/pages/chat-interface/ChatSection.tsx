@@ -41,11 +41,18 @@ interface User {
 interface ChatSectionProps {
   user: User;
   activeChatId: string | null;
+  /** docs/reading-engine/51: the conversation category new chats are filed under (default General Reading) */
+  category?: string;
+  /** the subject the reading is specialised to when opened from a board (a FRAMES subject id) */
+  focus?: string;
+  placeholder?: string;
+  /** inside the Ask modal: start a new conversation in the category, hide the kundli sidebar */
+  embedded?: boolean;
 }
 
 const POLL_INTERVAL_MS = 3000;
 
-const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) => {
+const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, category = 'general', focus, placeholder, embedded = false }) => {
   const me = useMe();
   const refreshMe = useRefreshMe();
   const { plan, setPlan, refreshPlan } = usePlan();
@@ -160,17 +167,18 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     (async () => {
       let all: Awaited<ReturnType<typeof fetchAllChats>>;
       try {
-        all = await fetchAllChats();
+        all = embedded ? [] : await fetchAllChats();
       } catch {
         if (cancelled) return;
         try {
-          const { id } = await createChat();
+          const { id } = await createChat(category);
           if (cancelled) return;
           const row: SidebarChatRow = {
             id,
             name: 'New Conversation',
             lastMessage: 'Chat started',
             timestamp: 'Now',
+            category,
           };
           setChats([row]);
           setActiveChat(id);
@@ -203,13 +211,14 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         setChatCreationDone(true);
       } else {
         try {
-          const { id } = await createChat();
+          const { id } = await createChat(category);
           if (cancelled) return;
           const row: SidebarChatRow = {
             id,
             name: 'New Conversation',
             lastMessage: 'Chat started',
             timestamp: 'Now',
+            category,
           };
           setChats([row]);
           setActiveChat(id);
@@ -523,6 +532,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)));
         },
         {
+          ...(focus ? { focus: { subject: focus, parts: [] } } : {}),
           location: currentLocation(),
           onEvent: (ev) => {
             if (!mountedRef.current) return;
@@ -570,12 +580,13 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
   const handleNewChat = async () => {
     try {
-      const { id } = await createChat();
+      const { id } = await createChat(category);
       const newChat: SidebarChatRow = {
         id,
         name: 'New Conversation',
         lastMessage: 'Chat started',
         timestamp: 'Now',
+        category,
       };
       setChats((prev) => [newChat, ...prev].slice(0, MAX_SIDEBAR_CHATS));
       setActiveChat(id);
@@ -599,7 +610,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     } catch {
       const fallbackId = Date.now().toString();
       setChats((prev) =>
-        [{ id: fallbackId, name: 'New Conversation', lastMessage: 'Chat started', timestamp: 'Now' }, ...prev].slice(
+        [{ id: fallbackId, name: 'New Conversation', lastMessage: 'Chat started', timestamp: 'Now', category }, ...prev].slice(
           0,
           MAX_SIDEBAR_CHATS
         )
@@ -731,7 +742,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         onClarifyChange={handleClarifyChange}
         questionLocationStatus={questionLocationStatus}
         onChangeQuestionLocation={() => void reaskLocation()}
-        rightPanel={<ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />}
+        placeholder={placeholder}
+        rightPanel={embedded ? undefined : <ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />}
       />
     </div>
     </div>
