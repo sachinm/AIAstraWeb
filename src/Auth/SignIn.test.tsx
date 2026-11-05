@@ -28,6 +28,16 @@ describe('SignIn (one page, email then code)', () => {
     vi.clearAllMocks();
   });
 
+  it('shows the idle sign-out as a toast outside the form, until it is dismissed', async () => {
+    const user = userEvent.setup();
+    renderSignIn('/signin?reason=idle');
+    const toast = await screen.findByText(/signed out after 30 minutes/i);
+    expect(toast.closest('form')).toBeNull();
+    expect(toast.closest('[data-test-id="idle-toast"]')).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByText(/signed out after 30 minutes/i)).not.toBeInTheDocument();
+  });
+
   it('renders the email field and "Send me a code" with no password field and no code field yet', () => {
     renderSignIn();
     expect(screen.getByRole('heading', { name: /^sign in$/i })).toBeVisible();

@@ -15,9 +15,10 @@ const SHOW_AFTER_MS = 1_500;
 const SLOW_AFTER_MS = 15_000;
 
 /**
- * The security check, shown as Cloudflare's own small box under the form. It runs while the person types, so it never
- * blocks the form. It is kept in view on purpose: hidden in a 1px box (2026-11-04) the check stalled and sign-in hung on
- * "Finishing the security check". A submit that comes before the token (fast autofill) waits for it and carries on.
+ * The security check, run while the person types, so it never blocks the form. Cloudflare draws its box only when it wants
+ * a click, so it takes no room otherwise. It sits in the page's normal flow on purpose: hidden in a fixed 1px box
+ * (2026-11-04) the check stalled and sign-in hung on "Finishing the security check". A submit that comes before the token
+ * (fast autofill) waits for it and carries on.
  */
 const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
   const { awaiting } = turnstile;
@@ -43,9 +44,9 @@ const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
   const failed = awaiting && Boolean(turnstile.error);
 
   return (
-    <div data-test-id="turnstile-gate" className="mt-4">
+    <div data-test-id="turnstile-gate">
       {awaiting && (showWait || failed) && (
-        <div role="status" aria-live="polite" data-test-id="turnstile-waiting" className="mb-2 text-center text-sm">
+        <div role="status" aria-live="polite" data-test-id="turnstile-waiting" className="mt-4 text-center text-sm">
           <p className="text-gray-300">Finishing the security check… your request goes on by itself.</p>
           {(failed || slow) && (
             <div className="mt-2">
@@ -66,6 +67,7 @@ const TurnstileGate: React.FC<TurnstileGateProps> = ({ turnstile, action }) => {
       <TurnstileField
         siteKey={turnstile.siteKey}
         action={action}
+        quiet
         className="flex justify-center"
         onSuccess={turnstile.onSuccess}
         onExpire={turnstile.onExpire}

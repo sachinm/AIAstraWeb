@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { Mail, ArrowLeft, KeyRound } from 'lucide-react';
+import { Mail, ArrowLeft, KeyRound, X } from 'lucide-react';
 import { requestMagicLinkEmail, loginWithMagicLink, LOGIN_FAILED_GENERIC } from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileGate from './TurnstileGate';
@@ -196,10 +197,25 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
             <h2 className="text-3xl font-bold text-white">Sign in</h2>
           </div>
 
-          {idleNotice && (
-            <div className="bg-amber-500/20 border border-amber-500/30 text-amber-200 px-4 py-3 rounded-lg mb-6">
-              {idleNotice}
-            </div>
+          {/* a toast at the top centre of the header, not in the form; it stays until dismissed. Portalled to the body:
+              the card's backdrop blur would otherwise hold a fixed element inside the card. */}
+          {idleNotice && createPortal(
+            <div
+              role="status"
+              data-test-id="idle-toast"
+              className="fixed left-1/2 top-3 z-50 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 items-start gap-3 rounded-lg border border-amber-500/40 bg-slate-900/95 px-4 py-2.5 text-sm text-amber-200 shadow-xl"
+            >
+              <span className="flex-1">{idleNotice}</span>
+              <button
+                type="button"
+                onClick={() => setIdleNotice('')}
+                aria-label="Dismiss"
+                className="shrink-0 text-amber-200/80 hover:text-white"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>,
+            document.body
           )}
 
           <form onSubmit={codeSent ? verifyCode : sendCode} className="space-y-6">
