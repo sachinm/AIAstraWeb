@@ -39,7 +39,9 @@ describe('events', () => {
     track('page_view', 'x');
     expect(sent).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(sent).toHaveLength(1);
+    vi.useRealTimers();
+    // the send hashes the body (crypto.subtle) before fetch, so it lands a tick after the timer
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
   });
   it('sends nothing when signed out', async () => {
     localStorage.clear();

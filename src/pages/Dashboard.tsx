@@ -4,6 +4,7 @@ import TopNavigation from './TopNavigation';
 import Disclaimer from '../components/Disclaimer';
 import LegalLinks from '../components/LegalLinks';
 import KundliNotice from '../components/KundliNotice';
+import BoardTabBar, { boardsEnabled } from '../components/BoardTabBar';
 
 interface User {
   name: string;
@@ -44,6 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <LegalLinks className="mt-1" />
         </footer>
       )}
+      {!onChat && boardsEnabled() && <BoardTabBar />}
     </div>
   );
 };
