@@ -20,6 +20,8 @@ export const en = {
     chat: 'Chat',
     charts: 'Charts',
     remedies: 'Remedies',
+    lucky: 'Lucky times',
+    work: 'Work',
     mantras: 'Mantras/Horoscope',
     leftMonth: '{{remaining}} of {{limit}} questions left this month',
   },

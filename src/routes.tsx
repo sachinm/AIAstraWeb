@@ -17,6 +17,11 @@ import ChartsSection from './pages/charts/ChartsSection';
 import ChatSection from './pages/chat-interface/ChatSection';
 import MantrasSection from './pages/mantras/MantrasSection';
 import RemediesSection from './pages/remedies/RemediesSection';
+import LuckyTimesPage from './pages/lucky/LuckyTimesPage';
+import WorkPage from './pages/work/WorkPage';
+import TodayPage from './pages/today/TodayPage';
+import LovePage from './pages/love/LovePage';
+import { boardsEnabled } from './components/BoardTabBar';
 import PricingPage from './pages/pricing/PricingPage';
 import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import SeoHead from './components/SeoHead';
@@ -59,7 +64,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             !sessionReady ? (
               <SessionLoadingScreen />
             ) : isAuthenticated ? (
-              <Navigate to="/dashboard/chat" replace />
+              <Navigate to={boardsEnabled() ? '/dashboard/today' : '/dashboard/chat'} replace />
             ) : (
               <LandingPage onSignUp={() => navigate('/signup')} />
             )
@@ -130,6 +135,10 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <Route path="chart" element={<Navigate to="/dashboard/charts" replace />} />
           <Route path="mantras" element={<MantrasSection user={user!} />} />
           <Route path="remedies" element={<RemediesSection user={user!} />} />
+          <Route path="lucky" element={<LuckyTimesPage />} />
+          <Route path="work" element={<WorkPage />} />
+          <Route path="today" element={<TodayPage />} />
+          <Route path="love" element={<LovePage />} />
           <Route path="timeline/ledger" element={<Navigate to="/profile/timeline" replace />} />
         </Route>
         <Route
