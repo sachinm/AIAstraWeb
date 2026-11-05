@@ -358,44 +358,14 @@ body {
 }
 
 /*
- * A wide screen has room beside the form: the form takes a left column, and the whole scene shrinks into the space to its
- * right, edge to edge, so nothing in it is cut off (all seven of Surya's horses, the whale's mouth). Its edges fade into the
- * starfield. It glides back to full screen on the way to the home page.
+ * Sign-in, sign-up and the details form all start at this height, so moving between them never shifts the card
+ * (Sachin, 2026-11-05). It drops to a thin gap on a short window, so every step still fits without a scrollbar.
  */
-.sky-stage {
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  transition:
-    top 0.9s cubic-bezier(0.4, 0, 0.2, 1),
-    left 0.9s cubic-bezier(0.4, 0, 0.2, 1),
-    width 0.9s cubic-bezier(0.4, 0, 0.2, 1),
-    height 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+.auth-shell {
+  padding-top: clamp(0.25rem, 15vh - 4.5rem, 7rem);
 }
+/* A wide screen has room beside the form: it takes a left column over the full-screen scene, as on the home page. */
 @media (orientation: landscape) and (min-width: 700px) {
-  .sky-side {
-    /*
-     * The scene's own 16:9 box, as large as fits in 92% of the window, its centre moved 7.5% right of the window's
-     * (never past the right edge). The form's see-through panel sits over its left side (Sachin, 2026-11-04).
-     */
-    --sky-w: min(92vw, calc(92dvh * 16 / 9));
-    width: var(--sky-w);
-    height: calc(var(--sky-w) * 9 / 16);
-    left: min(calc(57.5vw - var(--sky-w) / 2), calc(100vw - var(--sky-w)));
-    top: calc((100dvh - var(--sky-w) * 9 / 16) / 2);
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
-    mask-composite: intersect;
-  }
-  /* the slow zoom would crop the edges again, and some scenes are not quite 16:9, so the whole picture is fitted, not filled */
-  .sky-side .sky-drift {
-    animation: none;
-  }
-  .sky-side .sky-image {
-    object-fit: contain;
-  }
   .sky-form-page > div {
     justify-content: flex-start;
     padding-left: clamp(1.5rem, 5vw, 6rem);
@@ -414,9 +384,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sky-stage {
-    transition: none;
-  }
   .shooting-star,
   .sky-bloom,
   .sky-drift,

@@ -34,12 +34,10 @@ describe('the shared sky', () => {
     expect(container.querySelectorAll('.shooting-star')).toHaveLength(3);
   });
 
-  it('moves the scene aside only on a form page', () => {
+  it('keeps the scene full screen on a form page, as on the home page, and gives the form its column', () => {
     const { container } = renderAt('/signin/');
-    expect(container.querySelector('[data-test-id="sky-stage"]')?.className).toContain('sky-side');
+    expect(container.querySelector('[data-test-id="sky-stage"]')?.className).not.toContain('sky-side');
     expect(container.querySelector('[data-test-id="sky-page"]')?.className).toContain('sky-form-page');
-    const home = renderAt('/');
-    expect(home.container.querySelector('[data-test-id="sky-stage"]')?.className).not.toContain('sky-side');
   });
 
   it('keeps the same sky and image when moving to sign-in, and changes only the page', () => {
