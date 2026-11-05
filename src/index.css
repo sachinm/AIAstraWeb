@@ -237,13 +237,7 @@ body {
     opacity 0.2s ease-in 0.3s,
     visibility 0s linear 0.5s;
 }
-/* the opening scroll sits in the top half on a wide screen; upright, the top half is the picture's */
-@media (orientation: landscape) {
-  .parchment-high {
-    top: 33%;
-    max-height: calc(66% - 2rem);
-  }
-}
+/* the opening scroll sits at the top on a wide screen (see the end of this section); upright, the top half is the picture's */
 /* a phone has no side to spare, so a scroll takes the width */
 @media (max-width: 639px) {
   .scroll-side-left,
@@ -278,6 +272,29 @@ body {
   .parchment button.px-8 {
     padding: 0.5rem 1.5rem;
     font-size: 1rem;
+  }
+}
+
+/*
+ * The blueprint on a wide screen: hung from the top of the page rather than centred on a line, and wider, so the heading
+ * wraps less and the whole scroll fits without its own scrollbar (Sachin, 2026-11-04). Its type shrinks with the window's
+ * height. After the short-screen rules above, so it wins over them.
+ */
+@media (orientation: landscape) {
+  .parchment.parchment-high {
+    top: 1.25rem;
+    width: min(44rem, calc(100% - 2rem));
+    max-height: calc(100% - 2.5rem);
+  }
+  .parchment.parchment-high.parchment-open {
+    transform: none;
+  }
+  .parchment.parchment-high.parchment-closed {
+    transform: translate(var(--from-x, 0px), var(--from-y, 0px)) scale(0.08, 0.04);
+  }
+  .parchment.parchment-high h1 {
+    margin-bottom: clamp(0.5rem, 2.5vh, 1.25rem);
+    font-size: clamp(1.75rem, 7vh, 3rem);
   }
 }
 

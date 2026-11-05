@@ -66,11 +66,15 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
 
       <footer className="z-20 shrink-0 bg-gradient-to-t from-black/40 via-black/20 to-transparent px-4 pb-2 pt-6 sm:px-6" data-test-id="public-footer">
         <div className="w-full">
-          <div className="flex items-center justify-between gap-x-3 sm:flex-wrap sm:gap-x-6">
-            <p className="shrink-0 py-1 text-xs text-gray-400" data-test-id="copyright-notice">
+          {/* On a wide screen one row of three, top lines level and equal gaps either side of the disclaimer; narrower,
+              the disclaimer wraps under copyright and links. */}
+          <div className="flex items-center justify-between gap-x-3 sm:flex-wrap sm:gap-x-6 lg:flex-nowrap lg:items-start">
+            <p className="order-1 shrink-0 py-1 text-xs leading-snug text-gray-400" data-test-id="copyright-notice">
               &copy; 2026 {PRODUCT_NAME} (vedic-astrology.app)<span className="hidden sm:inline">. All rights reserved.</span>
             </p>
-            <div className="flex flex-wrap items-center gap-x-3">
+            {/* three lines on a phone covered the page, so a phone gets one; the full text is in the Terms */}
+            <Disclaimer className="order-3 hidden w-full py-1 sm:block lg:order-2 lg:w-auto" />
+            <div className="order-2 flex shrink-0 flex-wrap items-center gap-x-3 py-1 leading-snug lg:order-3">
               <LegalLinks />
               {SUPPORT_EMAIL && (
                 <a href={`mailto:${SUPPORT_EMAIL}`} className="text-xs text-gray-400 hover:text-purple-300">
@@ -79,8 +83,6 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
               )}
             </div>
           </div>
-          {/* three lines on a phone covered the page, so a phone gets one; the full text is in the Terms */}
-          <Disclaimer className="hidden sm:block" />
           <p role="note" data-test-id="disclaimer-short" className="text-center text-xs leading-snug text-slate-400 sm:hidden">
             {DISCLAIMER_SHORT}
           </p>

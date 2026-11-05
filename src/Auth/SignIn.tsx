@@ -192,7 +192,9 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         </div>
 
         <div className="bg-[#f5f5f5]/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-white/20 shadow-2xl">
-          <h2 className="sr-only">Sign in</h2>
+          <div className="text-center mb-4">
+            <h2 className="text-3xl font-bold text-white">Sign in</h2>
+          </div>
 
           {idleNotice && (
             <div className="bg-amber-500/20 border border-amber-500/30 text-amber-200 px-4 py-3 rounded-lg mb-6">
@@ -202,7 +204,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
           <form onSubmit={codeSent ? verifyCode : sendCode} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+              {/* the words sit in the box; the label stays for screen readers */}
+              <label htmlFor="email" className="sr-only">
                 Email address
               </label>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -217,7 +220,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                     if (e.target.value.trim() !== sentTo) setVerificationNotice(false);
                   }}
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-10 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                  placeholder="you@example.com"
+                  placeholder="Email address"
                   autoComplete="email"
                   required
                 />
@@ -273,9 +276,9 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
 
             {turnstile.isEnabled && <span className="sr-only" />}
 
-            {(error || turnstile.error) && (
+            {error && (
               <div role="alert" className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
-                {error || turnstile.error}
+                {error}
               </div>
             )}
 
