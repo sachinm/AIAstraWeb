@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarChart3, BookOpen, ChevronDown, CreditCard, Heart, History, LogOut, MessageCircle, Settings, Sparkles, User as UserIcon, Clock } from 'lucide-react';
+import { BarChart3, BookOpen, ChevronDown, CreditCard, Heart, History, LogOut, MessageCircle, Settings, Sparkles, User as UserIcon, Clock, Briefcase } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
@@ -108,6 +108,12 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
               <MessageCircle className="h-4 w-4" aria-hidden="true" />
               {t('menu.chat')}
             </button>
+            {import.meta.env.VITE_AREA_ENABLED === '1' && (
+              <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/work')}>
+                <Briefcase className="h-4 w-4" aria-hidden="true" />
+                {t('menu.work')}
+              </button>
+            )}
             {import.meta.env.VITE_LUCKY_ENABLED === '1' && (
               <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/lucky')}>
                 <Clock className="h-4 w-4" aria-hidden="true" />
