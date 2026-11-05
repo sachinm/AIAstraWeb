@@ -19,7 +19,7 @@ interface Stage {
  * of random order, each scene once per round. Each one blooms in from a random corner while the last dissolves toward
  * another. Only the current and next images are ever loaded. With reduced motion on the scenes still change, by a plain crossfade with no movement (index.css): many Windows PCs have that setting on, and freezing left them on one scene.
  */
-const CosmicSky: React.FC<{ side?: boolean }> = ({ side = false }) => {
+const CosmicSky: React.FC = () => {
   // A build has no visitor, so the prerendered page carries no scene, or everyone would start on the same one. The browser
   // picks here, and that scene fades in over the starfield.
   const [first] = useState<number | null>(() => (typeof window === 'undefined' ? null : randomScene()));
@@ -70,8 +70,7 @@ const CosmicSky: React.FC<{ side?: boolean }> = ({ side = false }) => {
 
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true" data-test-id="cosmic-sky">
-      {/* on a wide screen a form page moves the scene aside, so the form does not sit on the figure (index.css) */}
-      <div className={`sky-stage absolute${side ? ' sky-side' : ''}`} data-test-id="sky-stage">
+      <div className="sky-stage absolute inset-0" data-test-id="sky-stage">
       {layers.map((index) => {
         const leaving = index === previous;
         const style = leaving && to
