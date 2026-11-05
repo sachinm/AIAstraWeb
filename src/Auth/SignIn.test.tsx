@@ -8,7 +8,7 @@ import { requestMagicLinkEmail, loginWithMagicLink } from './api';
 vi.mock('./api', () => ({
   requestMagicLinkEmail: vi.fn(),
   loginWithMagicLink: vi.fn(),
-  LOGIN_FAILED_GENERIC: 'Unable to sign in. Check your code and try again.',
+  LOGIN_FAILED_GENERIC: 'That code did not work. It may be mistyped or expired: codes last 3 minutes. Send a new code and try again.',
 }));
 
 const mockOnSignUp = vi.fn();
@@ -239,7 +239,7 @@ describe('SignIn (one page, email then code)', () => {
 
   it('shows neutral copy with no code length or exact expiry', async () => {
     renderSignIn({ pathname: '/signin', state: { email: 'a@b.co', codeSent: true } });
-    expect(screen.getByText('Enter the code we emailed you. It expires in a few minutes.')).toBeInTheDocument();
+    expect(screen.getByText('Enter the code we emailed you. It works for 3 minutes.')).toBeInTheDocument();
     expect(screen.queryByText(/8-character|5 minutes/i)).not.toBeInTheDocument();
   });
 
@@ -297,14 +297,14 @@ describe('SignIn (one page, email then code)', () => {
     const user = userEvent.setup();
     vi.mocked(loginWithMagicLink).mockResolvedValueOnce({
       success: false,
-      message: 'Unable to sign in. Check your code and try again.',
+      message: 'That code did not work. It may be mistyped or expired: codes last 3 minutes. Send a new code and try again.',
     });
     renderSignIn({ pathname: '/signin', state: { email: 'a@b.co', codeSent: true } });
 
     await user.type(screen.getByLabelText(/sign-in code/i), 'WRONG123');
     await user.click(screen.getByRole('button', { name: /^verify$/i }));
 
-    expect(await screen.findByText(/check your code and try again/i)).toBeInTheDocument();
+    expect(await screen.findByText(/that code did not work. it may be mistyped or expired/i)).toBeInTheDocument();
     expect(mockHandleSignIn).not.toHaveBeenCalled();
   });
 
