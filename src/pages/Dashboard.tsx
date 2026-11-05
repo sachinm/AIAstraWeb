@@ -1,9 +1,12 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import TopNavigation from './TopNavigation';
-import Disclaimer from '../components/Disclaimer';
 import LegalLinks from '../components/LegalLinks';
 import KundliNotice from '../components/KundliNotice';
+import { GeneralReadingProvider } from '../components/GeneralReading';
+import SideNav, { SideNavProvider } from '../components/SideNav';
+import CosmicSky from '../components/CosmicSky';
+import { boardsEnabled } from '../components/BoardTabBar';
 
 interface User {
   name: string;
@@ -19,11 +22,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   // the chat page shows the disclaimer under its input box, where it stays visible while scrolling
   const onChat = useLocation().pathname.replace(/\/+$/, '').endsWith('/chat');
   return (
+    <GeneralReadingProvider user={user}>
+    <SideNavProvider>
     <div
       data-test-id="dashboard-root"
       // chat is held to the window: nav, sidebars and input stay put, and only the message list scrolls
-      className={`flex flex-col text-white ${onChat ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
+      // the shell (Sachin, 2026-11-05): header on top, footer at the bottom, and between them the left sidebar, the
+      // main area and an optional right sidebar, edge to edge; only the main area scrolls
+      className={`relative isolate flex flex-col text-white ${onChat || boardsEnabled() ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
     >
+      {/* the sky scenes behind every signed-in page; the panels sit on them as glass (Sachin, 2026-11-05) */}
+      <CosmicSky caption={false} className="-z-10" />
+
       {/* Top Navigation */}
       <TopNavigation
         user={user}
@@ -34,17 +44,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {/* Main Content */}
       <div className="flex min-h-0 flex-1">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {boardsEnabled() && <SideNav />}
+        <main className={`flex min-h-0 min-w-0 flex-1 flex-col ${boardsEnabled() && !onChat ? 'overflow-y-auto' : ''}`}>
           <Outlet />
         </main>
       </div>
       {!onChat && (
-        <footer className="border-t border-white/10 px-4 py-3">
-          <Disclaimer />
-          <LegalLinks className="mt-1" />
+        <footer className="glass-bar flex shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-t border-white/10 px-4 py-2 text-center text-[11px] leading-5 text-gray-500" data-test-id="dashboard-footer">
+          {/* one row (Sachin, 2026-11-05): the disclaimer in a sentence, the copyright, Terms and Privacy */}
+          <span data-test-id="disclaimer">For education and entertainment only, not advice. You are responsible for your decisions.</span>
+          <span aria-hidden="true">·</span>
+          <span data-test-id="copyright-notice">© 2026 AdAstra AI (vedic-astrology.app)</span>
+          <span aria-hidden="true">·</span>
+          <LegalLinks className="inline-flex" />
         </footer>
       )}
     </div>
+    </SideNavProvider>
+    </GeneralReadingProvider>
   );
 };
 

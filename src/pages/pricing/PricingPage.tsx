@@ -112,7 +112,7 @@ const PricingPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => navigate(isSignedIn ? '/dashboard/chat' : '/')}
+            onClick={() => navigate(isSignedIn ? (import.meta.env.VITE_BOARDS_ENABLED === '1' ? '/dashboard/lucky' : '/dashboard/chat') : '/')}
             className="flex items-center gap-2 rounded-lg px-2 py-1 text-gray-300 hover:bg-white/10 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />

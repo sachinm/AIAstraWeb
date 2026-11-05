@@ -3,7 +3,7 @@ vi.mock('../pages/TopNavigation', () => ({ default: () => null }));
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import Disclaimer, { DISCLAIMER_LINE_1, DISCLAIMER_TEXT } from './Disclaimer';
+import Disclaimer, { DISCLAIMER_TEXT } from './Disclaimer';
 import Dashboard from '../pages/Dashboard';
 
 const user = { name: 'A', email: 'a@b.c' };
@@ -29,12 +29,13 @@ describe('Disclaimer', () => {
     expect(DISCLAIMER_TEXT).toMatch(/not medical, legal, financial or other professional advice/i);
     expect(DISCLAIMER_TEXT).toMatch(/sole responsibility for your decisions/i);
   });
-  it('appears in the dashboard footer on dashboard pages', () => {
+  it('appears in the one-row dashboard footer on dashboard pages, with the copyright', () => {
     renderAt('/dashboard/charts');
-    expect(screen.getByText(DISCLAIMER_LINE_1)).toBeInTheDocument();
+    expect(screen.getByText(/For education and entertainment only, not advice/)).toBeInTheDocument();
+    expect(screen.getByText(/© 2026 AdAstra AI/)).toBeInTheDocument();
   });
   it('is left to the chat page itself on the chat route (shown under the input there)', () => {
     renderAt('/dashboard/chat');
-    expect(screen.queryByText(DISCLAIMER_LINE_1)).not.toBeInTheDocument();
+    expect(screen.queryByText(/For education and entertainment only, not advice/)).not.toBeInTheDocument();
   });
 });

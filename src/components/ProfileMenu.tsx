@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarChart3, BookOpen, ChevronDown, CreditCard, Heart, History, LogOut, MessageCircle, Settings, Sparkles, User as UserIcon } from 'lucide-react';
+import { ChevronDown, CreditCard, Globe, LogOut, Sparkles, User as UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
-import { ShriGaneshAvatar } from './ShriGaneshAvatar';
+import UserAvatar from './UserAvatar';
 
 interface ProfileMenuProps {
   user?: { name: string; email?: string } | null;
@@ -74,7 +74,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1 rounded-full p-1 text-gray-300 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
       >
-        <ShriGaneshAvatar />
+        <UserAvatar />
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
 
@@ -104,22 +104,6 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
                 {t('menu.upgrade')}
               </button>
             )}
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/chat')}>
-              <MessageCircle className="h-4 w-4" aria-hidden="true" />
-              {t('menu.chat')}
-            </button>
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/charts')}>
-              <BarChart3 className="h-4 w-4" aria-hidden="true" />
-              {t('menu.charts')}
-            </button>
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/remedies')}>
-              <Heart className="h-4 w-4" aria-hidden="true" />
-              {t('menu.remedies')}
-            </button>
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/dashboard/mantras')}>
-              <BookOpen className="h-4 w-4" aria-hidden="true" />
-              {t('menu.mantras')}
-            </button>
             <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile')}>
               <UserIcon className="h-4 w-4" aria-hidden="true" />
               {t('menu.profile')}
@@ -128,13 +112,9 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
               <CreditCard className="h-4 w-4" aria-hidden="true" />
               {t('menu.plan')}
             </button>
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/timeline')}>
-              <History className="h-4 w-4" aria-hidden="true" />
-              {t('menu.timeline')}
-            </button>
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/settings')}>
-              <Settings className="h-4 w-4" aria-hidden="true" />
-              {t('menu.settings')}
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/locale')}>
+              <Globe className="h-4 w-4" aria-hidden="true" />
+              {t('menu.locale')}
             </button>
             <button
               type="button"

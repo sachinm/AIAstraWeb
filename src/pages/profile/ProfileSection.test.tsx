@@ -46,15 +46,14 @@ describe('ProfileSection', () => {
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it('loads the saved details into the same controls as registration', async () => {
+  it('shows the birth details read-only and keeps name and gender editable (Sachin, 2026-11-05)', async () => {
     renderPage();
     expect(await screen.findByLabelText('Name')).toHaveValue('Asha Rao');
-    expect(screen.getByLabelText(/date of birth/i)).toHaveValue('27/04/1990');
-    expect(screen.getByLabelText('Hour')).toHaveValue('1');
-    expect(screen.getByLabelText('Minute')).toHaveValue('05');
-    expect(screen.getByLabelText(/am or pm/i)).toHaveValue('PM');
-    expect(screen.getByLabelText(/country of birth/i)).toHaveValue('India');
-    expect(screen.getByLabelText(/city of birth/i)).toHaveValue('Pune');
+    const birth = screen.getByTestId('birth-details-readonly');
+    expect(birth).toHaveTextContent('Pune');
+    expect(birth).toHaveTextContent(/cannot be changed/i);
+    expect(screen.queryByLabelText(/date of birth/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/city of birth/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Gender')).toHaveValue('female');
   });
 
@@ -81,32 +80,4 @@ describe('ProfileSection', () => {
     expect(screen.queryByText(/about 30 minutes after you register/i)).not.toBeInTheDocument();
   });
 
-  it('a birth-detail change warns first, saves only after confirming, then shows the notice', async () => {
-    const user = userEvent.setup();
-    vi.mocked(updateProfile).mockResolvedValueOnce({ success: true });
-    renderPage();
-    const city = await screen.findByLabelText(/city of birth/i);
-    await user.clear(city);
-    await user.type(city, 'Mumbai');
-    await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-    expect(await screen.findByText(REBUILD_WARNING)).toBeInTheDocument();
-    expect(updateProfile).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: /save and rebuild chart/i }));
-
-    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(updateProfile).mock.calls[0][0].city).toBe('Mumbai');
-    expect(await screen.findByRole('status')).toHaveTextContent('about 30 minutes after you register');
-  });
-
-  it('"Keep editing" dismisses the warning without saving', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    const city = await screen.findByLabelText(/city of birth/i);
-    await user.type(city, 'x');
-    await user.click(screen.getByRole('button', { name: /save changes/i }));
-    await user.click(await screen.findByRole('button', { name: /keep editing/i }));
-    expect(screen.queryByText(REBUILD_WARNING)).not.toBeInTheDocument();
-    expect(updateProfile).not.toHaveBeenCalled();
-  });
 });

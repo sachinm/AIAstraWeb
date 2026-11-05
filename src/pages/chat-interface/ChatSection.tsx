@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Menu, PanelRightOpen, Plus } from 'lucide-react';
+import { Loader2, Menu, MessagesSquare, PanelRightOpen, Plus } from 'lucide-react';
+import { track } from '../../lib/events';
 import {
   sendChatMessage,
   sendChatMessageStream,
@@ -11,9 +12,12 @@ import {
   createChat,
 } from '../UserData';
 import { SUBJECT_CHIPS, shouldSendOnKey, toClarifyView, loadSidebarPrefs, saveSidebarPrefs, browserTimeZone, LOCATION_CRITERION } from './readingUi';
-import { fetchAllChats, fetchChatMessages } from './chatAPI';
+import { fetchAllChats, fetchChatMessages, setChatPinned } from './chatAPI';
 import ChatRightSidebar from './ChatRightSidebar';
 import ChatLeftSidebarLayout from './ChatLeftSidebarLayout';
+import ChatSidebar from './ChatSidebar';
+import { createPortal } from 'react-dom';
+import { useLeftRail } from '../../components/SideNav';
 import ChatMainArea from './ChatMainArea';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useQuestionLocation } from './useQuestionLocation';
@@ -41,11 +45,18 @@ interface User {
 interface ChatSectionProps {
   user: User;
   activeChatId: string | null;
+  /** docs/reading-engine/51: the conversation category new chats are filed under (default General Reading) */
+  category?: string;
+  /** the subject the reading is specialised to when opened from a board (a FRAMES subject id) */
+  focus?: string;
+  placeholder?: string;
+  /** inside the Ask modal: start a new conversation in the category, hide the kundli sidebar */
+  embedded?: boolean;
 }
 
 const POLL_INTERVAL_MS = 3000;
 
-const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) => {
+const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, category = 'general', focus, placeholder, embedded = false }) => {
   const me = useMe();
   const refreshMe = useRefreshMe();
   const { plan, setPlan, refreshPlan } = usePlan();
@@ -140,7 +151,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           pollIdRef.current = null;
         }
       } catch {
-        if (!cancelled) setKundliReady(false);
+        // the server could not be reached: keep what we knew and let the poll retry. Saying the chart is being
+        // generated here was wrong (it showed whenever the API blinked).
       }
     };
     check();
@@ -160,17 +172,18 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     (async () => {
       let all: Awaited<ReturnType<typeof fetchAllChats>>;
       try {
-        all = await fetchAllChats();
+        all = embedded ? [] : await fetchAllChats();
       } catch {
         if (cancelled) return;
         try {
-          const { id } = await createChat();
+          const { id } = await createChat(category);
           if (cancelled) return;
           const row: SidebarChatRow = {
             id,
             name: 'New Conversation',
             lastMessage: 'Chat started',
             timestamp: 'Now',
+            category,
           };
           setChats([row]);
           setActiveChat(id);
@@ -203,13 +216,14 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         setChatCreationDone(true);
       } else {
         try {
-          const { id } = await createChat();
+          const { id } = await createChat(category);
           if (cancelled) return;
           const row: SidebarChatRow = {
             id,
             name: 'New Conversation',
             lastMessage: 'Chat started',
             timestamp: 'Now',
+            category,
           };
           setChats([row]);
           setActiveChat(id);
@@ -523,6 +537,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
           setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)));
         },
         {
+          ...(focus ? { focus: { subject: focus, parts: [] } } : {}),
           location: currentLocation(),
           onEvent: (ev) => {
             if (!mountedRef.current) return;
@@ -570,12 +585,13 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
   const handleNewChat = async () => {
     try {
-      const { id } = await createChat();
+      const { id } = await createChat(category);
       const newChat: SidebarChatRow = {
         id,
         name: 'New Conversation',
         lastMessage: 'Chat started',
         timestamp: 'Now',
+        category,
       };
       setChats((prev) => [newChat, ...prev].slice(0, MAX_SIDEBAR_CHATS));
       setActiveChat(id);
@@ -599,7 +615,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     } catch {
       const fallbackId = Date.now().toString();
       setChats((prev) =>
-        [{ id: fallbackId, name: 'New Conversation', lastMessage: 'Chat started', timestamp: 'Now' }, ...prev].slice(
+        [{ id: fallbackId, name: 'New Conversation', lastMessage: 'Chat started', timestamp: 'Now', category }, ...prev].slice(
           0,
           MAX_SIDEBAR_CHATS
         )
@@ -636,6 +652,19 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
 
   // subject chips replace the old quick questions (no remedies or mantras, which the app does not answer)
   const quickQuestions = SUBJECT_CHIPS.map((c) => c.question);
+
+  // On the chat page the conversations live in the app's one left rail (Sachin, 2026-11-05); General Reading's modal
+  // and the embedded board chats keep their own list.
+  const leftRail = useLeftRail();
+  const railSlot = !embedded ? leftRail?.slot ?? null : null;
+
+  const togglePin = (chatId: string, pinned: boolean) => {
+    setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned } : c)));
+    track('chip_select', 'chat', pinned ? 'pin' : 'unpin');
+    void setChatPinned(chatId, pinned).then((ok) => {
+      if (!ok) setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned: !pinned } : c)));
+    });
+  };
 
   const chatListDisabled = isTyping || !!streamingMessageId || historyLoading || !chatCreationDone;
   const mainBusy = historyLoading || !chatCreationDone;
@@ -677,7 +706,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
     <div className="flex min-h-0 flex-1 flex-col">
     {/* the side rails are desktop only, so phones reach the same panels from here */}
     <div className="flex shrink-0 items-center gap-1 border-b border-white/10 bg-black/30 px-2 py-1 md:hidden" data-test-id="chat-phone-toolbar">
-      <button type="button" aria-label="Open conversations" onClick={() => setIsSidebarOpen(true)} className="rounded-lg p-2.5 text-white hover:bg-white/10">
+      <button type="button" aria-label="Open conversations" onClick={() => (railSlot ? leftRail?.setOpen(true) : setIsSidebarOpen(true))} className="rounded-lg p-2.5 text-white hover:bg-white/10">
         <Menu className="h-5 w-5" />
       </button>
       <button type="button" aria-label="Start new conversation" onClick={handleNewChat} className="rounded-lg p-2.5 text-white hover:bg-white/10">
@@ -695,17 +724,51 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         />
       )}
 
-      <ChatLeftSidebarLayout
-        sidebarRef={sidebarRef}
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
-        handleNewChat={handleNewChat}
-        chats={chats}
-        activeChatId={activeChat}
-        onChatSelect={handleChatSelect}
-        onClose={() => setIsSidebarOpen(false)}
-        chatListDisabled={chatListDisabled}
-      />
+      {railSlot ? (
+        createPortal(
+          leftRail?.open ? (
+            <ChatSidebar
+              variant="rail"
+              chats={chats}
+              activeChatId={activeChat}
+              onChatSelect={handleChatSelect}
+              onNewChat={handleNewChat}
+              onClose={() => leftRail.setOpen(false)}
+              chatListDisabled={chatListDisabled}
+              onTogglePin={togglePin}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2 p-2" data-testid="rail-conversations-icons">
+              <button type="button" onClick={handleNewChat} title="New conversation" aria-label="Start new conversation" className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-600/80 text-white hover:bg-purple-600">
+                <Plus className="h-5 w-5" aria-hidden="true" />
+              </button>
+              <button type="button" onClick={() => leftRail?.setOpen(true)} title="Conversations" aria-label="Show conversations" className="flex h-11 w-11 items-center justify-center rounded-xl text-white/70 hover:bg-white/10 hover:text-white">
+                <MessagesSquare className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+          ),
+          railSlot
+        )
+      ) : (
+        <ChatLeftSidebarLayout
+          sidebarRef={sidebarRef}
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+          handleNewChat={handleNewChat}
+          chats={chats}
+          activeChatId={activeChat}
+          onChatSelect={handleChatSelect}
+          onClose={() => setIsSidebarOpen(false)}
+          chatListDisabled={chatListDisabled}
+          onTogglePin={(chatId, pinned) => {
+            setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned } : c)));
+            track('chip_select', 'chat', pinned ? 'pin' : 'unpin');
+            void setChatPinned(chatId, pinned).then((ok) => {
+              if (!ok) setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, pinned: !pinned } : c)));
+            });
+          }}
+        />
+        )}
 
       <ChatMainArea
         messages={messages}
@@ -731,7 +794,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId }) 
         onClarifyChange={handleClarifyChange}
         questionLocationStatus={questionLocationStatus}
         onChangeQuestionLocation={() => void reaskLocation()}
-        rightPanel={<ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />}
+        placeholder={placeholder}
+        rightPanel={embedded ? undefined : <ChatRightSidebar isOpen={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen} />}
       />
     </div>
     </div>

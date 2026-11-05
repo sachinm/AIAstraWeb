@@ -13,6 +13,7 @@ export interface ChatLeftSidebarLayoutProps {
   onChatSelect: (chatId: string) => void;
   onClose: () => void;
   chatListDisabled?: boolean;
+  onTogglePin?: (chatId: string, pinned: boolean) => void;
 }
 
 const ChatLeftSidebarLayout: React.FC<ChatLeftSidebarLayoutProps> = ({
@@ -25,6 +26,7 @@ const ChatLeftSidebarLayout: React.FC<ChatLeftSidebarLayoutProps> = ({
   onChatSelect,
   onClose,
   chatListDisabled = false,
+  onTogglePin,
 }) => {
   return (
     <div
@@ -63,6 +65,7 @@ const ChatLeftSidebarLayout: React.FC<ChatLeftSidebarLayoutProps> = ({
               chats={chats}
               activeChatId={activeChatId}
               onChatSelect={onChatSelect}
+              onTogglePin={onTogglePin}
               onNewChat={handleNewChat}
               onClose={onClose}
               chatListDisabled={chatListDisabled}

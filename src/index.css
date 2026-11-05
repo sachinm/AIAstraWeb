@@ -409,3 +409,44 @@ body {
     animation: skyFadeOut 3s ease-in-out both;
   }
 }
+
+/*
+ * Signed-in pages (Sachin, 2026-11-05): the sky scenes play behind everything, and the panels sit on them as glass with
+ * a little depth: a light top edge, a dark bottom edge and a soft drop shadow. Cards lift a touch under the pointer.
+ */
+.glass {
+  /* clear rather than frosted (Sachin, 2026-11-05): a light blur and a thin dark tint keep the scene visible, and the
+     tint plus a soft text shadow keep the words readable on a bright patch of sky */
+  background: linear-gradient(145deg, rgba(14, 12, 36, 0.38), rgba(14, 12, 36, 0.22));
+  -webkit-backdrop-filter: blur(5px) saturate(130%);
+  backdrop-filter: blur(5px) saturate(130%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 18px 40px -18px rgba(0, 0, 0, 0.75),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.glass-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.glass-lift:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 26px 50px -20px rgba(0, 0, 0, 0.85),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+/* the header, footer and side rails: darker glass, so their words read on any scene */
+.glass-bar {
+  background: linear-gradient(180deg, rgba(12, 10, 32, 0.55), rgba(12, 10, 32, 0.4));
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-lift:hover {
+    transform: none;
+  }
+}

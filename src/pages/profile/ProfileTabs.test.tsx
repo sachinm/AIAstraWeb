@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProfileLayout from './ProfileLayout';
 import ProfilePlan from './ProfilePlan';
-import ProfileSettings from './ProfileSettings';
+import ProfileLocale from './ProfileLocale';
+import ProfileLegal from './ProfileLegal';
 import ProfileTimeline from './ProfileTimeline';
 import { usePlan } from '../../Auth/ProfileGate';
 import { fetchPlanState, fetchProfile, updateProfile } from '../../Auth/api';
@@ -49,7 +50,7 @@ const showPlan = (plan: PlanStatus | null) => {
 describe('profile tabs', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('links the four pages and marks the open one', () => {
+  it('links the five pages from the right rail and marks the open one', () => {
     render(
       <MemoryRouter initialEntries={['/profile/plan']}>
         <Routes>
@@ -60,7 +61,8 @@ describe('profile tabs', () => {
     expect(screen.getByRole('link', { name: 'Details' })).toHaveAttribute('href', '/profile');
     expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Life timeline' })).toHaveAttribute('href', '/profile/timeline');
-    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/profile/settings');
+    expect(screen.getByRole('link', { name: 'Locale' })).toHaveAttribute('href', '/profile/locale');
+    expect(screen.getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/profile/legal');
   });
 
   it('Plan shows usage, the reset date and a choice that is not active yet', () => {
@@ -83,26 +85,33 @@ describe('profile tabs', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  it('Settings saves the language alone, so no birth detail is sent', async () => {
+  it('Locale saves the language alone, so no birth detail is sent', async () => {
     vi.mocked(fetchProfile).mockResolvedValue({ name: 'A', email: 'a@example.com' } as never);
     vi.mocked(fetchPlanState).mockResolvedValue({ plan: null, language: 'en' });
     vi.mocked(updateProfile).mockResolvedValue({ success: true });
     const user = userEvent.setup();
-    render(<MemoryRouter><ProfileSettings /></MemoryRouter>);
-    expect(await screen.findByText('a@example.com')).toBeInTheDocument();
+    render(<MemoryRouter><ProfileLocale /></MemoryRouter>);
+    expect(screen.queryByText('a@example.com')).not.toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Save language' }));
     await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ language: 'en' }));
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
   });
 
-  it('Settings shows the server message when the save fails', async () => {
+  it('Locale shows the server message when the save fails', async () => {
     vi.mocked(fetchProfile).mockResolvedValue(null);
     vi.mocked(fetchPlanState).mockResolvedValue({ plan: null, language: 'en' });
     vi.mocked(updateProfile).mockResolvedValue({ success: false, message: 'Complete your profile first.' });
     const user = userEvent.setup();
-    render(<MemoryRouter><ProfileSettings /></MemoryRouter>);
+    render(<MemoryRouter><ProfileLocale /></MemoryRouter>);
     await user.click(await screen.findByRole('button', { name: 'Save language' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Complete your profile first.');
+  });
+
+  it('Legal lists the terms, privacy and refund pages', () => {
+    render(<MemoryRouter><ProfileLegal /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms');
+    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Refund Policy' })).toHaveAttribute('href', '/refunds');
   });
 
   it('Life timeline holds the reading with the flag on, and says coming soon with it off', async () => {
