@@ -143,7 +143,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
   };
 
   return (
-    <div className="min-h-full flex items-start justify-center px-4 pt-3 pb-3 sm:px-6 [@media(max-height:480px)]:pt-1 [@media(max-height:480px)]:pb-1">
+    <div className="auth-shell min-h-full flex items-start justify-center px-4 pb-3 sm:px-6 [@media(max-height:480px)]:pb-1">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-between mb-2 [@media(max-height:480px)]:mb-1 [@media(max-height:480px)]:text-sm">
         <button
