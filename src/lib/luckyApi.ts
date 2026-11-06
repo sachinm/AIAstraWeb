@@ -39,12 +39,42 @@ export interface LuckySetup {
   picks: Pick[];
 }
 
+/** Whose a reason is (server docs/reading-engine/54 §6): the same for everyone at the place, or from this person's chart. */
+export type ReasonScope = 'general' | 'personal';
+
+export interface LuckyReason {
+  key: string;
+  scope: ReasonScope;
+}
+
 export interface LuckyWindow {
   from: number;
   to: number;
   score: number;
-  reasons: string[];
+  /** each reason with its scope; an older server sent plain keys here */
+  reasons: Array<LuckyReason | string>;
+  /** the same keys as plain strings */
+  reasonKeys?: string[];
 }
+
+/** The day's yoga or karana as the server names it (classical spelling) and the hour it ends (from local midnight). */
+export interface DayLimb {
+  name: string;
+  endHour: number | null;
+}
+
+const scopeOfKey = (key: string): ReasonScope => (key.startsWith('personal:') ? 'personal' : 'general');
+
+/** A window's reasons with scopes, whichever shape the server sent. */
+export function windowReasons(w: { reasons?: LuckyWindow['reasons']; reasonKeys?: string[] }): LuckyReason[] {
+  const raw = Array.isArray(w.reasons) && w.reasons.length ? w.reasons : (w.reasonKeys ?? []);
+  return raw
+    .map((r) => (typeof r === 'string' ? { key: r, scope: scopeOfKey(r) } : r && typeof r.key === 'string' ? { key: r.key, scope: r.scope === 'personal' ? 'personal' : 'general' } : null))
+    .filter((r): r is LuckyReason => r !== null);
+}
+
+/** A window's plain keys, whichever shape the server sent. */
+export const windowKeys = (w: { reasons?: LuckyWindow['reasons']; reasonKeys?: string[] }): string[] => windowReasons(w).map((r) => r.key);
 
 export interface LuckyDay {
   date: string;
@@ -54,6 +84,9 @@ export interface LuckyDay {
   personal: { tara_good: boolean | null; moon_good: boolean | null } | null;
   avoid: Array<{ kind: string; from: number; to: number }>;
   good: Array<{ kind: 'abhijit' | 'amrita' | 'brahma'; from: number; to: number }>;
+  /** the day's yoga and karana (named only in the Why sheet); absent from an older server */
+  yoga?: DayLimb | null;
+  karana?: DayLimb | null;
   layers: Record<string, { verdict: 'good' | 'none' | 'avoid_day'; windows: LuckyWindow[]; dayReasons: string[] }>;
 }
 

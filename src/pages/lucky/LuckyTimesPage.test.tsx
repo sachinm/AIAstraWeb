@@ -9,8 +9,13 @@ const CATALOG = [
   { area: 'love', label: 'Love', scenarios: [{ id: 'love.first_date', label: 'A first date', ask: 'relationship' }] },
 ];
 
+/** The window every layer shows; a test may swap it (the default is the older server's plain-key shape). */
+let windowOverride: Record<string, unknown> | null = null;
+let limbs: Record<string, unknown> = {};
+
 function day(date: string, weekday: string, layers: Record<string, unknown> = {}) {
   return {
+    ...limbs,
     date,
     weekday,
     sunrise: 400,
@@ -23,7 +28,7 @@ function day(date: string, weekday: string, layers: Record<string, unknown> = {}
 }
 
 function rangeFor(picks: string[]) {
-  const layer = { verdict: 'good', windows: [{ from: 690, to: 731, score: 7, reasons: ['abhijit', 'hora:Jupiter', 'weekday:Thursday'] }], dayReasons: [] };
+  const layer = { verdict: 'good', windows: [windowOverride ?? { from: 690, to: 731, score: 7, reasons: ['abhijit', 'hora:Jupiter', 'weekday:Thursday'] }], dayReasons: [] };
   const L = Object.fromEntries(picks.map((p) => [p, layer]));
   return {
     status: 'ok',
@@ -42,6 +47,8 @@ let state: { place: string | null; picks: Array<{ scenario: string; shown: boole
 let calls: Array<{ method: string; url: string; body?: any }>;
 
 beforeEach(() => {
+  windowOverride = null;
+  limbs = {};
   localStorage.setItem('token', 't');
   state = { place: null, picks: [] };
   calls = [];
@@ -153,6 +160,41 @@ describe('Lucky times page', () => {
     const sheet = await screen.findByTestId('why-sheet');
     expect(sheet).toHaveTextContent('Abhijit muhurta');
     expect(sheet).toHaveTextContent('Jupiter hora');
+  });
+
+  it('groups Why under "For everyone" and "For you", names the yoga and karana only there', async () => {
+    const keys = ['abhijit', 'hora:Jupiter', 'yoga:Siddhi', 'karana:Taitila', 'personal:tara_good', 'personal:hora_benefic'];
+    windowOverride = { from: 690, to: 731, score: 9, reasons: keys.map((key) => ({ key, scope: key.startsWith('personal:') ? 'personal' : 'general' })), reasonKeys: keys };
+    limbs = { yoga: { name: 'Siddhi', endHour: 15.65 }, karana: { name: 'Taitila', endHour: 21 } };
+    state.place = 'sanjose';
+    state.picks = [{ scenario: 'work.sign_contract', shown: true, answers: {} }];
+    render(<LuckyTimesPage />);
+    const card = await screen.findByTestId('today-work.sign_contract');
+    for (const w of [...BANNED_ON_BOARD, 'yoga', 'karana', 'siddhi', 'taitila', 'benefic']) expect(boardText()).not.toContain(w);
+    expect(card).toHaveTextContent('an easy flow');
+    fireEvent.click(within(card).getByRole('button', { name: /11:30/ }));
+    const general = await screen.findByTestId('why-general');
+    const personal = screen.getByTestId('why-personal');
+    expect(general).toHaveTextContent('For everyone');
+    expect(general).toHaveTextContent('Siddhi yoga, which the texts favour');
+    expect(general).toHaveTextContent('Taitila karana, good for most acts');
+    expect(general).toHaveTextContent('Yoga of the day: Siddhi, until 15:39');
+    expect(general).not.toHaveTextContent('tara');
+    expect(personal).toHaveTextContent('For you');
+    expect(personal).toHaveTextContent('Your tara bala is good today');
+    expect(personal).toHaveTextContent('The hora lord is a functional benefic in your chart');
+    expect(personal).not.toHaveTextContent('Abhijit');
+  });
+
+  it('an older server (plain keys) still gets both groups, by the personal: prefix', async () => {
+    windowOverride = { from: 690, to: 731, score: 7, reasons: ['abhijit', 'personal:moon_good'] };
+    state.place = 'sanjose';
+    state.picks = [{ scenario: 'work.sign_contract', shown: true, answers: {} }];
+    render(<LuckyTimesPage />);
+    const card = await screen.findByTestId('today-work.sign_contract');
+    fireEvent.click(within(card).getByRole('button', { name: /11:30/ }));
+    expect(await screen.findByTestId('why-general')).toHaveTextContent('Overlaps Abhijit muhurta');
+    expect(screen.getByTestId('why-personal')).toHaveTextContent('Your chandra bala is good today');
   });
 
   it('logs what the person clicks', async () => {
