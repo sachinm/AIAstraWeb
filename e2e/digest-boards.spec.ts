@@ -209,11 +209,12 @@ function buildLuckyRange(picks: Array<{ scenario: string; shown: boolean; answer
   };
 }
 
-async function saveShot(page: Page, filename: string): Promise<void> {
-  mkdirSync(SERVER_SCREENSHOT_DIR, { recursive: true });
-  mkdirSync(BRAIN_SCREENSHOT_DIR, { recursive: true });
+async function saveShot(page: Page, filename: string, saveToTargets: boolean): Promise<void> {
   await page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => undefined);
   await page.waitForTimeout(250);
+  if (!saveToTargets) return;
+  mkdirSync(SERVER_SCREENSHOT_DIR, { recursive: true });
+  mkdirSync(BRAIN_SCREENSHOT_DIR, { recursive: true });
   const serverPath = path.join(SERVER_SCREENSHOT_DIR, filename);
   const brainPath = path.join(BRAIN_SCREENSHOT_DIR, filename);
   await page.screenshot({ path: serverPath, fullPage: true });
@@ -225,7 +226,12 @@ async function assertNoOverflow(page: Page): Promise<void> {
   expect(overflow).toBeLessThanOrEqual(0);
 }
 
-test('digest boards wave 1-3: you, love, work, lucky times, and life reading timeline render cleanly with screenshots', async ({ page }) => {
+test('digest boards wave 1-3: you, love, work, lucky times, and life reading timeline render cleanly with screenshots', async ({ page }, info) => {
+  const isPhone = info.project.name === 'phone';
+  const saveToTargets = !isPhone;
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.message));
+
   const s = newState();
   await stubApi(page, s);
 
@@ -265,6 +271,8 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/life-reading', (r) => json(r, LIFE_READING));
+  await page.route('**/api/profile/photo', (r) => json(r, {}, 404));
+  await page.route('**/api/timeline/ledger/meta', (r) => json(r, {}, 404));
   await page.route('**/api/profile/facts', (r) => r.fulfill({ status: 204 }));
   await page.route('**/api/profile/work-status', (r) => r.fulfill({ status: 204 }));
   await page.route('**/api/area/*/checks', (r) => r.fulfill({ status: 204 }));
@@ -275,12 +283,13 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
   // 1. You board (/dashboard/you)
   await page.goto('/dashboard/you');
   await expect(page.getByTestId('tone-card')).toContainText('A clear stretch for a fresh start. Begin before 31 May 2027.');
+  await expect(page.getByAltText('Shri Ganesh')).toBeVisible();
   const youText = (await page.getByTestId('you-page').textContent())!.toLowerCase();
   for (const w of [...BANNED_ON_BOARD, 'house', 'lord', 'kendra', 'dusthana', 'aspected', 'd1.']) {
     expect(youText).not.toContain(w);
   }
   await assertNoOverflow(page);
-  await saveShot(page, '01-you-board.png');
+  await saveShot(page, '01-you-board.png', saveToTargets);
 
   // 2. Love board (/dashboard/love)
   await page.goto('/dashboard/love');
@@ -290,7 +299,7 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
     expect(loveText).not.toContain(w);
   }
   await assertNoOverflow(page);
-  await saveShot(page, '02-love-board.png');
+  await saveShot(page, '02-love-board.png', saveToTargets);
 
   // 3. Work board (/dashboard/work)
   await page.goto('/dashboard/work');
@@ -300,7 +309,7 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
     expect(workText).not.toContain(w);
   }
   await assertNoOverflow(page);
-  await saveShot(page, '03-work-board.png');
+  await saveShot(page, '03-work-board.png', saveToTargets);
 
   // 4. Lucky Times board (/dashboard/lucky)
   await page.goto('/dashboard/lucky');
@@ -310,18 +319,22 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
     expect(luckyText).not.toContain(w);
   }
   await assertNoOverflow(page);
-  await saveShot(page, '04-lucky-times-board.png');
+  await saveShot(page, '04-lucky-times-board.png', saveToTargets);
 
   // 5. Life Reading timeline (/profile/timeline)
   await page.goto('/profile/timeline');
   const lifeDash = page.getByTestId('life-dashboard');
   await expect(lifeDash).toBeVisible();
   await expect(page.getByTestId('life-rule-now')).toContainText('Until 7 Feb 2027, hold off');
-  await expect(page.getByTestId('life-row-work')).toContainText('Has work felt harder to move lately?');
+  const workAreaLoc = page.getByTestId(isPhone ? 'life-card-work' : 'life-row-work');
+  await expect(workAreaLoc).toBeVisible();
+  await expect(workAreaLoc).toContainText('Has work felt harder to move lately?');
   const lifeVisibleText = (await lifeDash.innerText()).toLowerCase();
   for (const w of BANNED_ON_BOARD) {
     expect(lifeVisibleText).not.toContain(w);
   }
   await assertNoOverflow(page);
-  await saveShot(page, '05-life-reading-timeline.png');
+  await saveShot(page, '05-life-reading-timeline.png', saveToTargets);
+
+  expect(pageErrors).toEqual([]);
 });

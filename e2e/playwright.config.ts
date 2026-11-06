@@ -1,11 +1,15 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
 
 /** The screenshot walkthrough (e2e/README.md). Uses the installed Chrome, and a stubbed API, so it touches no real data. */
 const PORT = 5199;
+const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = path.resolve(E2E_DIR, '..');
 
 export default defineConfig({
-  testDir: '.',
-  outputDir: '../node_modules/.cache/playwright',
+  testDir: E2E_DIR,
+  outputDir: path.join(ROOT_DIR, 'node_modules/.cache/playwright'),
   // one worker, so each folder's screenshots and manifest are written in step order
   workers: 1,
   fullyParallel: false,
@@ -24,7 +28,7 @@ export default defineConfig({
   webServer: {
     // a built bundle, not the dev server: hundreds of module requests per page time out when memory is short
     command: `npx vite build --mode e2e --outDir node_modules/.cache/e2e-dist --emptyOutDir && npx vite preview --port ${PORT} --strictPort --mode e2e --outDir node_modules/.cache/e2e-dist`,
-    cwd: '..',
+    cwd: ROOT_DIR,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,
