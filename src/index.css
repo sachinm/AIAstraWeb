@@ -411,13 +411,35 @@ body {
 }
 
 /*
- * Signed-in pages (Sachin, 2026-11-05): the sky scenes play behind everything, and the panels sit on them as glass with
- * a little depth: a light top edge, a dark bottom edge and a soft drop shadow. Cards lift a touch under the pointer.
+ * Signed-in pages (Sachin, 2026-11-05): a plain royal dark-blue sky with shooting stars (the photo scenes made the words
+ * hard to read, so they stay on the public pages). The main area is a translucent dark panel, and the cards sit in it as
+ * glass with a little depth: a light top edge, a dark bottom edge and a soft drop shadow. Cards lift a touch under the
+ * pointer.
  */
+.royal-sky {
+  background-color: #070b26;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 34% 68%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 58% 14%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 76% 44%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 90% 82%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 22% 88%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(ellipse at 18% 0%, rgba(46, 70, 180, 0.32), transparent 60%),
+    radial-gradient(ellipse at 88% 100%, rgba(36, 48, 140, 0.32), transparent 55%),
+    linear-gradient(180deg, #0a1036 0%, #070b26 55%, #050819 100%);
+  background-size: 320px 320px, 320px 320px, 320px 320px, 320px 320px, 320px 320px, 320px 320px, 100% 100%, 100% 100%, 100% 100%;
+}
+/* the main area between the rails: dark enough that every word reads, light enough that the sky shows at its edges */
+.main-panel {
+  background: rgba(6, 10, 34, 0.62);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
 .glass {
   /* clear rather than frosted (Sachin, 2026-11-05): a light blur and a thin dark tint keep the scene visible, and the
      tint plus a soft text shadow keep the words readable on a bright patch of sky */
-  background: linear-gradient(145deg, rgba(14, 12, 36, 0.38), rgba(14, 12, 36, 0.22));
+  background: linear-gradient(145deg, rgba(22, 28, 72, 0.6), rgba(14, 18, 52, 0.48));
   -webkit-backdrop-filter: blur(5px) saturate(130%);
   backdrop-filter: blur(5px) saturate(130%);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);

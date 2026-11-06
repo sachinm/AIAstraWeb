@@ -273,7 +273,7 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                   autoComplete="one-time-code"
                 />
                 <p className="mt-2 text-sm text-gray-400">
-                  Enter the code we emailed you. It expires in a few minutes.
+                  Enter the code we emailed you. It works for 3 minutes.
                 </p>
                 <div className="flex justify-between items-center mt-2 text-sm">
                   <span className="text-gray-400" aria-live="polite">
