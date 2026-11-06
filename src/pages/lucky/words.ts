@@ -1,3 +1,5 @@
+import { clock, type DayLimb, type LuckyReason } from '../../lib/luckyApi';
+
 /**
  * Words for Lucky times (server docs/reading-engine/45 §3.3, 49). Plain words on the board; the traditional names appear
  * only in the Why sheet. The banned list is checked by the page test.
@@ -72,6 +74,9 @@ export function plainReasons(reasons: string[]): string {
     else if (r.startsWith('hora:')) parts.push(HOUR_PLAIN[r.slice(5)] ?? 'a good hour');
     else if (r.startsWith('weekday:')) parts.push('a good weekday for it');
     else if (r === 'personal:tara_good' || r === 'personal:moon_good') parts.push('a good day for you');
+    else if (r === 'personal:hora_benefic') parts.push('an hour that suits you');
+    else if (r.startsWith('yoga:')) parts.push('an easy flow');
+    else if (r.startsWith('karana:')) parts.push('a workable half-day');
     else if (GROUP_PLAIN[r]) parts.push(GROUP_PLAIN[r]);
   }
   const uniq = [...new Set(parts)].slice(0, 3);
@@ -101,11 +106,38 @@ export function whyLines(reasons: string[]): string[] {
     if (r === 'personal:tara_bad') return 'Your tara bala is weak today';
     if (r === 'personal:moon_good') return 'Your chandra bala is good today';
     if (r === 'personal:moon_bad') return 'Your chandra bala is weak today';
+    if (r === 'personal:hora_benefic') return 'The hora lord is a functional benefic in your chart';
+    if (r === 'personal:hora_malefic') return 'The hora lord is a functional malefic in your chart, so this hour counts a little less';
+    if (r.startsWith('yoga:')) return `${r.slice(5)} yoga, which the texts favour`;
+    if (r.startsWith('karana:')) return `${r.slice(7)} karana, good for most acts`;
+    if (r.startsWith('yoga_avoid:')) return `${r.slice(11)} yoga, which the texts avoid for this act`;
+    if (r.startsWith('karana_avoid:')) return `${r.slice(13)} karana, which the texts avoid for this act`;
+    if (r.startsWith('weekday_avoid:')) return `${r.slice(14)} does not suit this act`;
+    if (r.startsWith('tithi_avoid:')) return `${(GROUP_NAME[`tithi:${r.slice(12)}`] ?? `${r.slice(12)} tithi`).replace(/^./, (c) => c.toUpperCase())}, which does not suit this act`;
     return GROUP_NAME[r] ?? r;
   });
 }
 
-export const SOURCE_LINE = 'Muhurta Chintamani (tithi and nakshatra groups); B.V. Raman, Muhurta; Drik Panchang hora tutorial';
+/** The Why sheet's two groups (server doc 53 §4.6): what holds for everyone at the place, and what is from your chart. */
+export interface WhyGroups {
+  general: string[];
+  personal: string[];
+}
+
+const limbLine = (kind: 'Yoga' | 'Karana', l: DayLimb | null | undefined): string | null =>
+  l ? `${kind} of the day: ${l.name}${typeof l.endHour === 'number' ? `, until ${clock(l.endHour * 60)}` : ''}` : null;
+
+/** Split a window's reasons into "For everyone" and "For you"; the day's yoga and karana close the first group. */
+export function whyGroups(reasons: LuckyReason[], day?: { yoga?: DayLimb | null; karana?: DayLimb | null } | null): WhyGroups {
+  const general = whyLines(reasons.filter((r) => r.scope !== 'personal').map((r) => r.key));
+  const personal = whyLines(reasons.filter((r) => r.scope === 'personal').map((r) => r.key));
+  for (const line of [limbLine('Yoga', day?.yoga), limbLine('Karana', day?.karana)]) if (line) general.push(line);
+  return { general, personal };
+}
+
+export const WHY_HEADINGS = { general: 'For everyone', personal: 'For you' } as const;
+
+export const SOURCE_LINE = 'Muhurta Chintamani (tithi and nakshatra groups, yogas and karanas); B.V. Raman, Muhurta; Drik Panchang hora tutorial';
 
 export const ASK: Record<string, { question: string; options: Array<{ key: string; label: string }> }> = {
   who: { question: 'Who is it with?', options: [{ key: 'boss', label: 'My boss' }, { key: 'peer', label: 'A peer' }, { key: 'client', label: 'A client' }, { key: 'panel', label: 'A panel' }] },

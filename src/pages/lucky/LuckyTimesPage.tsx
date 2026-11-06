@@ -12,6 +12,8 @@ import {
   patchLuckyPick,
   removeLuckyPick,
   setLuckyPlace,
+  windowKeys,
+  windowReasons,
   type LuckyDay,
   type LuckyRange,
   type LuckySetup,
@@ -21,7 +23,7 @@ import {
 } from '../../lib/luckyApi';
 import { track } from '../../lib/events';
 import BoardAsk from '../../components/BoardAsk';
-import { ASK, AVOID_NAME, AVOID_PLAIN, GOOD_NAME, GOOD_PLAIN, LAYER_COLOURS, plainReasons, SHORT_DAY, SOURCE_LINE, whyLines } from './words';
+import { ASK, AVOID_NAME, AVOID_PLAIN, GOOD_NAME, GOOD_PLAIN, LAYER_COLOURS, plainReasons, SHORT_DAY, SOURCE_LINE, WHY_HEADINGS, whyGroups, type WhyGroups } from './words';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chipBase = 'inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm transition-colors';
@@ -33,7 +35,7 @@ type Week = 'last' | 'this' | 'next';
 interface WhyState {
   title: string;
   when: string;
-  lines: string[];
+  groups: WhyGroups;
 }
 
 const addDays = (iso: string, n: number) => {
@@ -134,9 +136,9 @@ export default function LuckyTimesPage() {
     void loadRange();
   };
 
-  const openWhy = (title: string, when: string, lines: string[], target: string) => {
+  const openWhy = (title: string, when: string, groups: WhyGroups, target: string) => {
     track('why_open', SURFACE, target);
-    setWhy({ title, when, lines });
+    setWhy({ title, when, groups });
   };
 
   if (setup === undefined) return <div className="p-6 text-white/70">Loading…</div>;
@@ -289,7 +291,7 @@ function bestNext(range: LuckyRange, scenario: string): { day: LuckyDay; w: Luck
   return null;
 }
 
-function TodayView(props: { range: LuckyRange; today: LuckyDay | null; picks: Pick[]; labelOf: (id: string) => string; colourOf: (id: string) => string; openWhy: (t: string, w: string, l: string[], target: string) => void }) {
+function TodayView(props: { range: LuckyRange; today: LuckyDay | null; picks: Pick[]; labelOf: (id: string) => string; colourOf: (id: string) => string; openWhy: (t: string, w: string, g: WhyGroups, target: string) => void }) {
   const { range, today } = props;
   if (!today) return <div className={panel}>Today's times are being prepared.</div>;
   const now = range.now;
@@ -310,7 +312,7 @@ function TodayView(props: { range: LuckyRange; today: LuckyDay | null; picks: Pi
         <ul className="mt-1 space-y-1">
           {today.avoid.filter((a) => a.from < 22 * 60).map((a, i) => (
             <li key={i}>
-              <button type="button" onClick={() => props.openWhy(AVOID_PLAIN[a.kind] ?? 'A hold band', `${clock(a.from)}–${clock(a.to)}`, [`${AVOID_NAME[a.kind] ?? a.kind}: the texts advise against starting anything here.`], a.kind)} className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg px-2 text-left text-white/80 hover:bg-white/5">
+              <button type="button" onClick={() => props.openWhy(AVOID_PLAIN[a.kind] ?? 'A hold band', `${clock(a.from)}–${clock(a.to)}`, { general: [`${AVOID_NAME[a.kind] ?? a.kind}: the texts advise against starting anything here.`], personal: [] }, a.kind)} className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg px-2 text-left text-white/80 hover:bg-white/5">
                 <span>{AVOID_PLAIN[a.kind] ?? 'A hold band'}</span>
                 <span className="tabular-nums text-white/60">{clock(a.from)}–{clock(a.to)}</span>
               </button>
@@ -335,11 +337,11 @@ function TodayView(props: { range: LuckyRange; today: LuckyDay | null; picks: Pi
                     <li key={i}>
                       <button
                         type="button"
-                        onClick={() => props.openWhy(props.labelOf(p.scenario), `Today ${clock(w.from)}–${clock(w.to)}`, whyLines(w.reasons), p.scenario)}
+                        onClick={() => props.openWhy(props.labelOf(p.scenario), `Today ${clock(w.from)}–${clock(w.to)}`, whyGroups(windowReasons(w), today), p.scenario)}
                         className="flex min-h-[44px] w-full flex-col items-start rounded-lg px-2 py-1 text-left hover:bg-white/5"
                       >
                         <span className="tabular-nums text-lg">{clock(w.from)}–{clock(w.to)}</span>
-                        <span className="text-sm text-white/70">{plainReasons(w.reasons)}</span>
+                        <span className="text-sm text-white/70">{plainReasons(windowKeys(w))}</span>
                       </button>
                     </li>
                   ))}
@@ -348,7 +350,7 @@ function TodayView(props: { range: LuckyRange; today: LuckyDay | null; picks: Pi
                 <div className="text-white/80">
                   Not today.
                   {next ? (
-                    <button type="button" onClick={() => props.openWhy(props.labelOf(p.scenario), `${prettyDay(next.day)} ${clock(next.w.from)}–${clock(next.w.to)}`, whyLines(next.w.reasons), p.scenario)} className="ml-1 min-h-[44px] underline decoration-white/30 underline-offset-4">
+                    <button type="button" onClick={() => props.openWhy(props.labelOf(p.scenario), `${prettyDay(next.day)} ${clock(next.w.from)}–${clock(next.w.to)}`, whyGroups(windowReasons(next.w), next.day), p.scenario)} className="ml-1 min-h-[44px] underline decoration-white/30 underline-offset-4">
                       Next: {prettyDay(next.day)} {clock(next.w.from)}–{clock(next.w.to)}
                     </button>
                   ) : (
@@ -367,7 +369,7 @@ function TodayView(props: { range: LuckyRange; today: LuckyDay | null; picks: Pi
 const GRID_FROM = 6 * 60;
 const GRID_TO = 22 * 60;
 
-function CalendarView(props: { range: LuckyRange; week: Week; setWeek: (w: Week) => void; picks: Pick[]; labelOf: (id: string) => string; colourOf: (id: string) => string; openWhy: (t: string, w: string, l: string[], target: string) => void }) {
+function CalendarView(props: { range: LuckyRange; week: Week; setWeek: (w: Week) => void; picks: Pick[]; labelOf: (id: string) => string; colourOf: (id: string) => string; openWhy: (t: string, w: string, g: WhyGroups, target: string) => void }) {
   const { range } = props;
   const span: Record<Week, [string, string]> = {
     last: [addDays(range.today, -7), addDays(range.today, -1)],
@@ -408,7 +410,7 @@ function CalendarView(props: { range: LuckyRange; week: Week; setWeek: (w: Week)
                       key={`a${i}`}
                       type="button"
                       aria-label={`${AVOID_PLAIN[a.kind] ?? 'Hold'} ${clock(a.from)} to ${clock(a.to)}`}
-                      onClick={() => props.openWhy(AVOID_PLAIN[a.kind] ?? 'A hold band', `${prettyDay(d)} ${clock(a.from)}–${clock(a.to)}`, [`${AVOID_NAME[a.kind] ?? a.kind}: the texts advise against starting anything here.`], a.kind)}
+                      onClick={() => props.openWhy(AVOID_PLAIN[a.kind] ?? 'A hold band', `${prettyDay(d)} ${clock(a.from)}–${clock(a.to)}`, { general: [`${AVOID_NAME[a.kind] ?? a.kind}: the texts advise against starting anything here.`], personal: [] }, a.kind)}
                       className="absolute inset-x-0 rounded-sm border border-dashed border-amber-300/40"
                       style={{ top: pct(a.from), height: height(a.from, a.to), background: 'repeating-linear-gradient(135deg, rgba(251,191,36,0.18) 0 4px, transparent 4px 8px)' }}
                     />
@@ -422,7 +424,7 @@ function CalendarView(props: { range: LuckyRange; week: Week; setWeek: (w: Week)
                         key={`${p.scenario}${i}`}
                         type="button"
                         aria-label={`${props.labelOf(p.scenario)} ${clock(w.from)} to ${clock(w.to)}`}
-                        onClick={() => props.openWhy(props.labelOf(p.scenario), `${prettyDay(d)} ${clock(w.from)}–${clock(w.to)}`, whyLines(w.reasons), p.scenario)}
+                        onClick={() => props.openWhy(props.labelOf(p.scenario), `${prettyDay(d)} ${clock(w.from)}–${clock(w.to)}`, whyGroups(windowReasons(w), d), p.scenario)}
                         className="absolute rounded-sm"
                         style={{
                           top: pct(w.from),
@@ -504,11 +506,18 @@ function WhySheet({ why, onClose }: { why: WhyState; onClose: () => void }) {
     <Sheet title={why.title} onClose={onClose}>
       <div data-testid="why-sheet">
         <div className="mb-3 tabular-nums text-white/80">{why.when}</div>
-        <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-white/80">
-          {why.lines.map((l, i) => (
-            <li key={i}>{l}</li>
-          ))}
-        </ul>
+        {(['general', 'personal'] as const).map((g) =>
+          why.groups[g].length ? (
+            <section key={g} className="mb-4" data-testid={`why-${g}`}>
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-white/60">{WHY_HEADINGS[g]}</h4>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-white/80">
+                {why.groups[g].map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null,
+        )}
         <div className="text-xs text-white/40">{SOURCE_LINE}</div>
       </div>
     </Sheet>
