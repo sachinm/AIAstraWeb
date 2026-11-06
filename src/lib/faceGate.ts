@@ -61,7 +61,8 @@ export interface FaceDetectorLike {
 /** Loads MediaPipe's detector from /mediapipe; null when the browser cannot run it. */
 export async function loadDetector(): Promise<FaceDetectorLike | null> {
   try {
-    const vision = await import('@mediapipe/tasks-vision');
+    const pkg = '@mediapipe/tasks-vision';
+    const vision = await import(/* @vite-ignore */ pkg);
     const files = await vision.FilesetResolver.forVisionTasks('/mediapipe/wasm');
     return (await vision.FaceDetector.createFromOptions(files, {
       baseOptions: { modelAssetPath: '/mediapipe/blaze_face_short_range.tflite', delegate: 'GPU' },
