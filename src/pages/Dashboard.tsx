@@ -5,7 +5,7 @@ import LegalLinks from '../components/LegalLinks';
 import KundliNotice from '../components/KundliNotice';
 import { GeneralReadingProvider } from '../components/GeneralReading';
 import SideNav, { SideNavProvider } from '../components/SideNav';
-import CosmicSky from '../components/CosmicSky';
+import NightSky from '../components/NightSky';
 import { boardsEnabled } from '../components/BoardTabBar';
 
 interface User {
@@ -31,8 +31,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       // main area and an optional right sidebar, edge to edge; only the main area scrolls
       className={`relative isolate flex flex-col text-white ${onChat || boardsEnabled() ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
     >
-      {/* the sky scenes behind every signed-in page; the panels sit on them as glass (Sachin, 2026-11-05) */}
-      <CosmicSky caption={false} className="-z-10" />
+      {/* a royal dark-blue sky with shooting stars behind every signed-in page (Sachin, 2026-11-05) */}
+      <NightSky className="-z-10" />
 
       {/* Top Navigation */}
       <TopNavigation
@@ -45,7 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       {/* Main Content */}
       <div className="flex min-h-0 flex-1">
         {boardsEnabled() && <SideNav />}
-        <main className={`flex min-h-0 min-w-0 flex-1 flex-col ${boardsEnabled() && !onChat ? 'overflow-y-auto' : ''}`}>
+        <main className={`flex min-h-0 min-w-0 flex-1 flex-col ${boardsEnabled() ? 'main-panel' : ''} ${boardsEnabled() && !onChat ? 'overflow-y-auto' : ''}`}>
           <Outlet />
         </main>
       </div>
