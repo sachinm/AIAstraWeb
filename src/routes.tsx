@@ -19,6 +19,7 @@ import ChatSection from './pages/chat-interface/ChatSection';
 import LuckyTimesPage from './pages/lucky/LuckyTimesPage';
 import WorkPage from './pages/work/WorkPage';
 import LovePage from './pages/love/LovePage';
+import YouPage from './pages/you/YouPage';
 import WelcomeWizard from './pages/welcome/WelcomeWizard';
 import { boardsEnabled } from './components/BoardTabBar';
 import PricingPage from './pages/pricing/PricingPage';
@@ -142,6 +143,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <Route path="work" element={<WorkPage />} />
           <Route path="today" element={<Navigate to="/dashboard/lucky" replace />} />
           <Route path="love" element={<LovePage />} />
+          <Route path="you" element={<YouPage />} />
           <Route path="timeline/ledger" element={<Navigate to="/profile/timeline" replace />} />
         </Route>
         <Route

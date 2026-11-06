@@ -11,7 +11,7 @@ import { Briefcase, ChevronLeft, ChevronRight, Heart, User } from 'lucide-react'
 import { track } from '../lib/events';
 
 export const SIDE_TABS = [
-  { to: '/profile', label: 'You', icon: User },
+  { to: '/dashboard/you', label: 'You', icon: User },
   { to: '/dashboard/love', label: 'Love', icon: Heart },
   { to: '/dashboard/work', label: 'Work', icon: Briefcase },
 ];
