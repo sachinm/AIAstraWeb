@@ -1,11 +1,23 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchLifeReading, lifeDate, type LifeAreaRow, type LifeGrade, type LifeReadingState, type LifeWindow } from '../../lib/lifeReadingApi';
+import {
+  fetchLifeReading,
+  lifeDate,
+  type LifeAntardashaRow,
+  type LifeAntardashaTone,
+  type LifeAreaCharter,
+  type LifeAreaRow,
+  type LifeCharterRole,
+  type LifeGrade,
+  type LifeMahadashaCharter,
+  type LifeReadingState,
+  type LifeWindow,
+} from '../../lib/lifeReadingApi';
 
 /**
- * "Your life at a glance": Part 1 of the comprehensive life reading (server doc 34 §5 Part 1, contract doc 54 §4). The
- * rule for now, then one row per active life area with the five columns of doc 34 Part 1 in plain words. Desktop: a
- * table. Phone: one swipeable card per area inside its own scroller (the page itself never scrolls sideways). Chart terms
- * (planets, periods, systems) sit only inside "Chart details" (doc 45 §3.3, §3.4).
+ * "Your life at a glance": Part 1 of the comprehensive life reading (server doc 34 §5 Part 1, contract doc 54 §4) and
+ * Part 2: "Your long-term life charter" (Remaining Largest Mahadasha & Antardasha Life-Charter).
+ * Desktop: a table. Phone: one swipeable card per area inside its own scroller (the page itself never scrolls sideways).
+ * Chart terms (planets, periods, systems) sit only inside "Chart details" (doc 45 §3.3, §3.4).
  */
 
 const panelCls = 'rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:p-6';
@@ -18,6 +30,19 @@ const GRADE: Record<LifeGrade, { label: string; cls: string }> = {
   strong: { label: 'Strong', cls: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' },
   moderate: { label: 'Moderate', cls: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
   weak: { label: 'Weak', cls: 'border-white/20 bg-white/10 text-gray-300' },
+};
+
+const ROLE_BADGE: Record<LifeCharterRole, { label: string; cls: string }> = {
+  anchor: { label: 'Core promise', cls: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' },
+  growth: { label: 'Growth area', cls: 'border-sky-400/40 bg-sky-500/15 text-sky-200' },
+  guarded: { label: 'Guard carefully', cls: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
+};
+
+const TONE_BADGE: Record<LifeAntardashaTone, { label: string; cls: string }> = {
+  breakthrough: { label: 'Breakthrough window', cls: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' },
+  build: { label: 'Building phase', cls: 'border-sky-400/40 bg-sky-500/15 text-sky-200' },
+  steady_work: { label: 'Steady effort', cls: 'border-indigo-400/40 bg-indigo-500/15 text-indigo-200' },
+  careful: { label: 'Careful step', cls: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
 };
 
 const VERDICT: Record<LifeAreaRow['verdict'], string> = {
@@ -184,6 +209,184 @@ const PhoneCards: React.FC<{ areas: LifeAreaRow[] }> = ({ areas }) => {
   );
 };
 
+const AreaCharterCard: React.FC<{ ac: LifeAreaCharter }> = ({ ac }) => {
+  const { evidence } = ac;
+  const hasEvidence = evidence.houses.length > 0 || evidence.vargas.length > 0 || evidence.planets.length > 0 || evidence.yogas.length > 0;
+  return (
+    <article
+      data-testid={`life-charter-area-${ac.id}`}
+      className="space-y-2.5 rounded-xl border border-white/10 bg-black/25 p-4"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="font-semibold text-white">{ac.label}</div>
+          <div className="text-[11px] text-gray-400">{VERDICT[ac.verdict]}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${ROLE_BADGE[ac.role].cls}`}>
+            {ROLE_BADGE[ac.role].label}
+          </span>
+          <GradeBadge grade={ac.grade} basis={ac.basis} />
+        </div>
+      </div>
+      <p className="text-sm font-medium text-gray-100">{ac.theme}</p>
+      <p className="text-xs text-gray-300">{ac.promise_note}</p>
+      {(ac.peak_from && ac.peak_to) || (ac.watch_from && ac.watch_to) ? (
+        <div className="grid gap-1.5 text-xs sm:grid-cols-2">
+          {ac.peak_from && ac.peak_to && (
+            <div className="rounded-lg border border-emerald-400/20 bg-emerald-950/20 px-2.5 py-1.5 text-emerald-100">
+              <span className="font-semibold text-emerald-200">Best window: </span>
+              {lifeDate(ac.peak_from)} – {lifeDate(ac.peak_to)}
+            </div>
+          )}
+          {ac.watch_from && ac.watch_to && (
+            <div className="rounded-lg border border-amber-400/20 bg-amber-950/20 px-2.5 py-1.5 text-amber-100">
+              <span className="font-semibold text-amber-200">Watch window: </span>
+              {lifeDate(ac.watch_from)} – {lifeDate(ac.watch_to)}
+            </div>
+          )}
+        </div>
+      ) : null}
+      <p className="text-xs text-gray-200">{ac.guidance}</p>
+      {hasEvidence && (
+        <details className="mt-1 text-[11px] text-indigo-200/90">
+          <summary className="cursor-pointer text-gray-400">Chart details</summary>
+          {evidence.houses.length > 0 && <div className="mt-1">Houses: {evidence.houses.map((h) => `H${h}`).join(', ')}</div>}
+          {evidence.vargas.length > 0 && <div>Charts: {evidence.vargas.join(', ')}</div>}
+          {evidence.planets.length > 0 && <div>Planets: {evidence.planets.join(', ')}</div>}
+          {evidence.yogas.length > 0 && <div>Yogas: {evidence.yogas.join(', ')}</div>}
+        </details>
+      )}
+    </article>
+  );
+};
+
+const AntardashaCard: React.FC<{ ad: LifeAntardashaRow; testId?: string }> = ({ ad, testId = 'life-charter-ad' }) => {
+  const { evidence } = ad;
+  return (
+    <article
+      data-testid={testId}
+      className={`space-y-3 rounded-xl border p-4 ${
+        ad.is_current ? 'border-purple-400/40 bg-purple-950/20' : 'border-white/10 bg-black/25'
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-white">
+            {lifeDate(ad.from)} – {lifeDate(ad.to)}
+          </span>
+          {ad.is_current && (
+            <span className="inline-block rounded-full border border-purple-400/40 bg-purple-500/20 px-2 py-0.5 text-[11px] font-semibold text-purple-200">
+              Current period
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${TONE_BADGE[ad.tone].cls}`}>
+            {TONE_BADGE[ad.tone].label}
+          </span>
+          <GradeBadge grade={ad.grade} basis={ad.basis} />
+        </div>
+      </div>
+      <p className="text-sm text-gray-100">{ad.headline}</p>
+      {ad.areas.length > 0 && (
+        <ul className="space-y-2 border-t border-white/10 pt-2.5">
+          {ad.areas.map((n) => (
+            <li key={n.id} className="space-y-0.5 text-xs">
+              <div className="font-semibold text-white">{n.label}</div>
+              <div className="text-gray-200">{n.summary}</div>
+              <div className="text-gray-400">{n.timing}</div>
+              <div className="text-indigo-200">{n.action}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <details className="text-[11px] text-indigo-200/90">
+        <summary className="cursor-pointer text-gray-400">Chart details</summary>
+        <div className="mt-1">
+          Period: {evidence.md}–{evidence.ad}
+        </div>
+        {evidence.house_from_md !== null && <div>House from chapter lord: H{evidence.house_from_md}</div>}
+        {evidence.fruition_class && <div>Fruition: {evidence.fruition_class}</div>}
+        {evidence.links.length > 0 && <div>Links: {evidence.links.join(', ')}</div>}
+        {evidence.systems.length > 0 && <div>Systems: {evidence.systems.join(', ')}</div>}
+        {evidence.annual_years.length > 0 && <div>Annual charts: {evidence.annual_years.join(', ')}</div>}
+        {evidence.transit_houses.length > 0 && <div>Transit houses: {evidence.transit_houses.map((h) => `H${h}`).join(', ')}</div>}
+      </details>
+    </article>
+  );
+};
+
+const LifeCharterSection: React.FC<{ charter: LifeMahadashaCharter }> = ({ charter }) => {
+  const { evidence } = charter;
+  return (
+    <div className="space-y-5 border-t border-white/10 pt-5" data-testid="life-charter">
+      <div className="space-y-2 rounded-xl border border-white/10 bg-black/25 p-4" data-testid="life-charter-header">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="text-lg font-semibold text-white">Your long-term life charter</h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-block rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-xs text-gray-200">
+              {lifeDate(charter.from)} – {lifeDate(charter.to)} · {charter.remaining_years} yrs
+            </span>
+            <span className="inline-block rounded-full border border-indigo-400/35 bg-indigo-500/15 px-2.5 py-0.5 text-xs font-semibold text-indigo-200">
+              {charter.is_current ? 'Current major chapter' : 'Upcoming major chapter'}
+            </span>
+          </div>
+        </div>
+        <p className="text-sm font-medium text-gray-100">{charter.headline}</p>
+        <p className="text-sm text-gray-300">{charter.charter_summary}</p>
+        <details className="text-[11px] text-indigo-200/90">
+          <summary className="cursor-pointer text-gray-400">Chart details</summary>
+          <div className="mt-1">Mahadasha: {evidence.md}</div>
+          {evidence.own_houses.length > 0 && <div>Houses owned: {evidence.own_houses.map((h) => `H${h}`).join(', ')}</div>}
+          {evidence.placed_house !== null && <div>Placed house: H{evidence.placed_house}</div>}
+          {evidence.dispositor && <div>Dispositor: {evidence.dispositor}</div>}
+          {evidence.star_lord && <div>Star lord: {evidence.star_lord}</div>}
+          {evidence.avastha && <div>Avastha: {evidence.avastha}</div>}
+        </details>
+      </div>
+
+      {charter.area_charters.length > 0 && (
+        <div className="space-y-3" data-testid="life-charter-areas">
+          <h5 className="text-sm font-semibold uppercase tracking-wide text-gray-300">Charter by area</h5>
+          <div className="grid gap-3 md:grid-cols-2">
+            {charter.area_charters.map((ac) => (
+              <AreaCharterCard key={ac.id} ac={ac} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {charter.bridge && (
+        <div className="space-y-3 rounded-xl border border-amber-400/20 bg-amber-950/15 p-4" data-testid="life-charter-bridge">
+          <h5 className="text-sm font-semibold text-amber-200">
+            Closing your current chapter ({lifeDate(charter.bridge.from)} – {lifeDate(charter.bridge.to)})
+          </h5>
+          <p className="text-xs text-gray-200">{charter.bridge.summary}</p>
+          {charter.bridge.antardashas.length > 0 && (
+            <div className="space-y-2.5">
+              {charter.bridge.antardashas.map((ad) => (
+                <AntardashaCard key={`${ad.from}-${ad.to}`} ad={ad} testId="life-charter-bridge-ad" />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {charter.antardashas.length > 0 && (
+        <div className="space-y-3" data-testid="life-charter-timeline">
+          <h5 className="text-sm font-semibold uppercase tracking-wide text-gray-300">Sub-periods across this chapter</h5>
+          <div className="space-y-3">
+            {charter.antardashas.map((ad) => (
+              <AntardashaCard key={`${ad.from}-${ad.to}`} ad={ad} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 type ViewState = { kind: 'loading' } | { kind: 'error' } | LifeReadingState;
 
 const LifeReadingDashboard: React.FC = () => {
@@ -295,6 +498,7 @@ const LifeReadingDashboard: React.FC = () => {
           <PhoneCards areas={reading.areas} />
         </>
       )}
+      {reading.charter && <LifeCharterSection charter={reading.charter} />}
     </section>
   );
 };
