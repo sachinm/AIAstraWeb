@@ -3,6 +3,7 @@
  * server; 404 means no chart yet or the feature is off, 202 means the chart is still being prepared.
  */
 import { buildApiHeaders } from './apiHeaders';
+import type { SelfCharacterArc, SelfPersonalityAndJoy } from './areaApi';
 import { ledgerApiUrl } from './ledgerApi';
 
 export type Tone = 'demanding' | 'easing' | 'steady' | 'closing' | 'open';
@@ -41,6 +42,8 @@ export interface CareerMap {
   security: Array<{ month: string; grade: SecurityGrade }>;
   back: Array<{ month: string; side: 'support' | 'test'; band: string; label: string }>;
   notes: string[];
+  characterArc?: SelfCharacterArc;
+  vocationBlueprint?: SelfPersonalityAndJoy;
 }
 
 export type CareerState =

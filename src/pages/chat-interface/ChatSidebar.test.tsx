@@ -44,4 +44,11 @@ describe('ChatSidebar groups (Sachin, 2026-11-05)', () => {
     await u.click(screen.getByRole('button', { name: 'Expand all conversations' }));
     expect(screen.getByText('Job change')).toBeInTheDocument();
   });
+
+  it('always opens collapsed on mount even if localStorage previously had expanded groups or variant is panel', () => {
+    localStorage.setItem('astra_chat_groups_collapsed_v2', JSON.stringify([]));
+    render(<ChatSidebar variant="panel" chats={chats} activeChatId={null} onChatSelect={vi.fn()} onNewChat={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByTestId('conversation-group-general')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('About my love life')).not.toBeInTheDocument();
+  });
 });
