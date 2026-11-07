@@ -15,19 +15,27 @@ const renderList = () =>
 describe('ChatSidebar groups (Sachin, 2026-11-05)', () => {
   beforeEach(() => localStorage.clear());
 
-  it('collapses one group and keeps the others open', async () => {
+  it('opens collapsed by default in the left rail, and expands one group while keeping others collapsed', async () => {
     const u = userEvent.setup();
     renderList();
+    expect(screen.getByTestId('conversation-group-general')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('About my love life')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expand all conversations' })).toBeInTheDocument();
+    await u.click(screen.getByTestId('conversation-group-general'));
     expect(screen.getByText('About my love life')).toBeInTheDocument();
+    expect(screen.queryByText('Pinned one')).not.toBeInTheDocument();
+    expect(screen.getByTestId('conversation-group-general')).toHaveAttribute('aria-expanded', 'true');
     await u.click(screen.getByTestId('conversation-group-general'));
     expect(screen.queryByText('About my love life')).not.toBeInTheDocument();
-    expect(screen.getByText('Pinned one')).toBeInTheDocument();
     expect(screen.getByTestId('conversation-group-general')).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('collapses and expands every group at once, and remembers it', async () => {
     const u = userEvent.setup();
     const { unmount } = renderList();
+    expect(screen.queryByText('Job change')).not.toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Expand all conversations' }));
+    for (const name of ['Pinned one', 'About my love life', 'Job change']) expect(screen.getByText(name)).toBeInTheDocument();
     await u.click(screen.getByRole('button', { name: 'Collapse all conversations' }));
     for (const name of ['Pinned one', 'About my love life', 'Job change']) expect(screen.queryByText(name)).not.toBeInTheDocument();
     unmount();

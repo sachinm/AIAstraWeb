@@ -161,18 +161,21 @@ body {
 }
 
 /*
- * The home page's parchment scrolls. An open one sits beside the scene, its middle at 66% of the page's height, and is never taller
- * than fits around that point, so it never runs off the page. Its own words scroll if a screen is too short.
+ * The home page's parchment scrolls. Every open scroll sits anchored at the bottom-left of the viewport above the footer,
+ * so it never blocks the central Nakshatra artwork or the bottom-right caption.
  */
 .parchment {
   position: absolute;
   z-index: 20;
-  top: 66%;
+  left: 1rem;
+  bottom: 1rem;
+  top: auto;
+  right: auto;
   width: min(27rem, calc(100% - 2rem));
-  max-height: calc(68% - 2rem);
+  max-height: calc(100% - 2rem);
   display: flex;
   flex-direction: column;
-  padding: 2rem 1.75rem 1.75rem;
+  padding: 1.5rem 1.5rem 1.35rem;
   color: #3b2410;
   background:
     radial-gradient(ellipse at 20% 15%, rgba(255, 250, 230, 0.9), transparent 55%),
@@ -216,20 +219,21 @@ body {
   overflow-y: auto;
   scrollbar-width: thin;
 }
-.scroll-side-left {
-  left: 1rem;
-}
+.scroll-side-left,
 .scroll-side-right {
-  right: 1rem;
+  left: 1rem;
+  bottom: 1rem;
+  top: auto;
+  right: auto;
 }
 .parchment-open {
-  transform: translateY(-50%) scaleY(1);
+  transform: scaleY(1);
   opacity: 1;
   visibility: visible;
 }
 /* rolled up: shrunk back into its icon, out of sight and reach, but its words stay in the page for search */
 .parchment-closed {
-  transform: translate(var(--from-x, 0px), var(--from-y, 0px)) translateY(-50%) scale(0.08, 0.04);
+  transform: translate(var(--from-x, 0px), var(--from-y, 0px)) scale(0.08, 0.04);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -238,23 +242,26 @@ body {
     opacity 0.2s ease-in 0.3s,
     visibility 0s linear 0.5s;
 }
-/* the opening scroll sits at the top on a wide screen (see the end of this section); upright, the top half is the picture's */
-/* a phone has no side to spare, so a scroll takes the width */
+/* a phone has no side to spare, so a scroll takes the width anchored at bottom-left */
 @media (max-width: 639px) {
   .scroll-side-left,
   .scroll-side-right {
     left: 1rem;
+    bottom: 1rem;
+    top: auto;
     right: auto;
   }
   .parchment {
-    padding: 1.75rem 1.25rem 1.25rem;
+    padding: 1.5rem 1.25rem 1.25rem;
   }
 }
 
-/* a phone on its side leaves a strip of page, too short for the 66% rule: a scroll uses the whole strip, in smaller type */
+/* a phone on its side leaves a short strip of page: keep the scroll anchored at bottom-left in smaller type */
 @media (max-height: 520px) {
   .parchment {
-    top: 50%;
+    left: 1rem;
+    bottom: 0.625rem;
+    top: auto;
     max-height: calc(100% - 1.25rem);
     padding: 1.1rem 1.25rem 0.9rem;
   }
@@ -273,29 +280,6 @@ body {
   .parchment button.px-8 {
     padding: 0.5rem 1.5rem;
     font-size: 1rem;
-  }
-}
-
-/*
- * The blueprint on a wide screen: hung from the top of the page rather than centred on a line, and wider, so the heading
- * wraps less and the whole scroll fits without its own scrollbar (Sachin, 2026-11-04). Its type shrinks with the window's
- * height. After the short-screen rules above, so it wins over them.
- */
-@media (orientation: landscape) {
-  .parchment.parchment-high {
-    top: 1.25rem;
-    width: min(44rem, calc(100% - 2rem));
-    max-height: calc(100% - 2.5rem);
-  }
-  .parchment.parchment-high.parchment-open {
-    transform: none;
-  }
-  .parchment.parchment-high.parchment-closed {
-    transform: translate(var(--from-x, 0px), var(--from-y, 0px)) scale(0.08, 0.04);
-  }
-  .parchment.parchment-high h1 {
-    margin-bottom: clamp(0.5rem, 2.5vh, 1.25rem);
-    font-size: clamp(1.75rem, 7vh, 3rem);
   }
 }
 

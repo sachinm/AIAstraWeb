@@ -21,6 +21,41 @@ export interface AreaWindow {
   side: AreaSide;
   grade: AreaGrade;
   systems: string[];
+  dateLabel?: string;
+  reading?: string;
+  natalPromise?: string;
+  periodCharter?: string;
+  aspectsAndPlacements?: string[];
+  techniqueId?: string;
+}
+
+export interface AreaSupportFinding {
+  text: string;
+  evidence: string[];
+  subCategory?: string;
+  from?: string;
+  to?: string;
+  dateLabel?: string;
+  reading?: string;
+  natalPromise?: string;
+  periodCharter?: string;
+  aspectsAndPlacements?: string[];
+  techniqueId?: string;
+}
+
+export interface AreaPressureFinding {
+  text: string;
+  until: string | null;
+  evidence: string[];
+  subCategory?: string;
+  from?: string;
+  to?: string;
+  dateLabel?: string;
+  reading?: string;
+  natalPromise?: string;
+  periodCharter?: string;
+  aspectsAndPlacements?: string[];
+  techniqueId?: string;
 }
 
 export interface SelfCharacterArcStage {
@@ -59,8 +94,8 @@ export interface AreaBoard {
     /** the day it changes; null when not inside the range */
     date: string | null;
   };
-  supports: Array<{ text: string; evidence: string[] }>;
-  pressures: Array<{ text: string; until: string | null; evidence: string[] }>;
+  supports: AreaSupportFinding[];
+  pressures: AreaPressureFinding[];
   ahead: AreaWindow[];
   year: { year: number; note: string } | null;
   back: Array<{ month: string; side: AreaSide; label: string }>;
@@ -75,6 +110,34 @@ export type AreaState =
   | { kind: 'no_kundli' }
   | { kind: 'unavailable' }
   | { kind: 'error' };
+
+const areaSessionCache = new WeakMap<object, Map<string, Extract<AreaState, { kind: 'ok' }>>>();
+
+function cacheMapForCurrentFetch(): Map<string, Extract<AreaState, { kind: 'ok' }>> | null {
+  if (typeof globalThis.fetch !== 'function') return null;
+  let m = areaSessionCache.get(globalThis.fetch);
+  if (!m) {
+    m = new Map();
+    areaSessionCache.set(globalThis.fetch, m);
+  }
+  return m;
+}
+
+export function getCachedArea(area: AreaId): Extract<AreaState, { kind: 'ok' }> | null {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
+  return cacheMapForCurrentFetch()?.get(`${token}:${area}`) ?? null;
+}
+
+export function invalidateCachedArea(area?: AreaId): void {
+  const m = cacheMapForCurrentFetch();
+  if (!m) return;
+  if (!area) {
+    m.clear();
+    return;
+  }
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
+  m.delete(`${token}:${area}`);
+}
 
 async function call(method: string, path: string, payload?: unknown): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -98,7 +161,17 @@ export async function fetchArea(area: AreaId): Promise<AreaState> {
   if (!r.ok) return { kind: 'error' };
   const j = (await r.json().catch(() => null)) as { status?: string; board?: AreaBoard; focus?: string | null; ask?: boolean; checks?: Record<string, string>; built_at?: string } | null;
   if (!j || j.status !== 'ok' || !j.board) return { kind: 'error' };
-  return { kind: 'ok', board: j.board, focus: j.focus ?? null, ask: !!j.ask, checks: j.checks ?? {}, builtAt: j.built_at ?? j.board.asOf };
+  const result: Extract<AreaState, { kind: 'ok' }> = {
+    kind: 'ok',
+    board: j.board,
+    focus: j.focus ?? null,
+    ask: !!j.ask,
+    checks: j.checks ?? {},
+    builtAt: j.built_at ?? j.board.asOf,
+  };
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
+  cacheMapForCurrentFetch()?.set(`${token}:${area}`, result);
+  return result;
 }
 
 export async function sendAreaCheck(area: AreaId, month: string, side: AreaSide, answer: 'yes' | 'partly' | 'no' | 'skip'): Promise<boolean> {

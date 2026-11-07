@@ -48,6 +48,23 @@ export type CareerState =
   | { kind: 'not_ready' }
   | { kind: 'unavailable' };
 
+const careerSessionCache = new WeakMap<object, Map<string, Extract<CareerState, { kind: 'ok' }>>>();
+
+function careerCacheMap(): Map<string, Extract<CareerState, { kind: 'ok' }>> | null {
+  if (typeof globalThis.fetch !== 'function') return null;
+  let m = careerSessionCache.get(globalThis.fetch);
+  if (!m) {
+    m = new Map();
+    careerSessionCache.set(globalThis.fetch, m);
+  }
+  return m;
+}
+
+export function getCachedCareer(): Extract<CareerState, { kind: 'ok' }> | null {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
+  return careerCacheMap()?.get(token) ?? null;
+}
+
 async function call(method: string, path: string, payload?: unknown): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const body = payload === undefined ? undefined : JSON.stringify(payload);
@@ -60,7 +77,10 @@ export async function fetchCareer(): Promise<CareerState> {
   if (r.status === 202) return { kind: 'not_ready' };
   if (!r.ok) return { kind: 'unavailable' };
   const j = (await r.json()) as { map: CareerMap; work: WorkStatus | null; checks?: Record<string, string> };
-  return { kind: 'ok', map: j.map, work: j.work, checks: j.checks ?? {} };
+  const result: Extract<CareerState, { kind: 'ok' }> = { kind: 'ok', map: j.map, work: j.work, checks: j.checks ?? {} };
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
+  careerCacheMap()?.set(token, result);
+  return result;
 }
 
 export async function setWorkStatus(value: WorkStatus): Promise<boolean> {
