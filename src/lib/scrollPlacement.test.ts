@@ -74,8 +74,8 @@ describe('placing the scrolls', () => {
 });
 
 describe('which side a scroll opens on', () => {
-  it('the half of the screen its icon is in', () => {
+  it('always opens on the left so it never blocks the central artwork or caption', () => {
     expect(openSide({ x: 20, y: 50, edge: 'left' })).toBe('left');
-    expect(openSide({ x: 80, y: 20, edge: 'right' })).toBe('right');
+    expect(openSide({ x: 80, y: 20, edge: 'right' })).toBe('left');
   });
 });

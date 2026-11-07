@@ -87,16 +87,16 @@ export default function SideNav() {
   const setOpen = rail ? rail.setOpen : setLocalOpen;
 
   const item = ({ isActive }: { isActive: boolean }) =>
-    `flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm transition-colors ${isActive ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'} ${open ? '' : 'justify-center'}`;
+    `flex min-h-[40px] items-center gap-2.5 rounded-xl px-2.5 text-sm transition-colors ${isActive ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'} ${open ? '' : 'justify-center'}`;
 
   return (
     <aside
       aria-label="Your boards"
       data-testid="side-nav"
       data-open={open}
-      className={`glass-bar relative flex h-full shrink-0 flex-col border-r border-white/10 transition-[width] duration-200 ${open ? 'w-64' : 'w-16'}`}
+      className={`glass-bar relative flex h-full shrink-0 flex-col border-r border-white/10 transition-[width] duration-200 ${open ? 'w-40' : 'w-14'}`}
     >
-      <nav className="shrink-0 space-y-1 p-2">
+      <nav className="shrink-0 space-y-1 p-1.5">
         {SIDE_TABS.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} title={open ? undefined : label} aria-label={label} onClick={() => track('tab_select', 'sidenav', label.toLowerCase())} className={item}>
             <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />

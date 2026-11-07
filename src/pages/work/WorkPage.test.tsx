@@ -121,4 +121,18 @@ describe('Work board', () => {
     render(<WorkPage />);
     expect(await screen.findByText('The Work board is coming soon.')).toBeInTheDocument();
   });
+  it('renders 3-decade Work evolution, Vocation Blueprint with 4 career choices, technique badges, and Master-Detail questions inspector', async () => {
+    render(<WorkPage />);
+    await screen.findByTestId('tone-card');
+    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('work.status');
+    expect(screen.getByTestId('work-character-arc')).toHaveTextContent('Your Standing Today');
+    expect(screen.getByTestId('work-personality-vocation')).toHaveTextContent('Best-Fit Choices of Work & Vocation Domains');
+    expect(screen.getByTestId('vocation-choice-0')).toBeInTheDocument();
+    expect(screen.getByTestId('vocation-choice-3')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Your questions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A promotion' }));
+    expect(screen.getByTestId('findings-list-view')).toBeInTheDocument();
+    expect(screen.getByTestId('finding-detail-panel')).toHaveTextContent('Main Period Clock (Vimshottari)');
+  });
 });

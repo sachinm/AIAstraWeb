@@ -67,7 +67,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             !sessionReady ? (
               <SessionLoadingScreen />
             ) : isAuthenticated ? (
-              <Navigate to={boardsEnabled() ? '/dashboard/lucky' : '/dashboard/chat'} replace />
+              <Navigate to="/dashboard/you" replace />
             ) : (
               <LandingPage onSignUp={() => navigate('/signup')} />
             )
@@ -120,7 +120,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       <Route element={<ProtectedRoute {...gateProps} />}>
         <Route element={<ProfileGate />}>
         <Route path="/welcome" element={<SkyLayout />}>
-          <Route index element={<WelcomeWizard onFinish={() => navigate(boardsEnabled() ? '/dashboard/lucky' : '/dashboard/chat', { replace: true })} />} />
+          <Route index element={<WelcomeWizard onFinish={() => navigate('/dashboard/you', { replace: true })} />} />
         </Route>
         <Route
           path="/dashboard"
@@ -132,7 +132,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             )
           }
         >
-          <Route index element={<Navigate to="chat" replace />} />
+          <Route index element={<Navigate to="you" replace />} />
           <Route
             path="chat"
             element={<ChatSection user={user!} activeChatId={null} />}
@@ -176,7 +176,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           !sessionReady ? (
             <SessionLoadingScreen />
           ) : isAuthenticated ? (
-            <Navigate to="/dashboard/chat" replace />
+            <Navigate to="/dashboard/you" replace />
           ) : (
             <Navigate to="/signin" replace />
           )

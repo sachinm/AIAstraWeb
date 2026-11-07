@@ -41,7 +41,7 @@ export function GuestRoute({
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard/chat" replace />;
+    return <Navigate to="/dashboard/you" replace />;
   }
 
   return <Outlet />;

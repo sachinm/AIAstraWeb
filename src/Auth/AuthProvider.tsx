@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }
     setIsAuthenticated(true);
     touchActivity();
-    navigate(import.meta.env.VITE_BOARDS_ENABLED === '1' ? '/dashboard/lucky' : '/dashboard/chat', { replace: true });
+    navigate('/dashboard/you', { replace: true });
   };
 
   const handleSuccessfulSignUp = (userData: User) => {
@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     writeStoredUser(userData);
     localStorage.setItem('isAuthenticated', 'true');
     touchActivity();
-    navigate(import.meta.env.VITE_BOARDS_ENABLED === '1' ? '/dashboard/lucky' : '/dashboard/chat', { replace: true });
+    navigate('/dashboard/you', { replace: true });
   };
 
   return React.cloneElement(children as React.ReactElement, {
