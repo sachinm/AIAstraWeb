@@ -20,6 +20,7 @@ import RemediesSection from './pages/remedies/RemediesSection';
 import PricingPage from './pages/pricing/PricingPage';
 import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import SeoHead from './components/SeoHead';
+import { PageTimingTracker } from './lib/pageTelemetry';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -50,6 +51,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   return (
     <>
     <SeoHead />
+    <PageTimingTracker />
     <Routes>
       {/* one sky across these three: it keeps playing as the visitor moves between them */}
       <Route element={<SkyLayout />}>
