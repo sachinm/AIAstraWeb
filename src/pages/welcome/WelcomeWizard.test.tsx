@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { judgeFrame, loadDetector, Steadiness, STEADY_FRAMES, toFractions } from '../../lib/faceGate';
 
 vi.mock('./SelfieStep', () => ({
@@ -16,6 +17,7 @@ vi.mock('./SelfieStep', () => ({
 }));
 
 import WelcomeWizard from './WelcomeWizard';
+import TopNavigation from '../TopNavigation';
 
 let saved: Array<Record<string, string | null>>;
 beforeEach(() => {
@@ -102,5 +104,22 @@ describe('personalization wizard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
     await waitFor(() => expect(onFinish).toHaveBeenCalled());
     expect(saved).toEqual([{ 'wizard.skipped': expect.stringMatching(/^\d{4}-/) }]);
+  });
+  it('opens from TopNavigation header Personalize button as a modal, preloads facts, and closes on completion', async () => {
+    render(
+      <MemoryRouter>
+        <TopNavigation user={{ name: 'Sachin', email: 's@example.com' }} onLogout={() => undefined} />
+      </MemoryRouter>,
+    );
+    const trigger = screen.getByTestId('header-wizard-trigger');
+    expect(trigger).toBeInTheDocument();
+    fireEvent.click(trigger);
+
+    const modal = await screen.findByTestId('header-wizard-modal');
+    expect(modal).toBeInTheDocument();
+    expect(screen.getByTestId('welcome-wizard')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('header-wizard-close'));
+    expect(screen.queryByTestId('header-wizard-modal')).not.toBeInTheDocument();
   });
 });

@@ -4,8 +4,8 @@
  * context of where the person is in life (houses 1, 4, 10, 7, 5, and what they care about); they land in
  * person_facts, which the boards and the chat read.
  */
-import { useState } from 'react';
-import { saveFacts } from '../../lib/profileApi';
+import { useEffect, useState } from 'react';
+import { fetchFacts, saveFacts } from '../../lib/profileApi';
 import { track } from '../../lib/events';
 import SelfieStep from './SelfieStep';
 
@@ -74,6 +74,28 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [city, setCity] = useState('');
   const step = STEPS[i];
+
+  useEffect(() => {
+    if (!inModal) return;
+    let active = true;
+    fetchFacts()
+      .then((res) => {
+        if (!active || !res?.facts) return;
+        const prefilled: Record<string, string> = {};
+        for (const [k, row] of Object.entries(res.facts)) {
+          if (row?.value === 'declined') prefilled[k] = DECLINE;
+          else if (typeof row?.value === 'string' && row.value) prefilled[k] = row.value;
+        }
+        if (prefilled['place.current'] && !/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(prefilled['place.current'])) {
+          setCity(prefilled['place.current']);
+        }
+        setAnswers((prev) => ({ ...prefilled, ...prev }));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [inModal]);
 
   const finish = async (how: 'done' | 'skipped') => {
     const today = new Date().toISOString().slice(0, 10);
