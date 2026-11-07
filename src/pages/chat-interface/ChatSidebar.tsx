@@ -28,9 +28,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 }) => {
   const rail = variant === 'rail';
   const groups = groupByCategory(chats);
-  const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed);
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed(rail));
   useEffect(() => saveCollapsed(collapsed), [collapsed]);
-  const allCollapsed = groups.length > 0 && groups.every(([k]) => collapsed.has(k));
+  const allCollapsed = groups.length === 0 ? rail : groups.every(([k]) => collapsed.has(k));
   const toggleGroup = (k: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -153,14 +153,17 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 };
 
 export default ChatSidebar;
-const COLLAPSED_KEY = 'astra_chat_groups_collapsed';
+const COLLAPSED_KEY = 'astra_chat_groups_collapsed_v2';
+const DEFAULT_RAIL_COLLAPSED = ['pinned', 'general', ...CATEGORY_ORDER];
 
-function loadCollapsed(): Set<string> {
+function loadCollapsed(rail = false): Set<string> {
   try {
-    const v = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
-    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+    const raw = localStorage.getItem(COLLAPSED_KEY);
+    if (raw === null) return rail ? new Set(DEFAULT_RAIL_COLLAPSED) : new Set();
+    const v = JSON.parse(raw);
+    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : rail ? DEFAULT_RAIL_COLLAPSED : []);
   } catch {
-    return new Set();
+    return rail ? new Set(DEFAULT_RAIL_COLLAPSED) : new Set();
   }
 }
 

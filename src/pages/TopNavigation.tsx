@@ -30,7 +30,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
       >
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center gap-3">
-            <Link to={import.meta.env.VITE_BOARDS_ENABLED === '1' ? '/dashboard/lucky' : '/dashboard/chat'} title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <Link to="/dashboard/you" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
               <Star className="w-8 h-8 text-purple-400" />
               <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                 AdAstra AI
@@ -89,10 +89,10 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
           onClick={() => setWizardOpen(false)}
         >
           <div
-            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/15 bg-[#0d0c24] p-4 shadow-2xl sm:p-6"
+            className="relative flex h-[min(640px,88vh)] w-[min(880px,94vw)] flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0d0c24] p-4 shadow-2xl sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-2 flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="mb-2 flex shrink-0 items-center justify-between border-b border-white/10 pb-3">
               <div>
                 <h2 className="text-lg font-semibold text-white">Personalize Your Readings</h2>
                 <p className="text-xs text-white/60">Tell us where you are in life so every board and reading speaks to your situation.</p>

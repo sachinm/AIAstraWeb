@@ -114,4 +114,20 @@ describe('Love board', () => {
     render(<LovePage />);
     expect(await screen.findByText('The Love board is coming soon.')).toBeInTheDocument();
   });
+  it('renders 3-decade Love evolution, Partner Blueprint, Master-Detail findings inspector, and Your questions tab', async () => {
+    render(<LovePage />);
+    await screen.findByTestId('tone-card');
+    expect(screen.getByTestId('love-relationship-arc')).toHaveTextContent('How You Show Up in Love Now');
+    expect(screen.getByTestId('love-partner-chemistry')).toHaveTextContent('Your Love Personality & Partner Blueprint');
+    expect(screen.getAllByTestId('panel-technique-badge').length).toBeGreaterThanOrEqual(4);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'What holds it up' }));
+    expect(screen.getByTestId('findings-list-view')).toBeInTheDocument();
+    expect(screen.getByTestId('finding-detail-panel')).toHaveTextContent('Your partnerships has firm footing.');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Your questions' }));
+    expect(screen.getByTestId('questions-page')).toHaveTextContent('Meeting someone');
+    expect(screen.getByTestId('questions-page')).toHaveTextContent('Commitment & marriage');
+    expect(screen.getByTestId('questions-page')).toHaveTextContent('Vedic timing clocks align');
+  });
 });

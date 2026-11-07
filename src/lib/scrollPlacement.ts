@@ -77,7 +77,7 @@ export function placeScrolls(count: number, random?: () => number, portrait = fa
   return out;
 }
 
-/** Which side a scroll opens on: the half of the screen its icon is in, so it opens toward the middle. */
-export function openSide(p: Placement): 'left' | 'right' {
-  return p.x < 50 ? 'left' : 'right';
+/** Which side a scroll opens on: always bottom-left so it never blocks the central artwork or caption. */
+export function openSide(_p?: Placement): 'left' {
+  return 'left';
 }

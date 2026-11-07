@@ -96,4 +96,16 @@ describe('LandingPage', () => {
     expect(root.className).toMatch(/overflow-hidden/);
     expect(root.className).not.toMatch(/bg-/);
   });
+
+  it('always anchors every opened scroll at the bottom-left of the viewport so it never blocks the central artwork', () => {
+    render(<LandingPage onSignUp={vi.fn()} />);
+    const panels = document.querySelectorAll('.parchment');
+    expect(panels.length).toBeGreaterThan(0);
+    for (const panel of panels) {
+      expect(panel.classList.contains('scroll-side-left')).toBe(true);
+      expect(panel.classList.contains('scroll-side-right')).toBe(false);
+      expect(panel.classList.contains('parchment-high')).toBe(false);
+      expect(panel.getAttribute('data-position')).toBe('bottom-left');
+    }
+  });
 });

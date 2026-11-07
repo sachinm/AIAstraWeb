@@ -209,4 +209,26 @@ describe('You board', () => {
     fireEvent.click(within(err).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByTestId('tone-card')).toBeInTheDocument();
   });
+  it('renders Master-Detail findings inspector, Focus/Timeframe dropdowns, Your questions tab, and top-right technique badges', async () => {
+    render(<YouPage />);
+    await screen.findByTestId('tone-card');
+    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('self.focus');
+    expect(screen.getAllByTestId('panel-technique-badge').length).toBeGreaterThanOrEqual(4);
+    expect(screen.getByTestId('board-focus-dropdown')).toBeInTheDocument();
+    expect(screen.getByTestId('board-timeframe-dropdown')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'What holds you up' }));
+    const list = screen.getByTestId('findings-list-view');
+    const detail = screen.getByTestId('finding-detail-panel');
+    expect(list).toBeInTheDocument();
+    expect(detail).toHaveTextContent('Your sense of self has firm footing.');
+    fireEvent.click(screen.getByTestId('finding-item-1'));
+    expect(detail).toHaveTextContent('Something steady watches over your feelings.');
+    expect(screen.getByTestId('finding-detail-promise')).toBeInTheDocument();
+    expect(screen.getByTestId('finding-detail-charter')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Your questions' }));
+    expect(screen.getByTestId('questions-page')).toHaveTextContent('Fresh life chapter');
+    expect(screen.getByTestId('questions-page')).toHaveTextContent('Vedic timing clocks align');
+  });
 });

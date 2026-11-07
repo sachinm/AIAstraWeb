@@ -122,4 +122,53 @@ describe('personalization wizard', () => {
     fireEvent.click(screen.getByTestId('header-wizard-close'));
     expect(screen.queryByTestId('header-wizard-modal')).not.toBeInTheDocument();
   });
+
+  it('supports stepping backward with ← Back, renders 2-column grid on multi-question steps, and displays technique badges', async () => {
+    const onFinish = vi.fn();
+    render(<WelcomeWizard onFinish={onFinish} />);
+    fireEvent.click(screen.getByRole('button', { name: 'stub-photo' }));
+
+    // Step 2: Where you are
+    expect(await screen.findByTestId('step-place')).toBeInTheDocument();
+    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('lucky.day_tables');
+    fireEvent.click(screen.getByTestId('wizard-back'));
+    expect(await screen.findByTestId('selfie-step')).toBeInTheDocument();
+
+    // Advance to Step 3: Work (2 questions -> 2-column grid)
+    fireEvent.click(screen.getByRole('button', { name: 'stub-photo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    await screen.findByTestId('step-work');
+    const grid = screen.getByTestId('wizard-questions-grid');
+    expect(grid.className).toContain('md:grid-cols-2');
+    expect(screen.getAllByTestId('question-technique-badge')).toHaveLength(2);
+
+    // Step back from Step 3 to Step 2
+    fireEvent.click(screen.getByTestId('wizard-back'));
+    expect(await screen.findByTestId('step-place')).toBeInTheDocument();
+  });
+
+  it('SelfieStep enables Take photo and shows Upload photo when webcam stream is active even if MediaPipe detector is null', async () => {
+    const actual = await vi.importActual<typeof import('./SelfieStep')>('./SelfieStep');
+    const RealSelfieStep = actual.default;
+    const stopTrack = vi.fn();
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(async () => ({
+          getTracks: () => [{ stop: stopTrack }],
+        })),
+      },
+    });
+    HTMLMediaElement.prototype.play = vi.fn(async () => undefined);
+
+    const onDone = vi.fn();
+    const onSkip = vi.fn();
+    render(<RealSelfieStep onDone={onDone} onSkip={onSkip} />);
+
+    const takeBtn = await screen.findByRole('button', { name: 'Take photo' });
+    await waitFor(() => expect(takeBtn).not.toBeDisabled());
+    expect(screen.getByTestId('selfie-hint')).not.toHaveTextContent('The camera is not available here');
+    expect(screen.getByTestId('selfie-upload-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('companion.wizard');
+  });
 });

@@ -38,7 +38,7 @@ function scrollsFor(onSignUp: () => void): Scroll[] {
       label: 'Discover your cosmic blueprint',
       body: (
         <div className="text-center">
-          <h1 className={`${INK_HEADING} mb-5 text-4xl leading-tight sm:text-5xl`}>Discover Your Cosmic Blueprint</h1>
+          <h1 className={`${INK_HEADING} mb-4 text-2xl leading-tight sm:text-3xl`}>Discover Your Cosmic Blueprint</h1>
           <button type="button" onClick={onSignUp} className={PRIMARY_BUTTON} data-auth-intent>
             Generate My Chart
           </button>
@@ -130,9 +130,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
         const panel = panels.current[s.id];
         const icon = icons.current[s.id]?.getBoundingClientRect();
         if (!panel || !icon) continue;
-        // the panel's middle before its transform: top is its middle, since it is pulled up by half its height
+        // the panel's middle before its transform at the bottom-left anchor
         const px = panel.offsetLeft + panel.offsetWidth / 2;
-        const py = panel.offsetTop;
+        const py = panel.offsetTop + panel.offsetHeight / 2;
         panel.style.setProperty('--from-x', `${icon.left + icon.width / 2 - box.left - px}px`);
         panel.style.setProperty('--from-y', `${icon.top + icon.height / 2 - box.top - py}px`);
       }
@@ -226,7 +226,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignUp }) => {
               onPointerLeave={() => (holding.current = false)}
               onFocus={() => (holding.current = true)}
               onBlur={() => (holding.current = false)}
-              className={`parchment scroll-side-${openSide(p)}${s.id === FIRST ? ' parchment-high' : ''} ${isOpen ? 'parchment-open' : 'parchment-closed'}`}
+              className={`parchment scroll-side-${openSide(p)} ${isOpen ? 'parchment-open' : 'parchment-closed'}`}
+              data-position="bottom-left"
               data-test-id={`scroll-${s.id}`}
             >
               <button
