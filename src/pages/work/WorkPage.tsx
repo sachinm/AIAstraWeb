@@ -210,6 +210,27 @@ export default function WorkPage() {
 function NowPage({ map }: { map: CareerMap }) {
   const next = map.ahead.find((w) => w.side === 'support' && w.from > `${map.month}-31`);
   const yearNum = Number(map.asOf.slice(0, 4)) || 2026;
+  const arc = map.characterArc;
+  const voc = map.vocationBlueprint;
+  const defaultVocationChoices = [
+    {
+      title: '1. Systems Architecture, Engineering & Technical Product',
+      whyItFits: 'Designing scalable platforms, technical infrastructure, or analytical tools with measurable output (Dasamsa D10 & Budha-Shani).',
+    },
+    {
+      title: '2. Executive Operations, Strategy & Program Stewardship',
+      whyItFits: 'Guiding complex organizations, P&L execution, or cross-functional turnarounds requiring a steady hand and long-horizon planning (10th Bhava & Surya).',
+    },
+    {
+      title: '3. Independent Advisory, Consulting & Specialist Practice',
+      whyItFits: 'High-trust advisory, research, finance, or specialized domain consulting where clients rely on your diagnostic rigor (Amatyakaraka AmK & Guru).',
+    },
+    {
+      title: '4. Founder-Led Ventures & Asset-Building Enterprises',
+      whyItFits: 'Building an independent business, IP portfolio, or specialized firm with lean, high-competence collaborators (Rajya Pada A10 & 11th Bhava).',
+    },
+  ];
+  const vocationChoices = voc?.whatFeelsGood?.length === 4 ? voc.whatFeelsGood : defaultVocationChoices;
 
   return (
     <div className="space-y-4">
@@ -244,43 +265,45 @@ function NowPage({ map }: { map: CareerMap }) {
           </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
-          How your work identity, accountability, and professional authority evolve across three chapters
+          {arc?.headline ?? 'How your work identity, accountability, and professional authority evolve across three chapters'}
         </h3>
         <div className="mt-3 grid gap-3 lg:grid-cols-3">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="work-stage-past_10y">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">Past 10 Years</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{yearNum - 10}–{yearNum}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">{arc?.pastDecade.label ?? 'Past 10 Years'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{arc?.pastDecade.windowLabel ?? `${yearNum - 10}–${yearNum}`}</span>
             </div>
-            <div className="mt-1.5 font-medium text-white">Building Foundational Craft & Discipline</div>
+            <div className="mt-1.5 font-medium text-white">{arc?.pastDecade.headline ?? 'Building Foundational Craft & Discipline'}</div>
             <p className="mt-1 text-sm leading-relaxed text-white/75">
-              Through the past decade you forged hands-on capability, reliable execution, and practical resilience through real accountability.
+              {arc?.pastDecade.summary ??
+                'Through the past decade you forged hands-on capability, reliable execution, and practical resilience through real accountability.'}
             </p>
-            <div className="mt-2 text-xs text-purple-200/90">Core quality: Self-reliant stamina</div>
+            <div className="mt-2 text-xs text-purple-200/90">Core quality: {arc?.pastDecade.anchorTrait ?? 'Self-reliant stamina'}</div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="work-stage-now">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">Your Standing Today</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{yearNum}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">{arc?.presentNow.label ?? 'Your Standing Today'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{arc?.presentNow.windowLabel ?? String(yearNum)}</span>
             </div>
-            <div className="mt-1.5 font-medium text-white">Earned Authority & Strategic Focus</div>
+            <div className="mt-1.5 font-medium text-white">{arc?.presentNow.headline ?? 'Earned Authority & Strategic Focus'}</div>
             <p className="mt-1 text-sm leading-relaxed text-white/75">
-              Today you bring calm command, structured judgment, and trusted follow-through to high-stakes work.
+              {arc?.presentNow.summary ?? 'Today you bring calm command, structured judgment, and trusted follow-through to high-stakes work.'}
             </p>
-            <div className="mt-2 text-xs text-purple-200/90">Core quality: Principled execution</div>
+            <div className="mt-2 text-xs text-purple-200/90">Core quality: {arc?.presentNow.anchorTrait ?? 'Principled execution'}</div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="work-stage-next_10y">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">Next 10 Years</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{yearNum}–{yearNum + 10}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">{arc?.nextDecade.label ?? 'Next 10 Years'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{arc?.nextDecade.windowLabel ?? `${yearNum}–${yearNum + 10}`}</span>
             </div>
-            <div className="mt-1.5 font-medium text-white">Stepping Into Advisory Scope & Lasting Impact</div>
+            <div className="mt-1.5 font-medium text-white">{arc?.nextDecade.headline ?? 'Stepping Into Advisory Scope & Lasting Impact'}</div>
             <p className="mt-1 text-sm leading-relaxed text-white/75">
-              Across the coming decade your role shifts from carrying every task yourself to setting direction, mentoring talent, and compounding long-term equity.
+              {arc?.nextDecade.summary ??
+                'Across the coming decade your role shifts from carrying every task yourself to setting direction, mentoring talent, and compounding long-term equity.'}
             </p>
-            <div className="mt-2 text-xs text-purple-200/90">Core quality: Strategic stewardship</div>
+            <div className="mt-2 text-xs text-purple-200/90">Core quality: {arc?.nextDecade.anchorTrait ?? 'Strategic stewardship'}</div>
           </div>
         </div>
       </section>
@@ -295,52 +318,37 @@ function NowPage({ map }: { map: CareerMap }) {
           </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
-          Methodical systems thinking paired with calm, accountable authority
+          {voc?.headline ?? 'Methodical systems thinking paired with calm, accountable authority'}
         </h3>
         <p className="mt-1.5 text-sm leading-relaxed text-white/80">
-          In work you thrive when given clear ownership of results, autonomy to design the system, and direct accountability for quality.
+          {voc?.personalitySummary ??
+            'In work you thrive when given clear ownership of results, autonomy to design the system, and direct accountability for quality.'}
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">Execution & Management Style (10th Bhava & Surya-Shani)</div>
             <p className="mt-1 text-sm text-white/75">
-              You lead by example and clear standards—setting realistic milestones, protecting team focus, and delivering without fanfare.
+              {voc?.emotionalMindStyle ??
+                'You lead by example and clear standards—setting realistic milestones, protecting team focus, and delivering without fanfare.'}
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-pink-200">Problem-Solving & Decision Style (Dasamsa D10 & Budha)</div>
             <p className="mt-1 text-sm text-white/75">
-              You diagnose root causes quickly, break complex initiatives into sequential steps, and stay composed when priorities shift.
+              {voc?.intellectualWitStyle ??
+                'You diagnose root causes quickly, break complex initiatives into sequential steps, and stay composed when priorities shift.'}
             </p>
           </div>
         </div>
         <div className="mt-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/60">Best-Fit Choices of Work & Vocation Domains</div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="vocation-choice-0">
-              <div className="font-medium text-white">1. Systems Architecture, Engineering & Technical Product</div>
-              <div className="mt-0.5 text-xs text-white/70">
-                Designing scalable platforms, technical infrastructure, or analytical tools with measurable output (Dasamsa D10 & Budha-Shani).
+            {vocationChoices.map((ch, idx) => (
+              <div key={idx} className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid={`vocation-choice-${idx}`}>
+                <div className="font-medium text-white">{ch.title}</div>
+                <div className="mt-0.5 text-xs text-white/70">{ch.whyItFits}</div>
               </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="vocation-choice-1">
-              <div className="font-medium text-white">2. Executive Operations, Strategy & Program Stewardship</div>
-              <div className="mt-0.5 text-xs text-white/70">
-                Guiding complex organizations, P&L execution, or cross-functional turnarounds requiring a steady hand and long-horizon planning (10th Bhava & Surya).
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="vocation-choice-2">
-              <div className="font-medium text-white">3. Independent Advisory, Consulting & Specialist Practice</div>
-              <div className="mt-0.5 text-xs text-white/70">
-                High-trust advisory, research, finance, or specialized domain consulting where clients rely on your diagnostic rigor (Amatyakaraka AmK & Guru).
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="vocation-choice-3">
-              <div className="font-medium text-white">4. Founder-Led Ventures & Asset-Building Enterprises</div>
-              <div className="mt-0.5 text-xs text-white/70">
-                Building an independent business, IP portfolio, or specialized firm with lean, high-competence collaborators (Rajya Pada A10 & 11th Bhava).
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>

@@ -373,6 +373,7 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
   useEffect(() => {
     const cached = getCachedArea(cfg.area);
     if (cached) setState(cached);
+    setFocusFilter((prev) => (prev !== 'all' && !cfg.subareas[prev] ? 'all' : prev));
     track('board_open', cfg.surface);
     void load();
   }, [cfg.area]);
@@ -627,6 +628,11 @@ function NowPage({
             </span>
           </div>
           <div className="mt-1 text-lg font-semibold">{board.year ? board.year.note : "This year's chart is not ready yet."}</div>
+          {board.year && (
+            <div className="mt-1 text-xs text-white/60">
+              {board.year.year} annual return synthesis across your active timing periods.
+            </div>
+          )}
         </div>
         <div className={panel} data-testid="lead-card">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -636,10 +642,15 @@ function NowPage({
             </span>
           </div>
           <div className="mt-1 text-lg font-semibold">{lead ? `${lead.label}, ${longDate(lead.from)} – ${longDate(lead.to)}` : cfg.emptyAhead}</div>
+          {lead && (
+            <div className="mt-1 text-xs text-white/60">
+              {lead.systems.length} independent timing clock{lead.systems.length > 1 ? 's' : ''} aligned ({lead.grade} {lead.side === 'support' ? 'opening' : 'pacing'} window).
+            </div>
+          )}
         </div>
       </div>
 
-      {board.characterArc && (
+      {cfg.area === 'self' && board.characterArc && (
         <section className={panel} data-testid="self-character-arc">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-purple-300">Character Evolution (Last 10 Years → Now → Next 10 Years)</div>
@@ -664,7 +675,7 @@ function NowPage({
         </section>
       )}
 
-      {board.personalityAndJoy && (
+      {cfg.area === 'self' && board.personalityAndJoy && (
         <section className={panel} data-testid="self-personality-joy">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-pink-300">Your Personality & What Makes You Feel Good</div>
@@ -735,6 +746,8 @@ function LoveVedicDeepDive({ board, lead }: { board: AreaBoard; lead: AreaWindow
   const supText = board.supports[0]?.text ?? 'Steady relational integrity in your 7th Bhava covenant.';
   const pressText = board.pressures[0]?.text ?? 'Deliberate pacing around emotional expectations.';
   const nextRange = lead ? `${longDate(lead.from)} – ${longDate(lead.to)}` : `${yearNum}–${yearNum + 3}`;
+  const arc = board.characterArc;
+  const chem = board.personalityAndJoy;
 
   return (
     <>
@@ -748,43 +761,49 @@ function LoveVedicDeepDive({ board, lead }: { board: AreaBoard; lead: AreaWindow
           </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
-          How your approach to intimacy, commitment, and mutual devotion matures across three chapters
+          {arc?.headline ?? 'How your approach to intimacy, commitment, and mutual devotion matures across three chapters'}
         </h3>
         <div className="mt-3 grid gap-3 lg:grid-cols-3">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="love-stage-past_10y">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">Last 10 Years</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{yearNum - 10}–{yearNum}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">{arc?.pastDecade.label ?? 'Last 10 Years'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{arc?.pastDecade.windowLabel ?? `${yearNum - 10}–${yearNum}`}</span>
             </div>
-            <div className="mt-1.5 font-medium text-white">Clarifying Boundaries & Darapada (A7) Attraction</div>
+            <div className="mt-1.5 font-medium text-white">{arc?.pastDecade.headline ?? 'Clarifying Boundaries & Darapada (A7) Attraction'}</div>
             <p className="mt-1 text-sm leading-relaxed text-white/75">
-              Over the last decade, your chart tested the difference between surface chemistry (Darapada A7) and true emotional sanctuary (Upapada UL)—teaching you never to trade inner peace for approval.
+              {arc?.pastDecade.summary ??
+                'Over the last decade, your chart tested the difference between surface chemistry (Darapada A7) and true emotional sanctuary (Upapada UL)—teaching you never to trade inner peace for approval.'}
             </p>
-            <div className="mt-2 text-xs text-purple-200/90">Core quality: Selective relational trust</div>
+            <div className="mt-2 text-xs text-purple-200/90">Core quality: {arc?.pastDecade.anchorTrait ?? 'Selective relational trust'}</div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="love-stage-now">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">How You Show Up in Love Now</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{yearNum}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">{arc?.presentNow.label ?? 'How You Show Up in Love Now'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{arc?.presentNow.windowLabel ?? String(yearNum)}</span>
             </div>
-            <div className="mt-1.5 font-medium text-white">7th Bhava & Navamsa Alignment</div>
+            <div className="mt-1.5 font-medium text-white">{arc?.presentNow.headline ?? '7th Bhava & Navamsa Alignment'}</div>
             <p className="mt-1 text-sm leading-relaxed text-white/75">
-              {supText} {pressText} Right now your Shukra and 7th Bhava synthesis rewards direct, unhurried honesty over guessing games.
+              {arc?.presentNow.summary ?? `${supText} ${pressText} Right now your Shukra and 7th Bhava synthesis rewards direct, unhurried honesty over guessing games.`}
             </p>
-            <div className="mt-2 text-xs text-purple-200/90">Active window: {nextRange}</div>
+            <div className="mt-2 text-xs text-purple-200/90">
+              {arc?.presentNow.anchorTrait ? `Core quality: ${arc.presentNow.anchorTrait} · Active window: ${nextRange}` : `Active window: ${nextRange}`}
+            </div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="love-stage-next_10y">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">Next 10 Years</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{yearNum}–{yearNum + 10}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">{arc?.nextDecade.label ?? 'Next 10 Years'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{arc?.nextDecade.windowLabel ?? `${yearNum}–${yearNum + 10}`}</span>
             </div>
-            <div className="mt-1.5 font-medium text-white">Enduring Covenant & Shared Sanctuary</div>
+            <div className="mt-1.5 font-medium text-white">{arc?.nextDecade.headline ?? 'Enduring Covenant & Shared Sanctuary'}</div>
             <p className="mt-1 text-sm leading-relaxed text-white/75">
-              As your Navamsa (D9) and Darakaraka promise matures over the coming decade, partnership shifts toward a deeply settled alliance rooted in shared home warmth (4th Bhava) and mutual respect.
+              {arc?.nextDecade.summary ??
+                'As your Navamsa (D9) and Darakaraka promise matures over the coming decade, partnership shifts toward a deeply settled alliance rooted in shared home warmth (4th Bhava) and mutual respect.'}
             </p>
-            <div className="mt-2 text-xs text-purple-200/90">Fruition anchor: Upapada (UL) & Guru protective grace</div>
+            <div className="mt-2 text-xs text-purple-200/90">
+              {arc?.nextDecade.anchorTrait ? `Core quality: ${arc.nextDecade.anchorTrait}` : 'Fruition anchor: Upapada (UL) & Guru protective grace'}
+            </div>
           </div>
         </div>
       </section>
@@ -799,34 +818,39 @@ function LoveVedicDeepDive({ board, lead }: { board: AreaBoard; lead: AreaWindow
           </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
-          Deep loyalty and emotional candor paired with warm, observant devotion
+          {chem?.headline ?? 'Deep loyalty and emotional candor paired with warm, observant devotion'}
         </h3>
         <p className="mt-1 text-sm leading-relaxed text-white/80">
-          In relationships you show love through reliability, thoughtful acts, and protecting your partner’s peace of mind rather than loud performative gestures.
+          {chem?.personalitySummary ??
+            'In relationships you show love through reliability, thoughtful acts, and protecting your partner’s peace of mind rather than loud performative gestures.'}
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">How You Bond Emotionally (Chandra & 4th/8th Bhava)</div>
             <p className="mt-1 text-sm text-white/75">
-              You bond most deeply when consistency matches words. Calm domestic rituals, kept promises, and unhurried one-on-one time unlock your deepest affection.
+              {chem?.emotionalMindStyle ??
+                'You bond most deeply when consistency matches words. Calm domestic rituals, kept promises, and unhurried one-on-one time unlock your deepest affection.'}
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-pink-200">Communication & Affection Style (5th Bhava & Shukra)</div>
             <p className="mt-1 text-sm text-white/75">
-              Playful intellectual rapport, shared creative projects, and warm appreciation keep romance alive even during busy or demanding timing stretches.
+              {chem?.intellectualWitStyle ??
+                'Playful intellectual rapport, shared creative projects, and warm appreciation keep romance alive even during busy or demanding timing stretches.'}
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">Partner Archetype That Fits You (Darakaraka DK & Upapada UL)</div>
             <p className="mt-1 text-sm text-white/75">
-              You thrive with a partner who is emotionally self-aware, grounded in their own craft, and steady in communication—someone who values calm partnership over drama.
+              {chem?.whatFeelsGood?.[0]?.whyItFits ??
+                'You thrive with a partner who is emotionally self-aware, grounded in their own craft, and steady in communication—someone who values calm partnership over drama.'}
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-pink-200">What Builds vs. Drains Trust (7th Bhava & Shani Balance)</div>
             <p className="mt-1 text-sm text-white/75">
-              Directness and shared follow-through build unshakeable trust; unspoken expectations or rushed ultimatums during testing periods drain closeness fastest.
+              {chem?.rechargeRule ??
+                'Directness and shared follow-through build unshakeable trust; unspoken expectations or rushed ultimatums during testing periods drain closeness fastest.'}
             </p>
           </div>
         </div>
