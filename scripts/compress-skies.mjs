@@ -1,5 +1,5 @@
 /**
- * Turns the generated PNGs into 1920-wide WebP files for public/skies, using Playwright's Chromium canvas.
+ * Turns the generated PNGs into 1920-wide WebP files for src/assets/skies, using Playwright's Chromium canvas.
  *   node scripts/compress-skies.mjs <inDir> <outDir> [--force]
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';

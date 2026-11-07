@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Play, Pause, Volume2, Star, Sun, Moon, Zap } from 'lucide-react';
 import { fetchUserContent } from '../UserData';
+import { streamDashboardSections } from '../../lib/pageTelemetry';
 import LoadError from '../../components/LoadError';
 
 interface User {
@@ -19,20 +20,46 @@ const MantrasSection: React.FC<MantrasSectionProps> = () => {
   const [playingMantra, setPlayingMantra] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchUserContent();
-        setApiData(data);
+        let receivedContent: any = null;
+
+        try {
+          await streamDashboardSections(
+            ['content'],
+            (chunk) => {
+              if (chunk.ok && chunk.section === 'content' && chunk.data) {
+                receivedContent = { success: true, data: chunk.data, content: chunk.data };
+                setApiData(receivedContent);
+                setLoading(false);
+              }
+            },
+            controller.signal
+          );
+        } catch {
+          /* fall back to GraphQL fetchUserContent below */
+        }
+
+        if (!receivedContent) {
+          const data = await fetchUserContent();
+          setApiData(data);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'An error occurred');
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
+    void fetchData();
+    return () => controller.abort();
   }, [attempt]);
 
   if (loading) {

@@ -55,6 +55,14 @@ export default defineConfig(({ mode }) => ({
     seoFiles(loadEnv(mode, process.cwd(), 'VITE_')),
     prerenderPublicPages(loadEnv(mode, process.cwd(), 'VITE_')),
   ],
+  build: {
+    rollupOptions: {
+      // a scene keeps only its content hash, so its URL never names it (src/lib/skies.ts)
+      output: {
+        assetFileNames: (asset) => (asset.name?.endsWith('.webp') ? 'assets/[hash][extname]' : 'assets/[name]-[hash][extname]'),
+      },
+    },
+  },
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

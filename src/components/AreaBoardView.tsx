@@ -176,15 +176,71 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
 function NowPage({ board, focus, cfg }: { board: AreaBoard; focus: string | null; cfg: AreaBoardConfig }) {
   const lead = board.ahead.find((w) => w.subarea === focus) ?? board.ahead[0] ?? null;
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className={panel} data-testid="year-card">
-        <div className="text-xs uppercase tracking-wide text-white/50">This year</div>
-        <div className="mt-1 text-lg font-semibold">{board.year ? board.year.note : "This year's chart is not ready yet."}</div>
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className={panel} data-testid="year-card">
+          <div className="text-xs uppercase tracking-wide text-white/50">This year</div>
+          <div className="mt-1 text-lg font-semibold">{board.year ? board.year.note : "This year's chart is not ready yet."}</div>
+        </div>
+        <div className={panel} data-testid="lead-card">
+          <div className="text-xs uppercase tracking-wide text-white/50">{lead ? cfg.subareas[lead.subarea] ?? 'Next' : 'Next'}</div>
+          <div className="mt-1 text-lg font-semibold">{lead ? `${lead.label}, ${longDate(lead.from)} – ${longDate(lead.to)}` : cfg.emptyAhead}</div>
+        </div>
       </div>
-      <div className={panel} data-testid="lead-card">
-        <div className="text-xs uppercase tracking-wide text-white/50">{lead ? cfg.subareas[lead.subarea] ?? 'Next' : 'Next'}</div>
-        <div className="mt-1 text-lg font-semibold">{lead ? `${lead.label}, ${longDate(lead.from)} – ${longDate(lead.to)}` : cfg.emptyAhead}</div>
-      </div>
+
+      {board.characterArc && (
+        <section className={panel} data-testid="self-character-arc">
+          <div className="text-xs uppercase tracking-wide text-purple-300">Character Evolution (Last 10 Years → Now → Next 10 Years)</div>
+          <h3 className="mt-1 text-lg font-semibold text-white">{board.characterArc.headline}</h3>
+          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+            {[board.characterArc.pastDecade, board.characterArc.presentNow, board.characterArc.nextDecade].map((st) => (
+              <div key={st.stage} className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid={`character-stage-${st.stage}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-purple-200">{st.label}</span>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/75">{st.windowLabel}</span>
+                </div>
+                <div className="mt-1.5 font-medium text-white">{st.headline}</div>
+                <p className="mt-1 text-sm leading-relaxed text-white/75">{st.summary}</p>
+                <div className="mt-2 text-xs text-purple-200/90">Core quality: {st.anchorTrait}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {board.personalityAndJoy && (
+        <section className={panel} data-testid="self-personality-joy">
+          <div className="text-xs uppercase tracking-wide text-pink-300">Your Personality & What Makes You Feel Good</div>
+          <h3 className="mt-1 text-lg font-semibold text-white">{board.personalityAndJoy.headline}</h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-white/80">{board.personalityAndJoy.personalitySummary}</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">Emotional Rhythm & Comfort</div>
+              <p className="mt-1 text-sm text-white/75">{board.personalityAndJoy.emotionalMindStyle}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-pink-200">Curiosity, Wit & Expression</div>
+              <p className="mt-1 text-sm text-white/75">{board.personalityAndJoy.intellectualWitStyle}</p>
+            </div>
+          </div>
+          {board.personalityAndJoy.whatFeelsGood.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/60">What You Naturally Enjoy & Recharge With</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {board.personalityAndJoy.whatFeelsGood.map((item, idx) => (
+                  <div key={idx} className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid={`joy-item-${idx}`}>
+                    <div className="font-medium text-white">{item.title}</div>
+                    <div className="mt-0.5 text-xs text-white/70">{item.whyItFits}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="mt-3 rounded-xl border border-purple-400/20 bg-purple-500/10 px-3 py-2 text-xs text-purple-100">
+            {board.personalityAndJoy.rechargeRule}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

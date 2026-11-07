@@ -344,6 +344,7 @@ export interface KundliDisplayDataResponse {
 export interface UserContentResponse {
   success: boolean;
   data?: unknown;
+  content?: unknown;
   message?: string;
 }
 
@@ -420,16 +421,16 @@ export const fetchUserDetails = async (): Promise<UserDetailsResponse> => {
 };
 
 export const fetchUserBiodata = async (): Promise<BiodataResponse> => {
-  const details = await fetchUserDetails();
-  if (!details.success || !details.kundli_added) {
-    throw new Error('Kundli not available, biodata cannot be fetched');
-  }
-
   const { data, errors } = await runGraphQL<{ myBiodata: { success: boolean; username: string; biodata: string; error: string | null } }>(MY_BIODATA);
   if (errors?.length) throw new Error(errors[0].message || 'Failed to fetch biodata');
 
   const result = data?.myBiodata;
-  if (!result?.success || result.error) throw new Error(result?.error || 'Invalid response');
+  if (!result?.success || result.error) {
+    if (result?.error === 'Not available') {
+      throw new Error('Kundli not available, biodata cannot be fetched');
+    }
+    throw new Error(result?.error || 'Invalid response');
+  }
   const biodata = typeof result.biodata === 'string' ? JSON.parse(result.biodata) : result.biodata;
   return { success: true, username: result.username ?? '', biodata };
 };
@@ -471,18 +472,18 @@ export const sendChatMessage = async (question: string, chatId?: string | null):
 };
 
 export const fetchUserContent = async (): Promise<UserContentResponse> => {
-  const details = await fetchUserDetails();
-  if (!details.success || !details.kundli_added) {
-    throw new Error('Kundli not available, content cannot be fetched');
-  }
-
   const { data, errors } = await runGraphQL<{ myContent: { success: boolean; content: string | null; error: string | null } }>(MY_CONTENT);
   if (errors?.length) throw new Error(errors[0].message || 'Failed to fetch content');
 
   const result = data?.myContent;
-  if (!result?.success || result.error) throw new Error(result?.error || 'Invalid response');
+  if (!result?.success || result.error) {
+    if (result?.error === 'Not available' || result?.error === 'No content found') {
+      throw new Error(result.error);
+    }
+    throw new Error(result?.error || 'Invalid response');
+  }
   const content = result.content ? JSON.parse(result.content) : null;
-  return { success: true, data: content };
+  return { success: true, data: content, content };
 };
 
 export const fetchKundliDisplayData = async (): Promise<KundliDisplayDataResponse> => {
