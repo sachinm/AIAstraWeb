@@ -28,9 +28,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 }) => {
   const rail = variant === 'rail';
   const groups = groupByCategory(chats);
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed(rail));
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
   useEffect(() => saveCollapsed(collapsed), [collapsed]);
-  const allCollapsed = groups.length === 0 ? rail : groups.every(([k]) => collapsed.has(k));
+  const allCollapsed = groups.length === 0 ? true : groups.every(([k]) => collapsed.has(k));
   const toggleGroup = (k: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -67,10 +67,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         
         <button
           onClick={onNewChat}
-          className="w-full flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 text-white font-medium"
+          className={`w-full flex items-center bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 text-white font-medium ${
+            rail ? 'space-x-2 px-2.5 py-2 text-xs' : 'space-x-3 px-4 py-3'
+          }`}
         >
-          <Plus className="w-5 h-5" />
-          <span>New Chat</span>
+          <Plus className={rail ? 'w-4 h-4 shrink-0' : 'w-5 h-5'} />
+          <span className="truncate">New Chat</span>
         </button>
       </div>
 
@@ -156,15 +158,9 @@ export default ChatSidebar;
 const COLLAPSED_KEY = 'astra_chat_groups_collapsed_v2';
 const DEFAULT_RAIL_COLLAPSED = ['pinned', 'general', ...CATEGORY_ORDER];
 
-function loadCollapsed(rail = false): Set<string> {
-  try {
-    const raw = localStorage.getItem(COLLAPSED_KEY);
-    if (raw === null) return rail ? new Set(DEFAULT_RAIL_COLLAPSED) : new Set();
-    const v = JSON.parse(raw);
-    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : rail ? DEFAULT_RAIL_COLLAPSED : []);
-  } catch {
-    return rail ? new Set(DEFAULT_RAIL_COLLAPSED) : new Set();
-  }
+function loadCollapsed(): Set<string> {
+  // Always open collapsed on initial mount for both rail and panel variants so past threads never clutter the sidebar on open.
+  return new Set(DEFAULT_RAIL_COLLAPSED);
 }
 
 function saveCollapsed(s: Set<string>): void {
