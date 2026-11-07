@@ -8,7 +8,7 @@ import { track } from '../lib/events';
 
 const TABS = [
   { to: '/dashboard/today', label: 'Today', icon: Sun },
-  { to: '/profile', label: 'You', icon: User },
+  { to: '/dashboard/you', label: 'You', icon: User },
   { to: '/dashboard/love', label: 'Love', icon: Heart },
   { to: '/dashboard/work', label: 'Work', icon: Briefcase },
   { to: '/dashboard/chat', label: 'Ask', icon: MessageCircle },

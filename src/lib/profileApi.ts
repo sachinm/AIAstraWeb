@@ -49,5 +49,9 @@ export async function fetchSelfieUrl(): Promise<string | null> {
   const headers = await buildApiHeaders({ token: t, method: 'GET' });
   const r = await fetch(ledgerApiUrl('/api/profile/photo'), { method: 'GET', headers });
   if (!r.ok) return null;
-  return URL.createObjectURL(await r.blob());
+  const ct = r.headers?.get?.('content-type') ?? '';
+  if (ct && !ct.toLowerCase().startsWith('image/')) return null;
+  const blob = await r.blob();
+  if (!blob.size || (blob.type && !blob.type.toLowerCase().startsWith('image/'))) return null;
+  return URL.createObjectURL(blob);
 }

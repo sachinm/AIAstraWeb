@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { judgeFrame, Steadiness, STEADY_FRAMES, toFractions } from '../../lib/faceGate';
+import { judgeFrame, loadDetector, Steadiness, STEADY_FRAMES, toFractions } from '../../lib/faceGate';
 
 vi.mock('./SelfieStep', () => ({
   default: ({ onDone, onSkip }: { onDone: () => void; onSkip: () => void }) => (
@@ -53,6 +53,9 @@ describe('face gate (docs/reading-engine/52 §4)', () => {
   });
   it('turns detector pixels into fractions', () => {
     expect(toFractions({ detections: [{ boundingBox: { originX: 100, originY: 50, width: 200, height: 250 }, categories: [{ score: 0.9 }] }] }, 500, 500)).toEqual([{ x: 0.2, y: 0.1, w: 0.4, h: 0.5, score: 0.9 }]);
+  });
+  it('falls back to null when @mediapipe/tasks-vision is unavailable', async () => {
+    await expect(loadDetector()).resolves.toBeNull();
   });
 });
 
