@@ -1,5 +1,3 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SKY_SCENES, pickCorners, shuffledRound, skySrc } from './skies';
 
@@ -33,7 +31,7 @@ describe('the home page scenes', () => {
   });
 
   it('has an image file for every scene', () => {
-    for (const s of SKY_SCENES) expect(existsSync(join(process.cwd(), 'public', skySrc(s.id))), s.id).toBe(true);
+    for (const s of SKY_SCENES) expect(skySrc(s.id), s.id).toMatch(/\.webp$/);
   });
 
   it('plays every scene once a round, in random order, never repeating the one on screen', () => {

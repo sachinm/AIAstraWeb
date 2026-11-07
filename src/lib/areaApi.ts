@@ -23,6 +23,33 @@ export interface AreaWindow {
   systems: string[];
 }
 
+export interface SelfCharacterArcStage {
+  stage: 'past_10y' | 'now' | 'next_10y';
+  label: string;
+  windowLabel: string;
+  headline: string;
+  summary: string;
+  anchorTrait: string;
+  evidence: string[];
+}
+
+export interface SelfCharacterArc {
+  headline: string;
+  pastDecade: SelfCharacterArcStage;
+  presentNow: SelfCharacterArcStage;
+  nextDecade: SelfCharacterArcStage;
+}
+
+export interface SelfPersonalityAndJoy {
+  headline: string;
+  personalitySummary: string;
+  emotionalMindStyle: string;
+  intellectualWitStyle: string;
+  whatFeelsGood: Array<{ title: string; whyItFits: string; evidence: string[] }>;
+  rechargeRule: string;
+  evidence: string[];
+}
+
 export interface AreaBoard {
   asOf: string;
   tone: {
@@ -38,6 +65,8 @@ export interface AreaBoard {
   year: { year: number; note: string } | null;
   back: Array<{ month: string; side: AreaSide; label: string }>;
   notes: string[];
+  characterArc?: SelfCharacterArc;
+  personalityAndJoy?: SelfPersonalityAndJoy;
 }
 
 export type AreaState =

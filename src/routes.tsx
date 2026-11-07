@@ -25,6 +25,7 @@ import { boardsEnabled } from './components/BoardTabBar';
 import PricingPage from './pages/pricing/PricingPage';
 import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import SeoHead from './components/SeoHead';
+import { PageTimingTracker } from './lib/pageTelemetry';
 import {
   GuestRoute,
   ProtectedRoute,
@@ -56,6 +57,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
     <>
     <SeoHead />
     <GaPageViews />
+    <PageTimingTracker />
     <Routes>
       {/* one sky across these three: it keeps playing as the visitor moves between them */}
       <Route element={<SkyLayout />}>

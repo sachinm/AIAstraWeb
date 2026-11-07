@@ -8,13 +8,14 @@ import UserAvatar from './UserAvatar';
 interface ProfileMenuProps {
   user?: { name: string; email?: string } | null;
   onLogout: () => void;
+  onOpenWizard?: () => void;
 }
 
 const itemCls =
   'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left sm:min-h-0 text-sm text-gray-200 hover:bg-white/10 focus:bg-white/10 focus:outline-none';
 
 /** The avatar's dropdown: who is signed in, their plan, and where to go. */
-const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
+const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout, onOpenWizard }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { plan } = usePlan();
@@ -108,6 +109,21 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout }) => {
               <UserIcon className="h-4 w-4" aria-hidden="true" />
               {t('menu.profile')}
             </button>
+            {onOpenWizard && (
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-personalize-wizard"
+                className={itemCls}
+                onClick={() => {
+                  setOpen(false);
+                  onOpenWizard();
+                }}
+              >
+                <Sparkles className="h-4 w-4 text-purple-300" aria-hidden="true" />
+                Personalize setup
+              </button>
+            )}
             <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/plan')}>
               <CreditCard className="h-4 w-4" aria-hidden="true" />
               {t('menu.plan')}

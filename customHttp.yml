@@ -34,10 +34,11 @@ customHeaders:
     headers:
       - key: 'X-Robots-Tag'
         value: 'noindex, nofollow'
-  - pattern: '/skies/*'
+  # every file under /assets carries a content hash in its name (scenes, scripts, styles), so it never changes in place
+  - pattern: '/assets/*'
     headers:
       - key: 'Cache-Control'
-        value: 'public, max-age=2592000'
+        value: 'public, max-age=31536000, immutable'
   - pattern: '**/*'
     headers:
       - key: 'X-Content-Type-Options'

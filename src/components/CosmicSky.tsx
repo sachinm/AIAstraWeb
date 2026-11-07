@@ -17,7 +17,7 @@ interface Stage {
 /**
  * The home page background: one full-screen scene at a time, pinned while the page scrolls over it, in an endless loop
  * of random order, each scene once per round. Each one blooms in from a random corner while the last dissolves toward
- * another. Only the current and next images are ever loaded. With reduced motion on the scenes still change, by a plain crossfade with no movement (index.css): many Windows PCs have that setting on, and freezing left them on one scene.
+ * another. Only the current and next images are ever loaded, the next while the current one holds. With reduced motion on the scenes still change, by a plain crossfade with no movement (index.css): many Windows PCs have that setting on, and freezing left them on one scene.
  */
 const CosmicSky: React.FC<{ caption?: boolean; className?: string }> = ({ caption = true, className = '' }) => {
   // A build has no visitor, so the prerendered page carries no scene, or everyone would start on the same one. The browser
@@ -30,6 +30,14 @@ const CosmicSky: React.FC<{ caption?: boolean; className?: string }> = ({ captio
   useEffect(() => {
     let cancelled = false;
     let clearOld: ReturnType<typeof setTimeout> | undefined;
+
+    // the next scene loads while this one holds, so the change never waits on the network
+    const prefetch = () => {
+      if (roundRef.current.length === 0) roundRef.current = shuffledRound(currentRef.current).filter((i) => i !== currentRef.current);
+      const img = new Image();
+      img.src = skySrc(SKY_SCENES[roundRef.current[0]].id);
+      img.decode?.().catch(() => undefined);
+    };
 
     const advance = async () => {
       if (document.hidden) return;
@@ -51,17 +59,19 @@ const CosmicSky: React.FC<{ caption?: boolean; className?: string }> = ({ captio
         setStage((s) => ({ current: next, previous: from, from: corners.from, to: corners.to, turn: s.turn + 1 }));
         clearTimeout(clearOld);
         clearOld = setTimeout(() => setStage((s) => ({ ...s, previous: null })), TRANSITION_MS);
+        prefetch();
         return;
       }
     };
 
+    if (first !== null) prefetch();
     const timer = setInterval(() => void advance(), HOLD_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
       clearTimeout(clearOld);
     };
-  }, []);
+  }, [first]);
 
   const { current, previous, from, to, turn } = stage;
   const scene = SKY_SCENES[current];
@@ -81,7 +91,8 @@ const CosmicSky: React.FC<{ caption?: boolean; className?: string }> = ({ captio
         const motion = leaving ? 'sky-out' : turn > 0 ? 'sky-in' : 'sky-first';
         return (
           <div key={SKY_SCENES[index].id} className={`absolute inset-0 ${motion}`} style={style} data-scene={SKY_SCENES[index].id}>
-            <img src={skySrc(SKY_SCENES[index].id)} alt="" className="sky-image sky-drift h-full w-full object-cover" draggable={false} />
+            {/* a background, not an <img>, so the browser offers no "Save image" for it */}
+            <div className="sky-image sky-drift h-full w-full bg-cover bg-center" style={{ backgroundImage: `url("${skySrc(SKY_SCENES[index].id)}")` }} />
           </div>
         );
       })}

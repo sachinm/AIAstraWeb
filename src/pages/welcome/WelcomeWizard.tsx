@@ -69,7 +69,7 @@ export const STEPS: Step[] = [
 
 const chip = 'min-h-[48px] rounded-xl border px-4 text-left';
 
-export default function WelcomeWizard({ onFinish }: { onFinish: () => void }) {
+export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish: () => void; inModal?: boolean }) {
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [city, setCity] = useState('');
@@ -116,7 +116,7 @@ export default function WelcomeWizard({ onFinish }: { onFinish: () => void }) {
   };
 
   return (
-    <div className="mx-auto flex min-h-[80vh] w-full max-w-xl flex-col px-4 pb-16 pt-6 text-white" data-testid="welcome-wizard">
+    <div className={`mx-auto flex w-full max-w-xl flex-col px-4 text-white ${inModal ? 'pb-4 pt-2' : 'min-h-[80vh] pb-16 pt-6'}`} data-testid="welcome-wizard">
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="text-sm text-white/60">{i < STEPS.length ? `Step ${i + 1} of ${STEPS.length}` : 'All set'}</div>
         {i < STEPS.length && (

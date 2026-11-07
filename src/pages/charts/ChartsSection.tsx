@@ -2,35 +2,89 @@ import React, { useEffect, useState } from "react";
 import { Loader, Sparkles } from "lucide-react";
 import { ShriGaneshAvatar } from "../../components/ShriGaneshAvatar";
 import { fetchUserBiodata, BiodataResponse } from "../UserData";
+import { streamDashboardSections } from "../../lib/pageTelemetry";
 import LoadError from "../../components/LoadError";
 
 const BiodataPage: React.FC = () => {
   const [data, setData] = useState<BiodataResponse | null>(null);
+  const [streamUsername, setStreamUsername] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
     const getData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const biodata = await fetchUserBiodata();
-        setData(biodata);
+        let receivedBiodata: Record<string, string | number> | null = null;
+        let resolvedUsername = "";
+
+        try {
+          await streamDashboardSections(
+            ["profile", "biodata"],
+            (chunk) => {
+              if (!chunk.ok || !chunk.data) return;
+              if (chunk.section === "profile") {
+                const prof = chunk.data as { name?: string | null; username?: string | null };
+                resolvedUsername = prof.name || prof.username || resolvedUsername;
+                if (resolvedUsername) {
+                  setStreamUsername(resolvedUsername);
+                  setData((prev) => (prev ? { ...prev, username: resolvedUsername } : prev));
+                }
+              } else if (chunk.section === "biodata") {
+                const bio =
+                  typeof chunk.data === "string"
+                    ? (JSON.parse(chunk.data) as Record<string, string | number>)
+                    : (chunk.data as Record<string, string | number>);
+                if (bio && typeof bio === "object" && Object.keys(bio).length > 0) {
+                  receivedBiodata = bio;
+                  setData({
+                    success: true,
+                    username: resolvedUsername || "Explorer",
+                    biodata: bio,
+                  });
+                  setLoading(false);
+                }
+              }
+            },
+            controller.signal
+          );
+        } catch {
+          /* fall back to GraphQL fetchUserBiodata below */
+        }
+
+        if (!receivedBiodata) {
+          const biodata = await fetchUserBiodata();
+          setData(biodata);
+        } else if (resolvedUsername) {
+          setData((prev) => (prev ? { ...prev, username: resolvedUsername } : prev));
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "Unknown error");
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
-    getData();
+    void getData();
+    return () => controller.abort();
   }, [attempt]);
 
   if (loading)
     return (
-      <div className="min-h-[50vh] flex items-center justify-center">
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
         <Loader className="w-10 h-10 animate-spin text-yellow-400" />
+        {streamUsername && (
+          <p className="text-sm text-gray-300">
+            Preparing {streamUsername}&apos;s astrological profile…
+          </p>
+        )}
       </div>
     );
 

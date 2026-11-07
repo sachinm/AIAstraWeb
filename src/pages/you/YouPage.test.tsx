@@ -24,6 +24,48 @@ function youBoard(over: Partial<AreaBoard['tone']> = {}): AreaBoard {
     year: { year: 2026, note: "This year's chart backs you: a good year to begin something of your own." },
     back: [{ month: '2026-02', side: 'support', label: 'a lighter, stronger stretch for you began' }, { month: '2025-09', side: 'test', label: 'a heavier stretch for you began' }],
     notes: [],
+    characterArc: {
+      headline: 'How your character has grown over the last decade, where you stand today, and who you are becoming next',
+      pastDecade: {
+        stage: 'past_10y',
+        label: 'Last 10 Years',
+        windowLabel: '2016–2026',
+        headline: 'Building grit and foundational craft',
+        summary: 'Over the past decade you learned to stand on your own feet through steady discipline and hands-on skill.',
+        anchorTrait: 'Self-reliant persistence',
+        evidence: ['vimsottari:L1:2016..2026'],
+      },
+      presentNow: {
+        stage: 'now',
+        label: 'Who You Are Now',
+        windowLabel: '2026',
+        headline: 'Clear-headed focus and calm authority',
+        summary: 'Today you balance high personal standards with a calmer inner center and clearer boundaries.',
+        anchorTrait: 'Grounded discernment',
+        evidence: ['D1.h1', 'D9.h1'],
+      },
+      nextDecade: {
+        stage: 'next_10y',
+        label: 'Next 10 Years',
+        windowLabel: '2026–2036',
+        headline: 'Stepping into mentorship and deeper peace',
+        summary: 'Over the next ten years your focus shifts from proving yourself to guiding others and building lasting peace at home.',
+        anchorTrait: 'Wise stewardship',
+        evidence: ['vimsottari:L1:2026..2036', 'D9.AK'],
+      },
+    },
+    personalityAndJoy: {
+      headline: 'Warm emotional steadiness paired with quick, practical curiosity',
+      personalitySummary: 'People experience you as observant, thoughtful, and quietly dependable—someone who listens first and speaks with clarity.',
+      emotionalMindStyle: 'Your feelings settle best in calm, uncluttered spaces with people you trust deeply.',
+      intellectualWitStyle: 'Your mind lights up when solving real problems, learning how systems work, and sharing dry, perceptive humor.',
+      whatFeelsGood: [
+        { title: 'Deep, unhurried conversations', whyItFits: 'One-on-one time with trusted friends recharges your heart faster than noisy crowds.', evidence: ['D1.Mo', 'D1.h4'] },
+        { title: 'Hands-on building & learning', whyItFits: 'Mastering a practical craft, writing, or structured study gives your mind a clean sense of flow.', evidence: ['D1.Me', 'D1.h5'] },
+      ],
+      rechargeRule: 'Protect quiet evenings and unhurried morning routines to keep your mind bright.',
+      evidence: ['D1.Mo', 'D9.Mo', 'D1.Me', 'D9.Me'],
+    },
   };
 }
 
@@ -98,6 +140,11 @@ describe('You board', () => {
     expect(screen.getAllByRole('tab').slice(0, 5).map((t) => t.textContent)).toEqual(['Now', 'What holds you up', 'What presses', 'Ahead', 'Looking back']);
     expect(screen.getByTestId('year-card')).toHaveTextContent("This year's chart backs you");
     expect(screen.getByTestId('lead-card')).toHaveTextContent('Learning and growth');
+    expect(screen.getByTestId('self-character-arc')).toHaveTextContent('Last 10 Years');
+    expect(screen.getByTestId('self-character-arc')).toHaveTextContent('Who You Are Now');
+    expect(screen.getByTestId('self-character-arc')).toHaveTextContent('Next 10 Years');
+    expect(screen.getByTestId('self-personality-joy')).toHaveTextContent('Warm emotional steadiness');
+    expect(screen.getByTestId('joy-item-0')).toHaveTextContent('Deep, unhurried conversations');
     fireEvent.click(screen.getByRole('tab', { name: 'What holds you up' }));
     expect(screen.getByTestId('holds')).toHaveTextContent('Your sense of self has firm footing.');
     fireEvent.click(screen.getByRole('tab', { name: 'What presses' }));

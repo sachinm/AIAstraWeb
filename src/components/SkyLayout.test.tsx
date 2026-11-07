@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SkyLayout from './SkyLayout';
+import { skySrc } from '../lib/skies';
 
 const renderAt = (path: string) =>
   render(
@@ -25,8 +26,8 @@ describe('the shared sky', () => {
     const sky = container.querySelector('[data-test-id="cosmic-sky"]');
     expect(sky).toHaveAttribute('aria-hidden', 'true');
     expect(sky?.className).toMatch(/fixed/);
-    expect(sky?.querySelectorAll('img')).toHaveLength(1);
-    expect(sky?.querySelector('img')).toHaveAttribute('src', '/skies/ashwini.webp');
+    expect(sky?.querySelectorAll('.sky-image')).toHaveLength(1);
+    expect((sky?.querySelector('.sky-image') as HTMLElement | null)?.style.backgroundImage).toContain(skySrc('ashwini'));
     const caption = container.querySelector('[data-test-id="sky-caption"]');
     expect(caption).toHaveTextContent('अश्विनी · Ashwini');
     expect(caption).toHaveTextContent('घोड़ा · the horse');
@@ -43,12 +44,12 @@ describe('the shared sky', () => {
   it('keeps the same sky and image when moving to sign-in, and changes only the page', () => {
     const { container } = renderAt('/');
     const sky = container.querySelector('[data-test-id="cosmic-sky"]');
-    const img = sky?.querySelector('img');
+    const img = sky?.querySelector('.sky-image');
     const page = container.querySelector('[data-test-id="sky-page"]');
     fireEvent.click(screen.getByText('go sign in'));
     expect(screen.getByText('the sign-in form')).toBeInTheDocument();
     expect(container.querySelector('[data-test-id="cosmic-sky"]')).toBe(sky);
-    expect(sky?.querySelector('img')).toBe(img);
+    expect(sky?.querySelector('.sky-image')).toBe(img);
     expect(container.querySelector('[data-test-id="sky-page"]')).not.toBe(page);
   });
 });

@@ -32,6 +32,9 @@ export async function buildApiHeaders(
   const method = (options.method ?? 'POST').toUpperCase();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...(typeof window !== 'undefined' && window.location?.pathname
+      ? { 'X-Astra-Page': window.location.pathname }
+      : {}),
     ...(options.extra ?? {}),
   };
   const token = options.token;
