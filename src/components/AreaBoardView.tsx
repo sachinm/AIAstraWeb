@@ -79,6 +79,8 @@ export interface AreaBoardConfig {
   emptyAhead: string;
   emptyBack: string;
   unavailable: string;
+  /** a page shown before Now and selected by default (the You board's "Your reading", doc 58 §4.3); Love has none */
+  extraFirstTab?: { id: string; label: string; render: () => ReactNode };
 }
 
 export interface EnrichedFindingItem {
@@ -360,7 +362,8 @@ function matchesTimeframe(item: EnrichedFindingItem, tf: TimeframeFilter, asOf: 
 
 export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
   const [state, setState] = useState<AreaState | null>(() => getCachedArea(cfg.area));
-  const [page, setPage] = useState<Page>('now');
+  const extra = cfg.extraFirstTab ?? null;
+  const [page, setPage] = useState<Page | string>(() => extra?.id ?? 'now');
   const [why, setWhy] = useState(false);
   const [focusFilter, setFocusFilter] = useState<string>('all');
   const [timeframeFilter, setTimeframeFilter] = useState<TimeframeFilter>('all');
@@ -417,7 +420,8 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
     await saveAreaFact(cfg.question.key, value);
     void load();
   };
-  const PAGES: Array<[Page, string]> = [
+  const PAGES: Array<[Page | string, string]> = [
+    ...(extra ? ([[extra.id, extra.label]] as Array<[string, string]>) : []),
     ['now', 'Now'],
     ['holds', cfg.holdsTitle],
     ['presses', cfg.pressesTitle],
@@ -501,51 +505,54 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 glass rounded-xl px-3 py-1.5" data-testid="board-filter-bar">
-          <label className="flex items-center gap-1.5 text-xs text-white/70">
-            <span className="font-medium text-purple-200">Focus on:</span>
-            <select
-              aria-label="Focus on"
-              data-testid="board-focus-dropdown"
-              value={focusFilter}
-              onChange={(e) => {
-                setFocusFilter(e.target.value);
-                track('chip_select', cfg.surface, `focus_${e.target.value}`);
-              }}
-              className="rounded-lg border border-white/15 bg-[#141233] px-2.5 py-1.5 text-xs text-white focus:border-purple-400 focus:outline-none"
-            >
-              <option value="all">All sub-areas</option>
-              {Object.entries(cfg.subareas).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex items-center gap-1.5 text-xs text-white/70">
-            <span className="font-medium text-purple-200">Time frame:</span>
-            <select
-              aria-label="Time frame"
-              data-testid="board-timeframe-dropdown"
-              value={timeframeFilter}
-              onChange={(e) => {
-                setTimeframeFilter(e.target.value as TimeframeFilter);
-                track('chip_select', cfg.surface, `timeframe_${e.target.value}`);
-              }}
-              className="rounded-lg border border-white/15 bg-[#141233] px-2.5 py-1.5 text-xs text-white focus:border-purple-400 focus:outline-none"
-            >
-              <option value="all">All time frames</option>
-              <option value="active_now">Active now</option>
-              <option value="next_6m">Next 6 months</option>
-              <option value="next_12m">This year (12 months)</option>
-              <option value="next_3y">3-year horizon</option>
-              <option value="natal">Natal promise (lifelong)</option>
-            </select>
-          </label>
-        </div>
+        {(!extra || page !== extra.id) && (
+          <div className="flex flex-wrap items-center gap-2 glass rounded-xl px-3 py-1.5" data-testid="board-filter-bar">
+            <label className="flex items-center gap-1.5 text-xs text-white/70">
+              <span className="font-medium text-purple-200">Focus on:</span>
+              <select
+                aria-label="Focus on"
+                data-testid="board-focus-dropdown"
+                value={focusFilter}
+                onChange={(e) => {
+                  setFocusFilter(e.target.value);
+                  track('chip_select', cfg.surface, `focus_${e.target.value}`);
+                }}
+                className="rounded-lg border border-white/15 bg-[#141233] px-2.5 py-1.5 text-xs text-white focus:border-purple-400 focus:outline-none"
+              >
+                <option value="all">All sub-areas</option>
+                {Object.entries(cfg.subareas).map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+  
+            <label className="flex items-center gap-1.5 text-xs text-white/70">
+              <span className="font-medium text-purple-200">Time frame:</span>
+              <select
+                aria-label="Time frame"
+                data-testid="board-timeframe-dropdown"
+                value={timeframeFilter}
+                onChange={(e) => {
+                  setTimeframeFilter(e.target.value as TimeframeFilter);
+                  track('chip_select', cfg.surface, `timeframe_${e.target.value}`);
+                }}
+                className="rounded-lg border border-white/15 bg-[#141233] px-2.5 py-1.5 text-xs text-white focus:border-purple-400 focus:outline-none"
+              >
+                <option value="all">All time frames</option>
+                <option value="active_now">Active now</option>
+                <option value="next_6m">Next 6 months</option>
+                <option value="next_12m">This year (12 months)</option>
+                <option value="next_3y">3-year horizon</option>
+                <option value="natal">Natal promise (lifelong)</option>
+              </select>
+            </label>
+          </div>
+        )}
       </div>
 
+      {extra && page === extra.id && <div data-testid={`board-page-${extra.id}`}>{extra.render()}</div>}
       {page === 'now' && <NowPage board={board} focus={focus} cfg={cfg} focusFilter={focusFilter} timeframeFilter={timeframeFilter} />}
       {page === 'holds' && (
         <FindingsMasterDetail

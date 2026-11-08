@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import YouPage, { youHeadline } from './YouPage';
 import { BANNED_ON_BOARD } from '../lucky/words';
 import type { AreaBoard } from '../../lib/areaApi';
+import { selfReadingFixture } from './selfReading.fixture';
 
 function youBoard(over: Partial<AreaBoard['tone']> = {}): AreaBoard {
   return {
@@ -86,6 +87,9 @@ beforeEach(() => {
         if (state.status !== 200) return new Response(JSON.stringify(state.body ?? { error: 'x' }), { status: state.status });
         return new Response(JSON.stringify({ status: 'ok', built_at: '2026-11-05', cached: true, focus: state.focus, ask: state.ask, board: youBoard(), checks: state.checks }), { status: 200 });
       }
+      if (url.endsWith('/api/self/reading') && method === 'GET') {
+        return new Response(JSON.stringify({ status: 'ok', built_at: '2026-11-07', cached: true, reading: selfReadingFixture() }), { status: 200 });
+      }
       if (url.endsWith('/api/profile/facts')) {
         state.ask = false;
         return new Response(null, { status: 204 });
@@ -134,10 +138,23 @@ describe('You board', () => {
     await waitFor(() => expect(screen.queryByTestId('board-question')).not.toBeInTheDocument());
     expect(calls.find((c) => c.method === 'PUT' && c.url.endsWith('/api/profile/facts'))!.body).toEqual({ facts: { 'self.focus': 'learning' } });
   });
+  it('opens on "Your reading", the first page, under the tone card', async () => {
+    render(<YouPage />);
+    await screen.findByTestId('tone-card');
+    const pages = within(screen.getByRole('tablist', { name: 'You pages' })).getAllByRole('tab');
+    expect(pages[0]).toHaveTextContent('Your reading');
+    expect(pages[0]).toHaveAttribute('aria-selected', 'true');
+    const tab = screen.getByTestId('board-page-reading');
+    expect(await within(tab).findByTestId('self-reading')).toBeInTheDocument();
+    expect(within(tab).getByTestId('self-clock-line')).toHaveTextContent('Read on your Dwisaptati Sama clock');
+    expect(screen.queryByTestId('board-filter-bar')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('year-card')).not.toBeInTheDocument();
+  });
   it('splits into pages instead of a long scroll; supports and pressures with their release dates', async () => {
     render(<YouPage />);
     await screen.findByTestId('tone-card');
-    expect(screen.getAllByRole('tab').slice(0, 5).map((t) => t.textContent)).toEqual(['Now', 'What holds you up', 'What presses', 'Ahead', 'Looking back']);
+    expect(within(screen.getByRole('tablist', { name: 'You pages' })).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Your reading', 'Now', 'What holds you up', 'What presses', 'Ahead', 'Looking back', 'Your questions']);
+    fireEvent.click(screen.getByRole('tab', { name: 'Now' }));
     expect(screen.getByTestId('year-card')).toHaveTextContent("This year's chart backs you");
     expect(screen.getByTestId('lead-card')).toHaveTextContent('Learning and growth');
     expect(screen.getByTestId('self-character-arc')).toHaveTextContent('Last 10 Years');
@@ -212,6 +229,7 @@ describe('You board', () => {
   it('renders Master-Detail findings inspector, Focus/Timeframe dropdowns, Your questions tab, and top-right technique badges', async () => {
     render(<YouPage />);
     await screen.findByTestId('tone-card');
+    fireEvent.click(screen.getByRole('tab', { name: 'Now' }));
     expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('self.focus');
     expect(screen.getAllByTestId('panel-technique-badge').length).toBeGreaterThanOrEqual(4);
     expect(screen.getByTestId('board-focus-dropdown')).toBeInTheDocument();
