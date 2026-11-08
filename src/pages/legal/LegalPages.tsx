@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { LEGAL_ENTITY, LEGAL_UPDATED, PRODUCT_NAME, SUPPORT_EMAIL } from '../../lib/legal';
+import { LEGAL_ENTITY, LEGAL_UPDATED, PRODUCT_NAME, SUPPORT_EMAIL, TERMS_UPDATED } from '../../lib/legal';
 
 const Contact: React.FC = () =>
   SUPPORT_EMAIL ? (
@@ -27,7 +27,7 @@ const List: React.FC<{ items: React.ReactNode[] }> = ({ items }) => (
   </ul>
 );
 
-const LegalShell: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
+const LegalShell: React.FC<{ title: string; updated?: string; children: React.ReactNode }> = ({ title, updated = LEGAL_UPDATED, children }) => {
   const navigate = useNavigate();
   return (
     <div className="min-h-full px-4 py-8 text-white sm:px-6">
@@ -42,7 +42,7 @@ const LegalShell: React.FC<{ title: string; children: React.ReactNode }> = ({ ti
         </button>
         <article className="mt-6 rounded-2xl border border-white/10 bg-slate-900/80 p-6 sm:p-8">
           <h1 className="text-3xl font-bold">{title}</h1>
-          <p className="mt-2 text-sm text-gray-400">Last updated {LEGAL_UPDATED}</p>
+          <p className="mt-2 text-sm text-gray-400">Last updated {updated}</p>
           {children}
         </article>
       </div>
@@ -51,7 +51,7 @@ const LegalShell: React.FC<{ title: string; children: React.ReactNode }> = ({ ti
 };
 
 export const TermsPage: React.FC = () => (
-  <LegalShell title="Terms of Service">
+  <LegalShell title="Terms of Service" updated={TERMS_UPDATED}>
     <Section title="1. Education and entertainment only">
       <p className="font-semibold text-white">
         {PRODUCT_NAME} is provided for education and entertainment purposes only. Nothing in the service is, or is meant to be, advice of any
@@ -69,7 +69,7 @@ export const TermsPage: React.FC = () => (
     </Section>
     <Section title="2. Acceptance of these Terms">
       <p>
-        These Terms of Service (the "Terms") form a binding agreement between you and {LEGAL_ENTITY} ("we", "us" or "our"). They govern your use of
+        These Terms of Service, also called our Terms of Use (the "Terms"), form a binding agreement between you and {LEGAL_ENTITY} ("we", "us" or "our"). They govern your use of
         the {PRODUCT_NAME} website, mobile applications and related services (together, the "Service"). By creating an account, or by accessing or
         using the Service, you agree to these Terms and acknowledge our Privacy Policy. If you do not agree, you must not use the Service.
       </p>
@@ -110,7 +110,7 @@ export const TermsPage: React.FC = () => (
           "enter another person's information without the right to do so;",
           'interfere with, overload or attempt to gain unauthorised access to the Service, or circumvent its limits or security;',
           'copy, scrape, resell or reverse engineer the Service, or use it or its content to build a competing service;',
-          'copy or reproduce its scenery, imagery or text elsewhere without the explicit permission or approval of the site owner (see section 9).',
+          'copy or reproduce its scenery, imagery or text elsewhere without the explicit permission or approval of the site owner (see sections 9 and 10).',
         ]}
       />
       <p>We may suspend or terminate access for any breach of these Terms.</p>
@@ -127,39 +127,52 @@ export const TermsPage: React.FC = () => (
         scraped or re-typed copies and use in another website, app, publication or product. To ask for permission, use the contact details below.
       </p>
     </Section>
-    <Section title="10. Mobile applications">
+    <Section title="10. Using what you see in the app">
+      <p className="font-semibold text-white">
+        The readings, charts, text, images and other content you see in the Service are for your personal, private use only.
+      </p>
+      <p>
+        You must not copy, screenshot for distribution, record, scrape, republish, resell or use them to train software, or otherwise reproduce
+        them in any form, except as the law allows. This applies to content about you and to content about anyone whose details you enter.
+      </p>
+      <p>
+        You must be 18 or older to use the Service. Each time you sign up or sign in, you confirm that you are 18 or older and that you agree to
+        these Terms, including this section.
+      </p>
+    </Section>
+    <Section title="11. Mobile applications">
       <p>
         If you obtain a mobile application from an app store, the store's own terms also apply. The store operator is not a party to these Terms
         and is not responsible for the Service. Purchases made through an app store are subject to that store's billing and refund rules.
       </p>
     </Section>
-    <Section title="11. Termination">
-      <p>You may stop using the Service and ask us to close your account at any time. Sections 1, 4, 9, 12, 13 and 15 survive termination.</p>
+    <Section title="12. Termination">
+      <p>You may stop using the Service and ask us to close your account at any time. Sections 1, 4, 9, 10, 13, 14 and 16 survive termination.</p>
     </Section>
-    <Section title="12. Disclaimer of warranties">
+    <Section title="13. Disclaimer of warranties">
       <p>
         To the fullest extent permitted by law, the Service is provided "as is" and "as available", without warranties of any kind, whether express
         or implied, including warranties of merchantability, fitness for a particular purpose, accuracy and non-infringement.
       </p>
     </Section>
-    <Section title="13. Limitation of liability">
+    <Section title="14. Limitation of liability">
       <p>
         To the fullest extent permitted by law, we are not liable for any indirect, incidental, special, consequential or punitive loss, or for any
         loss arising from a decision you make or from your reliance on the Service. Our total liability for all claims is limited to the amount you
         paid us in the 12 months before the claim arose. Nothing in these Terms limits liability or rights that cannot be limited by law.
       </p>
     </Section>
-    <Section title="14. Changes">
+    <Section title="15. Changes">
       <p>We may change the Service or these Terms. We will post updated Terms with a new date. Your continued use of the Service after that date constitutes acceptance of them.</p>
     </Section>
-    <Section title="15. General">
+    <Section title="16. General">
       <p>
         These Terms are governed by the laws of the jurisdiction in which {LEGAL_ENTITY} is established, without affecting mandatory consumer rights
         where you live. If any provision is unenforceable, the rest remains in effect. These Terms are the entire agreement between you and us about
         the Service.
       </p>
     </Section>
-    <Section title="16. Contact">
+    <Section title="17. Contact">
       <p>
         Questions about these Terms may be sent to <Contact />.
       </p>

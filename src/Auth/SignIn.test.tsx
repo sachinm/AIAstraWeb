@@ -3,17 +3,29 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, type InitialEntry } from 'react-router-dom';
 import SignIn from './SignIn';
-import { requestMagicLinkEmail, loginWithMagicLink } from './api';
+import { requestMagicLinkEmail, loginWithMagicLink, fetchCurrentTermsVersion } from './api';
+import { TERMS_VERSION } from '../lib/legal';
 
 vi.mock('./api', () => ({
   requestMagicLinkEmail: vi.fn(),
   loginWithMagicLink: vi.fn(),
+  fetchCurrentTermsVersion: vi.fn(),
   LOGIN_FAILED_GENERIC: 'That code did not work. It may be mistyped or expired: codes last 3 minutes. Send a new code and try again.',
+  TERMS_REQUIRED_CODE: 'terms_required',
+  TERMS_OUTDATED_CODE: 'terms_outdated',
+  TERMS_OUTDATED_MESSAGE: 'Our Terms of Use have changed. Please review them and tick the box again.',
 }));
 
 const mockOnSignUp = vi.fn();
 const mockOnBack = vi.fn();
 const mockHandleSignIn = vi.fn();
+
+/** What the 18+ and Terms of Use box sends with the code (the server version could not be read in these tests). */
+const CONSENT = { termsAccepted: true, termsVersion: TERMS_VERSION };
+const termsBox = () => screen.getByRole('checkbox', { name: /18 or older and agree to the terms of use/i });
+async function agree(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(termsBox());
+}
 
 function renderSignIn(initialEntry: InitialEntry = '/signin') {
   return render(
@@ -26,6 +38,101 @@ function renderSignIn(initialEntry: InitialEntry = '/signin') {
 describe('SignIn (one page, email then code)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchCurrentTermsVersion).mockResolvedValue(null);
+  });
+
+  describe('the 18+ and Terms of Use box on the code step', () => {
+    const atCodeStep = { pathname: '/signin', state: { email: 'a@b.co', codeSent: true } };
+
+    it('is not on the email step, and appears with the code field, unticked, with the Terms link opening a new tab', async () => {
+      const user = userEvent.setup();
+      vi.mocked(requestMagicLinkEmail).mockResolvedValueOnce({ success: true });
+      renderSignIn();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      await user.type(screen.getByLabelText(/email address/i), 'a@b.co');
+      await user.click(screen.getByRole('button', { name: /send me a code/i }));
+      await screen.findByLabelText(/sign-in code/i);
+
+      const box = termsBox();
+      expect(box).not.toBeChecked();
+      expect(box.closest('label')).toHaveTextContent(
+        "I am 18 or older and agree to the Terms of Use, including that I won't copy, record, or reproduce anything I see in the app."
+      );
+      const link = screen.getByRole('link', { name: 'Terms of Use' });
+      expect(link).toHaveAttribute('href', '/terms');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    });
+
+    it('keeps Verify disabled until the box is ticked', async () => {
+      const user = userEvent.setup();
+      renderSignIn(atCodeStep);
+      await user.type(screen.getByLabelText(/sign-in code/i), '123456');
+      const verify = screen.getByRole('button', { name: /^verify$/i });
+      expect(verify).toBeDisabled();
+      await user.click(verify);
+      expect(loginWithMagicLink).not.toHaveBeenCalled();
+      await agree(user);
+      expect(verify).toBeEnabled();
+      await user.click(termsBox());
+      expect(verify).toBeDisabled();
+    });
+
+    it('sends termsAccepted and the version the server gave', async () => {
+      const user = userEvent.setup();
+      vi.mocked(fetchCurrentTermsVersion).mockResolvedValue('2026-12-01');
+      vi.mocked(loginWithMagicLink).mockResolvedValueOnce({ success: true, user: 'u1' });
+      renderSignIn(atCodeStep);
+      await waitFor(() => expect(fetchCurrentTermsVersion).toHaveBeenCalled());
+      await user.type(screen.getByLabelText(/sign-in code/i), '123456');
+      await agree(user);
+      await user.click(screen.getByRole('button', { name: /^verify$/i }));
+      await waitFor(() =>
+        expect(loginWithMagicLink).toHaveBeenCalledWith('a@b.co', '123456', null, {
+          termsAccepted: true,
+          termsVersion: '2026-12-01',
+        })
+      );
+      expect(mockHandleSignIn).toHaveBeenCalledWith('u1');
+    });
+
+    it('on terms_required shows the message, unticks the box, and the same code can be sent again', async () => {
+      const user = userEvent.setup();
+      vi.mocked(loginWithMagicLink)
+        .mockResolvedValueOnce({ success: false, code: 'terms_required', message: 'server words' })
+        .mockResolvedValueOnce({ success: true, user: 'u2' });
+      renderSignIn(atCodeStep);
+      await user.type(screen.getByLabelText(/sign-in code/i), '123456');
+      await agree(user);
+      await user.click(screen.getByRole('button', { name: /^verify$/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Please confirm you are 18 or older and agree to the Terms of Use.'
+      );
+      expect(termsBox()).not.toBeChecked();
+      expect(screen.getByRole('button', { name: /^verify$/i })).toBeDisabled();
+      expect(mockHandleSignIn).not.toHaveBeenCalled();
+
+      await agree(user);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /^verify$/i }));
+      await waitFor(() => expect(mockHandleSignIn).toHaveBeenCalledWith('u2'));
+      expect(loginWithMagicLink).toHaveBeenLastCalledWith('a@b.co', '123456', null, CONSENT);
+    });
+
+    it('on terms_outdated shows the changed-terms message and asks the server for the new version', async () => {
+      const user = userEvent.setup();
+      vi.mocked(loginWithMagicLink).mockResolvedValueOnce({ success: false, code: 'terms_outdated' });
+      renderSignIn(atCodeStep);
+      await waitFor(() => expect(fetchCurrentTermsVersion).toHaveBeenCalledTimes(1));
+      await user.type(screen.getByLabelText(/sign-in code/i), '123456');
+      await agree(user);
+      await user.click(screen.getByRole('button', { name: /^verify$/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/our terms of use have changed/i);
+      expect(termsBox()).not.toBeChecked();
+      await waitFor(() => expect(fetchCurrentTermsVersion).toHaveBeenCalledTimes(2));
+    });
   });
 
   it('shows the idle sign-out as a toast outside the form, until it is dismissed', async () => {
@@ -131,8 +238,9 @@ describe('SignIn (one page, email then code)', () => {
       vi.mocked(loginWithMagicLink).mockResolvedValueOnce({ success: true, user: 'user-9' });
       renderSignIn(fromSignUp);
       await user.type(screen.getByLabelText(/sign-in code/i), '123456');
+      await agree(user);
       await user.click(screen.getByRole('button', { name: /^verify$/i }));
-      await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('new@b.co', '123456', null));
+      await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('new@b.co', '123456', null, CONSENT));
       expect(mockHandleSignIn).toHaveBeenCalledWith('user-9');
     });
   });
@@ -192,9 +300,10 @@ describe('SignIn (one page, email then code)', () => {
     await user.type(screen.getByLabelText(/email address/i), 'a@b.co');
     await user.click(screen.getByRole('button', { name: /send me a code/i }));
     await user.type(await screen.findByLabelText(/sign-in code/i), 'ab-cd 2345');
+    await agree(user);
     await user.click(screen.getByRole('button', { name: /^verify$/i }));
 
-    await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('a@b.co', 'ABCD2345', null));
+    await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('a@b.co', 'ABCD2345', null, CONSENT));
     expect(mockHandleSignIn).toHaveBeenCalledWith('user-1');
   });
 
@@ -205,6 +314,7 @@ describe('SignIn (one page, email then code)', () => {
     await user.type(screen.getByLabelText(/email address/i), 'a@b.co');
     await user.click(screen.getByRole('button', { name: /send me a code/i }));
     await user.type(await screen.findByLabelText(/sign-in code/i), 'ABC');
+    await agree(user);
     await user.click(screen.getByRole('button', { name: /^verify$/i }));
 
     expect(await screen.findByText(/enter the code we emailed you\.$/i)).toBeInTheDocument();
@@ -219,8 +329,9 @@ describe('SignIn (one page, email then code)', () => {
     await user.type(screen.getByLabelText(/email address/i), 'a@b.co');
     await user.click(screen.getByRole('button', { name: /send me a code/i }));
     await user.type(await screen.findByLabelText(/sign-in code/i), '123 456');
+    await agree(user);
     await user.click(screen.getByRole('button', { name: /^verify$/i }));
-    await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('a@b.co', '123456', null));
+    await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('a@b.co', '123456', null, CONSENT));
   });
 
   it('accepts an 8-digit code (sign-in) and stops typing at 8 characters', async () => {
@@ -233,8 +344,9 @@ describe('SignIn (one page, email then code)', () => {
     const field = await screen.findByLabelText(/sign-in code/i);
     await user.type(field, '123456789');
     expect(field).toHaveValue('12345678');
+    await agree(user);
     await user.click(screen.getByRole('button', { name: /^verify$/i }));
-    await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('a@b.co', '12345678', null));
+    await waitFor(() => expect(loginWithMagicLink).toHaveBeenCalledWith('a@b.co', '12345678', null, CONSENT));
   });
 
   it('shows neutral copy with no code length or exact expiry', async () => {
@@ -302,6 +414,7 @@ describe('SignIn (one page, email then code)', () => {
     renderSignIn({ pathname: '/signin', state: { email: 'a@b.co', codeSent: true } });
 
     await user.type(screen.getByLabelText(/sign-in code/i), 'WRONG123');
+    await agree(user);
     await user.click(screen.getByRole('button', { name: /^verify$/i }));
 
     expect(await screen.findByText(/that code did not work. it may be mistyped or expired/i)).toBeInTheDocument();

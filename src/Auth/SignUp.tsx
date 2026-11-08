@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserIcon, Mail, ArrowLeft } from 'lucide-react';
-import { startSignup, verifySignupCode, EMAIL_EXISTS_CODE } from './api';
+import { startSignup, verifySignupCode, EMAIL_EXISTS_CODE, TERMS_OUTDATED_CODE, TERMS_REQUIRED_CODE } from './api';
+import { useTermsVersion } from './useTermsVersion';
 import { useTurnstile } from './useTurnstile';
 import TurnstileGate from './TurnstileGate';
 import { PRODUCT_NAME } from '../lib/legal';
@@ -38,6 +39,9 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
   const [error, setError] = useState('');
   const [emailExists, setEmailExists] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  // set when the server refuses the code over the Terms (required or changed): the box comes back on the code step
+  const [termsRefused, setTermsRefused] = useState(false);
+  const terms = useTermsVersion();
   const [loading, setLoading] = useState(false);
   const turnstile = useTurnstile();
   const nameRef = useRef<HTMLInputElement>(null);
@@ -85,7 +89,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
         setError('The security check did not finish. Please try again.');
         return;
       }
-      const r = await startSignup({ name, email, turnstileToken });
+      const r = await startSignup({ name, email, turnstileToken, termsAccepted: true, termsVersion: terms.version });
       if (r.success) {
         turnstile.reset();
         setCode('');
@@ -93,6 +97,11 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
         setCooldown(RESEND_COOLDOWN_SECONDS);
       } else if (r.code === EMAIL_EXISTS_CODE) {
         setEmailExists(true);
+        turnstile.reset();
+      } else if (r.code === TERMS_REQUIRED_CODE || r.code === TERMS_OUTDATED_CODE) {
+        setAccepted(false);
+        if (r.code === TERMS_OUTDATED_CODE) void terms.refresh();
+        setError(r.message || TERMS_REQUIRED_MESSAGE);
         turnstile.reset();
       } else {
         setError(r.message || 'Something went wrong. Please try again.');
@@ -116,12 +125,22 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
       codeRef.current?.focus();
       return;
     }
+    if (!accepted) {
+      setError(TERMS_REQUIRED_MESSAGE);
+      return;
+    }
     setLoading(true);
     try {
-      const result = await verifySignupCode(email.trim(), codeNorm);
+      const result = await verifySignupCode(email.trim(), codeNorm, { termsAccepted: true, termsVersion: terms.version });
       if (result.success) {
         localStorage.setItem('isAuthenticated', 'true');
         onVerified({ email: email.trim(), name: name.trim(), userId: result.user });
+      } else if (result.code === TERMS_REQUIRED_CODE || result.code === TERMS_OUTDATED_CODE) {
+        // the server checks the Terms before the code, so the same code works once the box is ticked again
+        setAccepted(false);
+        setTermsRefused(true);
+        if (result.code === TERMS_OUTDATED_CODE) void terms.refresh();
+        setError(result.message || TERMS_REQUIRED_MESSAGE);
       } else {
         setError(result.message || 'That code did not match. Check the latest email or request a new code.');
       }
@@ -135,6 +154,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
 
   const useDifferentEmail = () => {
     setCodeSent(false);
+    setTermsRefused(false);
     setCode('');
     setCooldown(0);
     setError('');
@@ -279,7 +299,7 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
               </div>
             )}
 
-            {!codeSent && (
+            {(!codeSent || termsRefused) && (
               <label className="flex items-start gap-2 text-sm text-gray-300">
                 <input
                   type="checkbox"
@@ -314,8 +334,8 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
 
             <button
               type="submit"
-              // Next waits for the terms box; Verify does not need it
-              disabled={loading || (!codeSent && !accepted)}
+              // Next waits for the terms box; Verify needs it again only after the server refused over the Terms
+              disabled={loading || ((!codeSent || termsRefused) && !accepted)}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
             >
               {loading ? (

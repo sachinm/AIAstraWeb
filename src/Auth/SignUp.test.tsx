@@ -3,12 +3,16 @@ import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import SignUp from './SignUp';
-import { startSignup, verifySignupCode } from './api';
+import { startSignup, verifySignupCode, fetchCurrentTermsVersion } from './api';
+import { TERMS_VERSION } from '../lib/legal';
 
 vi.mock('./api', () => ({
   startSignup: vi.fn(),
   verifySignupCode: vi.fn(),
+  fetchCurrentTermsVersion: vi.fn(),
   EMAIL_EXISTS_CODE: 'EMAIL_EXISTS',
+  TERMS_REQUIRED_CODE: 'terms_required',
+  TERMS_OUTDATED_CODE: 'terms_outdated',
 }));
 
 const onVerified = vi.fn();
@@ -42,6 +46,44 @@ describe('SignUp page 1 (Sign up)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    vi.mocked(fetchCurrentTermsVersion).mockResolvedValue(null);
+  });
+
+  it('sends the version the server gives with the Terms box on both steps', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchCurrentTermsVersion).mockResolvedValue('2026-12-01');
+    vi.mocked(startSignup).mockResolvedValueOnce({ success: true });
+    vi.mocked(verifySignupCode).mockResolvedValueOnce({ success: true, user: 'u1' });
+    renderPage();
+    await waitFor(() => expect(fetchCurrentTermsVersion).toHaveBeenCalled());
+    await fillAndNext(user);
+    expect(startSignup).toHaveBeenCalledWith(expect.objectContaining({ termsAccepted: true, termsVersion: '2026-12-01' }));
+    await user.type(await screen.findByLabelText(/verification code/i), 'ab12cd');
+    await user.click(screen.getByRole('button', { name: /^verify$/i }));
+    await waitFor(() =>
+      expect(verifySignupCode).toHaveBeenCalledWith('asha@example.com', 'AB12CD', { termsAccepted: true, termsVersion: '2026-12-01' })
+    );
+  });
+
+  it('brings the box back on the code step when the server refuses the code over the Terms', async () => {
+    const user = userEvent.setup();
+    vi.mocked(startSignup).mockResolvedValueOnce({ success: true });
+    vi.mocked(verifySignupCode)
+      .mockResolvedValueOnce({ success: false, code: 'terms_required', message: 'Please confirm you are 18 or older.' })
+      .mockResolvedValueOnce({ success: true, user: 'u1' });
+    renderPage();
+    await fillAndNext(user);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    await user.type(await screen.findByLabelText(/verification code/i), 'ab12cd');
+    await user.click(screen.getByRole('button', { name: /^verify$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Please confirm you are 18 or older.');
+    const box = screen.getByRole('checkbox', { name: /accept the terms/i });
+    expect(box).not.toBeChecked();
+    expect(screen.getByRole('button', { name: /^verify$/i })).toBeDisabled();
+    await user.click(box);
+    await user.click(screen.getByRole('button', { name: /^verify$/i }));
+    await waitFor(() => expect(onVerified).toHaveBeenCalled());
   });
 
   it('asks only for name and email, with a Next button and no password or age', () => {
@@ -61,7 +103,13 @@ describe('SignUp page 1 (Sign up)', () => {
     const { container } = renderPage();
     await fillAndNext(user);
 
-    expect(startSignup).toHaveBeenCalledWith({ name: 'Asha Rao', email: 'asha@example.com', turnstileToken: null });
+    expect(startSignup).toHaveBeenCalledWith({
+      name: 'Asha Rao',
+      email: 'asha@example.com',
+      turnstileToken: null,
+      termsAccepted: true,
+      termsVersion: TERMS_VERSION,
+    });
     const code = await screen.findByLabelText(/verification code/i);
     const email = screen.getByLabelText(/email address/i);
     expect(email.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -149,7 +197,7 @@ describe('SignUp page 1 (Sign up)', () => {
     await user.click(screen.getByRole('button', { name: /^verify$/i }));
 
     await waitFor(() => expect(onVerified).toHaveBeenCalled());
-    expect(verifySignupCode).toHaveBeenCalledWith('asha@example.com', 'AB12CD');
+    expect(verifySignupCode).toHaveBeenCalledWith('asha@example.com', 'AB12CD', { termsAccepted: true, termsVersion: TERMS_VERSION });
     expect(onVerified).toHaveBeenCalledWith({ email: 'asha@example.com', name: 'Asha Rao', userId: 'u1' });
   });
 
