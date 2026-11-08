@@ -1,11 +1,12 @@
 /**
  * The You board (server docs/reading-engine/45 §8.3, 54 §3): the person themselves, from the Self area of the stored
  * chart digest. Leads with the tone for you now, asks once what you are working on for yourself (the companion memory's
- * `self.focus`, doc 48) and lets that choose which topic leads Ahead.
+ * `self.focus`, doc 48) and lets that choose which topic leads Ahead. Its first page is "Your reading" (doc 58).
  */
 import AreaBoardView, { type AreaBoardConfig } from '../../components/AreaBoardView';
 import { longDate } from '../../lib/careerApi';
 import type { AreaBoard } from '../../lib/areaApi';
+import SelfReading from './SelfReading';
 
 export const YOU_SUBAREAS: Record<string, string> = {
   identity: 'Direction',
@@ -61,6 +62,8 @@ export const YOU_CONFIG: AreaBoardConfig = {
   emptyAhead: 'Nothing large is moving in the next three years.',
   emptyBack: 'Nothing sharp enough in the last year to check with you.',
   unavailable: 'The You board is coming soon.',
+  // doc 58 §4.3: "Your reading" is the first page and is selected by default
+  extraFirstTab: { id: 'reading', label: 'Your reading', render: () => <SelfReading /> },
 };
 
 export default function YouPage() {
