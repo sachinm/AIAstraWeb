@@ -1,7 +1,8 @@
 /**
- * The "Your reading" client for the You board (server docs/reading-engine/58 §4.2): seven panels, each one catalogued
+ * The "Your reading" client for the You board (server docs/reading-engine/58 §4.2, card contract doc 62): panels, each one catalogued
  * technique, read on the person's own clock. 200 is a reading, 202 means the chart is still being prepared, 404 with
- * `no_kundli` means no birth chart yet, any other 404 means the reading is off. `gaps` is staff-only and never rendered.
+ * `no_kundli` means no birth chart yet, any other 404 means the reading is off. `gaps`, `purview`,
+ * `audit` and `dossierId` are staff-only and never rendered as such.
  */
 import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
@@ -62,8 +63,42 @@ export interface SelfChapter {
   evidence: string[];
 }
 
-/** display order (server docs/reading-engine/59 §1): the diagnosis first, then the chapters spine, the parts, struggle, this year */
-export type SelfPanelId = 'diagnosis' | 'chapters' | 'lagna' | 'mind' | 'atma' | 'yogas' | 'struggle' | 'year';
+/** display order (server docs/reading-engine/62): In short, chapters, lagna, mind, body, atma, yogas, struggle, year */
+export type SelfPanelId = 'diagnosis' | 'chapters' | 'lagna' | 'mind' | 'body' | 'atma' | 'yogas' | 'struggle' | 'year';
+
+/** server docs/reading-engine/62: the range a line or a card is true for; YYYY-MM-DD */
+export type LineRange = { from: string; to: string } | 'always';
+
+/** doc 61 §1; only timing lines show the word, never 'fact' */
+export type LineCertainty = 'fact' | 'strong' | 'moderate' | 'possible';
+
+/** One line of a panel's card (doc 62). */
+export interface SelfLine {
+  /** '<panel>.<n>' */
+  id: string;
+  /** plain words, at most 22 words */
+  text: string;
+  range: LineRange;
+  /** the SelfClaim ids it rests on */
+  claimIds: string[];
+  certainty: LineCertainty;
+  /** chart terms, shown under "Chart details" */
+  detail: string;
+}
+
+export interface SelfPurviewEntry {
+  rule: string;
+  source: string;
+  action: 'override' | 'veto' | 'annotate';
+  affects: string[];
+  text: string;
+}
+
+export interface SelfAudit {
+  verdict: 'pass' | 'fail';
+  checked: number;
+  failures: Array<{ lineId: string; check: string; text: string }>;
+}
 
 export interface SelfPanel {
   id: SelfPanelId;
@@ -79,6 +114,14 @@ export interface SelfPanel {
   cached: boolean;
   /** time to make it (0 on a cache hit) */
   ms: number;
+  /** the range the whole card is true for (doc 61 §0.2) */
+  headerRange: LineRange;
+  /** 1 to 3; the card. Empty when status is 'withheld' */
+  lines: SelfLine[];
+  /** standing line under the title (the body panel's "not medical advice" line) */
+  note?: string;
+  /** claims the purview removed, for Chart details only */
+  vetoed?: Array<{ claimId: string; rule: string; text: string }>;
 }
 
 export interface SelfQuestion {
@@ -98,6 +141,14 @@ export interface SelfReading {
   question: SelfQuestion | null;
   /** staff only; the web never renders these */
   gaps: string[];
+  /** whole-chart checks; never shown to the person except as an "Adjusted by" note inside Chart details */
+  purview: SelfPurviewEntry[];
+  /** staff only; never rendered */
+  audit: SelfAudit;
+  /** the reading_dossiers row of this build (staff tools only) */
+  dossierId: string | null;
+  /** "Built 7 Nov 2026, next check 1 Jan 2027"; shown once at the bottom */
+  builtLine: string;
 }
 
 export type SelfReadingState =

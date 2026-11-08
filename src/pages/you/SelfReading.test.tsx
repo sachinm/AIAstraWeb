@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import SelfReading, { clockLabel, SELF_WORDS } from './SelfReading';
-import { selfReadingFixture } from './selfReading.fixture';
+import SelfReading, { certaintyWord, clockLabel, headerWords, SELF_WORDS } from './SelfReading';
+import { BODY_NOTE, selfReadingFixture } from './selfReading.fixture';
 import { BANNED_ON_BOARD } from '../lucky/words';
 import { longDate } from '../../lib/careerApi';
 import type { SelfReading as SelfReadingData } from '../../lib/selfReadingApi';
 
-const BANNED = [...BANNED_ON_BOARD, 'house', 'lord', 'dasha', 'mahadasha', 'antardasha', 'nakshatra', 'varga', 'd1.', 'd9.'];
-const TITLES = ['Who you are', 'Your mind', "Your soul's aim", 'Gifts and knots', 'What you struggle with', 'Your chapters', 'This year'];
+/** doc 61 §4: the body list joins the board's banned words */
+const BODY_BANNED = ['illness', 'disease', 'diagnosis', 'symptom', 'medication', 'surgery', 'doctor', 'liver', 'heart', 'lung', 'kidney', 'stomach', 'brain'];
+const BANNED = [...BANNED_ON_BOARD, 'house', 'lord', 'dasha', 'mahadasha', 'antardasha', 'nakshatra', 'varga', 'd1.', 'd9.', ...BODY_BANNED];
+const TITLES = ['In short', 'Your chapters', 'Who you are', 'Your mind', 'Your body', "Your soul's aim", 'Gifts and knots', 'What you struggle with', 'This year'];
 
 let srv: { status: number; body: unknown; clock: string; edit: (r: SelfReadingData) => void };
 let calls: Array<{ method: string; url: string; body?: any }>;
@@ -91,19 +93,82 @@ describe('Your reading', () => {
     const carousel = screen.getByTestId('self-carousel');
     for (const t of TITLES) expect(within(carousel).getByRole('heading', { name: t })).toBeInTheDocument();
     // desktop shows the first panel, and a tab switches it
-    expect(within(screen.getByTestId('self-tabpanel')).getByRole('heading')).toHaveTextContent('Who you are');
+    expect(within(screen.getByTestId('self-tabpanel')).getByRole('heading')).toHaveTextContent('In short');
     fireEvent.click(within(screen.getByTestId('self-tabs')).getByRole('tab', { name: 'Your mind' }));
     expect(within(screen.getByTestId('self-tabpanel')).getByRole('heading')).toHaveTextContent('Your mind');
     expect(root.textContent).not.toContain('STAFF-GAP');
     expect(root.textContent).not.toContain('varsha_missing_point');
   });
 
-  it('a withheld claim says the person told us it did not fit', async () => {
+  it('panels follow the order the server sends', async () => {
+    srv.edit = (r) => {
+      r.panels.reverse();
+    };
     render(<SelfReading />);
-    const panel = within(await screen.findByTestId('self-carousel')).getByTestId('self-panel-lagna');
-    expect(within(panel).getByTestId('self-claim-lagna.occupant')).toHaveTextContent('You told us this did not fit.');
-    expect(panel).not.toHaveTextContent('People notice you before you speak.');
-    expect(panel).toHaveTextContent('Your sense of self grows through your work and public role.');
+    await screen.findByTestId('self-reading');
+    expect(within(screen.getByTestId('self-chips')).getAllByRole('tab').map((t) => t.textContent)).toEqual([...TITLES].reverse());
+  });
+
+  it('card header words for each range kind: True until, This year, Always, and a range that starts later', async () => {
+    render(<SelfReading />);
+    const carousel = await screen.findByTestId('self-carousel');
+    const head = (id: string) => within(within(carousel).getByTestId(`self-panel-${id}`)).getByTestId('self-panel-range').textContent;
+    expect(head('diagnosis')).toBe('True until 14 May 2027');
+    expect(head('body')).toBe('True until 14 May 2027');
+    expect(head('struggle')).toBe('True until 14 May 2027');
+    expect(head('chapters')).toBe('True until 16 Feb 2028');
+    expect(head('year')).toBe(`This year: ${longDate('2026-09-09')} – ${longDate('2027-09-09')}`);
+    for (const id of ['lagna', 'mind', 'atma', 'yogas']) expect(head(id)).toBe('Always');
+    expect(headerWords('struggle', { from: '2027-01-01', to: '2027-06-01' }, '2026-11-07')).toBe('True from 1 Jan 2027 to 1 Jun 2027');
+  });
+
+  it('lines are the card body; a line shows its own range only when it differs from the header', async () => {
+    render(<SelfReading />);
+    const carousel = await screen.findByTestId('self-carousel');
+    const chapters = within(carousel).getByTestId('self-panel-chapters');
+    // the lines sit above the chapter cards
+    const lines = within(chapters).getByTestId('self-lines');
+    expect(lines.compareDocumentPosition(within(chapters).getByTestId('self-chapters')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(lines).getAllByRole('listitem')).toHaveLength(3);
+    const l1 = within(chapters).getByTestId('self-line-chapters.1');
+    expect(within(l1).getByTestId('self-line-range')).toHaveTextContent('16 Feb 2010 – 16 Feb 2019');
+    expect(within(chapters).getByTestId('self-line-chapters.3')).toHaveTextContent('2 Mar 2026 – 14 May 2027');
+    // the running line has the header's range, so no range of its own
+    expect(within(within(chapters).getByTestId('self-line-chapters.2')).queryByTestId('self-line-range')).not.toBeInTheDocument();
+    // the lead and the claims are not the card body
+    const lagna = within(carousel).getByTestId('self-panel-lagna');
+    expect(lagna).not.toHaveTextContent('You are built to lead from the front and be seen doing it.');
+    expect(lagna).toHaveTextContent('Your sense of self grows through your work and public role.');
+    expect(within(lagna).queryByTestId('self-line-range')).not.toBeInTheDocument();
+    // an "Always" line on a dated card says so
+    const body = within(carousel).getByTestId('self-panel-body');
+    expect(within(within(body).getByTestId('self-line-body.1')).getByTestId('self-line-range')).toHaveTextContent('Always');
+  });
+
+  it('the body panel carries its standing note under the title', async () => {
+    render(<SelfReading />);
+    const body = within(await screen.findByTestId('self-carousel')).getByTestId('self-panel-body');
+    expect(within(body).getByRole('heading')).toHaveTextContent('Your body');
+    expect(within(body).getByTestId('self-panel-note')).toHaveTextContent(BODY_NOTE);
+    expect(within(body).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('certainty words show on timing lines only, never on a fact or an Always line', async () => {
+    render(<SelfReading />);
+    const carousel = await screen.findByTestId('self-carousel');
+    const word = (panel: string, line: string) =>
+      within(within(within(carousel).getByTestId(`self-panel-${panel}`)).getByTestId(`self-line-${line}`)).queryByTestId('self-line-certainty')?.textContent ?? null;
+    expect(word('diagnosis', 'diagnosis.1')).toBeNull();
+    expect(word('diagnosis', 'diagnosis.2')).toBe('Strong');
+    expect(word('diagnosis', 'diagnosis.3')).toBe('Likely');
+    expect(word('struggle', 'struggle.1')).toBe('Possible');
+    expect(word('struggle', 'struggle.2')).toBeNull();
+    expect(word('year', 'year.2')).toBe('Possible');
+    // 'strong' and 'moderate' on Always lines show no word
+    expect(word('mind', 'mind.2')).toBeNull();
+    expect(word('body', 'body.3')).toBeNull();
+    for (const id of ['lagna', 'atma', 'yogas']) expect(within(within(carousel).getByTestId(`self-panel-${id}`)).queryByTestId('self-line-certainty')).not.toBeInTheDocument();
+    expect(certaintyWord({ id: 'x.1', text: '', range: { from: '2026-01-01', to: '2027-01-01' }, claimIds: [], certainty: 'fact', detail: '' })).toBeNull();
   });
 
   it('chapters: previous, running, next in order, dates, sub-chapter, split text and the confirmation line', async () => {
@@ -126,22 +191,58 @@ describe('Your reading', () => {
     expect(within(next).queryByTestId('chapter-confirmed-next')).not.toBeInTheDocument();
   });
 
-  it('Chart details is off by default and reveals the detail, evidence and technique id', async () => {
+  it('Chart details is off by default and reveals each line\'s detail and claim ids, the technique and the vetoed claims', async () => {
     render(<SelfReading />);
-    const tp = await screen.findByTestId('self-tabpanel');
+    await screen.findByTestId('self-tabpanel');
+    fireEvent.click(within(screen.getByTestId('self-tabs')).getByRole('tab', { name: 'Who you are' }));
+    const tp = screen.getByTestId('self-tabpanel');
     expect(within(tp).queryByTestId('self-chart-detail')).not.toBeInTheDocument();
     expect(tp).not.toHaveTextContent('self.reading.lagna');
+    expect(tp).not.toHaveTextContent('People notice you before you speak.');
+    expect(tp).not.toHaveTextContent('lagna.lord_house');
     const toggle = within(tp).getByRole('button', { name: 'Chart details' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(tp).toHaveTextContent('Lagna Leo; lagna lord Su in D1.h10, dignity friendly.');
-    expect(tp).toHaveTextContent('planet:D1.Su');
-    // the withheld claim keeps its detail under Chart details
-    expect(tp).toHaveTextContent('Ma occupies D1.h1 in Leo.');
+    const l1 = within(tp).getByTestId('self-line-lagna.1');
+    expect(l1).toHaveTextContent('Lagna Leo; lagna lord Su in D1.h10, dignity friendly.');
+    expect(l1).toHaveTextContent('lagna.lord_house');
+    expect(within(tp).getByTestId('self-line-lagna.2')).toHaveTextContent('lagna.dignity');
+    const vetoed = within(tp).getByTestId('self-panel-vetoed');
+    expect(vetoed).toHaveTextContent('People notice you before you speak.');
+    expect(vetoed).toHaveTextContent('lagna.occupant · purview.combust_occupant');
     expect(within(tp).getByTestId('self-panel-technique')).toHaveTextContent('self.reading.lagna · 0 ms · cached');
+    // the purview entry on this panel shows only as an adjustment note
+    expect(within(tp).getByTestId('self-panel-adjusted')).toHaveTextContent('Adjusted by a whole-chart check: a claim about how people first see you was removed.');
+    expect(tp).not.toHaveTextContent('PURVIEW-');
     fireEvent.click(toggle);
     expect(within(tp).queryByTestId('self-chart-detail')).not.toBeInTheDocument();
+    expect(within(tp).queryByTestId('self-panel-vetoed')).not.toBeInTheDocument();
+  });
+
+  it('a purview entry appears only inside the affected panel\'s Chart details; purview, audit and dossier are never shown', async () => {
+    render(<SelfReading />);
+    const root = await screen.findByTestId('self-reading');
+    expect(root).not.toHaveTextContent('Adjusted by a whole-chart check');
+    expect(root).not.toHaveTextContent('weak-footing');
+    expect(root).not.toHaveTextContent('DOSSIER-7f3a');
+    fireEvent.click(within(screen.getByTestId('self-tabs')).getByRole('tab', { name: 'Your mind' }));
+    fireEvent.click(within(screen.getByTestId('self-tabpanel')).getByRole('button', { name: 'Chart details' }));
+    expect(within(screen.getByTestId('self-tabpanel')).queryByTestId('self-panel-adjusted')).not.toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId('self-tabs')).getByRole('tab', { name: 'Your body' }));
+    const tp = screen.getByTestId('self-tabpanel');
+    fireEvent.click(within(tp).getByRole('button', { name: 'Chart details' }));
+    expect(within(tp).getByTestId('self-panel-adjusted')).toHaveTextContent('Adjusted by a whole-chart check: the weak-footing line was replaced because a cancellation lifts it.');
+    expect(root).not.toHaveTextContent('PURVIEW-');
+    expect(root).not.toHaveTextContent('DOSSIER-7f3a');
+  });
+
+  it('shows the built line once at the bottom', async () => {
+    render(<SelfReading />);
+    const root = await screen.findByTestId('self-reading');
+    expect(screen.getAllByTestId('self-built-line')).toHaveLength(1);
+    expect(screen.getByTestId('self-built-line')).toHaveTextContent('Built 7 Nov 2026, next check 14 May 2027');
+    expect(root.lastElementChild).toBe(screen.getByTestId('self-built-line'));
   });
 
   it('the question posts the answer, says thanks and hides', async () => {
@@ -188,16 +289,32 @@ describe('Your reading', () => {
     expect(clockLabel('Dwisaptati Sama')).toBe('Dwisaptati Sama');
   });
 
-  it('a failed panel and a withheld panel say so in plain words', async () => {
+  it('a failed panel says so in plain words', async () => {
     srv.edit = (r) => {
       r.panels.find((p) => p.id === 'mind')!.status = 'failed';
-      r.panels.find((p) => p.id === 'year')!.status = 'withheld';
+    };
+    render(<SelfReading />);
+    const mind = within(await screen.findByTestId('self-carousel')).getByTestId('self-panel-mind');
+    expect(mind).toHaveTextContent('This part could not be read just now.');
+    expect(mind).not.toHaveTextContent('You need quiet to think clearly.');
+  });
+
+  it('a panel with no lines shows only its title and the not-enough sentence', async () => {
+    srv.edit = (r) => {
+      const year = r.panels.find((p) => p.id === 'year')!;
+      year.status = 'withheld';
+      year.lines = [];
+      const body = r.panels.find((p) => p.id === 'body')!;
+      body.lines = [];
     };
     render(<SelfReading />);
     const carousel = await screen.findByTestId('self-carousel');
-    const mind = within(carousel).getByTestId('self-panel-mind');
-    expect(mind).toHaveTextContent('This part could not be read just now.');
-    expect(mind).not.toHaveTextContent('You need quiet to think clearly.');
-    expect(within(carousel).getByTestId('self-panel-year')).toHaveTextContent('Not enough in your chart to say this with confidence.');
+    for (const id of ['year', 'body']) {
+      const panel = within(carousel).getByTestId(`self-panel-${id}`);
+      expect(panel.textContent).toBe(`${id === 'year' ? 'This year' : 'Your body'}${SELF_WORDS.withheldPanel}`);
+      expect(within(panel).queryByRole('button', { name: 'Chart details' })).not.toBeInTheDocument();
+      expect(within(panel).queryByTestId('self-panel-range')).not.toBeInTheDocument();
+    }
+    expect(SELF_WORDS.withheldPanel).toBe('Not enough in your chart to say this with confidence.');
   });
 });

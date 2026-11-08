@@ -1,8 +1,10 @@
 /**
- * "Your reading", the first tab of the You board (server docs/reading-engine/58 §4.3–§4.4): seven panels, each one
- * technique, read on the person's own clock. Plain words first; chart terms only behind "Chart details". On a phone the
- * panels are a swipe carousel with chips and dots, on a desktop a vertical tab list beside the panel (doc 45 rule 11).
- * The reading's `gaps` are staff-only and never rendered here.
+ * "Your reading", the first tab of the You board (server docs/reading-engine/58 §4.3–§4.4, card contract doc 62): each
+ * panel is a card of one to three dated lines under a header range, read on the person's own clock. Plain words first;
+ * chart terms, claim ids and vetoed claims only behind "Chart details". On a phone the panels are a swipe carousel with
+ * chips and dots, on a desktop a vertical tab list beside the panel (doc 45 rule 11). The reading's `gaps`, `purview`
+ * and `audit` are never rendered to the person; a purview entry shows only as "Adjusted by a whole-chart check" inside
+ * the affected panel's Chart details. Panels render in the order the server sends them.
  */
 import { useEffect, useRef, useState } from 'react';
 import { longDate } from '../../lib/careerApi';
@@ -11,9 +13,11 @@ import {
   fetchSelfReading,
   sendSelfConfirm,
   setSelfClock,
+  type LineCertainty,
+  type LineRange,
   type SelfAnswer,
   type SelfChapter,
-  type SelfClaim,
+  type SelfLine,
   type SelfPanel,
   type SelfQuestion,
   type SelfReading as SelfReadingData,
@@ -34,7 +38,6 @@ export const SELF_WORDS = {
   error: 'Your reading did not load.',
   failed: 'This part could not be read just now.',
   withheldPanel: 'Not enough in your chart to say this with confidence.',
-  withheldClaim: 'You told us this did not fit.',
   split: 'Your other clocks do not mark a turn here',
   thanks: 'Thanks, noted.',
 } as const;
@@ -57,6 +60,37 @@ export function confirmedLine(ch: SelfChapter): string | null {
 }
 
 const range = (from: string, to: string) => `${longDate(from)} – ${longDate(to)}`;
+
+/** The card's header range in words (doc 62): "Always", "This year: 9 Sep 2026 – 9 Sep 2027", "True until 1 Jan 2027". */
+export function headerWords(panelId: string, r: LineRange, today: string): string {
+  if (r === 'always') return 'Always';
+  if (panelId === 'year') return `This year: ${range(r.from, r.to)}`;
+  if (r.from <= today) return `True until ${longDate(r.to)}`;
+  return `True from ${longDate(r.from)} to ${longDate(r.to)}`;
+}
+
+/** A line's own range in words, shown only when it differs from the card's header. */
+export function rangeWords(r: LineRange): string {
+  return r === 'always' ? 'Always' : range(r.from, r.to);
+}
+
+export function sameRange(a: LineRange, b: LineRange): boolean {
+  if (a === 'always' || b === 'always') return a === b;
+  return a.from === b.from && a.to === b.to;
+}
+
+const CERTAINTY_WORD: Record<Exclude<LineCertainty, 'fact'>, string> = { strong: 'Strong', moderate: 'Likely', possible: 'Possible' };
+
+/** The certainty word, on timing (dated) lines only and never for a fact. */
+export function certaintyWord(line: SelfLine): string | null {
+  if (line.range === 'always' || line.certainty === 'fact') return null;
+  return CERTAINTY_WORD[line.certainty] ?? null;
+}
+
+/** Purview texts that touch this panel (by panel id, or a line or claim id under it), for Chart details only. */
+function adjustedFor(panelId: string, purview: SelfReadingData['purview'] | undefined): string[] {
+  return (purview ?? []).filter((p) => p.affects.some((a) => a === panelId || a.startsWith(`${panelId}.`))).map((p) => p.text);
+}
 
 export default function SelfReading() {
   const [state, setState] = useState<SelfReadingState | null>(null);
@@ -162,7 +196,7 @@ function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: ()
             <div ref={rail} onScroll={onScroll} className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2" data-testid="self-carousel">
               {panels.map((p) => (
                 <div key={p.id} data-slide={p.id} className="w-full shrink-0 snap-start">
-                  <PanelView panel={p} />
+                  <PanelView panel={p} today={reading.asOf} adjusted={adjustedFor(p.id, reading.purview)} />
                 </div>
               ))}
             </div>
@@ -183,13 +217,19 @@ function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: ()
               ))}
             </div>
             <div role="tabpanel" className="lg:col-span-9" data-testid="self-tabpanel">
-              <PanelView key={current.id} panel={current} />
+              <PanelView key={current.id} panel={current} today={reading.asOf} adjusted={adjustedFor(current.id, reading.purview)} />
             </div>
           </div>
         </>
       )}
 
       {reading.question && <QuestionCard question={reading.question} />}
+
+      {reading.builtLine && (
+        <p className="text-center text-xs text-white/50" data-testid="self-built-line">
+          {reading.builtLine}
+        </p>
+      )}
 
       {sheet && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="Choose your clock" onClick={() => setSheet(false)}>
@@ -228,33 +268,49 @@ function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: ()
   );
 }
 
-function PanelView({ panel }: { panel: SelfPanel }) {
+function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string; adjusted: string[] }) {
   const [details, setDetails] = useState(false);
-  const body =
-    panel.status === 'failed' ? (
-      <p className="text-white/70" data-testid="self-panel-failed">
-        {SELF_WORDS.failed}
-      </p>
-    ) : panel.status === 'withheld' ? (
-      <p className="text-white/70" data-testid="self-panel-withheld">
-        {SELF_WORDS.withheldPanel}
-      </p>
-    ) : (
-      <>
-        {panel.lead && <p className="mb-3 text-lg leading-snug">{panel.lead}</p>}
-        {panel.chapters && panel.chapters.length > 0 && <Chapters chapters={panel.chapters} details={details} />}
-        <div className="space-y-2">
-          {panel.claims.map((c) => (
-            <ClaimView key={c.id} claim={c} details={details} />
-          ))}
-        </div>
-      </>
+  const lines = panel.lines ?? [];
+  const title = <h3 className="mb-2 text-xl font-semibold">{panel.title}</h3>;
+
+  if (panel.status === 'failed')
+    return (
+      <section className={panelCls} data-testid={`self-panel-${panel.id}`} data-status={panel.status}>
+        {title}
+        <p className="text-white/70" data-testid="self-panel-failed">
+          {SELF_WORDS.failed}
+        </p>
+      </section>
+    );
+  // a panel with no grounded line shows its title and the plain withheld sentence, nothing else (doc 62)
+  if (lines.length === 0)
+    return (
+      <section className={panelCls} data-testid={`self-panel-${panel.id}`} data-status={panel.status}>
+        {title}
+        <p className="text-white/70" data-testid="self-panel-withheld">
+          {SELF_WORDS.withheldPanel}
+        </p>
+      </section>
     );
 
+  const vetoed = panel.vetoed ?? [];
   return (
     <section className={panelCls} data-testid={`self-panel-${panel.id}`} data-status={panel.status}>
-      <h3 className="mb-2 text-xl font-semibold">{panel.title}</h3>
-      {body}
+      {title}
+      <p className="-mt-1 mb-2 text-sm text-white/60" data-testid="self-panel-range">
+        {headerWords(panel.id, panel.headerRange, today)}
+      </p>
+      {panel.note && (
+        <p className="mb-3 text-sm italic text-white/60" data-testid="self-panel-note">
+          {panel.note}
+        </p>
+      )}
+      <ul className="mb-3 space-y-3" data-testid="self-lines">
+        {lines.map((l) => (
+          <LineView key={l.id} line={l} header={panel.headerRange} details={details} />
+        ))}
+      </ul>
+      {panel.chapters && panel.chapters.length > 0 && <Chapters chapters={panel.chapters} details={details} />}
       <button
         type="button"
         aria-expanded={details}
@@ -262,25 +318,53 @@ function PanelView({ panel }: { panel: SelfPanel }) {
           if (!details) track('why_open', SURFACE, `reading_${panel.id}`);
           setDetails((d) => !d);
         }}
-        className="mt-3 min-h-[44px] text-sm text-purple-300 underline underline-offset-4"
+        className="mt-1 min-h-[44px] text-sm text-purple-300 underline underline-offset-4"
       >
         Chart details
       </button>
       {details && (
-        <p className="mt-1 font-mono text-[11px] text-white/50" data-testid="self-panel-technique">
-          {panel.technique} · {panel.ms} ms · {panel.cached ? 'cached' : 'fresh'}
-        </p>
+        <div className="mt-1 space-y-1" data-testid="self-panel-details">
+          {adjusted.map((t, i) => (
+            <p key={i} className="text-xs text-white/60" data-testid="self-panel-adjusted">
+              Adjusted by a whole-chart check: {t}
+            </p>
+          ))}
+          {vetoed.length > 0 && (
+            <ul className="rounded-lg border border-white/10 bg-white/5 p-2 text-xs text-white/60" data-testid="self-panel-vetoed">
+              {vetoed.map((v) => (
+                <li key={v.claimId}>
+                  <span className="line-through">{v.text}</span>{' '}
+                  <span className="font-mono text-[11px] text-white/45">
+                    {v.claimId} · {v.rule}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="font-mono text-[11px] text-white/50" data-testid="self-panel-technique">
+            {panel.technique} · {panel.ms} ms · {panel.cached ? 'cached' : 'fresh'}
+          </p>
+        </div>
       )}
     </section>
   );
 }
 
-function ClaimView({ claim, details }: { claim: SelfClaim; details: boolean }) {
+function LineView({ line, header, details }: { line: SelfLine; header: LineRange; details: boolean }) {
+  const own = sameRange(line.range, header) ? null : rangeWords(line.range);
+  const word = certaintyWord(line);
   return (
-    <div data-testid={`self-claim-${claim.id}`}>
-      <p className={claim.withheld ? 'italic text-white/50' : 'text-white/85'}>{claim.withheld ? SELF_WORDS.withheldClaim : claim.text}</p>
-      {details && <ChartDetail detail={claim.detail} evidence={claim.evidence} />}
-    </div>
+    <li data-testid={`self-line-${line.id}`}>
+      <p className="text-lg leading-snug text-white/90">{line.text}</p>
+      {(own || word) && (
+        <p className="mt-0.5 text-xs text-white/55">
+          {own && <span data-testid="self-line-range">{own}</span>}
+          {own && word && ' · '}
+          {word && <span data-testid="self-line-certainty">{word}</span>}
+        </p>
+      )}
+      {details && <ChartDetail detail={line.detail} evidence={line.claimIds} />}
+    </li>
   );
 }
 
