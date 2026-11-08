@@ -62,7 +62,8 @@ export interface SelfChapter {
   evidence: string[];
 }
 
-export type SelfPanelId = 'lagna' | 'mind' | 'atma' | 'yogas' | 'struggle' | 'chapters' | 'year';
+/** display order (server docs/reading-engine/59 §1): the diagnosis first, then the chapters spine, the parts, struggle, this year */
+export type SelfPanelId = 'diagnosis' | 'chapters' | 'lagna' | 'mind' | 'atma' | 'yogas' | 'struggle' | 'year';
 
 export interface SelfPanel {
   id: SelfPanelId;
