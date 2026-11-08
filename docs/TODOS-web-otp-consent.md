@@ -22,5 +22,13 @@ Findings from building the 18+ / Terms of Use box on the sign-in code step (2026
    sign-in shows the generic code error. Deploy the server first (contract rollout steps 1 and 2), then the web.
 5. **Sign-in box shows again right after sign-up.** A person arriving from sign-up (already ticked the sign-up box)
    must tick the sign-in box too. Accepted as decided (every sign-in confirms); revisit if it reads as friction.
+7. **Checks failing on develop, not caused by this branch (2026-11-08 run):**
+   - typecheck: `src/routes.tsx(24,1) TS6133 'boardsEnabled' is declared but its value is never read`.
+   - lint: `src/Auth/SignIn.tsx` `handleSignIn: (userData?: any)` (no-explicit-any, existing line);
+     `src/Auth/noPassword.test.ts:36` no-control-regex.
+   - tests: `AskModal.test.tsx` (2 tests: pinned threads; list grouped by category) and
+     `WelcomeWizard.test.tsx` ("falls back to null when @mediapipe/tasks-vision is unavailable") fail when run alone.
+     `ChatSection.location.test.tsx` failed 2 tests in the full run but passes alone: timing under load (the full
+     run took 22 minutes alongside a build).
 6. **`LEGAL_UPDATED` is still 2 November 2026 for Privacy and Refunds.** Only the Terms page moved to
    `TERMS_UPDATED` (8 November 2026). Correct today, but each page's date now has to be bumped on its own.
