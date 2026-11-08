@@ -37,8 +37,32 @@ describe('Auth api', () => {
       expect(setAuth).toHaveBeenCalledWith('jwt-token', 'user-id-1');
       expect(runGraphQL).toHaveBeenCalledWith(
         expect.stringContaining('mutation LoginWithMagicLink'),
-        { email: 'user@test.com', code: 'ABCD2345', turnstileToken: null }
+        { email: 'user@test.com', code: 'ABCD2345', turnstileToken: null, termsAccepted: null, termsVersion: null }
       );
+    });
+
+    it('sends the Terms box with the code and asks for the refusal code', async () => {
+      runGraphQL.mockResolvedValueOnce({
+        data: { loginWithMagicLink: { success: false, code: 'terms_required', message: 'Please confirm.' } },
+      });
+
+      const result = await loginWithMagicLink('user@test.com', 'ABCD2345', 'tt', {
+        termsAccepted: true,
+        termsVersion: '2026-11-08',
+      });
+
+      expect(result).toEqual({ success: false, code: 'terms_required', message: 'Please confirm.' });
+      const [query, vars] = runGraphQL.mock.calls[0];
+      expect(query).toMatch(/termsAccepted: \$termsAccepted/);
+      expect(query).toMatch(/termsVersion: \$termsVersion/);
+      expect(query).toMatch(/\bcode\b\s+token/);
+      expect(vars).toEqual({
+        email: 'user@test.com',
+        code: 'ABCD2345',
+        turnstileToken: 'tt',
+        termsAccepted: true,
+        termsVersion: '2026-11-08',
+      });
     });
 
     it('returns the generic failure when GraphQL returns errors', async () => {

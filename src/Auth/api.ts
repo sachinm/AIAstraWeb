@@ -21,10 +21,23 @@ const REQUEST_MAGIC_LINK_MUTATION = `
 `;
 
 const LOGIN_WITH_MAGIC_LINK_MUTATION = `
-  mutation LoginWithMagicLink($email: String!, $code: String!, $turnstileToken: String) {
-    loginWithMagicLink(email: $email, code: $code, turnstileToken: $turnstileToken) {
+  mutation LoginWithMagicLink(
+    $email: String!
+    $code: String!
+    $turnstileToken: String
+    $termsAccepted: Boolean
+    $termsVersion: String
+  ) {
+    loginWithMagicLink(
+      email: $email
+      code: $code
+      turnstileToken: $turnstileToken
+      termsAccepted: $termsAccepted
+      termsVersion: $termsVersion
+    ) {
       success
       message
+      code
       token
       user
       role
@@ -32,13 +45,50 @@ const LOGIN_WITH_MAGIC_LINK_MUTATION = `
   }
 `;
 
+const CURRENT_TERMS_QUERY = `
+  query CurrentTerms {
+    currentTerms {
+      version
+    }
+  }
+`;
+
 /** Matches server MAGIC_LINK_LOGIN_FAILED: never reveal whether the email exists or the code was wrong. */
 export const LOGIN_FAILED_GENERIC = 'That code did not work. It may be mistyped or expired: codes last 3 minutes. Send a new code and try again.';
+
+/** Server codes for a refused sign-in or sign-up verify (docs/auth/otp-consent-contract.md in the server repo). */
+export const TERMS_REQUIRED_CODE = 'terms_required';
+export const TERMS_OUTDATED_CODE = 'terms_outdated';
+export const TERMS_OUTDATED_MESSAGE = 'Our Terms of Use have changed. Please review them and tick the box again.';
+
+/** The 18+ and Terms of Use box: sent with the code on sign-in, and on both sign-up steps. */
+export interface TermsConsent {
+  termsAccepted: boolean;
+  termsVersion: string;
+}
 
 export interface LoginResult {
   success: boolean;
   user?: string;
   message?: string;
+  /** Stable server code for a refusal, e.g. terms_required or terms_outdated. */
+  code?: string;
+}
+
+/**
+ * The Terms version the server wants agreed to, or null when it cannot be read (an older server, or offline):
+ * the caller then sends the version this build was made with, and the server answers terms_outdated if it is stale.
+ */
+export async function fetchCurrentTermsVersion(): Promise<string | null> {
+  try {
+    const { data, errors } = await runGraphQL<{ currentTerms?: { version?: string | null } | null }>(CURRENT_TERMS_QUERY);
+    if (errors?.length) return null;
+    const v = data?.currentTerms?.version;
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  } catch (e) {
+    console.debug('fetchCurrentTermsVersion failed', e instanceof Error ? e.message : String(e));
+    return null;
+  }
 }
 
 /** Account details only. There is no password: sign-in is by emailed code. */
@@ -96,7 +146,8 @@ export async function requestMagicLinkEmail(
 export async function loginWithMagicLink(
   email: string,
   code: string,
-  turnstileToken?: string | null
+  turnstileToken?: string | null,
+  consent?: TermsConsent
 ): Promise<LoginResult> {
   const CODE_FAILED =
     'That code did not work. It may be mistyped or expired: codes last 3 minutes. Send a new code and try again.';
@@ -105,6 +156,7 @@ export async function loginWithMagicLink(
       loginWithMagicLink?: {
         success: boolean;
         message?: string;
+        code?: string | null;
         token?: string;
         user?: string;
         role?: string;
@@ -113,6 +165,8 @@ export async function loginWithMagicLink(
       email: email.trim(),
       code: code.trim(),
       turnstileToken: turnstileToken ?? null,
+      termsAccepted: consent?.termsAccepted ?? null,
+      termsVersion: consent?.termsVersion ?? null,
     });
 
     if (errors?.length) {
@@ -124,7 +178,7 @@ export async function loginWithMagicLink(
       setAuth(result.token, result.user);
       return { success: true, user: result.user };
     }
-    return { success: false, message: result?.message || CODE_FAILED };
+    return { success: false, message: result?.message || CODE_FAILED, code: result?.code ?? undefined };
   } catch (e) {
     console.error('loginWithMagicLink:', e);
     return { success: false, message: CODE_FAILED };
@@ -185,10 +239,11 @@ const START_SIGNUP_MUTATION = `
 `;
 
 const VERIFY_SIGNUP_CODE_MUTATION = `
-  mutation VerifySignupCode($email: String!, $code: String!) {
-    verifySignupCode(email: $email, code: $code) {
+  mutation VerifySignupCode($email: String!, $code: String!, $termsAccepted: Boolean, $termsVersion: String) {
+    verifySignupCode(email: $email, code: $code, termsAccepted: $termsAccepted, termsVersion: $termsVersion) {
       success
       message
+      code
       token
       user
       role
@@ -243,6 +298,9 @@ export interface StartSignupInput {
   name: string;
   email: string;
   turnstileToken?: string | null;
+  /** From the "I am 18 or older and accept the Terms" box on page 1. */
+  termsAccepted?: boolean;
+  termsVersion?: string;
 }
 
 export interface StartSignupResult {
@@ -261,6 +319,8 @@ export async function startSignup(input: StartSignupInput): Promise<StartSignupR
         name: input.name.trim(),
         email: input.email.trim(),
         turnstileToken: input.turnstileToken ?? null,
+        termsAccepted: input.termsAccepted ?? null,
+        termsVersion: input.termsVersion ?? null,
       },
     });
     if (errors?.length) {
@@ -279,19 +339,31 @@ export async function startSignup(input: StartSignupInput): Promise<StartSignupR
 }
 
 /** Confirms the emailed code. On success the user is signed in (token stored, as for code sign-in). */
-export async function verifySignupCode(email: string, code: string): Promise<LoginResult> {
+export async function verifySignupCode(email: string, code: string, consent?: TermsConsent): Promise<LoginResult> {
   const FAILED = 'That code did not match. Check the latest email or request a new code.';
   try {
     const { data, errors } = await runGraphQL<{
-      verifySignupCode?: { success: boolean; message?: string; token?: string; user?: string; role?: string };
-    }>(VERIFY_SIGNUP_CODE_MUTATION, { email: email.trim(), code: code.trim() });
+      verifySignupCode?: {
+        success: boolean;
+        message?: string;
+        code?: string | null;
+        token?: string;
+        user?: string;
+        role?: string;
+      };
+    }>(VERIFY_SIGNUP_CODE_MUTATION, {
+      email: email.trim(),
+      code: code.trim(),
+      termsAccepted: consent?.termsAccepted ?? null,
+      termsVersion: consent?.termsVersion ?? null,
+    });
     if (errors?.length) return { success: false, message: FAILED };
     const r = data?.verifySignupCode;
     if (r?.success && r.token && r.user) {
       setAuth(r.token, r.user);
       return { success: true, user: r.user };
     }
-    return { success: false, message: r?.message || FAILED };
+    return { success: false, message: r?.message || FAILED, code: r?.code ?? undefined };
   } catch (e) {
     console.error('verifySignupCode:', e);
     return { success: false, message: FAILED };

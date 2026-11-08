@@ -2,9 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { Mail, ArrowLeft, KeyRound, X } from 'lucide-react';
-import { requestMagicLinkEmail, loginWithMagicLink, LOGIN_FAILED_GENERIC } from './api';
+import {
+  requestMagicLinkEmail,
+  loginWithMagicLink,
+  LOGIN_FAILED_GENERIC,
+  TERMS_REQUIRED_CODE,
+  TERMS_OUTDATED_CODE,
+  TERMS_OUTDATED_MESSAGE,
+} from './api';
 import { useTurnstile } from './useTurnstile';
 import TurnstileGate from './TurnstileGate';
+import { useTermsVersion } from './useTermsVersion';
+
+/** Shown when the box is not ticked, or when the server refuses the code with `terms_required`. */
+export const SIGNIN_TERMS_REQUIRED_MESSAGE = 'Please confirm you are 18 or older and agree to the Terms of Use.';
 
 interface SignInProps {
   onSignUp: () => void;
@@ -62,6 +73,9 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
     routeState?.codeSent && routeState?.email ? RESEND_COOLDOWN_SECONDS : 0
   );
   const [error, setError] = useState('');
+  // The 18+ and Terms of Use box on the code step. Verify waits for it, every sign-in.
+  const [accepted, setAccepted] = useState(false);
+  const terms = useTermsVersion();
   const [loading, setLoading] = useState(false);
   const turnstile = useTurnstile();
 
@@ -123,6 +137,10 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
       setError('Enter the code we emailed you.');
       return;
     }
+    if (!accepted) {
+      setError(SIGNIN_TERMS_REQUIRED_MESSAGE);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -131,10 +149,23 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         setError('The security check did not finish. Please try again.');
         return;
       }
-      const result = await loginWithMagicLink(email.trim(), codeNorm, turnstileToken);
+      const result = await loginWithMagicLink(email.trim(), codeNorm, turnstileToken, {
+        termsAccepted: true,
+        termsVersion: terms.version,
+      });
       if (result.success) {
         localStorage.setItem('isAuthenticated', 'true');
         handleSignIn(result.user);
+      } else if (result.code === TERMS_REQUIRED_CODE || result.code === TERMS_OUTDATED_CODE) {
+        // the server checks the box before the code, so the same code still works once the box is ticked again
+        setAccepted(false);
+        if (result.code === TERMS_OUTDATED_CODE) {
+          setError(result.message || TERMS_OUTDATED_MESSAGE);
+          void terms.refresh();
+        } else {
+          setError(SIGNIN_TERMS_REQUIRED_MESSAGE);
+        }
+        turnstile.reset();
       } else {
         setError(result.message || LOGIN_FAILED_GENERIC);
         turnstile.reset();
@@ -151,7 +182,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
   const renderSubmit = (inline: boolean) => (
       <button
         type="submit"
-        disabled={loading}
+        // Verify waits for the 18+ and Terms of Use box; "Send me a code" does not need it
+        disabled={loading || (codeSent && !accepted)}
         className={`${inline ? 'sm:w-auto sm:shrink-0 sm:px-8 ' : ''}w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center`}
       >
         {loading ? (
@@ -289,6 +321,28 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
                   </button>
                 </div>
               </div>
+            )}
+
+            {/* styled as the sign-up box (SignUp.tsx) */}
+            {codeSent && (
+              <label className="flex items-start gap-2 text-sm text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={accepted}
+                  onChange={(e) => {
+                    setAccepted(e.target.checked);
+                    if (e.target.checked) setError('');
+                  }}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-purple-500"
+                />
+                <span>
+                  I am 18 or older and agree to the{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-purple-300 underline underline-offset-2 hover:text-white">
+                    Terms of Use
+                  </a>
+                  , including that I won&apos;t copy, record, or reproduce anything I see in the app.
+                </span>
+              </label>
             )}
 
             {turnstile.isEnabled && <span className="sr-only" />}
