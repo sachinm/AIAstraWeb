@@ -1,0 +1,180 @@
+/**
+ * Test fixture for GET /api/self/reading (server docs/reading-engine/58 §4.2): seven panels in display order, the
+ * chapters panel with confirmations, one withheld claim and one question. Plain text carries no chart terms; `detail`
+ * and `evidence` do, as the contract says.
+ */
+import type { SelfReading } from '../../lib/selfReadingApi';
+
+export const CLOCK_LABELS: Record<string, string> = {
+  dwisatpathi: 'Dwisaptati Sama',
+  vimshottari: 'Vimshottari',
+  chara: 'Chara',
+};
+
+export function selfReadingFixture(clock = 'dwisatpathi'): SelfReading {
+  return {
+    asOf: '2026-11-07',
+    digestVersion: 'd-2026-11-01',
+    clock: {
+      system: clock,
+      label: CLOCK_LABELS[clock] ?? clock,
+      reason: clock === 'dwisatpathi' ? 'preferred' : 'applicable',
+      confirming: [
+        { system: 'vimshottari', label: 'Vimshottari' },
+        { system: 'chara', label: 'Chara' },
+        { system: 'yogini', label: 'Yogini' },
+      ],
+      choices: Object.entries(CLOCK_LABELS).map(([system, label]) => ({ system, label })),
+    },
+    panels: [
+      {
+        id: 'lagna',
+        technique: 'self.reading.lagna',
+        title: 'Who you are',
+        lead: 'You are built to lead from the front and be seen doing it.',
+        status: 'ok',
+        claims: [
+          {
+            id: 'lagna.lord_house',
+            text: 'Your sense of self grows through your work and public role.',
+            detail: 'Lagna Leo; lagna lord Su in D1.h10, dignity friendly.',
+            certainty: 'fact',
+            evidence: ['house:D1.1', 'planet:D1.Su'],
+          },
+          {
+            id: 'lagna.occupant',
+            text: 'People notice you before you speak.',
+            detail: 'Ma occupies D1.h1 in Leo.',
+            certainty: 'fact',
+            evidence: ['planet:D1.Ma'],
+            withheld: 'said it did not fit on 2026-11-02',
+          },
+        ],
+        cached: true,
+        ms: 0,
+      },
+      {
+        id: 'mind',
+        technique: 'self.reading.mind',
+        title: 'Your mind',
+        lead: 'Your feelings run deep and settle slowly.',
+        status: 'ok',
+        claims: [{ id: 'mind.moon_sign', text: 'You need quiet to think clearly.', detail: 'Mo in Cancer, own sign, in D1.h12.', certainty: 'fact', evidence: ['planet:D1.Mo'] }],
+        cached: false,
+        ms: 41,
+      },
+      {
+        id: 'atma',
+        technique: 'self.reading.atma',
+        title: "Your soul's aim",
+        lead: 'You are here to learn to teach what you know.',
+        status: 'ok',
+        claims: [{ id: 'atma.karaka', text: 'Sharing what you know is what makes you feel whole.', detail: 'Atmakaraka Ju in D9.h5.', certainty: 'fact', evidence: ['point:AK', 'planet:D9.Ju'] }],
+        cached: true,
+        ms: 0,
+      },
+      {
+        id: 'yogas',
+        technique: 'self.reading.yogas',
+        title: 'Gifts and knots',
+        lead: 'A gift for speech, and a knot around rest.',
+        status: 'ok',
+        claims: [{ id: 'yogas.gift', text: 'Your words carry weight with others.', detail: 'Budha-Aditya yoga in D1.h2.', certainty: 'fact', evidence: ['yoga:budhaditya'] }],
+        cached: true,
+        ms: 0,
+      },
+      {
+        id: 'struggle',
+        technique: 'self.reading.struggle',
+        title: 'What you struggle with',
+        lead: 'Slowing down is the hard part for you.',
+        status: 'partial',
+        claims: [{ id: 'struggle.pressure', text: 'You push on when rest would serve you better.', detail: 'Sa aspects D1.h4 in the running Rahu antardasha.', certainty: 'likely', evidence: ['activation:dwisatpathi/2/Sa'] }],
+        cached: false,
+        ms: 18,
+      },
+      {
+        id: 'chapters',
+        technique: 'self.reading.chapters',
+        title: 'Your chapters',
+        lead: 'You are in a long chapter of building your own name.',
+        status: 'ok',
+        claims: [],
+        chapters: [
+          {
+            kind: 'next',
+            lord: 'Ju',
+            lordLabel: 'Jupiter',
+            from: '2028-02-16',
+            to: '2037-02-16',
+            text: null,
+            detail: 'Ju mahadasha, lord of D1.h5 and h8.',
+            certainty: 'split',
+            houses: [5, 8],
+            confirmations: [
+              { system: 'vimshottari', label: 'Vimshottari', agrees: false, boundary: null },
+              { system: 'chara', label: 'Chara', agrees: false, boundary: null },
+            ],
+            evidence: ['activation:dwisatpathi/1/Ju'],
+          },
+          {
+            kind: 'running',
+            lord: 'Ra',
+            lordLabel: 'Rahu',
+            from: '2019-02-16',
+            to: '2028-02-16',
+            text: 'A chapter of ambition and reaching past where you started.',
+            detail: 'Ra mahadasha, Ra in D1.h10.',
+            certainty: 'confirmed',
+            houses: [10],
+            sub: { lord: 'Ve', lordLabel: 'Venus', from: '2026-03-02', to: '2027-05-14', text: 'Now the focus turns to partners and comfort.', detail: 'Ve antardasha, Ve in D1.h7.', houses: [7] },
+            nextSub: { lord: 'Su', lordLabel: 'Sun', from: '2027-05-14', to: '2027-09-20', houses: [1] },
+            confirmations: [
+              { system: 'vimshottari', label: 'Vimshottari', agrees: true, boundary: '2019-06-01' },
+              { system: 'chara', label: 'Chara', agrees: true, boundary: '2018-11-12' },
+              { system: 'yogini', label: 'Yogini', agrees: false, boundary: null },
+            ],
+            evidence: ['activation:dwisatpathi/1/Ra'],
+          },
+          {
+            kind: 'previous',
+            lord: 'Me',
+            lordLabel: 'Mercury',
+            from: '2010-02-16',
+            to: '2019-02-16',
+            text: 'A chapter of study and finding your voice.',
+            detail: 'Me mahadasha, Me in D1.h2.',
+            certainty: 'likely',
+            houses: [2],
+            confirmations: [{ system: 'vimshottari', label: 'Vimshottari', agrees: true, boundary: '2009-12-01' }],
+            evidence: ['activation:dwisatpathi/1/Me'],
+          },
+        ],
+        cached: true,
+        ms: 0,
+      },
+      {
+        id: 'year',
+        technique: 'self.reading.year',
+        title: 'This year',
+        lead: 'A year to step forward.',
+        status: 'ok',
+        claims: [{ id: 'year.muntha', text: 'This year rewards starting something of your own.', detail: 'Muntha in D1.h10 of the 2026 varshaphala.', certainty: 'likely', evidence: ['varsha:2026'] }],
+        cached: false,
+        ms: 77,
+      },
+    ],
+    question: {
+      claimId: 'lagna.lord_house',
+      panel: 'lagna',
+      text: 'Do you feel most yourself when you are leading at work?',
+      options: [
+        { value: 'yes', label: 'Yes' },
+        { value: 'partly', label: 'Partly' },
+        { value: 'no', label: 'No' },
+        { value: 'skip', label: 'Skip' },
+      ],
+    },
+    gaps: ['STAFF-GAP: year.varsha_missing_point'],
+  };
+}
