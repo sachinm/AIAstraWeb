@@ -318,3 +318,79 @@ describe('Your reading', () => {
     expect(SELF_WORDS.withheldPanel).toBe('Not enough in your chart to say this with confidence.');
   });
 });
+
+describe('Your reading, while the synthesis is written in the background (server doc 64 §4)', () => {
+  it('202 stage=reading keeps a loading state with the writing words and polls every 10 s until the reading is ready', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    srv.status = 202;
+    srv.body = { status: 'preparing', stage: 'reading' };
+    render(<SelfReading />);
+    const waiting = await screen.findByTestId('self-reading-preparing');
+    expect(waiting).toHaveTextContent(SELF_WORDS.writing);
+    expect(waiting).toHaveAttribute('data-stage', 'reading');
+    expect(waiting).toHaveAttribute('aria-busy', 'true');
+    expect(screen.queryByTestId('self-reading-error')).not.toBeInTheDocument();
+    expect(gets()).toBe(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    await waitFor(() => expect(gets()).toBe(2));
+    srv.status = 200;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(await screen.findByTestId('self-reading')).toBeInTheDocument();
+    expect(gets()).toBe(3);
+  });
+
+  it('a 503 or 504 from the gateway is the same wait, never "did not load"', async () => {
+    srv.status = 503;
+    srv.body = { error: 'reading_slow' };
+    const a = render(<SelfReading />);
+    expect(await screen.findByTestId('self-reading-preparing')).toHaveTextContent(SELF_WORDS.writing);
+    a.unmount();
+    srv.status = 504;
+    srv.body = null;
+    render(<SelfReading />);
+    expect(await screen.findByTestId('self-reading-preparing')).toHaveTextContent(SELF_WORDS.writing);
+    expect(screen.queryByTestId('self-reading-error')).not.toBeInTheDocument();
+  });
+
+  it('renders the Oracle plan inside its panel and the full reading under the panels when the synthesis is there', async () => {
+    srv.edit = (r) => {
+      r.panels[0]!.plan = {
+        summary: 'Hold the course this winter and let the partnership question settle before you move.',
+        steps: [{ text: 'Write down what you want from the partnership before 1 Jan.', range: { from: '2026-11-07', to: '2027-01-01' }, claimIds: ['diagnosis.tension'] }],
+        calendar: [
+          { from: '2026-12-24', to: '2026-12-24', label: 'The year clock changes hands', claimIds: [], inWindow: true },
+          { from: '2027-01-01', to: '2027-01-01', label: 'Pressure lifts', claimIds: [], inWindow: false },
+        ],
+      };
+      r.oracle = { status: 'ok', text: '### In short\n\nYou are built to be seen through the people you serve.\n\nThe pressure of this stretch eases from January.' };
+    };
+    render(<SelfReading />);
+    await screen.findByTestId('self-reading');
+    const panel = within(screen.getByTestId('self-tabpanel')).getByTestId('self-panel-diagnosis');
+    const plan = within(panel).getByTestId('self-panel-plan');
+    expect(within(plan).getByTestId('self-plan-summary')).toHaveTextContent('Hold the course this winter');
+    expect(within(plan).getByTestId('self-plan-steps')).toHaveTextContent(`${longDate('2026-11-07')} – ${longDate('2027-01-01')} · Write down what you want`);
+    expect(within(plan).getByTestId('self-plan-calendar')).toHaveTextContent(`${longDate('2026-12-24')} · The year clock changes hands`);
+    const full = screen.getByTestId('self-full-reading');
+    expect(within(full).getByRole('heading')).toHaveTextContent(SELF_WORDS.fullReading);
+    expect(within(full).getAllByText(/./, { selector: 'p' }).map((p) => p.textContent)).toEqual([
+      'In short',
+      'You are built to be seen through the people you serve.',
+      'The pressure of this stretch eases from January.',
+    ]);
+  });
+
+  it('shows nothing of the Oracle when it failed: the code panels stand alone', async () => {
+    srv.edit = (r) => {
+      r.oracle = { status: 'failed' };
+    };
+    render(<SelfReading />);
+    await screen.findByTestId('self-reading');
+    expect(screen.queryByTestId('self-full-reading')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('self-panel-plan')).not.toBeInTheDocument();
+  });
+});
