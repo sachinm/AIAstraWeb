@@ -1,7 +1,8 @@
 /**
  * The "Your reading" client for the You board (server docs/reading-engine/58 §4.2, card contract doc 62): panels, each one catalogued
- * technique, read on the person's own clock. 200 is a reading, 202 means the chart is still being prepared, 404 with
- * `no_kundli` means no birth chart yet, any other 404 means the reading is off. `gaps`, `purview`,
+ * technique, read on the person's own clock. 200 is a reading; 202 means something is still being built (`stage`
+ * `chart`: the digest; `reading`: the Oracle's synthesis in the background, server doc 64 §4); 502/503/504 are read as
+ * the same wait, never as an error; 404 with `no_kundli` means no birth chart yet, any other 404 means the reading is off. `gaps`, `purview`,
  * `audit` and `dossierId` are staff-only and never rendered as such.
  */
 import { buildApiHeaders } from './apiHeaders';
@@ -122,6 +123,21 @@ export interface SelfPanel {
   note?: string;
   /** claims the purview removed, for Chart details only */
   vetoed?: Array<{ claimId: string; rule: string; text: string }>;
+  /** the Oracle's plan for this panel (server docs/reading-engine/64 §4): what it means now, dated steps, dates to mark */
+  plan?: SelfPanelPlan;
+}
+
+export interface SelfPanelPlan {
+  summary: string;
+  steps: Array<{ text: string; range: LineRange; claimIds: string[] }>;
+  calendar: Array<{ from: string; to: string; label: string; claimIds: string[]; inWindow?: boolean }>;
+}
+
+/** The Oracle's synthesis over the whole reading; `text` is the narrative, already validated and redacted server side. */
+export interface SelfOracleSummary {
+  status: 'off' | 'ok' | 'failed' | 'budget_exceeded' | 'pending';
+  text?: string;
+  cached?: boolean;
 }
 
 export interface SelfQuestion {
@@ -149,14 +165,22 @@ export interface SelfReading {
   dossierId: string | null;
   /** "Built 7 Nov 2026, next check 1 Jan 2027"; shown once at the bottom */
   builtLine: string;
+  /** present when the model layer is on; `failed` means the code panels are shown without the synthesis */
+  oracle?: SelfOracleSummary;
 }
+
+/** `chart`: the digest is still being built; `reading`: the Oracle's synthesis is being written in the background */
+export type PreparingStage = 'chart' | 'reading';
 
 export type SelfReadingState =
   | { kind: 'ok'; reading: SelfReading; builtAt: string; cached: boolean }
-  | { kind: 'preparing' }
+  | { kind: 'preparing'; stage: PreparingStage }
   | { kind: 'no_kundli' }
   | { kind: 'unavailable' }
   | { kind: 'error' };
+
+/** A gateway or origin that could not answer in time: the build goes on behind it, so the page keeps waiting, never errors. */
+const TRANSIENT = new Set([502, 503, 504]);
 
 async function call(method: string, path: string, payload?: unknown): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -172,7 +196,11 @@ export async function fetchSelfReading(): Promise<SelfReadingState> {
   } catch {
     return { kind: 'error' };
   }
-  if (r.status === 202) return { kind: 'preparing' };
+  if (r.status === 202) {
+    const j = (await r.json().catch(() => null)) as { stage?: string } | null;
+    return { kind: 'preparing', stage: j?.stage === 'reading' ? 'reading' : 'chart' };
+  }
+  if (TRANSIENT.has(r.status)) return { kind: 'preparing', stage: 'reading' };
   if (r.status === 404) {
     const j = (await r.json().catch(() => null)) as { status?: string; error?: string } | null;
     return j?.status === 'no_kundli' || j?.error === 'no_kundli' ? { kind: 'no_kundli' } : { kind: 'unavailable' };
