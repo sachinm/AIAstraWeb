@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Light theme for a dark-first app. The pages were drawn for the night sky (white words, white-tinted glass), so rather
  * than add a `dark:` twin to every colour class in ~80 files, this script reads which colour utilities the source uses
