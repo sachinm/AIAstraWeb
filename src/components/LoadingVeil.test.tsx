@@ -55,10 +55,10 @@ describe('LoadingVeil', () => {
     expect(screen.getByTestId('veil-stage')).not.toHaveTextContent(/[a-z]{3}/i);
     expect(veil.querySelectorAll('.load-veil__tile')).toHaveLength(PIECES.length);
     expect(veil.querySelectorAll('.load-veil__col')).toHaveLength(4);
-    // no key, no decrypted art: the chart is still drawn in the middle
-    const chart = screen.getByTestId('veil-chart');
-    expect(chart.getAttribute('src')).toMatch(/^data:image\/svg\+xml/);
-    expect(decodeURIComponent(chart.getAttribute('src')!)).toContain('>12</text>');
+    // no key, no decrypted art: an empty glass slab holds the place, and no chart is in the page
+    expect(screen.getByTestId('veil-slab')).toBeInTheDocument();
+    expect(screen.queryByTestId('veil-chart')).toBeNull();
+    expect(veil.innerHTML).not.toContain('>12</text>');
   });
 
   it('shuffles the pieces into four columns that hold every graha and rashi once', () => {
@@ -81,7 +81,9 @@ describe('LoadingVeil', () => {
       await Promise.resolve();
     });
     expect(get).toHaveBeenCalledWith(expect.stringMatching(/^(south|north)$/), 'light');
-    expect(screen.getByTestId('veil').querySelector('img')).toHaveAttribute('src', 'blob:art');
+    // painted onto a canvas, never an <img> anyone can save
+    expect(screen.getByTestId('veil-chart').tagName).toBe('CANVAS');
+    expect(screen.getByTestId('veil').querySelector('img')).toBeNull();
     expect(screen.getByTestId('veil').getAttribute('data-art')).toMatch(/^(south|north)$/);
     unmount();
     expect(revoke).toHaveBeenCalledWith('blob:art');

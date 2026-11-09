@@ -5,7 +5,7 @@
 
 .load-veil {
   /* translucent: the screen behind shows through slightly; the board on top is solid and stays clear */
-  --veil-bg: rgba(11, 10, 31, 0.62);
+  --veil-bg: rgba(11, 10, 31, 0.72);
   --veil-border: rgba(216, 180, 254, 0.22);
   --veil-hi: rgba(255, 255, 255, 0.14);
   --veil-lo: rgba(0, 0, 0, 0.45);
@@ -26,7 +26,7 @@
   isolation: isolate;
 }
 html.light .load-veil {
-  --veil-bg: rgba(245, 243, 255, 0.64);
+  --veil-bg: rgba(245, 243, 255, 0.74);
   --veil-border: rgba(124, 58, 237, 0.2);
   --veil-hi: rgba(255, 255, 255, 0.9);
   --veil-lo: rgba(76, 29, 149, 0.12);
@@ -82,8 +82,9 @@ html.light .load-veil {
   gap: clamp(0.4rem, 2cqh, 1.1rem);
   padding: clamp(0.75rem, 4cqh, 2.5rem) clamp(0.75rem, 3cqw, 2.5rem);
   background: var(--veil-bg);
-  -webkit-backdrop-filter: blur(3px) saturate(120%);
-  backdrop-filter: blur(3px) saturate(120%);
+  /* frosted: the page behind shows as soft shapes and colour, its text blurred away so it never competes */
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
   overflow: hidden;
 }
 .load-veil--fill .load-veil__layer,
@@ -305,4 +306,25 @@ html.light .load-veil {
   .load-veil--animate .load-veil__tile {
     animation: none;
   }
+}
+
+/* without the key (signed out, not configured) the chart's place holds an empty glass slab, never a readable chart */
+.load-veil__slab {
+  width: 86%;
+  aspect-ratio: 1 / 1;
+  border-radius: 9%;
+  border: 1px solid var(--tile-border);
+  background: var(--tile-bg);
+  box-shadow:
+    inset 0 1px 0 var(--veil-hi),
+    inset 0 -10px 24px var(--veil-lo),
+    0 22px 40px -22px var(--tile-drop);
+  transform: rotateX(12deg);
+}
+/* the canvas is decoration: no selection, no drag, no touch callout */
+.load-veil__art {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }

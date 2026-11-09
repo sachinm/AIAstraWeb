@@ -3,7 +3,8 @@
 // a lit rim; its top face is one colour, centre included. The twelve houses are engraved into that face as grooves, with
 // a small numeral 1..12 from the first house tucked into each so the house stays free for planets. No planet sits in a
 // house. Plain JS so both the build script and the app use the one drawing: the app draws it at once inside the loading
-// veil, the build encrypts the same picture (scripts/encrypt-overlay-art.mjs).
+// veil only as ciphertext: this file is build-time only and never bundled (Sachin, 2026-11-09: encrypted, cryptic names,
+// not copyable). scripts/encrypt-overlay-art.mjs encrypts what scripts/draw-overlay-placeholders.mjs draws from here.
 
 const S = 1000; // square canvas
 const BOARD = 60; // board edge inset from the canvas

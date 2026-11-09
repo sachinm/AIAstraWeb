@@ -2,7 +2,8 @@
  * The loading veil's illustrations (server docs/loading-overlay/01 §4.3). Four drawings of an empty house chart
  * (South or North Indian, light or dark) ship on the web origin as AES-GCM ciphertext made at build time
  * (scripts/encrypt-overlay-art.mjs). A signed-in session fetches the key once from the API, decrypts in the browser
- * with Web Crypto and keeps the plain image in IndexedDB, so later visits read it from there.
+ * with Web Crypto in memory on every show. IndexedDB keeps only the ciphertext, so nothing readable is stored in the
+ * browser; the files on the wire carry keyed-hash names under /_a/ (Sachin, 2026-11-09).
  *
  * Every step degrades to `null`: the veil then shows its lines alone. Nothing here throws to a caller.
  */
@@ -21,7 +22,7 @@ interface KeyResponse {
   version: string;
 }
 
-const MANIFEST_URL = '/overlay/manifest.json';
+const MANIFEST_URL = '/_a/i.json';
 const KEY_TIMEOUT_MS = 8_000;
 const ART_TIMEOUT_MS = 10_000;
 const DB_NAME = 'aiastra-overlay';
@@ -31,8 +32,8 @@ const IV_BYTES = 12;
 /** Memoised per page load; a failure is remembered too, so one broken step costs one request, not one per veil. */
 let manifestPromise: Promise<ArtManifest | null> | null = null;
 let keyPromise: Promise<CryptoKey | null> | null = null;
-/** For a browser without IndexedDB (private mode, tests): the decrypted blobs for this page only. */
-const memoryCache = new Map<string, Blob>();
+/** For a browser without IndexedDB (private mode, tests): the ciphertext for this page only. */
+const memoryCache = new Map<string, ArrayBuffer>();
 
 function apiBase(): string {
   const base = (import.meta.env.VITE_API_BASE || import.meta.env.VITE_GRAPHQL_BASE || '') as string;
@@ -71,8 +72,20 @@ export async function loadManifest(): Promise<ArtManifest | null> {
       try {
         const res = await fetchWithTimeout(MANIFEST_URL, { cache: 'default' }, KEY_TIMEOUT_MS);
         if (!res.ok) return null;
-        const m = (await res.json()) as ArtManifest;
-        return m && typeof m.version === 'string' && Array.isArray(m.files) ? m : null;
+        // the compact index the build writes: v version; f files with s style initial, t 1 for dark, m type, p path
+        const raw = (await res.json()) as { v?: unknown; f?: Array<{ s: string; t: number; m: string; p: string }> };
+        if (!raw || typeof raw.v !== 'string' || !Array.isArray(raw.f)) return null;
+        return {
+          version: raw.v,
+          files: raw.f.map((e) => ({
+            name: e.p,
+            style: e.s === 'n' ? 'north' : 'south',
+            theme: e.t === 1 ? 'dark' : 'light',
+            path: e.p,
+            type: e.m,
+            bytes: 0,
+          })),
+        };
       } catch {
         return null;
       }
@@ -138,14 +151,14 @@ function openDb(): Promise<IDBDatabase | null> {
   });
 }
 
-async function cacheGet(id: string): Promise<Blob | null> {
+async function cacheGet(id: string): Promise<ArrayBuffer | null> {
   if (memoryCache.has(id)) return memoryCache.get(id)!;
   const db = await openDb();
   if (!db) return null;
   return new Promise((resolve) => {
     try {
       const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
-      req.onsuccess = () => resolve(req.result instanceof Blob ? req.result : null);
+      req.onsuccess = () => resolve(req.result instanceof ArrayBuffer ? req.result : null);
       req.onerror = () => resolve(null);
     } catch {
       resolve(null);
@@ -153,14 +166,14 @@ async function cacheGet(id: string): Promise<Blob | null> {
   });
 }
 
-async function cachePut(id: string, blob: Blob): Promise<void> {
-  memoryCache.set(id, blob);
+async function cachePut(id: string, cipher: ArrayBuffer): Promise<void> {
+  memoryCache.set(id, cipher);
   const db = await openDb();
   if (!db) return;
   await new Promise<void>((resolve) => {
     try {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put(blob, id);
+      tx.objectStore(STORE).put(cipher, id);
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
       tx.onabort = () => resolve();
@@ -186,17 +199,20 @@ export async function getOverlayArt(style: ArtStyle, theme: ArtTheme): Promise<B
     if (!manifest) return null;
     const file = manifest.files.find((f) => f.style === style && f.theme === theme) ?? manifest.files.find((f) => f.theme === theme);
     if (!file) return null;
-    const id = `${file.name}@${manifest.version}`;
-    const cached = await cacheGet(id);
-    if (cached) return cached;
     const key = await loadKey();
     if (!key) return null;
-    const res = await fetchWithTimeout(file.path, { cache: 'force-cache' }, ART_TIMEOUT_MS);
-    if (!res.ok) return null;
-    const blob = await decryptArt(key, await res.arrayBuffer(), file.type);
-    if (!blob) return null;
-    void cachePut(id, blob);
-    return blob;
+    const id = `${file.name}@${manifest.version}`;
+    let cipher = await cacheGet(id);
+    if (!cipher) {
+      const res = await fetchWithTimeout(file.path, { cache: 'force-cache' }, ART_TIMEOUT_MS);
+      if (!res.ok) return null;
+      cipher = await res.arrayBuffer();
+      const blob = await decryptArt(key, cipher, file.type);
+      if (!blob) return null;
+      void cachePut(id, cipher);
+      return blob;
+    }
+    return await decryptArt(key, cipher, file.type);
   } catch {
     return null;
   }
