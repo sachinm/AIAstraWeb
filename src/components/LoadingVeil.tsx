@@ -6,7 +6,8 @@
  * and the tile order are picked at random each time the veil appears. If the board cannot be had (signed out, not
  * configured, offline) the tiles and lines still show; a wait never fails because of its decoration.
  */
-import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import React, { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Sparkles } from 'lucide-react';
 import { LINE_MS, prefersReducedMotion } from '../pages/chat-interface/ReadingStagesPanel';
 import { LOADING_QUIPS, pickQuipStart } from '../lib/loadingQuips';
@@ -78,34 +79,66 @@ function htmlTheme(): ArtTheme {
   return document.documentElement.classList.contains('light') ? 'light' : 'dark';
 }
 
-/** The rotating line: a random start, then the next one every LINE_MS. */
-export function useLoadingQuip(): string {
-  const [i, setI] = useState(() => pickQuipStart());
+/**
+ * One wait often follows another at once (the session check, then the board's own wait). The second full-screen veil
+ * takes over the first one's line, chart and pieces and skips its entrance, so the person sees one overlay that stays
+ * put, not two that jump (Sachin, 2026-11-09). A hand-over older than HANDOFF_MS is ignored.
+ */
+const HANDOFF_MS = 1500;
+interface Handoff {
+  at: number;
+  quip: number;
+  style: ArtStyle;
+  cols: ReturnType<typeof shufflePieces>;
+  blob: Blob | null;
+}
+let handoff: Handoff | null = null;
+
+function freshHandoff(): Handoff | null {
+  return handoff && Date.now() - handoff.at < HANDOFF_MS ? handoff : null;
+}
+
+/** Tests: forget the last veil. */
+export function resetVeilHandoffForTests(): void {
+  handoff = null;
+}
+
+/** The rotating line: a random start (or the line the last veil showed), then the next one every LINE_MS. */
+export function useLoadingQuip(start?: number): { line: string; index: number } {
+  const [i, setI] = useState(() => start ?? pickQuipStart());
   useEffect(() => {
     const t = setInterval(() => setI((x) => (x + 1) % LOADING_QUIPS.length), LINE_MS);
     return () => clearInterval(t);
   }, []);
-  return LOADING_QUIPS[i]!;
+  return { line: LOADING_QUIPS[i]!, index: i };
 }
 
-/** An object URL for a random chart style in the given theme, or null while loading or when unavailable. */
-export function useOverlayArt(theme: ArtTheme): { url: string | null; style: ArtStyle } {
-  const style = useMemo(() => pickStyle(), []);
-  const [url, setUrl] = useState<string | null>(null);
+/** An object URL for a chart style in the given theme, or null while loading or when unavailable. */
+export function useOverlayArt(theme: ArtTheme, style: ArtStyle, carried: Blob | null): { url: string | null; blob: Blob | null } {
+  const canUrl = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function';
+  const [art, setArt] = useState<{ url: string | null; blob: Blob | null }>(() =>
+    carried && canUrl ? { url: URL.createObjectURL(carried), blob: carried } : { url: null, blob: null }
+  );
   useEffect(() => {
     let alive = true;
-    let made: string | null = null;
-    void getOverlayArt(style, theme).then((blob) => {
-      if (!alive || !blob || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return;
-      made = URL.createObjectURL(blob);
-      setUrl(made);
-    });
+    if (!art.blob) {
+      void getOverlayArt(style, theme).then((blob) => {
+        if (!alive || !blob || !canUrl) return;
+        setArt({ url: URL.createObjectURL(blob), blob });
+      });
+    }
     return () => {
       alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [style, theme]);
+  useEffect(() => {
+    const made = art.url;
+    return () => {
       if (made) URL.revokeObjectURL(made);
     };
-  }, [style, theme]);
-  return { url, style };
+  }, [art.url]);
+  return art;
 }
 
 /**
@@ -155,12 +188,25 @@ function TileColumn({ pieces, place, start }: { pieces: ReadonlyArray<typeof PIE
 
 export default function LoadingVeil({ fullScreen = false, note, children, foreground, leaving = false, testId = 'loading-veil', className = '' }: LoadingVeilProps) {
   const theme = htmlTheme();
-  const line = useLoadingQuip();
-  const { url, style } = useOverlayArt(theme);
-  const still = prefersReducedMotion();
-  const cols = useMemo(() => shufflePieces(), []);
+  // a full-screen veil that follows another one at once carries on from it
+  const [carry] = useState(() => (fullScreen ? freshHandoff() : null));
+  const [style] = useState<ArtStyle>(() => carry?.style ?? pickStyle());
+  const [cols] = useState(() => carry?.cols ?? shufflePieces());
+  const { line, index } = useLoadingQuip(carry?.quip);
+  const { url, blob } = useOverlayArt(theme, style, carry?.blob ?? null);
+  const still = prefersReducedMotion() || carry !== null;
 
-  return (
+  // remember where this veil is, so a veil mounted right after it can take over
+  const last = useRef({ index, blob });
+  last.current = { index, blob };
+  useEffect(() => {
+    if (!fullScreen) return undefined;
+    return () => {
+      handoff = { at: Date.now(), quip: last.current.index, style, cols, blob: last.current.blob };
+    };
+  }, [fullScreen, style, cols]);
+
+  const veil = (
     <div
       className={`load-veil ${fullScreen ? 'load-veil--fixed' : 'load-veil--fill'} ${still ? '' : 'load-veil--animate'} ${leaving ? 'load-veil--leaving' : ''} ${className}`}
       data-testid={testId}
@@ -211,4 +257,8 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
       </div>
     </div>
   );
+
+  // full screen means the whole screen: render on <body>, so no page container (a backdrop-filter or transform on
+  // the dashboard's main panel) can turn `position: fixed` into "fixed to that panel"
+  return fullScreen && typeof document !== 'undefined' ? createPortal(veil, document.body) : veil;
 }
