@@ -2,6 +2,7 @@
  * Career map REST client (server docs/reading-engine/42 §B.5, Phase 1). Mounted only when AREA_ENABLED=1 on the
  * server; 404 means no chart yet or the feature is off, 202 means the chart is still being prepared.
  */
+import { announceUsage } from './planUsage';
 import { buildApiHeaders } from './apiHeaders';
 import type { SelfCharacterArc, SelfPersonalityAndJoy } from './areaApi';
 import { ledgerApiUrl } from './ledgerApi';
@@ -47,7 +48,7 @@ export interface CareerMap {
 }
 
 export type CareerState =
-  | { kind: 'ok'; map: CareerMap; work: WorkStatus | null; checks: Record<string, string> }
+  | { kind: 'ok'; map: CareerMap; work: WorkStatus | null; checks: Record<string, string>; madeAt?: string | null; validUntil?: string | null; refreshDue?: boolean }
   | { kind: 'not_ready' }
   | { kind: 'unavailable' };
 
@@ -79,8 +80,9 @@ export async function fetchCareer(): Promise<CareerState> {
   const r = await call('GET', '/api/area/career');
   if (r.status === 202) return { kind: 'not_ready' };
   if (!r.ok) return { kind: 'unavailable' };
-  const j = (await r.json()) as { map: CareerMap; work: WorkStatus | null; checks?: Record<string, string> };
-  const result: Extract<CareerState, { kind: 'ok' }> = { kind: 'ok', map: j.map, work: j.work, checks: j.checks ?? {} };
+  const j = (await r.json()) as { map: CareerMap; work: WorkStatus | null; checks?: Record<string, string>; made_at?: string; valid_until?: string | null; refresh_due?: boolean; usage?: unknown };
+  announceUsage(j.usage);
+  const result: Extract<CareerState, { kind: 'ok' }> = { kind: 'ok', map: j.map, work: j.work, checks: j.checks ?? {}, madeAt: j.made_at ?? null, validUntil: j.valid_until ?? null, refreshDue: j.refresh_due === true };
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
   careerCacheMap()?.set(token, result);
   return result;

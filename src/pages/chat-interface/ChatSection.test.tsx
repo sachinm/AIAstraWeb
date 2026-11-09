@@ -56,7 +56,7 @@ describe('ChatSection syncing modal', () => {
     setSpeechRecognitionMock();
   });
 
-  it('shows "Syncing your chart…" when kundli_added is false', async () => {
+  it('shows the loading veil when kundli_added is false', async () => {
     vi.mocked(UserData.fetchUserDetails).mockResolvedValue({
       success: true,
       kundli_added: false,
@@ -66,12 +66,12 @@ describe('ChatSection syncing modal', () => {
     render(<ChatSection user={mockUser} activeChatId={null} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Syncing your chart…/i)).toBeInTheDocument();
+      expect(screen.getByTestId('chat-wait')).toBeInTheDocument();
     });
     expect(document.querySelector('[data-test-id="chat-main-area"]')).toBeNull();
   });
 
-  it('shows "Syncing your chart…" when queue_status is not completed', async () => {
+  it('shows the loading veil when queue_status is not completed', async () => {
     vi.mocked(UserData.fetchUserDetails).mockResolvedValue({
       success: true,
       kundli_added: true,
@@ -81,7 +81,7 @@ describe('ChatSection syncing modal', () => {
     render(<ChatSection user={mockUser} activeChatId={null} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Syncing your chart…/i)).toBeInTheDocument();
+      expect(screen.getByTestId('chat-wait')).toBeInTheDocument();
     });
   });
 
@@ -97,13 +97,13 @@ describe('ChatSection syncing modal', () => {
     await waitFor(
       () => {
         expect(document.querySelector('[data-test-id="chat-main-area"]')).not.toBeNull();
-        expect(screen.queryByText(/Syncing your chart…/i)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('chat-wait')).not.toBeInTheDocument();
       },
       { timeout: 2000 }
     );
   });
 
-  it('keeps modal when success is false', async () => {
+  it('keeps the veil when success is false', async () => {
     vi.mocked(UserData.fetchUserDetails).mockResolvedValue({
       success: false,
       message: 'Not authenticated',
@@ -112,7 +112,7 @@ describe('ChatSection syncing modal', () => {
     render(<ChatSection user={mockUser} activeChatId={null} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Syncing your chart…/i)).toBeInTheDocument();
+      expect(screen.getByTestId('chat-wait')).toBeInTheDocument();
     });
   });
 });

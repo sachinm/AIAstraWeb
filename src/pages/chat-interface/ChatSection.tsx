@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Menu, MessagesSquare, PanelRightOpen, Plus } from 'lucide-react';
+import { Menu, MessagesSquare, PanelRightOpen, Plus } from 'lucide-react';
 import { track } from '../../lib/events';
 import {
   sendChatMessage,
@@ -27,6 +27,7 @@ import { useMe, usePlan, useRefreshMe } from '../../Auth/ProfileGate';
 import { isExhausted, QuotaExhaustedError } from '../../lib/billing';
 import UpgradeCard from '../../components/UpgradeCard';
 import ChartProgress from '../../components/ChartProgress';
+import LoadingVeil from '../../components/LoadingVeil';
 import {
   MAX_SIDEBAR_CHATS,
   mapApiMessagesToUi,
@@ -678,26 +679,21 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         data-test-id="birth-chart-generating-overlay"
         className="flex min-h-0 flex-1 items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 px-4"
       >
-        <div className="w-full max-w-md text-center text-white p-8 rounded-2xl bg-slate-900/95 border border-purple-400/30 backdrop-blur-md shadow-2xl">
-          {kundliReady === false && me?.chart ? (
-            <ChartProgress chart={me.chart} onUpdated={() => void refreshMe()} />
-          ) : (
-            <>
-              <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-1">
-                {kundliReady === null ? 'Loading…' : 'Generating your birth chart…'}
-              </h3>
-              {kundliReady === false && (
-                <p className="text-xs font-medium text-purple-300 mb-2">Syncing your chart…</p>
-              )}
-              <p className="text-gray-300 text-sm leading-relaxed">
-                {kundliReady === false
-                  ? 'We’re calculating your planetary placements, divisional charts, and dasha periods. You can use chat as soon as it’s ready.'
-                  : 'Preparing your cosmic profile.'}
-              </p>
-            </>
-          )}
-        </div>
+        {/* the loading veil; while the chart is still being built its progress card (stage, count, Retry) sits over it */}
+        <LoadingVeil
+          fullScreen
+          testId="chat-wait"
+          note={kundliReady === false && !me?.chart ? 'We’re calculating your planetary placements, divisional charts and dasha periods. Chat opens as soon as it is ready.' : undefined}
+          foreground={
+            kundliReady === false && me?.chart ? (
+              <div className="mx-auto w-full max-w-md rounded-2xl border border-purple-400/30 bg-slate-900/95 p-6 text-center text-white shadow-2xl backdrop-blur-md">
+                <ChartProgress chart={me.chart} onUpdated={() => void refreshMe()} />
+              </div>
+            ) : undefined
+          }
+        >
+          <div className="h-full min-h-[18rem] w-full" />
+        </LoadingVeil>
       </div>
     );
   }

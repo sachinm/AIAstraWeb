@@ -1,0 +1,330 @@
+/* The loading veil (src/components/LoadingVeil.tsx; server docs/loading-overlay/01, 04). Shared by the web app and the
+   admin site: dark values are the default, html.light overrides them (both apps put `light` or `dark` on <html>).
+   Layout: brand line and quip at the top, the 3D chart in the middle flanked by glass tiles, the note at the bottom.
+   Nothing is drawn over the chart. */
+
+.load-veil {
+  /* translucent: the screen behind shows through slightly; the board on top is solid and stays clear */
+  --veil-bg: rgba(11, 10, 31, 0.72);
+  --veil-border: rgba(216, 180, 254, 0.22);
+  --veil-hi: rgba(255, 255, 255, 0.14);
+  --veil-lo: rgba(0, 0, 0, 0.45);
+  --pill-bg: linear-gradient(180deg, rgba(139, 92, 246, 0.32), rgba(76, 29, 149, 0.34));
+  --pill-border: rgba(216, 180, 254, 0.35);
+  --pill-text: rgb(243, 232, 255);
+  --brand-a: #f5d0fe;
+  --brand-b: #c4b5fd;
+  --brand-c: #fde68a;
+  --brand-rest: rgba(237, 233, 254, 0.75);
+  --note: rgba(237, 233, 254, 0.72);
+  --tile-bg: linear-gradient(150deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.04) 55%, rgba(0, 0, 0, 0.12));
+  --tile-border: rgba(255, 255, 255, 0.22);
+  --tile-drop: rgba(3, 2, 15, 0.6);
+  --graha: #fde68a;
+  --rashi: #ddd6fe;
+  position: relative;
+  isolation: isolate;
+}
+html.light .load-veil {
+  --veil-bg: rgba(245, 243, 255, 0.74);
+  --veil-border: rgba(124, 58, 237, 0.2);
+  --veil-hi: rgba(255, 255, 255, 0.9);
+  --veil-lo: rgba(76, 29, 149, 0.12);
+  --pill-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(237, 233, 254, 0.9));
+  --pill-border: rgba(124, 58, 237, 0.28);
+  --pill-text: rgb(59, 7, 100);
+  --brand-a: #7c3aed;
+  --brand-b: #a21caf;
+  --brand-c: #b45309;
+  --brand-rest: rgba(59, 7, 100, 0.7);
+  --note: rgba(49, 46, 129, 0.78);
+  --tile-bg: linear-gradient(150deg, rgba(255, 255, 255, 0.98), rgba(245, 243, 255, 0.85) 55%, rgba(221, 214, 254, 0.8));
+  --tile-border: rgba(124, 58, 237, 0.22);
+  --tile-drop: rgba(76, 29, 149, 0.22);
+  --graha: #b45309;
+  --rashi: #6d28d9;
+}
+
+.load-veil--fill {
+  min-height: 12rem;
+  width: 100%;
+  height: 100%;
+}
+/* a page-level wait: a floating glass panel at 90% of the viewport, the page visible around and through it */
+.load-veil--fixed {
+  position: fixed;
+  left: 5vw;
+  top: 5vh;
+  width: 90vw;
+  height: 90vh;
+  height: 90dvh;
+  top: 5dvh;
+  z-index: 60;
+}
+.load-veil__under {
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+.load-veil__layer,
+.load-veil__under {
+  transition: opacity 0.3s ease-out;
+}
+
+/* the glass: blur, tint, a lit top edge and a curved, raised rim */
+.load-veil__layer {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.4rem, 2cqh, 1.1rem);
+  padding: clamp(0.75rem, 4cqh, 2.5rem) clamp(0.75rem, 3cqw, 2.5rem);
+  background: var(--veil-bg);
+  /* frosted: the page behind shows as soft shapes and colour, its text blurred away so it never competes */
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+  overflow: hidden;
+}
+.load-veil--fill .load-veil__layer,
+.load-veil--fixed .load-veil__layer {
+  border-radius: 1.75rem;
+  border: 1px solid var(--veil-border);
+  box-shadow:
+    inset 0 1px 0 var(--veil-hi),
+    inset 0 -18px 40px -24px var(--veil-lo),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 24px 60px -30px var(--veil-lo);
+}
+
+.load-veil__top,
+.load-veil__bottom {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  /* as wide as the board and the pieces, so a line wraps only when the veil itself is narrower */
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* "AdAstra AI · preparing your board…": the name exactly as the dashboard header draws it, flat, no glow */
+.load-veil__brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15rem 0.55rem;
+  margin: 0;
+}
+/* the name takes each app's own header classes (font, weight, colour); only the size is set here */
+.load-veil__brand-name {
+  font-size: clamp(1.1rem, 5.2cqh, 1.9rem);
+  line-height: 1.2;
+}
+.load-veil__brand-rest {
+  font-size: clamp(0.72rem, 2.6cqh, 0.95rem);
+  letter-spacing: 0.16em;
+  text-transform: lowercase;
+  color: var(--brand-rest);
+}
+
+/* the quip: plain words under the wordmark, no pill, border or glow (Sachin, 2026-11-09) */
+.load-veil__line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: clamp(0.78rem, 2.6cqh, 0.95rem);
+  line-height: 1.4;
+  color: var(--pill-text);
+}
+.load-veil__line-in {
+  animation: loadVeilLineIn 0.3s ease-out both;
+}
+.load-veil__note {
+  margin: 0;
+  font-size: clamp(0.72rem, 2.3cqh, 0.85rem);
+  line-height: 1.4;
+  color: var(--note);
+}
+.load-veil__front {
+  width: 100%;
+  pointer-events: auto;
+}
+
+/* the chart between two columns of tiles on each side */
+.load-veil__stage {
+  --tile: clamp(28px, 8.2cqh, 72px);
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--tile) * 0.32);
+}
+.load-veil__board {
+  height: 100%;
+  max-height: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: min(64cqw, 100%);
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1400px;
+  margin: 0 calc(var(--tile) * 0.25);
+}
+.load-veil__art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: rotateX(12deg);
+  transform-origin: 50% 60%;
+  filter: drop-shadow(0 18px 30px var(--tile-drop));
+  pointer-events: none;
+}
+.load-veil__art--in {
+  animation:
+    loadVeilArtIn 0.5s ease-out both,
+    loadVeilFloat 7s ease-in-out 0.5s infinite;
+}
+
+.load-veil__col {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--tile) * 0.28);
+}
+.load-veil__col--outer {
+  margin-top: calc(var(--tile) * 0.55);
+}
+.load-veil__tile {
+  width: var(--tile);
+  height: var(--tile);
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--tile) * 0.3);
+  border: 1px solid var(--tile-border);
+  background: var(--tile-bg);
+  box-shadow:
+    inset 0 1px 0 var(--veil-hi),
+    inset 0 -3px 7px var(--veil-lo),
+    0 calc(var(--tile) * 0.08) 0 var(--tile-drop),
+    0 calc(var(--tile) * 0.22) calc(var(--tile) * 0.4) calc(var(--tile) * -0.12) var(--tile-drop);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols', 'Noto Sans Symbols 2', 'Apple Symbols', serif;
+  font-size: calc(var(--tile) * 0.52);
+  line-height: 1;
+  user-select: none;
+}
+.load-veil__tile--graha {
+  color: var(--graha);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 0 calc(var(--tile) * 0.25) color-mix(in srgb, var(--graha) 55%, transparent);
+}
+.load-veil__tile--rashi {
+  color: var(--rashi);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 0 calc(var(--tile) * 0.25) color-mix(in srgb, var(--rashi) 45%, transparent);
+}
+.load-veil--animate .load-veil__tile {
+  animation: loadVeilBob 5.5s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.45s);
+}
+
+/* smaller spaces: drop the outer columns, then all tiles and the brand, then the chart */
+@container (max-width: 720px) {
+  .load-veil__col--outer {
+    display: none;
+  }
+}
+@container (max-width: 420px) {
+  .load-veil__col {
+    display: none;
+  }
+}
+@container (max-height: 300px) {
+  .load-veil__col,
+  .load-veil__brand-rest {
+    display: none;
+  }
+}
+@container (max-height: 170px) {
+  .load-veil__stage,
+  .load-veil__brand {
+    display: none;
+  }
+}
+
+.load-veil--leaving .load-veil__layer {
+  opacity: 0;
+  pointer-events: none;
+}
+.load-veil--leaving .load-veil__under {
+  opacity: 1;
+}
+
+@keyframes loadVeilArtIn {
+  from {
+    opacity: 0;
+    transform: rotateX(22deg) translateY(10px);
+  }
+}
+@keyframes loadVeilFloat {
+  0%,
+  100% {
+    transform: rotateX(12deg) translateY(0);
+  }
+  50% {
+    transform: rotateX(9deg) translateY(-6px);
+  }
+}
+@keyframes loadVeilBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@keyframes loadVeilLineIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .load-veil__art--in,
+  .load-veil__line-in,
+  .load-veil--animate .load-veil__tile {
+    animation: none;
+  }
+}
+
+/* without the key (signed out, not configured) the chart's place holds an empty glass slab, never a readable chart */
+.load-veil__slab {
+  width: 86%;
+  aspect-ratio: 1 / 1;
+  border-radius: 9%;
+  border: 1px solid var(--tile-border);
+  background: var(--tile-bg);
+  box-shadow:
+    inset 0 1px 0 var(--veil-hi),
+    inset 0 -10px 24px var(--veil-lo),
+    0 22px 40px -22px var(--tile-drop);
+  transform: rotateX(12deg);
+}
+/* the canvas is decoration: no selection, no drag, no touch callout */
+.load-veil__art {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}

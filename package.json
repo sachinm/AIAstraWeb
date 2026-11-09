@@ -17,8 +17,10 @@
     "test:walkthrough": "playwright test --config e2e/playwright.config.ts",
     "voice:testbed": "node testbed/voice/run.mjs",
     "voice:testbed:live": "node testbed/voice/live.mjs",
-    "predev": "node scripts/copy-mediapipe.mjs",
-    "prebuild": "node scripts/copy-mediapipe.mjs"
+    "predev": "node scripts/copy-mediapipe.mjs && node scripts/encrypt-overlay-art.mjs",
+    "prebuild": "node scripts/copy-mediapipe.mjs && node scripts/encrypt-overlay-art.mjs",
+    "art:placeholders": "node scripts/draw-overlay-placeholders.mjs",
+    "art:encrypt": "node scripts/encrypt-overlay-art.mjs"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.2",

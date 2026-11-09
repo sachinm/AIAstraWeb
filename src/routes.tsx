@@ -21,7 +21,7 @@ import WorkPage from './pages/work/WorkPage';
 import LovePage from './pages/love/LovePage';
 import YouPage from './pages/you/YouPage';
 import WelcomeWizard from './pages/welcome/WelcomeWizard';
-import { boardsEnabled } from './components/BoardTabBar';
+
 import PricingPage from './pages/pricing/PricingPage';
 import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import SeoHead from './components/SeoHead';

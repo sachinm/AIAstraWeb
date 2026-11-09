@@ -20,6 +20,8 @@ import {
 } from '../../lib/careerApi';
 import { track } from '../../lib/events';
 import BoardAsk from '../../components/BoardAsk';
+import LoadingVeil from '../../components/LoadingVeil';
+import { ReadingStamp } from '../../components/ReadingStamp';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
@@ -119,7 +121,10 @@ export default function WorkPage() {
     void load();
   }, []);
 
-  if (!state) return <div className="p-6 text-white/70">Loading…</div>;
+  if (!state)
+    return (
+      <LoadingVeil fullScreen testId="work-loading" />
+    );
   if (state.kind === 'not_ready') return <div className={`${panel} m-4 text-white/80`}>Your chart is being prepared. Check back in a minute.</div>;
   if (state.kind === 'unavailable') return <div className={`${panel} m-4 text-white/80`}>The Work board is coming soon.</div>;
   const { map, work, checks } = state;
@@ -133,7 +138,10 @@ export default function WorkPage() {
   return (
     <div className="w-full px-4 pb-24 pt-4 text-white sm:px-6 lg:px-10" data-testid="work-page">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Work</h1>
+        <div className="min-w-0">
+          <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Work</h1>
+          <ReadingStamp madeAt={state.madeAt} validUntil={state.validUntil} board="work" refreshDue={state.refreshDue} onRefreshed={() => void load()} />
+        </div>
         <BoardAsk category="work" />
       </div>
 

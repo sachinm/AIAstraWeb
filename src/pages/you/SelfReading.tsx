@@ -8,8 +8,10 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { longDate } from '../../lib/careerApi';
+import { usePlan } from '../../Auth/ProfileGate';
+import { onBoardRefreshed } from '../../lib/boardRefresh';
 import { OracleVeil, OracleWaitLine } from './OracleWait';
-import { DatesTable, parseReadingBlocks, ReadingMarkdown } from './readingMarkdown';
+import { renderInline } from './readingMarkdown';
 import { track } from '../../lib/events';
 import {
   fetchSelfReading,
@@ -19,6 +21,7 @@ import {
   type LineRange,
   type PreparingStage,
   type SelfAnswer,
+  type SelfArea,
   type SelfPanelPlan,
   type SelfChapter,
   type SelfLine,
@@ -43,7 +46,6 @@ export const SELF_WORDS = {
   tookTooLong: 'Your reading is taking longer than usual.',
   planTitle: 'What to do with this',
   calendarTitle: 'Dates to mark',
-  fullReading: 'The full reading',
   noKundli: 'Add your birth details in your profile to see your reading.',
   unavailable: 'Your reading is coming soon.',
   error: 'Your reading did not load.',
@@ -134,6 +136,13 @@ export default function SelfReading() {
   // after that the page says so and offers Retry (the build goes on behind it)
   // the code panels are shown while the Oracle's synthesis is written (oracle pending): checked every 10 s the same way
   const oraclePending = state?.kind === 'ok' && state.reading.oracle?.status === 'pending';
+  // the synthesis written in the background took a question (server docs/billing/02): when it lands, the count is re-read
+  const { refreshPlan } = usePlan();
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && state?.kind === 'ok' && state.reading.oracle?.status === 'ok') void refreshPlan();
+    wasPending.current = oraclePending;
+  }, [state, oraclePending, refreshPlan]);
   useEffect(() => {
     if (state?.kind !== 'preparing' && !oraclePending) return;
     const elapsed = Date.now() - startedAt.current;
@@ -151,6 +160,17 @@ export default function SelfReading() {
     setState(null);
     void load();
   };
+  // a fresh reading was asked for (server docs/billing/03): read again; the server answers `pending` while it is made,
+  // so the page waits under the veil and polls as it does for a first reading
+  useEffect(
+    () =>
+      onBoardRefreshed('self', () => {
+        startedAt.current = Date.now();
+        setWaited(0);
+        void load();
+      }),
+    [],
+  );
 
   if (!state) return <Skeleton words={SELF_WORDS.loading} testId="self-reading-loading" />;
   if (state.kind === 'preparing') {
@@ -273,9 +293,6 @@ function ReadingBody({ reading, reload, waiting = false, gaveUp = false }: { rea
         </>
       )}
 
-      {/* the Oracle's prose lives inside each panel (panel.synthesis); the whole text is shown only when no panel took a section */}
-      {reading.oracle?.status === 'ok' && reading.oracle.text && !panels.some((p) => p.synthesis) && <FullReading text={reading.oracle.text} />}
-
       {reading.question && <QuestionCard question={reading.question} />}
 
       {reading.builtLine && (
@@ -347,30 +364,31 @@ function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string
     );
 
   const vetoed = panel.vetoed ?? [];
+  // the Oracle's area is the card when it is there (server doc 65); the code lines are then the audit layer under Chart details
+  const area = panel.areaStatus === 'ok' ? panel.area : undefined;
+  const codeLines = area ? lines.filter((l) => !/\.ai\.\d+$/.test(l.id)) : lines;
   return (
-    <section className={panelCls} data-testid={`self-panel-${panel.id}`} data-status={panel.status}>
+    <section className={panelCls} data-testid={`self-panel-${panel.id}`} data-status={panel.status} data-card={area ? 'oracle' : 'code'}>
       {title}
       <p className="-mt-1 mb-2 text-sm text-white/60" data-testid="self-panel-range">
-        {headerWords(panel.id, panel.headerRange, today)}
+        {area ? areaHeaderWords(area, today) : headerWords(panel.id, panel.headerRange, today)}
       </p>
       {panel.note && (
         <p className="mb-3 text-sm italic text-white/60" data-testid="self-panel-note">
           {panel.note}
         </p>
       )}
-      <ul className="mb-3 space-y-3" data-testid="self-lines">
-        {lines.map((l) => (
-          <LineView key={l.id} line={l} header={panel.headerRange} details={details} />
-        ))}
-      </ul>
-      {panel.chapters && panel.chapters.length > 0 && <Chapters chapters={panel.chapters} details={details} />}
-      {panel.synthesis && (
-        <div className="mb-3 border-t border-white/10 pt-3" data-testid="self-panel-synthesis">
-          <ReadingMarkdown text={panel.synthesis} testId={`self-synthesis-${panel.id}`} />
-          <DatesTable text={panel.synthesis} panelId={panel.id} />
-        </div>
+      {area ? (
+        <AreaView area={area} panelId={panel.id} />
+      ) : (
+        <ul className="mb-3 space-y-3" data-testid="self-lines">
+          {lines.map((l) => (
+            <LineView key={l.id} line={l} header={panel.headerRange} details={details} />
+          ))}
+        </ul>
       )}
-      {panel.plan && <PlanView plan={panel.plan} />}
+      {panel.chapters && panel.chapters.length > 0 && <Chapters chapters={panel.chapters} details={details} />}
+      {!area && panel.plan && <PlanView plan={panel.plan} />}
       <button
         type="button"
         aria-expanded={details}
@@ -384,6 +402,18 @@ function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string
       </button>
       {details && (
         <div className="mt-1 space-y-1" data-testid="self-panel-details">
+          {area && codeLines.length > 0 && (
+            <ul className="mb-2 space-y-2 rounded-lg border border-white/10 bg-white/5 p-2" data-testid="self-panel-code-lines">
+              {codeLines.map((l) => (
+                <LineView key={l.id} line={l} header={panel.headerRange} details />
+              ))}
+            </ul>
+          )}
+          {area && area.evidence.length > 0 && (
+            <p className="font-mono text-[11px] text-white/45" data-testid="self-area-evidence">
+              {area.evidence.join(' · ')}
+            </p>
+          )}
           {adjusted.map((t, i) => (
             <p key={i} className="text-xs text-white/60" data-testid="self-panel-adjusted">
               Adjusted by a whole-chart check: {t}
@@ -446,16 +476,68 @@ function PlanView({ plan }: { plan: SelfPanelPlan }) {
   );
 }
 
-/** The Oracle's narrative, paragraph by paragraph, under the panels. Validated and redacted server side; never a chart term the person did not ask for. */
-function FullReading({ text }: { text: string }) {
-  if (parseReadingBlocks(text).length === 0) return null;
+const AREA_CERTAINTY_WORD: Record<SelfArea['certainty'], string> = { strong: 'Strong', likely: 'Likely', possible: 'Possible' };
+
+/** The card's header for an area: "True until 16 Feb 2028 · Strong", or "Always" for a lifelong area. */
+export function areaHeaderWords(area: SelfArea, today: string): string {
+  const word = AREA_CERTAINTY_WORD[area.certainty];
+  if (area.validUntil === 'always') return 'Always';
+  return area.validUntil > today ? `True until ${longDate(area.validUntil)} · ${word}` : word;
+}
+
+/** One area of the Oracle's reading as the card (server doc 65): headline, prose, the dates it names, what to do. */
+function AreaView({ area, panelId }: { area: SelfArea; panelId: string }) {
   return (
-    <section className={panelCls} data-testid="self-full-reading">
-      <h3 className="mb-2 text-xl font-semibold">{SELF_WORDS.fullReading}</h3>
-      <ReadingMarkdown text={text} testId="self-full-reading-body" />
-    </section>
+    <div className="mb-3" data-testid={`self-area-${panelId}`}>
+      <p className="mb-3 text-lg font-medium leading-snug text-white" data-testid="self-area-headline">
+        {area.headline}
+      </p>
+      <div className="space-y-3" data-testid="self-area-prose">
+        {area.paragraphs.map((p, i) => (
+          <p key={i} className="leading-relaxed text-white/85">
+            {renderInline(p)}
+          </p>
+        ))}
+      </div>
+      {area.dates.length > 0 && (
+        <div className="mt-4" data-testid="self-area-dates">
+          <div className="text-xs uppercase tracking-wide text-white/55">{SELF_WORDS.calendarTitle}</div>
+          <table className="mt-1 w-full text-left text-sm">
+            <tbody>
+              {area.dates.map((d, i) => {
+                const now = d.from <= todayIso() && todayIso() <= d.to;
+                return (
+                  <tr key={i} className={`border-t border-white/10 align-top ${now ? 'text-white' : 'text-white/80'}`} data-now={now ? 'true' : undefined}>
+                    <td className="whitespace-nowrap py-1.5 pr-3 text-white/65">{d.from === d.to ? longDate(d.from) : range(d.from, d.to)}</td>
+                    <td className="py-1.5">
+                      {d.label}
+                      {now && <span className="ml-2 rounded-full bg-purple-500/30 px-2 py-0.5 text-[11px] text-purple-100">now</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {area.actions.length > 0 && (
+        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3" data-testid="self-area-actions">
+          <div className="text-xs uppercase tracking-wide text-white/55">{SELF_WORDS.planTitle}</div>
+          <ul className="mt-1 space-y-1.5">
+            {area.actions.map((x, i) => (
+              <li key={i} className="text-sm text-white/85">
+                <span className="text-white/55">{x.from === x.to ? longDate(x.from) : range(x.from, x.to)} · </span>
+                {x.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 function LineView({ line, header, details }: { line: SelfLine; header: LineRange; details: boolean }) {
   const own = sameRange(line.range, header) ? null : rangeWords(line.range);

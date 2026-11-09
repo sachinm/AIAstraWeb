@@ -3,6 +3,7 @@
  * server: 200 is a board, 202 means the chart is still being prepared, 404 with `no_kundli` means no birth chart yet,
  * any other 404 means the board is off.
  */
+import { announceUsage } from './planUsage';
 import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
 import { saveFacts } from './profileApi';
@@ -105,7 +106,7 @@ export interface AreaBoard {
 }
 
 export type AreaState =
-  | { kind: 'ok'; board: AreaBoard; focus: string | null; ask: boolean; checks: Record<string, string>; builtAt: string }
+  | { kind: 'ok'; board: AreaBoard; focus: string | null; ask: boolean; checks: Record<string, string>; builtAt: string; madeAt?: string | null; validUntil?: string | null; refreshDue?: boolean }
   | { kind: 'preparing' }
   | { kind: 'no_kundli' }
   | { kind: 'unavailable' }
@@ -159,8 +160,9 @@ export async function fetchArea(area: AreaId): Promise<AreaState> {
     return j?.status === 'no_kundli' || j?.error === 'no_kundli' ? { kind: 'no_kundli' } : { kind: 'unavailable' };
   }
   if (!r.ok) return { kind: 'error' };
-  const j = (await r.json().catch(() => null)) as { status?: string; board?: AreaBoard; focus?: string | null; ask?: boolean; checks?: Record<string, string>; built_at?: string } | null;
+  const j = (await r.json().catch(() => null)) as { status?: string; board?: AreaBoard; focus?: string | null; ask?: boolean; checks?: Record<string, string>; built_at?: string; made_at?: string; valid_until?: string | null; refresh_due?: boolean; usage?: unknown } | null;
   if (!j || j.status !== 'ok' || !j.board) return { kind: 'error' };
+  announceUsage(j.usage);
   const result: Extract<AreaState, { kind: 'ok' }> = {
     kind: 'ok',
     board: j.board,
@@ -168,6 +170,9 @@ export async function fetchArea(area: AreaId): Promise<AreaState> {
     ask: !!j.ask,
     checks: j.checks ?? {},
     builtAt: j.built_at ?? j.board.asOf,
+    madeAt: j.made_at ?? null,
+    validUntil: j.valid_until ?? null,
+    refreshDue: j.refresh_due === true,
   };
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
   cacheMapForCurrentFetch()?.set(`${token}:${area}`, result);

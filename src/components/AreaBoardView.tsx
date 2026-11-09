@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   fetchArea,
   getCachedArea,
+  invalidateCachedArea,
   saveAreaFact,
   sendAreaCheck,
   type AreaBoard,
@@ -22,6 +23,8 @@ import {
 import { longDate, monthName, type Tone } from '../lib/careerApi';
 import { track } from '../lib/events';
 import BoardAsk from './BoardAsk';
+import LoadingVeil from './LoadingVeil';
+import { ReadingStamp } from './ReadingStamp';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
@@ -393,15 +396,37 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
   const shell = (body: ReactNode) => (
     <div className="w-full px-4 pb-24 pt-4 text-white sm:px-6 lg:px-10" data-testid={cfg.testId}>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">{cfg.title}</h1>
+        <div className="min-w-0">
+          <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">{cfg.title}</h1>
+          {state?.kind === 'ok' && (
+            <ReadingStamp
+              madeAt={state.madeAt}
+              validUntil={state.validUntil}
+              board={cfg.area === 'love' ? 'love' : 'self'}
+              refreshDue={state.refreshDue}
+              onRefreshed={() => {
+                invalidateCachedArea(cfg.area);
+                void load();
+              }}
+            />
+          )}
+        </div>
         <BoardAsk category={cfg.askCategory} />
       </div>
       {body}
     </div>
   );
 
-  if (!state) return shell(<div className="p-2 text-white/70" data-testid="board-loading">Loading…</div>);
-  if (state.kind === 'preparing') return shell(<div className={`${panel} text-white/80`} data-testid="board-preparing">Your chart is still being prepared. This page will update by itself.</div>);
+  // the two waits are the loading veil alone, no page title (Sachin, 2026-11-09); the second keeps its one factual
+  // sentence as the note
+  // the veil floats at 90% of the viewport over the page (Sachin, 2026-11-09)
+  const wait = (testId: string, note?: string) => (
+    <div className="w-full" data-testid={cfg.testId}>
+      <LoadingVeil fullScreen testId={testId} note={note} />
+    </div>
+  );
+  if (!state) return wait('board-loading');
+  if (state.kind === 'preparing') return wait('board-preparing', 'Your chart is still being prepared. This page will update by itself.');
   if (state.kind === 'no_kundli') return shell(<div className={`${panel} text-white/80`} data-testid="board-no-kundli">Add your birth details in your profile to see this board.</div>);
   if (state.kind === 'unavailable') return shell(<div className={`${panel} text-white/80`} data-testid="board-unavailable">{cfg.unavailable}</div>);
   if (state.kind === 'error')

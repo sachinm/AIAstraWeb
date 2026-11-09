@@ -7,6 +7,10 @@ import { BANNED_ON_BOARD } from '../lucky/words';
 import { longDate } from '../../lib/careerApi';
 import type { SelfReading as SelfReadingData } from '../../lib/selfReadingApi';
 
+// server docs/billing/02: the synthesis written in the background took a question, so the count is re-read when it lands
+const refreshPlan = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../../Auth/ProfileGate', () => ({ usePlan: () => ({ plan: null, setPlan: () => {}, refreshPlan }) }));
+
 /** doc 61 §4: the body list joins the board's banned words */
 const BODY_BANNED = ['illness', 'disease', 'diagnosis', 'symptom', 'medication', 'surgery', 'doctor', 'liver', 'heart', 'lung', 'kidney', 'stomach', 'brain'];
 const BANNED = [...BANNED_ON_BOARD, 'house', 'lord', 'dasha', 'mahadasha', 'antardasha', 'nakshatra', 'varga', 'd1.', 'd9.', ...BODY_BANNED];
@@ -357,33 +361,7 @@ describe('Your reading, while the synthesis is written in the background (server
     expect(screen.queryByTestId('self-reading-error')).not.toBeInTheDocument();
   });
 
-  it('renders the Oracle plan inside its panel and the full reading under the panels when the synthesis is there', async () => {
-    srv.edit = (r) => {
-      r.panels[0]!.plan = {
-        summary: 'Hold the course this winter and let the partnership question settle before you move.',
-        steps: [{ text: 'Write down what you want from the partnership before 1 Jan.', range: { from: '2026-11-07', to: '2027-01-01' }, claimIds: ['diagnosis.tension'] }],
-        calendar: [
-          { from: '2026-12-24', to: '2026-12-24', label: 'The year clock changes hands', claimIds: [], inWindow: true },
-          { from: '2027-01-01', to: '2027-01-01', label: 'Pressure lifts', claimIds: [], inWindow: false },
-        ],
-      };
-      r.oracle = { status: 'ok', text: '### In short\n\nYou are built to be seen through the people you serve.\n\nThe pressure of this stretch eases from January.' };
-    };
-    render(<SelfReading />);
-    await screen.findByTestId('self-reading');
-    const panel = within(screen.getByTestId('self-tabpanel')).getByTestId('self-panel-diagnosis');
-    const plan = within(panel).getByTestId('self-panel-plan');
-    expect(within(plan).getByTestId('self-plan-summary')).toHaveTextContent('Hold the course this winter');
-    expect(within(plan).getByTestId('self-plan-steps')).toHaveTextContent(`${longDate('2026-11-07')} – ${longDate('2027-01-01')} · Write down what you want`);
-    expect(within(plan).getByTestId('self-plan-calendar')).toHaveTextContent(`${longDate('2026-12-24')} · The year clock changes hands`);
-    const full = screen.getByTestId('self-full-reading');
-    expect(within(full).getByRole('heading', { level: 3 })).toHaveTextContent(SELF_WORDS.fullReading);
-    expect(within(full).getByRole('heading', { level: 4 })).toHaveTextContent('In short');
-    expect(within(full).getAllByText(/./, { selector: 'p' }).map((p) => p.textContent)).toEqual([
-      'You are built to be seen through the people you serve.',
-      'The pressure of this stretch eases from January.',
-    ]);
-  });
+
 
   it('shows nothing of the Oracle when it failed: the code panels stand alone', async () => {
     srv.edit = (r) => {
@@ -401,7 +379,12 @@ describe('Your reading, the code panels under the Oracle veil while the synthesi
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let pending = true;
     srv.edit = (r) => {
-      r.oracle = pending ? { status: 'pending' } : { status: 'ok', text: 'In short: built on partnership.' };
+      r.oracle = pending ? { status: 'pending' } : { status: 'ok' };
+      for (const p of r.panels) p.areaStatus = pending ? 'pending' : 'withheld';
+      if (!pending) {
+        r.panels[0]!.areaStatus = 'ok';
+        r.panels[0]!.area = { id: 'diagnosis', headline: 'Built on partnership.', paragraphs: ['Your life is steered through partnership.'], dates: [], actions: [], certainty: 'strong', evidence: [], validUntil: '2028-02-16' };
+      }
     };
     render(<SelfReading />);
     expect(await screen.findByTestId('self-reading')).toBeInTheDocument();
@@ -419,6 +402,7 @@ describe('Your reading, the code panels under the Oracle veil while the synthesi
     });
     expect(screen.getByTestId('self-oracle-waiting').textContent).not.toBe(first);
     expect(gets()).toBe(1);
+    refreshPlan.mockClear();
     pending = false;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
@@ -426,31 +410,52 @@ describe('Your reading, the code panels under the Oracle veil while the synthesi
     await waitFor(() => expect(gets()).toBe(2));
     await waitFor(() => expect(screen.queryByTestId('self-oracle-waiting')).not.toBeInTheDocument());
     expect(within(screen.getByTestId('self-tabpanel')).getByTestId('oracle-veil-diagnosis')).toHaveAttribute('data-waiting', 'false');
-    expect(screen.getByTestId('self-full-reading')).toHaveTextContent('built on partnership');
+    expect(within(screen.getByTestId('self-tabpanel')).getByTestId('self-area-headline')).toHaveTextContent('Built on partnership.');
+    // the question count is re-read once, when the synthesis lands (server docs/billing/02)
+    expect(refreshPlan).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('Your reading, the Oracle prose inside each panel (server doc 64 §4)', () => {
-  it('renders a panel section as prose with a dates table inside that panel, and no separate full-reading card', async () => {
+describe('Your reading, each panel is the Oracle area when it is there (server doc 65)', () => {
+  it('renders headline, prose, dates and actions as the card; code lines move under Chart details; a withheld area keeps its code lines', async () => {
     srv.edit = (r) => {
-      r.panels[0]!.synthesis = 'Your life is steered through partnership: Jupiter in the 7th. The chapter of Rahu runs until 16 Feb 2028. - **Vimshottari**: Moon (16 Mar 2018 to 16 Mar 2028) agrees. - **Chara**: Virgo agrees.';
-      r.oracle = { status: 'ok', text: 'In short\n\nYour life is steered through partnership.' };
+      r.oracle = { status: 'ok' };
+      for (const p of r.panels) p.areaStatus = 'withheld';
+      r.panels[0]!.areaStatus = 'ok';
+      r.panels[0]!.area = {
+        id: 'diagnosis',
+        headline: 'Your sense of self is lived through partners, and this chapter asks you to pace yourself.',
+        paragraphs: ['Jupiter, your lagna lord, sits in the **7th** in Virgo.', 'Venus is 2nd from Rahu, a 2/12 relation.'],
+        dates: [
+          { from: '2019-02-16', to: '2028-02-16', label: 'Rahu Mahadasha' },
+          { from: '2025-11-16', to: '2027-01-01', label: 'Venus Antardasha' },
+        ],
+        actions: [{ from: '2026-11-09', to: '2027-01-01', text: 'Audit your agreements and outflows.' }],
+        certainty: 'strong',
+        evidence: ['planet:D1.Ju', 'claim:lagna.lord_house'],
+        validUntil: '2028-02-16',
+      };
     };
     render(<SelfReading />);
     await screen.findByTestId('self-reading');
     const panel = within(screen.getByTestId('self-tabpanel')).getByTestId('self-panel-diagnosis');
-    const synth = within(panel).getByTestId('self-synthesis-diagnosis');
-    expect(synth).toHaveTextContent('Your life is steered through partnership: Jupiter in the 7th.');
-    expect(within(synth).getByText('Vimshottari').tagName).toBe('STRONG');
-    expect(within(synth).getAllByRole('listitem')).toHaveLength(2);
-    const dates = within(panel).getByTestId('self-dates-diagnosis');
-    expect(within(dates).getAllByRole('row').map((r) => r.textContent)).toEqual([
-      '16 Feb 2028The chapter of Rahu runs until 16 Feb 2028.',
-      '16 Mar 2018 – 16 Mar 2028Vimshottari: Moon (16 Mar 2018 to 16 Mar 2028) agrees.',
-    ]);
+    expect(panel).toHaveAttribute('data-card', 'oracle');
+    expect(within(panel).getByTestId('self-panel-range')).toHaveTextContent('True until 16 Feb 2028 · Strong');
+    expect(within(panel).getByTestId('self-area-headline')).toHaveTextContent('pace yourself');
+    expect(within(panel).getByText('7th').tagName).toBe('STRONG');
+    const dates = within(panel).getByTestId('self-area-dates');
+    expect(within(dates).getAllByRole('row')).toHaveLength(2);
+    expect(within(panel).getByTestId('self-area-actions')).toHaveTextContent('Audit your agreements and outflows.');
+    // the code lines are not the card any more; they are under Chart details, with the evidence keys
+    expect(within(panel).queryByTestId('self-lines')).not.toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Chart details' }));
+    expect(within(panel).getByTestId('self-panel-code-lines')).toBeInTheDocument();
+    expect(within(panel).getByTestId('self-area-evidence')).toHaveTextContent('planet:D1.Ju · claim:lagna.lord_house');
+    // another panel whose area was withheld keeps its code lines as the card
+    fireEvent.click(within(screen.getByTestId('self-tabs')).getByRole('tab', { name: 'Your mind' }));
+    const mind = within(screen.getByTestId('self-tabpanel')).getByTestId('self-panel-mind');
+    expect(mind).toHaveAttribute('data-card', 'code');
+    expect(within(mind).getByTestId('self-lines')).toBeInTheDocument();
     expect(screen.queryByTestId('self-full-reading')).not.toBeInTheDocument();
-    // the prose sits after the card lines and before the plan
-    const lines = within(panel).getByTestId('self-lines');
-    expect(lines.compareDocumentPosition(synth) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
