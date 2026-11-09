@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   fetchArea,
   getCachedArea,
+  invalidateCachedArea,
   saveAreaFact,
   sendAreaCheck,
   type AreaBoard,
@@ -397,7 +398,18 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">{cfg.title}</h1>
-          {state?.kind === 'ok' && <ReadingStamp madeAt={state.madeAt} validUntil={state.validUntil} />}
+          {state?.kind === 'ok' && (
+            <ReadingStamp
+              madeAt={state.madeAt}
+              validUntil={state.validUntil}
+              board={cfg.area === 'love' ? 'love' : 'self'}
+              refreshDue={state.refreshDue}
+              onRefreshed={() => {
+                invalidateCachedArea(cfg.area);
+                void load();
+              }}
+            />
+          )}
         </div>
         <BoardAsk category={cfg.askCategory} />
       </div>

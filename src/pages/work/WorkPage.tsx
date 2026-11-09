@@ -144,7 +144,7 @@ export default function WorkPage() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Work</h1>
-          <ReadingStamp madeAt={state.madeAt} validUntil={state.validUntil} />
+          <ReadingStamp madeAt={state.madeAt} validUntil={state.validUntil} board="work" refreshDue={state.refreshDue} onRefreshed={() => void load()} />
         </div>
         <BoardAsk category="work" />
       </div>
