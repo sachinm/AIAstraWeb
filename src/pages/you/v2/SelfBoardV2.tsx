@@ -299,7 +299,7 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
       hero={board.hero}
       missing={board.profile?.missing ?? []}
       today={today}
-      subChapterEnds={board.hero?.nextCheck ?? board.nextCheck}
+      subChapterEnds={board.subChapterEnds !== undefined ? board.subChapterEnds : (board.hero?.nextCheck ?? board.nextCheck)}
       doThisMonth={ranked?.card?.ladder ? [ranked.card.ladder.best, ranked.card.ladder.practical] : []}
       layout={heroLayout}
       onWhy={() => {
@@ -352,7 +352,7 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
       )}
       {why && (
         <Sheet title={V2_WORDS.whyTitle} onClose={() => setWhy(false)} testId="why-sheet">
-          <WhyBody areas={areas} />
+          <WhyBody areas={areas} supporting={board.hero?.supporting} />
         </Sheet>
       )}
       {wizard && <PersonalizeModal onClose={() => setWizard(false)} />}
@@ -362,7 +362,7 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
   const detailsSheet = (inPane: boolean) =>
     details && (
       <Sheet title={`${details.title} · ${V2_WORDS.chartDetails}`} onClose={() => setDetails(null)} testId="details-sheet" inPane={inPane}>
-        <ChartDetails area={details} />
+        <ChartDetails area={details} showEvidence={board.profile?.role === 'practitioner'} />
       </Sheet>
     );
 
@@ -467,9 +467,13 @@ function DuoFrame({ left, right, children }: { left: ReactNode; right: ReactNode
   );
 }
 
-/** The hero's reasons in plain words: the cards of the Now group that are ready, by their headlines. */
-function WhyBody({ areas }: { areas: SelfV2Area[] }) {
-  const now = areas.filter((a) => a.group === 'now' && a.status === 'ok' && a.card);
+/**
+ * The hero's reasons in plain words: the headlines of the areas the server says ground the hero (`hero.supporting`);
+ * for a board without that field, the ready cards of the Now group.
+ */
+function WhyBody({ areas, supporting }: { areas: SelfV2Area[]; supporting?: SelfV2Area['id'][] }) {
+  const ready = (a: SelfV2Area) => a.status === 'ok' && a.card;
+  const now = supporting ? supporting.map((id) => areas.find((a) => a.id === id)).filter((a): a is SelfV2Area => Boolean(a && ready(a))) : areas.filter((a) => a.group === 'now' && ready(a));
   if (!now.length) return <p className="text-sm text-white/70">{V2_WORDS.whyEmpty}</p>;
   return (
     <ul className="space-y-2" data-testid="why-list">

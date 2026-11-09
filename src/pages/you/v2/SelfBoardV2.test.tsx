@@ -130,6 +130,30 @@ describe('Self board v2', () => {
     await waitFor(() => expect(screen.queryByTestId('details-sheet')).toBeNull());
   });
 
+  it('the range line is the server rangeLabel; the inferred line only when the field is absent', async () => {
+    srv.board = () =>
+      selfV2Fixture((b) => {
+        b.areas.find((a) => a.id === 'year')!.rangeLabel = 'This year: 9 Sep 2026 – 9 Sep 2027';
+        b.areas.find((a) => a.id === 'mind')!.rangeLabel = '';
+        delete b.areas.find((a) => a.id === 'chapter')!.rangeLabel;
+      });
+    render(<SelfBoardV2 />);
+    await ready();
+    expect(within(screen.getByTestId('area-card-year')).getByTestId('area-range')).toHaveTextContent('This year: 9 Sep 2026 – 9 Sep 2027');
+    // the server knows no range: no line, not a guessed one
+    expect(within(screen.getByTestId('area-card-mind')).queryByTestId('area-range')).toBeNull();
+    // an older board without the field: the inferred line from the card's first date
+    expect(within(screen.getByTestId('area-card-chapter')).getByTestId('area-range')).toHaveTextContent('5 May 2026 – 12 Dec 2026');
+  });
+
+  it('Chart details shows evidence keys only to a practitioner', async () => {
+    srv.board = () => selfV2Fixture((b) => (b.profile.role = 'practitioner'));
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(within(screen.getByTestId('area-card-stuck')).getByTestId('area-details-open'));
+    expect(await screen.findByTestId('area-evidence')).toHaveTextContent('planet:D1.Sa');
+  });
+
   it('withheld, pending and failed cards say so; pending sits under the veil with the sure lines', async () => {
     srv.board = () =>
       selfV2Fixture((b) => {
@@ -162,6 +186,22 @@ describe('Self board v2', () => {
     expect(screen.getByTestId('hero-dates')).toHaveTextContent('Sub-chapter ends1 Jan 2027');
     fireEvent.click(screen.getByTestId('hero-why'));
     expect(await screen.findByTestId('why-list')).toHaveTextContent('Where you get stuck');
+  });
+
+  it('"Sub-chapter ends" is the server subChapterEnds; "Why we think so" lists the hero supporting areas', async () => {
+    srv.board = () =>
+      selfV2Fixture((b) => {
+        b.subChapterEnds = '2027-03-15';
+        b.hero!.supporting = ['diagnosis'];
+      });
+    render(<SelfBoardV2 />);
+    await ready();
+    expect(screen.getByTestId('hero-dates')).toHaveTextContent('Sub-chapter ends15 Mar 2027');
+    fireEvent.click(screen.getByTestId('hero-why'));
+    const why = await screen.findByTestId('why-list');
+    expect(why).toHaveTextContent('In short: ideas outrun their footing');
+    expect(why).not.toHaveTextContent('Where you get stuck');
+    expect(why.querySelectorAll('li')).toHaveLength(1);
   });
 
   it('a withheld hero says only the tone-free line', async () => {

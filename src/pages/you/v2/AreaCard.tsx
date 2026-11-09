@@ -114,7 +114,8 @@ function Body({ area }: { area: SelfV2Area }) {
 }
 
 export default function AreaCard({ area, nextCheck, onDetails, focused = false }: { area: SelfV2Area; nextCheck: string | null; onDetails: (a: SelfV2Area) => void; focused?: boolean }) {
-  const range = cardRange(area, nextCheck);
+  // the server's range line when it sends one; the inferred line only for a board built before it did
+  const range = area.rangeLabel !== undefined ? area.rangeLabel : cardRange(area, nextCheck);
   const certainty = area.card?.certainty ?? area.details.certainty;
   const scrollBody: ReactNode = (
     <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1.5 [scrollbar-width:thin]" data-testid="area-body" tabIndex={0} aria-label={`${area.title}, more`}>
@@ -156,7 +157,7 @@ export default function AreaCard({ area, nextCheck, onDetails, focused = false }
 
 /**
  * Chart details for one area: the server's own words with chart terms allowed. No timings, technique ids or claim ids;
- * evidence keys only for a reader who studies or practises (the web does not know that role yet, so they stay hidden).
+ * evidence keys only for a practitioner (`profile.role === 'practitioner'` on the board).
  */
 export function ChartDetails({ area, showEvidence = false }: { area: SelfV2Area; showEvidence?: boolean }) {
   const d = area.details;

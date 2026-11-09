@@ -22,6 +22,14 @@ describe('fetchSelfV2', () => {
     answer(200, selfV2Fixture());
     const s = await fetchSelfV2();
     expect(s.kind).toBe('ok');
+    // the final-integration fields come through as sent
+    if (s.kind === 'ok') {
+      expect(s.board.subChapterEnds).toBe('2027-01-01');
+      expect(s.board.hero?.supporting).toEqual(['stuck', 'chapter']);
+      expect(s.board.profile.role).toBe('public');
+      expect(s.board.areas.find((a) => a.id === 'year')?.rangeLabel).toBe('This year: 9 Sep 2026 – 9 Sep 2027');
+      expect(s.board.areas.find((a) => a.id === 'lagna')?.range).toBe('always');
+    }
     answer(202, selfV2Fixture((b) => (b.status = 'pending')));
     const p = await fetchSelfV2();
     expect(p.kind === 'ok' && p.board.status).toBe('pending');

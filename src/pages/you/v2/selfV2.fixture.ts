@@ -20,6 +20,22 @@ export const V2_AREAS: ReadonlyArray<{ id: SelfV2AreaId; group: SelfV2Group; tit
   { id: 'year', group: 'time', title: 'This year' },
 ];
 
+/** the range lines the server sends (src/reading/self/v2api/response.ts areaRange) */
+const RANGES: Record<SelfV2AreaId, Pick<SelfV2Area, 'range' | 'rangeLabel'>> = {
+  now: { range: { from: '2026-09-20', to: '2026-12-10' }, rangeLabel: 'True until 10 Dec 2026' },
+  stuck: { range: { from: '2025-11-16', to: '2027-01-01' }, rangeLabel: 'True until 1 Jan 2027' },
+  chapter: { range: { from: '2025-11-16', to: '2027-01-01' }, rangeLabel: 'True until 1 Jan 2027' },
+  diagnosis: { range: { from: '2025-11-16', to: '2027-01-01' }, rangeLabel: 'True until 1 Jan 2027' },
+  lagna: { range: 'always', rangeLabel: 'Always' },
+  mind: { range: { from: '2019-02-16', to: '2037-02-16' }, rangeLabel: 'True until 16 Feb 2037' },
+  body: { range: { from: '2025-11-16', to: '2027-01-01' }, rangeLabel: 'True until 1 Jan 2027' },
+  drive: { range: { from: '2019-02-16', to: '2037-02-16' }, rangeLabel: 'True until 16 Feb 2037' },
+  presence: { range: { from: '2025-11-16', to: '2027-01-01' }, rangeLabel: 'True until 1 Jan 2027' },
+  yogas: { range: 'always', rangeLabel: 'Always' },
+  chapters: { range: { from: '2019-02-16', to: '2037-02-16' }, rangeLabel: 'True until 16 Feb 2037' },
+  year: { range: { from: '2026-09-09', to: '2027-09-09' }, rangeLabel: 'This year: 9 Sep 2026 – 9 Sep 2027' },
+};
+
 function card(id: SelfV2AreaId, title: string): PersonalCard {
   return {
     areaId: id,
@@ -51,6 +67,7 @@ export function selfV2Fixture(edit?: (b: SelfV2Response) => void): SelfV2Respons
     status: 'ok',
     card: card(a.id, a.title),
     floor: ['Money and effort carry the weight this stretch.'],
+    ...RANGES[a.id],
     details: {
       headline: 'Saturn transits the 2nd house from the lagna; Vimshottari Ketu dasha runs.',
       paragraphs: ['The 2nd lord sits in the 12th house. Rahu aspects the lagna lord.'],
@@ -87,9 +104,11 @@ export function selfV2Fixture(edit?: (b: SelfV2Response) => void): SelfV2Respons
       nextCheck: '2027-01-01',
       question: { claimId: 'claim:self.now.work_heavy', text: 'Has work felt heavier than usual since around May?' },
       withheld: false,
+      supporting: ['stuck', 'chapter'],
     },
     areas,
-    profile: { ageBand: '36_45', hasGender: false, missing: [] },
+    profile: { ageBand: '36_45', hasGender: false, missing: [], role: 'public' },
+    subChapterEnds: '2027-01-01',
     usage: {
       code: 'free',
       desired_plan: null,

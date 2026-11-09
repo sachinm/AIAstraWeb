@@ -104,8 +104,9 @@ export function spanWords(since: string | null, until: string | null): string {
 }
 
 /**
- * The line under a card's title (mockup §1, doc 62 header ranges). The server does not send a range per card yet, so
- * it is chosen from the area's horizon (doc 66 mockup §5) and the board's next check date.
+ * The line under a card's title for a board built before the server sent `rangeLabel` (mockup §1, doc 62 header
+ * ranges): chosen from the area's horizon (doc 66 mockup §5) and the board's next check date. AreaCard prefers the
+ * server's `rangeLabel` whenever it is present.
  */
 export function cardRange(area: SelfV2Area, nextCheck: string | null): string {
   const first = area.card?.dates[0];

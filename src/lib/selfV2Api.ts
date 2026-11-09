@@ -117,6 +117,8 @@ export interface HeroDoc {
 
 export type CardStatus = 'ok' | 'pending' | 'withheld' | 'failed';
 export type AgeBand = 'under_25' | '25_35' | '36_45' | '46_60' | '60_plus';
+/** reading register: the plain card for the public; evidence keys under Chart details for practitioners */
+export type ReaderRole = 'public' | 'practitioner';
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The response
@@ -140,6 +142,13 @@ export interface SelfV2Area {
   card: PersonalCard | null;
   /** what the chart says for sure, shown under a pending or failed card */
   floor: string[];
+  /**
+   * How long this area's reading holds: the span of the shortest clock period that can make it stale, the year span for
+   * `year`, 'always' for a standing area; null when the build stored no frame (server final integration).
+   */
+  range?: { from: string; to: string } | 'always' | null;
+  /** the range in words ("True until 1 Jan 2027", "Always", "This year: 9 Sep 2026 – 9 Sep 2027"); '' when unknown */
+  rangeLabel?: string;
   /** Chart details: chart terms allowed here */
   details: { headline?: string; paragraphs?: string[]; evidence: string[]; certainty?: AreaCertainty };
 }
@@ -149,9 +158,13 @@ export interface SelfV2Response {
   builtAt: string | null;
   nextCheck: string | null;
   clock: SelfV2Clock;
-  hero: HeroDoc | null;
+  /** `supporting`: the areas whose cards ground the hero, for "Why we think so" */
+  hero: (HeroDoc & { supporting?: SelfV2AreaId[] }) | null;
   areas: SelfV2Area[];
-  profile: { ageBand: AgeBand | null; hasGender: boolean; missing: string[] };
+  /** `role`: practitioners see evidence keys under Chart details */
+  profile: { ageBand: AgeBand | null; hasGender: boolean; missing: string[]; role?: ReaderRole };
+  /** the running sub period's end date, for "Sub-chapter ends"; null when not known */
+  subChapterEnds?: string | null;
   usage?: PlanStatus;
 }
 
