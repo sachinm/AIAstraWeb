@@ -125,8 +125,23 @@ export interface SelfPanel {
   vetoed?: Array<{ claimId: string; rule: string; text: string }>;
   /** the Oracle's plan for this panel (server docs/reading-engine/64 §4): what it means now, dated steps, dates to mark */
   plan?: SelfPanelPlan;
-  /** the Oracle's prose for this panel: the section of its reading whose heading names the panel (server doc 64 §4) */
-  synthesis?: string;
+  /** the Oracle's area for this panel (server doc 65): the card when areaStatus is 'ok' */
+  area?: SelfArea;
+  /** ok: `area` is the card; pending: being written (code lines under the veil); withheld / failed / off: code lines are the card */
+  areaStatus?: 'ok' | 'pending' | 'withheld' | 'failed' | 'off';
+}
+
+/** One area of the Oracle's reading (server doc 65 §3), validated server side against the chart's stored rows. */
+export interface SelfArea {
+  id: string;
+  headline: string;
+  paragraphs: string[];
+  dates: Array<{ from: string; to: string; label: string }>;
+  actions: Array<{ from: string; to: string; text: string }>;
+  certainty: 'strong' | 'likely' | 'possible';
+  evidence: string[];
+  /** YYYY-MM-DD or 'always' */
+  validUntil: string;
 }
 
 export interface SelfPanelPlan {

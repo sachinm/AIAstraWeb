@@ -33,17 +33,3 @@ describe('the Oracle reading as markdown', () => {
     expect(root.textContent).not.toMatch(/[*`]|---/);
   });
 });
-
-describe('datedStatements', () => {
-  it('lists each dated sentence once with its range or single date, in order', async () => {
-    const { datedStatements } = await import('./readingMarkdown');
-    const rows = datedStatements('You are in the chapter of Rahu that runs until 16 Feb 2028. Since 16 Nov 2025 and running through 1 Jan 2027, Venus presses. - **Vimshottari**: Moon (16 Mar 2018 to 16 Mar 2028) meets Venus (14 Jan 2026 to 15 Sep 2027). No date here.');
-    expect(rows.map((r) => [r.from, r.to])).toEqual([
-      ['16 Feb 2028', null],
-      ['16 Nov 2025', '1 Jan 2027'],
-      ['16 Mar 2018', '16 Mar 2028'],
-      ['14 Jan 2026', '15 Sep 2027'],
-    ]);
-    expect(rows[0]!.text).toBe('You are in the chapter of Rahu that runs until 16 Feb 2028.');
-  });
-});
