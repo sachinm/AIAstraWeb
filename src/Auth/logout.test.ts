@@ -141,6 +141,7 @@ describe('logout', () => {
       localStorage.setItem('sessionLogoutAt', '1');
       localStorage.setItem('aiastra.region', 'IN');
       localStorage.setItem('aiastra.chat.sidebars', JSON.stringify({ leftOpen: false, rightOpen: true }));
+      localStorage.setItem('aiastra.theme', 'light');
       localStorage.setItem('someFutureKey', SENTINEL);
       // sessionStorage: every key the app writes or wrote in older builds, plus a sentinel
       sessionStorage.setItem('lastActivityAt', String(Date.now()));
@@ -161,7 +162,7 @@ describe('logout', () => {
     }
 
     it('keeps only the region switch and the reading-UI preferences', () => {
-      expect([...KEPT_LOCAL_STORAGE_KEYS].sort()).toEqual(['aiastra.chat.sidebars', 'aiastra.region']);
+      expect([...KEPT_LOCAL_STORAGE_KEYS].sort()).toEqual(['aiastra.chat.sidebars', 'aiastra.region', 'aiastra.theme']);
     });
 
     it.each([

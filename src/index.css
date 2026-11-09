@@ -470,3 +470,98 @@ body {
     transform: none;
   }
 }
+
+/*
+ * Light theme (src/lib/theme.ts puts `light` on <html>). The night scenes become a pale dawn sky; the glass turns to
+ * frosted white with a soft lavender edge. The colour utilities are remapped in theme-light.css (generated).
+ */
+html.light,
+html.light body {
+  background-color: #f5f3ff;
+  color: #0f172a;
+}
+html.light .app-sky {
+  background-color: #f5f3ff;
+  background-image:
+    radial-gradient(ellipse at 70% 0%, rgba(196, 181, 253, 0.45), transparent 60%),
+    radial-gradient(ellipse at 10% 100%, rgba(251, 207, 232, 0.45), transparent 55%),
+    linear-gradient(180deg, #faf8ff 0%, #f1edff 60%, #ece7fb 100%);
+  background-size: 100% 100%;
+}
+html.light .royal-sky {
+  background-color: #f3f1ff;
+  background-image:
+    radial-gradient(ellipse at 18% 0%, rgba(165, 180, 252, 0.45), transparent 60%),
+    radial-gradient(ellipse at 88% 100%, rgba(233, 213, 255, 0.55), transparent 55%),
+    linear-gradient(180deg, #f8f7ff 0%, #f1efff 55%, #ebe8fb 100%);
+  background-size: 100% 100%;
+}
+html.light .main-panel {
+  background: rgba(255, 255, 255, 0.55);
+}
+html.light .glass {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.74));
+  text-shadow: none;
+  border-color: rgba(99, 102, 241, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 40px -22px rgba(76, 29, 149, 0.35),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+}
+html.light .glass-lift:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 26px 50px -22px rgba(76, 29, 149, 0.45),
+    0 4px 12px rgba(15, 23, 42, 0.08);
+}
+html.light .glass-bar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.7));
+}
+/* the photo scenes stay, washed pale, so dark words read over them */
+html.light .sky-scrim {
+  background-image: linear-gradient(to bottom, rgba(248, 247, 255, 0.72), rgba(248, 247, 255, 0.62), rgba(248, 247, 255, 0.82)) !important;
+}
+@media (orientation: portrait) {
+  html.light .sky-scrim {
+    background-image: linear-gradient(to bottom, rgba(248, 247, 255, 0.1), rgba(248, 247, 255, 0.1) calc(56px + 46vw), rgba(248, 247, 255, 0.85) calc(56px + 60vw)) !important;
+  }
+}
+html.light .sky-bloom {
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}
+/* markdown drawn for the dark (prose-invert) reads as plain prose */
+html.light .prose-invert {
+  --tw-prose-body: #334155;
+  --tw-prose-headings: #0f172a;
+  --tw-prose-lead: #475569;
+  --tw-prose-links: #6b21a8;
+  --tw-prose-bold: #0f172a;
+  --tw-prose-counters: #64748b;
+  --tw-prose-bullets: #94a3b8;
+  --tw-prose-hr: #e2e8f0;
+  --tw-prose-quotes: #0f172a;
+  --tw-prose-quote-borders: #ddd6fe;
+  --tw-prose-captions: #64748b;
+  --tw-prose-code: #0f172a;
+  --tw-prose-pre-code: #e2e8f0;
+  --tw-prose-pre-bg: #1e293b;
+  --tw-prose-th-borders: #cbd5e1;
+  --tw-prose-td-borders: #e2e8f0;
+}
+html.light ::selection {
+  background: rgba(147, 51, 234, 0.2);
+}
+/* the birth-time selects paint their own dark colours inline (for Windows' native option list) */
+html.light select[style*='background-color'],
+html.light option[style*='background-color'] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+html.light option[value=''][style*='background-color'] {
+  color: #64748b !important;
+}
+/* the pale purple-to-pink gradient headings, deepened so they read on white */
+html.light .bg-clip-text.text-transparent {
+  filter: saturate(1.25) brightness(0.78);
+}

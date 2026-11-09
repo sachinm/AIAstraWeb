@@ -4,6 +4,7 @@ import { fetchPlanState, updateProfile, type Language } from '../../Auth/api';
 import LanguageField from '../../Auth/fields/LanguageField';
 import RegionSwitch from '../../components/RegionSwitch';
 import { useRegion } from '../../lib/region';
+import ThemeSwitch from '../../components/ThemeSwitch';
 
 const panelCls = 'glass glass-lift rounded-2xl p-4 sm:p-6';
 
@@ -43,6 +44,12 @@ const ProfileLocale: React.FC = () => {
       <header>
         <h2 className="text-2xl font-semibold">{t('profile.localeTitle')}</h2>
       </header>
+
+      <section className={panelCls} aria-label={t('profile.appearance')}>
+        <h3 className="font-semibold">{t('profile.appearance')}</h3>
+        <p className="mb-3 mt-1 text-sm text-gray-300">{t('profile.appearanceHelp')}</p>
+        <ThemeSwitch />
+      </section>
 
       {language && (
         <section className={panelCls} aria-label={t('profile.language')}>
