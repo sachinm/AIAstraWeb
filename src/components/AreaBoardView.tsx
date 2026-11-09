@@ -22,6 +22,7 @@ import {
 import { longDate, monthName, type Tone } from '../lib/careerApi';
 import { track } from '../lib/events';
 import BoardAsk from './BoardAsk';
+import { ReadingStamp } from './ReadingStamp';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
@@ -393,7 +394,10 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
   const shell = (body: ReactNode) => (
     <div className="w-full px-4 pb-24 pt-4 text-white sm:px-6 lg:px-10" data-testid={cfg.testId}>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">{cfg.title}</h1>
+        <div className="min-w-0">
+          <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">{cfg.title}</h1>
+          {state?.kind === 'ok' && <ReadingStamp madeAt={state.madeAt} validUntil={state.validUntil} />}
+        </div>
         <BoardAsk category={cfg.askCategory} />
       </div>
       {body}

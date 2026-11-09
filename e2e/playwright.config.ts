@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
 
 /** The screenshot walkthrough (e2e/README.md). Uses the installed Chrome, and a stubbed API, so it touches no real data. */
-const PORT = 5199;
+// E2E_PORT lets two worktrees run their walkthroughs at once
+const PORT = Number(process.env.E2E_PORT) || 5199;
 const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(E2E_DIR, '..');
 
