@@ -23,6 +23,7 @@ import {
 } from '../../lib/luckyApi';
 import { track } from '../../lib/events';
 import BoardAsk from '../../components/BoardAsk';
+import LoadingVeil from '../../components/LoadingVeil';
 import { ASK, AVOID_NAME, AVOID_PLAIN, GOOD_NAME, GOOD_PLAIN, LAYER_COLOURS, plainReasons, SHORT_DAY, SOURCE_LINE, WHY_HEADINGS, whyGroups, type WhyGroups } from './words';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
@@ -141,7 +142,14 @@ export default function LuckyTimesPage() {
     setWhy({ title, when, groups });
   };
 
-  if (setup === undefined) return <div className="p-6 text-white/70">Loading…</div>;
+  if (setup === undefined)
+    return (
+      <div className="p-6">
+        <LoadingVeil testId="lucky-loading">
+          <div className={`${panel} h-72`} />
+        </LoadingVeil>
+      </div>
+    );
   if (setup === null) return <div className={`${panel} m-4 text-white/80`}>Happy Hour(s) (Panchang) is coming soon.</div>;
 
   const picks = setup.picks;

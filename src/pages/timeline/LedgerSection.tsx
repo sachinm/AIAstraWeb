@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Loader } from 'lucide-react';
+import LoadingVeil from '../../components/LoadingVeil';
 import {
   createLedgerEvent,
   deleteLedgerEvent,
@@ -97,8 +97,8 @@ const LedgerSection: React.FC<LedgerSectionProps> = ({ embedded = false }) => {
 
   if (metaLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader className="h-8 w-8 animate-spin text-purple-300" aria-label="Loading" />
+      <div className="h-64">
+        <LoadingVeil testId="ledger-loading" />
       </div>
     );
   }

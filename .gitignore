@@ -28,3 +28,6 @@ testbed/voice/report.html
 
 # MediaPipe wasm runtime, copied from node_modules at build (scripts/copy-mediapipe.mjs)
 public/mediapipe/wasm/
+
+# The loading veil's encrypted illustrations, made at build from art/overlay (scripts/encrypt-overlay-art.mjs)
+public/overlay/

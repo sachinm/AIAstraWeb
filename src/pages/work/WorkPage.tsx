@@ -20,6 +20,7 @@ import {
 } from '../../lib/careerApi';
 import { track } from '../../lib/events';
 import BoardAsk from '../../components/BoardAsk';
+import LoadingVeil from '../../components/LoadingVeil';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
@@ -119,7 +120,14 @@ export default function WorkPage() {
     void load();
   }, []);
 
-  if (!state) return <div className="p-6 text-white/70">Loading…</div>;
+  if (!state)
+    return (
+      <div className="p-6">
+        <LoadingVeil testId="work-loading">
+          <div className={`${panel} h-72`} />
+        </LoadingVeil>
+      </div>
+    );
   if (state.kind === 'not_ready') return <div className={`${panel} m-4 text-white/80`}>Your chart is being prepared. Check back in a minute.</div>;
   if (state.kind === 'unavailable') return <div className={`${panel} m-4 text-white/80`}>The Work board is coming soon.</div>;
   const { map, work, checks } = state;
