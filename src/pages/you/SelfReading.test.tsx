@@ -377,9 +377,9 @@ describe('Your reading, while the synthesis is written in the background (server
     expect(within(plan).getByTestId('self-plan-steps')).toHaveTextContent(`${longDate('2026-11-07')} – ${longDate('2027-01-01')} · Write down what you want`);
     expect(within(plan).getByTestId('self-plan-calendar')).toHaveTextContent(`${longDate('2026-12-24')} · The year clock changes hands`);
     const full = screen.getByTestId('self-full-reading');
-    expect(within(full).getByRole('heading')).toHaveTextContent(SELF_WORDS.fullReading);
+    expect(within(full).getByRole('heading', { level: 3 })).toHaveTextContent(SELF_WORDS.fullReading);
+    expect(within(full).getByRole('heading', { level: 4 })).toHaveTextContent('In short');
     expect(within(full).getAllByText(/./, { selector: 'p' }).map((p) => p.textContent)).toEqual([
-      'In short',
       'You are built to be seen through the people you serve.',
       'The pressure of this stretch eases from January.',
     ]);
@@ -427,5 +427,30 @@ describe('Your reading, the code panels under the Oracle veil while the synthesi
     await waitFor(() => expect(screen.queryByTestId('self-oracle-waiting')).not.toBeInTheDocument());
     expect(within(screen.getByTestId('self-tabpanel')).getByTestId('oracle-veil-diagnosis')).toHaveAttribute('data-waiting', 'false');
     expect(screen.getByTestId('self-full-reading')).toHaveTextContent('built on partnership');
+  });
+});
+
+describe('Your reading, the Oracle prose inside each panel (server doc 64 §4)', () => {
+  it('renders a panel section as prose with a dates table inside that panel, and no separate full-reading card', async () => {
+    srv.edit = (r) => {
+      r.panels[0]!.synthesis = 'Your life is steered through partnership: Jupiter in the 7th. The chapter of Rahu runs until 16 Feb 2028. - **Vimshottari**: Moon (16 Mar 2018 to 16 Mar 2028) agrees. - **Chara**: Virgo agrees.';
+      r.oracle = { status: 'ok', text: 'In short\n\nYour life is steered through partnership.' };
+    };
+    render(<SelfReading />);
+    await screen.findByTestId('self-reading');
+    const panel = within(screen.getByTestId('self-tabpanel')).getByTestId('self-panel-diagnosis');
+    const synth = within(panel).getByTestId('self-synthesis-diagnosis');
+    expect(synth).toHaveTextContent('Your life is steered through partnership: Jupiter in the 7th.');
+    expect(within(synth).getByText('Vimshottari').tagName).toBe('STRONG');
+    expect(within(synth).getAllByRole('listitem')).toHaveLength(2);
+    const dates = within(panel).getByTestId('self-dates-diagnosis');
+    expect(within(dates).getAllByRole('row').map((r) => r.textContent)).toEqual([
+      '16 Feb 2028The chapter of Rahu runs until 16 Feb 2028.',
+      '16 Mar 2018 – 16 Mar 2028Vimshottari: Moon (16 Mar 2018 to 16 Mar 2028) agrees.',
+    ]);
+    expect(screen.queryByTestId('self-full-reading')).not.toBeInTheDocument();
+    // the prose sits after the card lines and before the plan
+    const lines = within(panel).getByTestId('self-lines');
+    expect(lines.compareDocumentPosition(synth) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

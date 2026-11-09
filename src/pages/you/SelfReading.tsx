@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { longDate } from '../../lib/careerApi';
 import { OracleVeil, OracleWaitLine } from './OracleWait';
+import { DatesTable, parseReadingBlocks, ReadingMarkdown } from './readingMarkdown';
 import { track } from '../../lib/events';
 import {
   fetchSelfReading,
@@ -272,7 +273,8 @@ function ReadingBody({ reading, reload, waiting = false, gaveUp = false }: { rea
         </>
       )}
 
-      {reading.oracle?.status === 'ok' && reading.oracle.text && <FullReading text={reading.oracle.text} />}
+      {/* the Oracle's prose lives inside each panel (panel.synthesis); the whole text is shown only when no panel took a section */}
+      {reading.oracle?.status === 'ok' && reading.oracle.text && !panels.some((p) => p.synthesis) && <FullReading text={reading.oracle.text} />}
 
       {reading.question && <QuestionCard question={reading.question} />}
 
@@ -362,6 +364,12 @@ function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string
         ))}
       </ul>
       {panel.chapters && panel.chapters.length > 0 && <Chapters chapters={panel.chapters} details={details} />}
+      {panel.synthesis && (
+        <div className="mb-3 border-t border-white/10 pt-3" data-testid="self-panel-synthesis">
+          <ReadingMarkdown text={panel.synthesis} testId={`self-synthesis-${panel.id}`} />
+          <DatesTable text={panel.synthesis} panelId={panel.id} />
+        </div>
+      )}
       {panel.plan && <PlanView plan={panel.plan} />}
       <button
         type="button"
@@ -440,21 +448,11 @@ function PlanView({ plan }: { plan: SelfPanelPlan }) {
 
 /** The Oracle's narrative, paragraph by paragraph, under the panels. Validated and redacted server side; never a chart term the person did not ask for. */
 function FullReading({ text }: { text: string }) {
-  const paras = text
-    .split(/\n{2,}/)
-    .map((p) => p.replace(/^#+\s*/, '').trim())
-    .filter(Boolean);
-  if (paras.length === 0) return null;
+  if (parseReadingBlocks(text).length === 0) return null;
   return (
     <section className={panelCls} data-testid="self-full-reading">
       <h3 className="mb-2 text-xl font-semibold">{SELF_WORDS.fullReading}</h3>
-      <div className="space-y-3">
-        {paras.map((p, i) => (
-          <p key={i} className="leading-relaxed text-white/85">
-            {p}
-          </p>
-        ))}
-      </div>
+      <ReadingMarkdown text={text} testId="self-full-reading-body" />
     </section>
   );
 }

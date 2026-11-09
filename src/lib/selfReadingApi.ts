@@ -125,6 +125,8 @@ export interface SelfPanel {
   vetoed?: Array<{ claimId: string; rule: string; text: string }>;
   /** the Oracle's plan for this panel (server docs/reading-engine/64 §4): what it means now, dated steps, dates to mark */
   plan?: SelfPanelPlan;
+  /** the Oracle's prose for this panel: the section of its reading whose heading names the panel (server doc 64 §4) */
+  synthesis?: string;
 }
 
 export interface SelfPanelPlan {
