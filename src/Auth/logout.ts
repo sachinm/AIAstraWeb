@@ -1,5 +1,6 @@
 import { clearAuth } from '../lib/graphql';
 import { REGION_KEY } from '../lib/region';
+import { THEME_KEY } from '../lib/theme';
 import { PREFS_KEY as READING_UI_PREFS_KEY } from '../pages/chat-interface/readingUi';
 import { forgetQuestionLocation } from '../pages/chat-interface/useQuestionLocation';
 import { requestServerLogout } from './api';
@@ -20,11 +21,11 @@ export interface PerformLogoutOptions {
 }
 
 /**
- * The only localStorage keys that survive sign-out: the region switch (lib/region.ts) and the reading-UI sidebar
- * preferences (readingUi.ts). Neither is personal. Everything else the app writes goes: token, userId, astroUser,
+ * The only localStorage keys that survive sign-out: the region switch (lib/region.ts), the reading-UI sidebar
+ * preferences (readingUi.ts) and the colour theme (lib/theme.ts). None is personal. Everything else the app writes goes: token, userId, astroUser,
  * isAuthenticated, aa_visit (visit id) and the cross-tab logout signal (server docs/privacy/02 §4.3).
  */
-export const KEPT_LOCAL_STORAGE_KEYS: readonly string[] = [REGION_KEY, READING_UI_PREFS_KEY];
+export const KEPT_LOCAL_STORAGE_KEYS: readonly string[] = [REGION_KEY, READING_UI_PREFS_KEY, THEME_KEY];
 
 /**
  * Sign-out wipe: all of sessionStorage, every localStorage key except KEPT_LOCAL_STORAGE_KEYS, and the in-memory

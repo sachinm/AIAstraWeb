@@ -7,6 +7,7 @@ import { installAuthPrewarm } from './Auth/prewarm';
 import { TURNSTILE_SITE_KEY } from './Auth/useTurnstile';
 import './i18n';
 import './index.css';
+import './theme-light.css';
 
 const GRAPHQL_STARTUP_CHECK_KEY = Symbol.for('adastra.graphql.startup-check-ran');
 

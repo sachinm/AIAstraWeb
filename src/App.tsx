@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import AppRoutes from './routes';
 import AppFrame from './components/AppFrame';
+import ThemeScope from './components/ThemeScope';
 import AuthProvider from './Auth/AuthProvider';
 import { clearClientSession, performLogout } from './Auth/logout';
 import { resolveUserForSession, restoreSessionFromStorage } from './Auth/sessionRestore';
@@ -104,6 +105,7 @@ const App = () => {
   return (
     <AppFrame>
       <Router>
+        <ThemeScope />
         <AuthProvider
           user={user}
           setUser={setUser}
