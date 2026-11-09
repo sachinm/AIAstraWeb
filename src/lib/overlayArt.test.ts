@@ -38,8 +38,8 @@ const KEY = random(32);
 const manifest = {
   v: 'v1',
   f: [
-    { s: 's', t: 1, m: 'image/svg+xml', p: '/_a/0a1b2c3d4e5f60718293.bin' },
-    { s: 'n', t: 0, m: 'image/svg+xml', p: '/_a/9f8e7d6c5b4a39281706.bin' },
+    { s: 's', t: 1, m: 'image/svg+xml', p: '/_a/0a1b2c3d4e5f60718293.png' },
+    { s: 'n', t: 0, m: 'image/svg+xml', p: '/_a/9f8e7d6c5b4a39281706.png' },
   ],
 };
 
@@ -52,7 +52,7 @@ function fakeFetch(url: string): Promise<Response> {
   if (url.endsWith('/_a/i.json')) return Promise.resolve(new Response(JSON.stringify(manifest), { status: 200 }));
   if (url.endsWith('/api/assets/overlay-key'))
     return Promise.resolve(new Response(JSON.stringify({ key: toBase64(KEY), version: 'v1' }), { status: keyStatus }));
-  if (url.endsWith('.bin')) return Promise.resolve(new Response(enc.slice(), { status: 200 }));
+  if (url.endsWith('.png')) return Promise.resolve(new Response(enc.slice(), { status: 200 }));
   return Promise.resolve(new Response('', { status: 404 }));
 }
 
@@ -84,16 +84,16 @@ describe('overlay art', () => {
     expect(same(await bytesOf(a!), PLAIN)).toBe(true);
     // names on the wire say nothing about the chart
     expect(calls.filter((u) => !u.includes('/api/') && /south|north|dark|light|overlay/.test(u))).toEqual([]);
-    expect(calls.filter((u) => u.endsWith('.bin'))).toEqual(['/_a/0a1b2c3d4e5f60718293.bin']);
+    expect(calls.filter((u) => u.endsWith('.png'))).toEqual(['/_a/0a1b2c3d4e5f60718293.png']);
     const b = await getOverlayArt('south', 'dark');
     expect(same(await bytesOf(b!), PLAIN)).toBe(true);
-    expect(calls.filter((u) => u.endsWith('.bin')).length).toBe(1);
+    expect(calls.filter((u) => u.endsWith('.png')).length).toBe(1);
     expect(calls.filter((u) => u.endsWith('overlay-key')).length).toBe(1);
   });
 
   it('falls back to the theme when the style is missing', async () => {
     expect(await getOverlayArt('north', 'dark')).not.toBeNull(); // only the south board exists for dark
-    expect(calls.filter((u) => u.endsWith('.bin'))).toEqual(['/_a/0a1b2c3d4e5f60718293.bin']);
+    expect(calls.filter((u) => u.endsWith('.png'))).toEqual(['/_a/0a1b2c3d4e5f60718293.png']);
   });
 
   it('is null, never a throw, when signed out, when the key is not configured, or when the tag is wrong', async () => {
