@@ -1,8 +1,9 @@
 // Encrypts the loading veil's illustrations for the build (server docs/loading-overlay/01 §4.2, §5). Reads
 // art/overlay/<style>-<theme>.<svg|webp|png|jpg> and, when OVERLAY_ART_KEY (64 hex chars = 32 bytes) is set, writes
-// public/_a/<20 hex>.bin as AES-256-GCM `iv(12) ‖ ciphertext ‖ tag(16)` (the layout Web Crypto reads) plus a compact index
+// public/_a/<20 hex>.png as AES-256-GCM `iv(12) ‖ ciphertext ‖ tag(16)` (the layout Web Crypto reads) plus a compact index
 // public/_a/i.json. File names are keyed hashes, so nothing on the wire names a chart, a style or a theme (Sachin,
-// 2026-11-09: "encrypted and cryptically named"). Without the key it removes public/_a and exits 0: the veil then shows
+// 2026-11-09: "encrypted and cryptically named"). The suffix is .png only because the hosting rewrite serves files with
+// image suffixes as they are and turns unknown ones (.bin) into the app page; the bytes are opaque ciphertext. Without the key it removes public/_a and exits 0: the veil then shows
 // an empty glass slab where the chart goes. The same key is served to signed-in sessions by the API (GET /api/assets/overlay-key).
 import { createHash, randomBytes, createCipheriv } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -63,7 +64,7 @@ for (const f of plain) {
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const ct = Buffer.concat([cipher.update(f.data), cipher.final()]);
   const tag = cipher.getAuthTag();
-  const out = `${createHash('sha256').update(key).update(version).update(f.file).digest('hex').slice(0, 20)}.bin`;
+  const out = `${createHash('sha256').update(key).update(version).update(f.file).digest('hex').slice(0, 20)}.png`;
   const bytes = Buffer.concat([iv, ct, tag]);
   writeFileSync(join(OUT, out), bytes);
   manifest.f.push({ s: f.style[0], t: f.theme === 'dark' ? 1 : 0, m: f.type, p: `/_a/${out}` });
