@@ -8,7 +8,7 @@ import type { SelfV2Response } from '../../../lib/selfV2Api';
 const plan = vi.hoisted(() => ({ setPlan: vi.fn(), refreshPlan: vi.fn(async () => {}) }));
 vi.mock('../../../Auth/ProfileGate', () => ({ usePlan: () => ({ plan: null, setPlan: plan.setPlan, refreshPlan: plan.refreshPlan }) }));
 
-let srv: { status: number; board: () => SelfV2Response | null; clockStatus: number; clockBody: unknown };
+let srv: { status: number; board: () => SelfV2Response | null; clockStatus: number; clockBody: unknown; refreshStatus: number; refreshBody: unknown };
 let calls: Array<{ method: string; url: string; body?: any; headers?: Record<string, string> }>;
 
 function setViewport(w: number, h: number) {
@@ -22,7 +22,7 @@ beforeEach(() => {
   calls = [];
   plan.setPlan.mockClear();
   plan.refreshPlan.mockClear();
-  srv = { status: 200, board: () => selfV2Fixture(), clockStatus: 202, clockBody: null };
+  srv = { status: 200, board: () => selfV2Fixture(), clockStatus: 202, clockBody: null, refreshStatus: 202, refreshBody: null };
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init: RequestInit = {}) => {
@@ -38,6 +38,10 @@ beforeEach(() => {
         const usage = { ...selfV2Fixture().usage!, used: 4, remaining: 16 };
         return new Response(JSON.stringify(srv.clockBody ?? { usage, status: 'building', alsoChanges: ['love', 'work'] }), { status: srv.clockStatus });
       }
+      if (u.endsWith('/api/boards/self/refresh') && method === 'POST') {
+        const usage = { ...selfV2Fixture().usage!, used: 4, remaining: 16 };
+        return new Response(JSON.stringify(srv.refreshBody ?? { status: 'building', usage }), { status: srv.refreshStatus });
+      }
       if (u.endsWith('/api/self/v2/confirm') || u.endsWith('/api/self/v2/mood')) return new Response(null, { status: 204 });
       if (u.endsWith('/api/profile/facts')) return new Response(JSON.stringify({ ok: true }), { status: 200 });
       return new Response(null, { status: 404 });
@@ -51,6 +55,10 @@ afterEach(() => {
 });
 
 const gets = () => calls.filter((c) => c.method === 'GET' && c.url.endsWith('/api/self/v2')).length;
+const refreshPosts = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/api/boards/self/refresh')).length;
+const due = (b: SelfV2Response) => {
+  b.refresh = { madeAt: '2026-10-20T09:00:00Z', validUntil: '2026-11-08', due: true };
+};
 const slides = () => within(screen.getByTestId('self-carousel-track')).getAllByRole('group');
 
 async function ready() {
@@ -404,5 +412,179 @@ describe('Self board v2', () => {
     expect(within(right).getByTestId('self-carousel')).toHaveAttribute('data-index', '11');
     fireEvent.click(within(within(right).getByTestId('area-card-year')).getByTestId('area-details-open'));
     expect(within(right).getByTestId('details-sheet')).toBeInTheDocument();
+  });
+});
+
+describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
+  it('not due: disabled "Fresh reading from" the day after Good until, with the Made · Good until line', async () => {
+    srv.board = () => selfV2Fixture((b) => (b.refresh = { madeAt: '2026-11-01T09:00:00Z', validUntil: '2026-12-03', due: false }));
+    render(<SelfBoardV2 />);
+    await ready();
+    const row = screen.getByTestId('self-board-row');
+    const btn = within(row).getByTestId('fresh-button');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('data-state', 'not_due');
+    expect(btn).toHaveTextContent('Fresh reading from 4 Dec 2026');
+    expect(within(row).getByTestId('fresh-line')).toHaveTextContent('Made 1 Nov 2026 · Good until 3 Dec 2026');
+    fireEvent.click(btn);
+    expect(screen.queryByTestId('fresh-sheet')).toBeNull();
+  });
+
+  it('due: an enabled "Get a fresh reading" with "Uses 1 of your 20 questions"', async () => {
+    srv.board = () => selfV2Fixture(due);
+    render(<SelfBoardV2 />);
+    await ready();
+    const btn = screen.getByTestId('fresh-button');
+    expect(btn).toBeEnabled();
+    expect(btn).toHaveAttribute('data-state', 'due');
+    expect(btn).toHaveTextContent(/^Get a fresh reading$/);
+    expect(screen.getByTestId('fresh-line')).toHaveTextContent(/^Uses 1 of your 20 questions$/);
+  });
+
+  it('loading the page (and reloading it) never posts a refresh, even when one is due', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    srv.board = () => selfV2Fixture(due);
+    const first = render(<SelfBoardV2 />);
+    await ready();
+    first.unmount();
+    render(<SelfBoardV2 />);
+    await ready();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending * 3);
+    });
+    expect(gets()).toBe(2);
+    expect(refreshPosts()).toBe(0);
+  });
+
+  it('the consent sheet: Not now posts nothing; confirm posts once, applies the usage, veils the cards and polls until the new board lands', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    srv.board = () => selfV2Fixture(due);
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    const sheet = await screen.findByTestId('fresh-sheet');
+    expect(within(sheet).getByText('Get a fresh reading?')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('fresh-sheet-body')).toHaveTextContent(
+      "Your board will be read again from today's sky and your latest answers. This uses 1 of your 20 questions this month.",
+    );
+    expect(within(sheet).getByTestId('fresh-not-now')).toHaveTextContent('Not now');
+    fireEvent.click(within(sheet).getByTestId('fresh-not-now'));
+    expect(screen.queryByTestId('fresh-sheet')).toBeNull();
+    expect(refreshPosts()).toBe(0);
+
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    const confirm = within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm');
+    expect(confirm).toHaveTextContent('Get fresh reading · 1 question');
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(screen.queryByTestId('fresh-sheet')).toBeNull());
+    expect(refreshPosts()).toBe(1);
+    expect(plan.setPlan).toHaveBeenCalledWith(expect.objectContaining({ used: 4 }));
+    const btn = screen.getByTestId('fresh-button');
+    expect(btn).toHaveAttribute('data-state', 'building');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent('Making your fresh reading…');
+    expect(screen.getByTestId('self-fresh-veil')).toBeInTheDocument();
+
+    // the same board comes back while the build runs: still veiled, polled every 10 s
+    const n = gets();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending);
+    });
+    await waitFor(() => expect(gets()).toBe(n + 1));
+    expect(screen.getByTestId('self-fresh-veil')).toBeInTheDocument();
+    // the new board lands: veil gone, the new dates shown, nothing posted again
+    srv.board = () => selfV2Fixture((b) => {
+      b.builtAt = '2026-11-09T10:30:00Z';
+      b.refresh = { madeAt: '2026-11-09T10:30:00Z', validUntil: '2026-12-31', due: false };
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending);
+    });
+    await waitFor(() => expect(screen.queryByTestId('self-fresh-veil')).toBeNull());
+    expect(screen.getByTestId('fresh-button')).toHaveTextContent('Fresh reading from 1 Jan 2027');
+    expect(refreshPosts()).toBe(1);
+  });
+
+  it('a build that runs past six minutes says "Still working…" with Retry over the veil', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    srv.board = () => selfV2Fixture(due);
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    fireEvent.click(within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm'));
+    expect(await screen.findByTestId('self-fresh-veil')).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(V2_MAX_WAIT_MS + V2_POLL_MS.pending);
+    });
+    const late = await screen.findByTestId('self-v2-late');
+    expect(late).toHaveTextContent('Still working… Retry');
+    expect(refreshPosts()).toBe(1);
+  });
+
+  it('402: "No questions left" with Upgrade to the plan page; the reading stays', async () => {
+    srv.board = () => selfV2Fixture(due);
+    srv.refreshStatus = 402;
+    srv.refreshBody = { error: 'quota_exhausted', code: 'quota_exhausted', usage: { ...selfV2Fixture().usage!, used: 20, remaining: 0 } };
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    fireEvent.click(within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm'));
+    const none = await screen.findByTestId('fresh-no-questions');
+    expect(none).toHaveTextContent('No questions left · Upgrade');
+    expect(within(none).getByTestId('fresh-upgrade')).toHaveAttribute('href', '/pricing');
+    expect(screen.queryByTestId('fresh-button')).toBeNull();
+    expect(screen.queryByTestId('self-fresh-veil')).toBeNull();
+    expect(slides()).toHaveLength(12);
+  });
+
+  it('409 not_due: the dates are read again and shown, and nothing is veiled', async () => {
+    srv.board = () => selfV2Fixture(due);
+    srv.refreshStatus = 409;
+    srv.refreshBody = { error: 'not_due', code: 'not_due', valid_until: '2026-11-20' };
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    srv.board = () => selfV2Fixture((b) => (b.refresh = { madeAt: '2026-11-02T09:00:00Z', validUntil: '2026-11-20', due: false }));
+    const n = gets();
+    fireEvent.click(within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm'));
+    await waitFor(() => expect(gets()).toBe(n + 1));
+    await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveTextContent('Fresh reading from 21 Nov 2026'));
+    expect(screen.getByTestId('fresh-button')).toBeDisabled();
+    expect(screen.getByTestId('fresh-line')).toHaveTextContent('Made 2 Nov 2026 · Good until 20 Nov 2026');
+    expect(screen.queryByTestId('self-fresh-veil')).toBeNull();
+  });
+
+  it('a failed post says so in the sheet and counts nothing; nothing is shown before a reading was ever made', async () => {
+    srv.board = () => selfV2Fixture(due);
+    srv.refreshStatus = 500;
+    srv.refreshBody = { error: 'refresh_failed' };
+    const { unmount } = render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    fireEvent.click(within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm'));
+    expect(await screen.findByTestId('fresh-sheet-error')).toHaveTextContent('That did not work. Try again');
+    unmount();
+    srv.board = () => selfV2Fixture((b) => (b.refresh = { madeAt: null, validUntil: null, due: false }));
+    render(<SelfBoardV2 />);
+    await ready();
+    expect(screen.queryByTestId('fresh-reading')).toBeNull();
+  });
+
+  it('sits in the board row at 1180 and 1024, and in the Duo left pane beside the clock line', async () => {
+    srv.board = () => selfV2Fixture(due);
+    for (const [w, h] of [[1180, 820], [1024, 1366]] as const) {
+      setViewport(w, h);
+      const { unmount } = render(<SelfBoardV2 />);
+      const row = await ready();
+      expect(within(row).getByTestId('fresh-button')).toBeInTheDocument();
+      expect(screen.getByTestId('self-v2-page')).toHaveClass('overflow-hidden');
+      unmount();
+    }
+    setViewport(1350, 720);
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('horizontal-viewport-segments'), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    render(<SelfBoardV2 />);
+    const left = await screen.findByTestId('self-duo-left');
+    expect(within(left).getByTestId('fresh-button')).toHaveTextContent('Get a fresh reading');
   });
 });

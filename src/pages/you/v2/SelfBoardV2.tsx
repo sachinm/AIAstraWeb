@@ -9,6 +9,8 @@
  *
  * States: preparing (chart not ready) polls every 30 s, pending (board being written) every 10 s, both for at most six
  * minutes and then "Still working… Retry" (never a silent stop). A clock change rebuilds behind the veil the same way.
+ * A fresh reading (server docs/billing/03) is asked for only by a tap and a consent sheet in the board row, never on load;
+ * while it is made the cards are veiled and the page polls until the board's `builtAt` moves.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { usePlan } from '../../../Auth/ProfileGate';
@@ -20,10 +22,12 @@ import { ShriGaneshAvatar } from '../../../components/ShriGaneshAvatar';
 import { longDate } from '../../../lib/careerApi';
 import { track } from '../../../lib/events';
 import { announceUsage } from '../../../lib/planUsage';
+import type { RefreshResult } from '../../../lib/boardRefresh';
 import { fetchSelfV2, type SelfV2Area, type SelfV2Response, type SelfV2State } from '../../../lib/selfV2Api';
 import WelcomeWizard from '../../welcome/WelcomeWizard';
 import AreaCard, { ChartDetails, cardShell } from './AreaCard';
 import ClockSheet from './ClockSheet';
+import { FreshControl, FreshSheet } from './FreshReading';
 import Hero, { type HeroLayout } from './Hero';
 import Sheet from './Sheet';
 import { GROUP_LABEL, V2_WORDS } from './words';
@@ -146,6 +150,8 @@ export default function SelfBoardV2() {
   const [state, setState] = useState<SelfV2State | null>(null);
   const [late, setLate] = useState(false);
   const [rebuild, setRebuild] = useState<{ system: string; label: string } | null>(null);
+  /** a fresh reading asked for: the board's builtAt when it was asked, so the poll knows when the new one lands */
+  const [fresh, setFresh] = useState<{ builtAt: string | null } | null>(null);
   const waitStart = useRef<number | null>(null);
 
   const load = useCallback(
@@ -166,11 +172,13 @@ export default function SelfBoardV2() {
 
   const board = state?.kind === 'ok' ? state.board : null;
   const rebuilding = !!rebuild && !(board && board.status === 'ok' && board.clock.system === rebuild.system);
-  const waiting = state?.kind === 'preparing' || board?.status === 'pending' || board?.status === 'preparing' || rebuilding;
+  const freshBuilding = !!fresh && !(board && board.status === 'ok' && board.builtAt !== fresh.builtAt);
+  const waiting = state?.kind === 'preparing' || board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding;
 
   // poll while something is being built, for at most six minutes; then say so and offer Retry
   useEffect(() => {
     if (rebuild && !rebuilding) setRebuild(null);
+    if (fresh && !freshBuilding) setFresh(null);
     if (!waiting) {
       waitStart.current = null;
       if (late) setLate(false);
@@ -190,7 +198,7 @@ export default function SelfBoardV2() {
       else void load();
     }, Math.min(every, left));
     return () => clearTimeout(t);
-  }, [state, waiting, late, rebuild, rebuilding, board?.status, load]);
+  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, board?.status, load]);
 
   const retry = () => {
     setLate(false);
@@ -237,10 +245,36 @@ export default function SelfBoardV2() {
     );
   if (board.status === 'no_kundli') return frame(<div className={`${cardShell} h-auto text-white/80`} data-testid="board-no-kundli">{V2_WORDS.noKundli}</div>, 'self-v2-empty');
 
-  return <Board board={board} rebuild={rebuilding ? rebuild : null} lateLine={lateLine || null} onRebuild={(system, label) => { setLate(false); waitStart.current = Date.now(); setRebuild({ system, label }); void load(); }} />;
+  return (
+    <Board
+      board={board}
+      rebuild={rebuilding ? rebuild : null}
+      freshBuilding={freshBuilding}
+      lateLine={lateLine || null}
+      onRebuild={(system, label) => { setLate(false); waitStart.current = Date.now(); setRebuild({ system, label }); void load(); }}
+      onFreshStarted={() => { setLate(false); waitStart.current = Date.now(); setFresh({ builtAt: board.builtAt }); }}
+      onReload={() => void load()}
+    />
+  );
 }
 
-function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response; rebuild: { system: string; label: string } | null; lateLine: ReactNode; onRebuild: (system: string, label: string) => void }) {
+function Board({
+  board,
+  rebuild,
+  freshBuilding,
+  lateLine,
+  onRebuild,
+  onFreshStarted,
+  onReload,
+}: {
+  board: SelfV2Response;
+  rebuild: { system: string; label: string } | null;
+  freshBuilding: boolean;
+  lateLine: ReactNode;
+  onRebuild: (system: string, label: string) => void;
+  onFreshStarted: () => void;
+  onReload: () => void;
+}) {
   const mode = useBoardMode();
   const perView = PER_VIEW[mode];
   const { plan, setPlan, refreshPlan } = usePlan();
@@ -250,6 +284,11 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
   const [why, setWhy] = useState(false);
   const [clockOpen, setClockOpen] = useState(false);
   const [wizard, setWizard] = useState(false);
+  const [freshOpen, setFreshOpen] = useState(false);
+  const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | null>(null);
+  /** a 409 not_due names the server's last good day; shown until the board is read again */
+  const [notDue, setNotDue] = useState<{ validUntil: string | null } | null>(null);
+  useEffect(() => setNotDue(null), [board]);
   const today = useMemo(todayIso, []);
   const items = useMemo(() => seenItems(areas), [areas]);
   const { counts, markSeen } = useSeenCounts(SEEN_KEY, items);
@@ -292,6 +331,38 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
     </p>
   );
 
+  const refresh = board.refresh && notDue ? { ...board.refresh, due: false, validUntil: notDue.validUntil ?? board.refresh.validUntil } : board.refresh;
+  const freshAnswered = (r: RefreshResult) => {
+    setFreshOpen(false);
+    if (r.kind === 'made' || r.kind === 'building') {
+      setFreshAnswer(null);
+      if (r.usage) {
+        setPlan(r.usage);
+        announceUsage(r.usage);
+      } else void refreshPlan();
+      if (r.kind === 'building') onFreshStarted();
+      else onReload();
+    } else if (r.kind === 'no_questions') {
+      setFreshAnswer('no_questions');
+      if (r.usage) setPlan(r.usage);
+    } else if (r.kind === 'not_due') {
+      setFreshAnswer(null);
+      setNotDue({ validUntil: r.validUntil });
+      onReload();
+    } else setFreshAnswer('failed');
+  };
+  const freshControl = (
+    <FreshControl
+      refresh={refresh}
+      plan={plan ?? board.usage}
+      building={freshBuilding}
+      noQuestions={freshAnswer === 'no_questions'}
+      failed={freshAnswer === 'failed'}
+      onAsk={() => setFreshOpen(true)}
+      compact={mode === 'duo' || mode === 'phone'}
+    />
+  );
+
   const heroLayout: HeroLayout = mode === 'duo' ? 'pane' : mode;
   const ranked = areas.find((a) => a.status === 'ok' && a.card?.ladder);
   const hero = (
@@ -322,9 +393,16 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
       testId="self-carousel"
     />
   );
+  const veiled = !!rebuild || freshBuilding;
   const deck = rebuild ? (
     <div className="relative h-full min-h-0" data-testid="self-rebuilding">
       <LoadingVeil testId="self-rebuild-veil" note={V2_WORDS.rebuilding(rebuild.label)} foreground={lateLine || undefined}>
+        {carousel}
+      </LoadingVeil>
+    </div>
+  ) : freshBuilding ? (
+    <div className="relative h-full min-h-0" data-testid="self-fresh-building">
+      <LoadingVeil testId="self-fresh-veil" note={V2_WORDS.fresh.veil} foreground={lateLine || undefined}>
         {carousel}
       </LoadingVeil>
     </div>
@@ -356,6 +434,7 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
         </Sheet>
       )}
       {wizard && <PersonalizeModal onClose={() => setWizard(false)} />}
+      {freshOpen && <FreshSheet plan={plan ?? board.usage} onClose={() => setFreshOpen(false)} onDone={freshAnswered} />}
     </>
   );
 
@@ -373,10 +452,11 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
           <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3 overflow-hidden" data-testid="self-duo-left">
             <div className="flex min-w-0 items-center gap-3">
               <SelfTitle onAddPhoto={() => setWizard(true)} small />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 {clockLine}
-                {!rebuild && lateLine}
+                {!veiled && lateLine}
               </div>
+              {freshControl}
             </div>
             {hero}
             <nav aria-label="Self areas" className="min-h-0 overflow-y-auto [scrollbar-width:thin]" data-testid="self-area-list">
@@ -430,8 +510,9 @@ function Board({ board, rebuild, lateLine, onRebuild }: { board: SelfV2Response;
           <SelfTitle onAddPhoto={() => setWizard(true)} />
           <div className="min-w-0">
             {clockLine}
-            {!rebuild && lateLine}
+            {!veiled && lateLine}
           </div>
+          {freshControl}
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {mode !== 'phone' && <CarouselDots index={index} count={areas.length} onIndexChange={select} label={slideLabel} testId="self-carousel" />}
