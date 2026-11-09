@@ -26,6 +26,33 @@
     <meta name="twitter:title" content="AdAstra AI – Your Personal Vedic Astrology Assistant" data-seo />
     <meta name="twitter:image:alt" content="AdAstra AI – Your Personal Vedic Astrology Assistant" data-seo />
     <meta name="theme-color" content="#111827" />
+    <!-- The viewer's theme before anything paints, on the signed-in pages only; public pages stay dark (src/lib/theme.ts). -->
+    <script>
+      (function () {
+        var c = 'system';
+        try {
+          var v = localStorage.getItem('aiastra.theme');
+          if (v === 'light' || v === 'dark' || v === 'system') c = v;
+        } catch (e) {}
+        var path = location.pathname;
+        var themed = /^\/(dashboard|profile|welcome)(\/|$)/.test(path);
+        var t = themed ? c : 'dark';
+        if (t === 'system') {
+          try {
+            t = window.matchMedia('(prefers-color-scheme: dark)').matches === false ? 'light' : 'dark';
+          } catch (e) {
+            t = 'dark';
+          }
+        }
+        var r = document.documentElement;
+        r.classList.add(t);
+        r.style.colorScheme = t;
+        if (t === 'light') {
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#f5f3ff');
+        }
+      })();
+    </script>
     <meta name="application-name" content="AdAstra AI" />
     <meta name="apple-mobile-web-app-title" content="AdAstra AI" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
