@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import LoadingVeil from './LoadingVeil';
+import LoadingVeil, { PIECES, shufflePieces } from './LoadingVeil';
 import { LOADING_QUIPS } from '../lib/loadingQuips';
 import { LINE_MS } from '../pages/chat-interface/ReadingStagesPanel';
 import * as art from '../lib/overlayArt';
@@ -40,6 +40,34 @@ describe('LoadingVeil', () => {
     expect(screen.getByTestId('veil').className).toContain('load-veil--fixed');
     expect(screen.getByTestId('skeleton').parentElement).toHaveClass('load-veil__under');
     expect(screen.getByRole('button', { name: 'Retry' }).parentElement).toHaveClass('load-veil__front');
+    expect(screen.getByTestId('veil').querySelector('.load-veil__bottom')).toContainElement(screen.getByRole('button', { name: 'Retry' }));
+  });
+
+  it('puts the brand and the quip above the chart, the note below, and all 21 pieces beside it in a shuffled order', () => {
+    vi.spyOn(art, 'getOverlayArt').mockResolvedValue(null);
+    render(<LoadingVeil testId="veil" note="Your chart is still being prepared." />);
+    const veil = screen.getByTestId('veil');
+    const top = veil.querySelector('.load-veil__top')!;
+    expect(top).toContainElement(screen.getByTestId('veil-brand'));
+    expect(top).toContainElement(screen.getByTestId('veil-line'));
+    expect(screen.getByTestId('veil-brand')).toHaveTextContent('AdAstra AI');
+    expect(veil.querySelector('.load-veil__bottom')).toContainElement(screen.getByTestId('veil-note'));
+    expect(screen.getByTestId('veil-stage')).not.toHaveTextContent(/[a-z]{3}/i);
+    expect(veil.querySelectorAll('.load-veil__tile')).toHaveLength(PIECES.length);
+    expect(veil.querySelectorAll('.load-veil__col')).toHaveLength(4);
+    // no key, no decrypted art: the chart is still drawn in the middle
+    const chart = screen.getByTestId('veil-chart');
+    expect(chart.getAttribute('src')).toMatch(/^data:image\/svg\+xml/);
+    expect(decodeURIComponent(chart.getAttribute('src')!)).toContain('>12</text>');
+  });
+
+  it('shuffles the pieces into four columns that hold every graha and rashi once', () => {
+    const cols = shufflePieces(() => 0.3);
+    expect(cols).toHaveLength(4);
+    const names = cols.flat().map((p) => p.name).sort();
+    expect(names).toEqual(PIECES.map((p) => p.name).sort());
+    expect(PIECES.filter((p) => p.kind === 'graha')).toHaveLength(9);
+    expect(PIECES.filter((p) => p.kind === 'rashi')).toHaveLength(12);
   });
 
   it('shows the illustration for the current theme once it decrypts, and revokes it on unmount', async () => {

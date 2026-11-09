@@ -1,20 +1,23 @@
 /**
  * The one loading overlay (server docs/loading-overlay/01). A translucent veil over whatever is beneath (a skeleton
- * passed as children, or the page itself), one of four house-chart illustrations in the viewer's theme behind a line
- * in the assistant's voice that changes every few seconds. The line and the illustration are picked at random each
- * time the veil appears. If the illustration cannot be had (signed out, not configured, offline) the veil shows its
- * lines alone; a wait never fails because of its decoration.
+ * passed as children, or the page itself). Top: the brand line and a line in the assistant's voice that changes every
+ * few seconds. Middle: one of four house-chart boards in the viewer's theme, clear of any text, flanked by the nine
+ * grahas and twelve rashis as 3D tiles shuffled on every show. Bottom: the caller's factual note. The line, the board
+ * and the tile order are picked at random each time the veil appears. If the board cannot be had (signed out, not
+ * configured, offline) the tiles and lines still show; a wait never fails because of its decoration.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
 import { LINE_MS, prefersReducedMotion } from '../pages/chat-interface/ReadingStagesPanel';
 import { LOADING_QUIPS, pickQuipStart } from '../lib/loadingQuips';
 import { getOverlayArt, pickStyle, type ArtStyle, type ArtTheme } from '../lib/overlayArt';
+import { chartSvg } from '../lib/chartBoard.js';
+import '../styles/loading-veil.css';
 
 export interface LoadingVeilProps {
   /** Cover the whole viewport (session restore). Otherwise the veil fills its relative parent, over `children`. */
   fullScreen?: boolean;
-  /** A short factual sentence under the rotating line, e.g. what the page will do by itself. */
+  /** A short factual sentence at the bottom, e.g. what the page will do by itself. */
   note?: string;
   /** What stays faintly visible beneath the veil: a skeleton, a progress card, the page's own frame. */
   children?: ReactNode;
@@ -25,6 +28,49 @@ export interface LoadingVeilProps {
   /** Kept for callers whose tests look for the old loading element. */
   testId?: string;
   className?: string;
+}
+
+/** The wordmark and the words beside it, above the quip. */
+export const BRAND_NAME = 'AdAstra AI';
+/** The same classes as the dashboard header's name (src/pages/TopNavigation.tsx). */
+export const BRAND_CLASS = 'font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent';
+export const BRAND_REST = 'preparing your board…';
+
+/** The pieces beside the board: the nine grahas (gold) and the twelve rashis (violet). */
+export const PIECES: ReadonlyArray<{ glyph: string; name: string; kind: 'graha' | 'rashi' }> = [
+  { glyph: '☉', name: 'Sun', kind: 'graha' },
+  { glyph: '☽', name: 'Moon', kind: 'graha' },
+  { glyph: '♂', name: 'Mars', kind: 'graha' },
+  { glyph: '☿', name: 'Mercury', kind: 'graha' },
+  { glyph: '♃', name: 'Jupiter', kind: 'graha' },
+  { glyph: '♀', name: 'Venus', kind: 'graha' },
+  { glyph: '♄', name: 'Saturn', kind: 'graha' },
+  { glyph: '☊', name: 'Rahu', kind: 'graha' },
+  { glyph: '☋', name: 'Ketu', kind: 'graha' },
+  { glyph: '♈', name: 'Mesha', kind: 'rashi' },
+  { glyph: '♉', name: 'Vrishabha', kind: 'rashi' },
+  { glyph: '♊', name: 'Mithuna', kind: 'rashi' },
+  { glyph: '♋', name: 'Karka', kind: 'rashi' },
+  { glyph: '♌', name: 'Simha', kind: 'rashi' },
+  { glyph: '♍', name: 'Kanya', kind: 'rashi' },
+  { glyph: '♎', name: 'Tula', kind: 'rashi' },
+  { glyph: '♏', name: 'Vrishchika', kind: 'rashi' },
+  { glyph: '♐', name: 'Dhanu', kind: 'rashi' },
+  { glyph: '♑', name: 'Makara', kind: 'rashi' },
+  { glyph: '♒', name: 'Kumbha', kind: 'rashi' },
+  { glyph: '♓', name: 'Meena', kind: 'rashi' },
+];
+
+/** A shuffled copy of the pieces, split into four columns: two for the left of the board, two for the right. */
+export function shufflePieces(random: () => number = Math.random): Array<typeof PIECES[number][]> {
+  const a = [...PIECES];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  const cols: Array<typeof PIECES[number][]> = [[], [], [], []];
+  a.forEach((p, i) => cols[i % 4]!.push(p));
+  return cols;
 }
 
 /** The theme on <html> now (src/lib/theme.ts puts `light` there on the signed-in pages). */
@@ -63,18 +109,39 @@ export function useOverlayArt(theme: ArtTheme): { url: string | null; style: Art
   return { url, style };
 }
 
+/** U+FE0E asks for the text form of a sign, so Windows and phones do not swap in a coloured emoji. */
+const TEXT_FORM = '︎';
+
+function TileColumn({ pieces, place, start }: { pieces: ReadonlyArray<typeof PIECES[number]>; place: 'outer' | 'inner'; start: number }) {
+  return (
+    <div className={`load-veil__col load-veil__col--${place}`} aria-hidden="true">
+      {pieces.map((p, i) => (
+        <span key={p.name} className={`load-veil__tile load-veil__tile--${p.kind}`} title={p.name} style={{ '--i': start + i } as React.CSSProperties}>
+          {p.glyph}
+          {TEXT_FORM}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function LoadingVeil({ fullScreen = false, note, children, foreground, leaving = false, testId = 'loading-veil', className = '' }: LoadingVeilProps) {
   const theme = htmlTheme();
   const line = useLoadingQuip();
   const { url, style } = useOverlayArt(theme);
   const still = prefersReducedMotion();
+  const cols = useMemo(() => shufflePieces(), []);
+  // the chart is drawn at once from the same code the build encrypts, so the middle is never empty; the decrypted
+  // image takes its place when it arrives
+  const drawn = useMemo(() => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(chartSvg(style, theme))}`, [style, theme]);
 
   return (
     <div
-      className={`load-veil ${fullScreen ? 'load-veil--fixed' : 'load-veil--fill'} ${leaving ? 'load-veil--leaving' : ''} ${className}`}
+      className={`load-veil ${fullScreen ? 'load-veil--fixed' : 'load-veil--fill'} ${still ? '' : 'load-veil--animate'} ${leaving ? 'load-veil--leaving' : ''} ${className}`}
       data-testid={testId}
       data-theme={theme}
       data-art={url ? style : 'none'}
+      data-chart={style}
       aria-busy="true"
     >
       {children && (
@@ -83,12 +150,26 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
         </div>
       )}
       <div className="load-veil__layer">
-        {url && <img src={url} alt="" className={`load-veil__art ${still ? '' : 'load-veil__art--in'}`} draggable={false} />}
-        <div className="load-veil__text">
+        <div className="load-veil__top">
+          <p className="load-veil__brand" data-testid={`${testId}-brand`}>
+            <span className={`load-veil__brand-name ${BRAND_CLASS}`}>{BRAND_NAME}</span>
+            <span className="load-veil__brand-rest">{BRAND_REST}</span>
+          </p>
           <p role="status" aria-live="polite" className="load-veil__line" data-testid={`${testId}-line`}>
             <Sparkles className={`h-4 w-4 shrink-0 ${still ? '' : 'animate-pulse'}`} aria-hidden="true" />
             <span key={still ? 'still' : line} className={still ? '' : 'load-veil__line-in'}>{line}</span>
           </p>
+        </div>
+        <div className="load-veil__stage" data-testid={`${testId}-stage`}>
+          <TileColumn pieces={cols[0]!} place="outer" start={0} />
+          <TileColumn pieces={cols[1]!} place="inner" start={6} />
+          <div className="load-veil__board">
+            <img src={url ?? drawn} alt="" className={`load-veil__art ${still ? '' : 'load-veil__art--in'}`} draggable={false} data-testid={`${testId}-chart`} />
+          </div>
+          <TileColumn pieces={cols[2]!} place="inner" start={11} />
+          <TileColumn pieces={cols[3]!} place="outer" start={16} />
+        </div>
+        <div className="load-veil__bottom">
           {note && (
             <p className="load-veil__note" data-testid={`${testId}-note`}>
               {note}
