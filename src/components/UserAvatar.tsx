@@ -2,13 +2,14 @@
  * The person's own avatar (server docs/reading-engine/52 §4): their selfie when they have one, the Ganesh image when
  * not. The assistant's avatar beside answers stays the Ganesh image.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { fetchSelfieUrl } from '../lib/profileApi';
 import { ShriGaneshAvatar } from './ShriGaneshAvatar';
 
 export const SELFIE_CHANGED = 'astra:selfie-changed';
 
-export default function UserAvatar({ className = 'h-10 w-10' }: { className?: string }) {
+/** `fallback` replaces the Ganesh image when there is no photo (the Self board's "Add your photo" tap). */
+export default function UserAvatar({ className = 'h-10 w-10', fallback }: { className?: string; fallback?: ReactNode }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let current: string | null = null;
@@ -27,7 +28,7 @@ export default function UserAvatar({ className = 'h-10 w-10' }: { className?: st
       if (current) URL.revokeObjectURL(current);
     };
   }, []);
-  if (!url) return <ShriGaneshAvatar className={className} />;
+  if (!url) return fallback ? <>{fallback}</> : <ShriGaneshAvatar className={className} />;
   return (
     <div className={`shrink-0 overflow-hidden rounded-full ring-2 ring-white/25 ${className}`} data-testid="user-avatar-photo">
       <img src={url} alt="Your photo" className="h-full w-full object-cover" width={80} height={80} />

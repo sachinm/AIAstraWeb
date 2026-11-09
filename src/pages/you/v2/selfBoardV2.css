@@ -1,0 +1,16 @@
+/*
+ * The Self board v2 on a two-fold (server docs/reading-engine/66 mockup §2): the left pane holds you, the right pane
+ * holds the card, and the hinge never splits a card. Without viewport segments the two panes are equal with a gap.
+ */
+.self-v2-duo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+}
+@media (horizontal-viewport-segments: 2) {
+  .self-v2-duo {
+    grid-template-columns:
+      calc(env(viewport-segment-right 0 0, 50vw) - var(--board-left, 0px))
+      calc(env(viewport-segment-left 1 0, 50vw) - env(viewport-segment-right 0 0, 50vw))
+      minmax(0, 1fr);
+  }
+}
