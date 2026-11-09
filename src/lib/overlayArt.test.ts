@@ -27,10 +27,10 @@ function encrypt(plain: Buffer, key: Buffer): Buffer {
 }
 
 const manifest = {
-  version: 'v1',
-  files: [
-    { name: 'south-dark', style: 'south', theme: 'dark', path: '/overlay/south-dark.v1.enc', type: 'image/svg+xml', bytes: 1 },
-    { name: 'north-light', style: 'north', theme: 'light', path: '/overlay/north-light.v1.enc', type: 'image/svg+xml', bytes: 1 },
+  v: 'v1',
+  f: [
+    { s: 's', t: 1, m: 'image/svg+xml', p: '/_a/0a1b2c3d4e5f60718293.bin' },
+    { s: 'n', t: 0, m: 'image/svg+xml', p: '/_a/9f8e7d6c5b4a39281706.bin' },
   ],
 };
 
@@ -40,10 +40,10 @@ let enc = encrypt(PLAIN, KEY);
 
 function fakeFetch(url: string): Promise<Response> {
   calls.push(url);
-  if (url.endsWith('/overlay/manifest.json')) return Promise.resolve(new Response(JSON.stringify(manifest), { status: 200 }));
+  if (url.endsWith('/_a/i.json')) return Promise.resolve(new Response(JSON.stringify(manifest), { status: 200 }));
   if (url.endsWith('/api/assets/overlay-key'))
     return Promise.resolve(new Response(JSON.stringify({ key: KEY.toString('base64'), version: 'v1' }), { status: keyStatus }));
-  if (url.endsWith('.enc')) return Promise.resolve(new Response(new Uint8Array(enc), { status: 200 }));
+  if (url.endsWith('.bin')) return Promise.resolve(new Response(new Uint8Array(enc), { status: 200 }));
   return Promise.resolve(new Response('', { status: 404 }));
 }
 
@@ -70,20 +70,22 @@ describe('overlay art', () => {
     expect((await bytesOf(blob!)).equals(PLAIN)).toBe(true);
   });
 
-  it('fetches manifest, key and bytes once, then serves the same art from its cache', async () => {
+  it('fetches manifest, key and bytes once, keeps only the ciphertext, and decrypts again from its cache', async () => {
     const a = await getOverlayArt('south', 'dark');
     expect(a).not.toBeNull();
     expect((await bytesOf(a!)).equals(PLAIN)).toBe(true);
-    expect(calls.filter((u) => u.endsWith('.enc'))).toEqual(['/overlay/south-dark.v1.enc']);
+    // names on the wire say nothing about the chart
+    expect(calls.filter((u) => !u.includes('/api/') && /south|north|dark|light|overlay/.test(u))).toEqual([]);
+    expect(calls.filter((u) => u.endsWith('.bin'))).toEqual(['/_a/0a1b2c3d4e5f60718293.bin']);
     const b = await getOverlayArt('south', 'dark');
-    expect(b).toBe(a);
-    expect(calls.filter((u) => u.endsWith('.enc')).length).toBe(1);
+    expect((await bytesOf(b!)).equals(PLAIN)).toBe(true);
+    expect(calls.filter((u) => u.endsWith('.bin')).length).toBe(1);
     expect(calls.filter((u) => u.endsWith('overlay-key')).length).toBe(1);
   });
 
   it('falls back to the theme when the style is missing, and to null when the theme is', async () => {
     expect(await getOverlayArt('north', 'dark')).not.toBeNull(); // only south-dark exists for dark
-    expect(calls.filter((u) => u.endsWith('.enc'))).toEqual(['/overlay/south-dark.v1.enc']);
+    expect(calls.filter((u) => u.endsWith('.bin'))).toEqual(['/_a/0a1b2c3d4e5f60718293.bin']);
   });
 
   it('is null, never a throw, when signed out, when the key is not configured, or when the tag is wrong', async () => {

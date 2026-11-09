@@ -1,14 +1,16 @@
 // Encrypts the loading veil's illustrations for the build (server docs/loading-overlay/01 §4.2, §5). Reads
 // art/overlay/<style>-<theme>.<svg|webp|png|jpg> and, when OVERLAY_ART_KEY (64 hex chars = 32 bytes) is set, writes
-// public/overlay/<name>.<version>.enc as AES-256-GCM `iv(12) ‖ ciphertext ‖ tag(16)` (the layout Web Crypto reads) plus
-// public/overlay/manifest.json. Without the key it removes public/overlay and exits 0: the app then shows the veil's
-// lines alone. The same key is served to signed-in sessions by the API (GET /api/assets/overlay-key).
+// public/_a/<20 hex>.bin as AES-256-GCM `iv(12) ‖ ciphertext ‖ tag(16)` (the layout Web Crypto reads) plus a compact index
+// public/_a/i.json. File names are keyed hashes, so nothing on the wire names a chart, a style or a theme (Sachin,
+// 2026-11-09: "encrypted and cryptically named"). Without the key it removes public/_a and exits 0: the veil then shows
+// an empty glass slab where the chart goes. The same key is served to signed-in sessions by the API (GET /api/assets/overlay-key).
 import { createHash, randomBytes, createCipheriv } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SRC = 'art/overlay';
-const OUT = 'public/overlay';
+const OUT = 'public/_a';
+const LEGACY_OUT = 'public/overlay';
 const TYPES = { svg: 'image/svg+xml', webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
 
 /** Local dev: the key may sit in .env.local (gitignored) instead of the shell; the build env (Amplify) sets it. */
@@ -53,17 +55,18 @@ const version = h.digest('hex').slice(0, 8);
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
-const manifest = { version, files: [] };
+rmSync(LEGACY_OUT, { recursive: true, force: true });
+// compact index: v version; f files with s style initial, t 1 for dark, m media type, p path
+const manifest = { v: version, f: [] };
 for (const f of plain) {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const ct = Buffer.concat([cipher.update(f.data), cipher.final()]);
   const tag = cipher.getAuthTag();
-  const name = `${f.style}-${f.theme}`;
-  const out = `${name}.${version}.enc`;
+  const out = `${createHash('sha256').update(key).update(version).update(f.file).digest('hex').slice(0, 20)}.bin`;
   const bytes = Buffer.concat([iv, ct, tag]);
   writeFileSync(join(OUT, out), bytes);
-  manifest.files.push({ name, style: f.style, theme: f.theme, path: `/overlay/${out}`, type: f.type, bytes: bytes.length });
+  manifest.f.push({ s: f.style[0], t: f.theme === 'dark' ? 1 : 0, m: f.type, p: `/_a/${out}` });
 }
-writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
+writeFileSync(join(OUT, 'i.json'), JSON.stringify(manifest));
 console.log(`[overlay-art] wrote ${plain.length} encrypted illustrations, version ${version}`);

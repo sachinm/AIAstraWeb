@@ -6,12 +6,11 @@
  * and the tile order are picked at random each time the veil appears. If the board cannot be had (signed out, not
  * configured, offline) the tiles and lines still show; a wait never fails because of its decoration.
  */
-import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
 import { LINE_MS, prefersReducedMotion } from '../pages/chat-interface/ReadingStagesPanel';
 import { LOADING_QUIPS, pickQuipStart } from '../lib/loadingQuips';
 import { getOverlayArt, pickStyle, type ArtStyle, type ArtTheme } from '../lib/overlayArt';
-import { chartSvg } from '../lib/chartBoard.js';
 import '../styles/loading-veil.css';
 
 export interface LoadingVeilProps {
@@ -109,6 +108,35 @@ export function useOverlayArt(theme: ArtTheme): { url: string | null; style: Art
   return { url, style };
 }
 
+/**
+ * The decrypted chart painted onto a canvas, never an <img>: no "Save image as", nothing to drag out, and no URL left
+ * behind (the hook revokes its object URL on unmount). Screenshots cannot be stopped by any page.
+ */
+function ChartCanvas({ url, className, testId }: { url: string; className: string; testId: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    let alive = true;
+    const img = new Image();
+    img.onload = () => {
+      const c = ref.current;
+      if (!alive || !c) return;
+      c.width = img.naturalWidth || 1000;
+      c.height = img.naturalHeight || 1000;
+      try {
+        c.getContext('2d')?.drawImage(img, 0, 0);
+      } catch {
+        /* a canvas the browser will not draw on: the slab stays */
+      }
+    };
+    img.src = url;
+    return () => {
+      alive = false;
+      img.src = '';
+    };
+  }, [url]);
+  return <canvas ref={ref} className={className} data-testid={testId} aria-hidden="true" onContextMenu={(e) => e.preventDefault()} />;
+}
+
 /** U+FE0E asks for the text form of a sign, so Windows and phones do not swap in a coloured emoji. */
 const TEXT_FORM = '︎';
 
@@ -131,9 +159,6 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
   const { url, style } = useOverlayArt(theme);
   const still = prefersReducedMotion();
   const cols = useMemo(() => shufflePieces(), []);
-  // the chart is drawn at once from the same code the build encrypts, so the middle is never empty; the decrypted
-  // image takes its place when it arrives
-  const drawn = useMemo(() => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(chartSvg(style, theme))}`, [style, theme]);
 
   return (
     <div
@@ -143,6 +168,8 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
       data-art={url ? style : 'none'}
       data-chart={style}
       aria-busy="true"
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
     >
       {children && (
         <div className="load-veil__under" aria-hidden="true">
@@ -164,7 +191,11 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
           <TileColumn pieces={cols[0]!} place="outer" start={0} />
           <TileColumn pieces={cols[1]!} place="inner" start={6} />
           <div className="load-veil__board">
-            <img src={url ?? drawn} alt="" className={`load-veil__art ${still ? '' : 'load-veil__art--in'}`} draggable={false} data-testid={`${testId}-chart`} />
+            {url ? (
+              <ChartCanvas url={url} className={`load-veil__art ${still ? '' : 'load-veil__art--in'}`} testId={`${testId}-chart`} />
+            ) : (
+              <div className="load-veil__slab" aria-hidden="true" data-testid={`${testId}-slab`} />
+            )}
           </div>
           <TileColumn pieces={cols[2]!} place="inner" start={11} />
           <TileColumn pieces={cols[3]!} place="outer" start={16} />
