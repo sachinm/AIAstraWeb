@@ -23,6 +23,8 @@ env:
   ROLE_ARN: arn:aws:iam::442728149528:role/aiastra-github-deploy
   AMPLIFY_APP_ID: d20sdo476h9w6c
   AMPLIFY_BRANCH: release-candidate-staging
+  # key for the encrypted loading-veil art made at build time (repo secret; must match the API Lambda)
+  OVERLAY_ART_KEY: ${{ secrets.OVERLAY_ART_KEY }}
 
 jobs:
   deploy:
