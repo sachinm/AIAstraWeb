@@ -1,0 +1,60 @@
+{
+  "steps": [
+    {
+      "file": "21-landing-dark.png",
+      "url": "http://localhost:5199/",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "22-signin-dark.png",
+      "url": "http://localhost:5199/signin",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "23-pricing-dark.png",
+      "url": "http://localhost:5199/pricing",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "24-terms-dark.png",
+      "url": "http://localhost:5199/terms",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "25-you-dark.png",
+      "url": "http://localhost:5199/dashboard/you",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "26-love-dark.png",
+      "url": "http://localhost:5199/dashboard/love",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "27-work-dark.png",
+      "url": "http://localhost:5199/dashboard/work",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "28-lucky-dark.png",
+      "url": "http://localhost:5199/dashboard/lucky",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "29-chat-dark.png",
+      "url": "http://localhost:5199/dashboard/chat",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "30-profile-locale-dark.png",
+      "url": "http://localhost:5199/profile/locale",
+      "horizontalOverflowPx": 0
+    },
+    {
+      "file": "31-profile-plan-dark.png",
+      "url": "http://localhost:5199/profile/plan",
+      "horizontalOverflowPx": 0
+    }
+  ],
+  "pageErrors": []
+}
