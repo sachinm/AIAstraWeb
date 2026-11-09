@@ -48,7 +48,7 @@ export interface CareerMap {
 }
 
 export type CareerState =
-  | { kind: 'ok'; map: CareerMap; work: WorkStatus | null; checks: Record<string, string>; madeAt?: string | null; validUntil?: string | null }
+  | { kind: 'ok'; map: CareerMap; work: WorkStatus | null; checks: Record<string, string>; madeAt?: string | null; validUntil?: string | null; refreshDue?: boolean }
   | { kind: 'not_ready' }
   | { kind: 'unavailable' };
 
@@ -80,9 +80,9 @@ export async function fetchCareer(): Promise<CareerState> {
   const r = await call('GET', '/api/area/career');
   if (r.status === 202) return { kind: 'not_ready' };
   if (!r.ok) return { kind: 'unavailable' };
-  const j = (await r.json()) as { map: CareerMap; work: WorkStatus | null; checks?: Record<string, string>; made_at?: string; valid_until?: string | null; usage?: unknown };
+  const j = (await r.json()) as { map: CareerMap; work: WorkStatus | null; checks?: Record<string, string>; made_at?: string; valid_until?: string | null; refresh_due?: boolean; usage?: unknown };
   announceUsage(j.usage);
-  const result: Extract<CareerState, { kind: 'ok' }> = { kind: 'ok', map: j.map, work: j.work, checks: j.checks ?? {}, madeAt: j.made_at ?? null, validUntil: j.valid_until ?? null };
+  const result: Extract<CareerState, { kind: 'ok' }> = { kind: 'ok', map: j.map, work: j.work, checks: j.checks ?? {}, madeAt: j.made_at ?? null, validUntil: j.valid_until ?? null, refreshDue: j.refresh_due === true };
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : '';
   careerCacheMap()?.set(token, result);
   return result;

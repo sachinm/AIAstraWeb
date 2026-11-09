@@ -32,6 +32,7 @@ export default defineConfig({
     cwd: ROOT_DIR,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
-    timeout: 180_000,
+    // E2E_WEB_TIMEOUT_MS: a slow or busy machine needs longer for the build
+    timeout: Number(process.env.E2E_WEB_TIMEOUT_MS) || 180_000,
   },
 });

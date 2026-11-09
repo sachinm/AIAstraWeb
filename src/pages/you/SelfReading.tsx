@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { longDate } from '../../lib/careerApi';
 import { usePlan } from '../../Auth/ProfileGate';
+import { onBoardRefreshed } from '../../lib/boardRefresh';
 import { OracleVeil, OracleWaitLine } from './OracleWait';
 import { renderInline } from './readingMarkdown';
 import { track } from '../../lib/events';
@@ -159,6 +160,17 @@ export default function SelfReading() {
     setState(null);
     void load();
   };
+  // a fresh reading was asked for (server docs/billing/03): read again; the server answers `pending` while it is made,
+  // so the page waits under the veil and polls as it does for a first reading
+  useEffect(
+    () =>
+      onBoardRefreshed('self', () => {
+        startedAt.current = Date.now();
+        setWaited(0);
+        void load();
+      }),
+    [],
+  );
 
   if (!state) return <Skeleton words={SELF_WORDS.loading} testId="self-reading-loading" />;
   if (state.kind === 'preparing') {
