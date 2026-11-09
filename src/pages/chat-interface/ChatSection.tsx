@@ -681,6 +681,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
       >
         {/* the loading veil; while the chart is still being built its progress card (stage, count, Retry) sits over it */}
         <LoadingVeil
+          fullScreen
           testId="chat-wait"
           note={kundliReady === false && !me?.chart ? 'We’re calculating your planetary placements, divisional charts and dasha periods. Chat opens as soon as it is ready.' : undefined}
           foreground={
