@@ -61,6 +61,9 @@ export const V2_WORDS = {
     noQuestions: 'No questions left',
     upgrade: 'Upgrade',
     failed: 'That did not work. Try again',
+    /** the fresh build itself failed (server `refresh.failed`): the build gave the question back */
+    givenBack: 'That did not work; your question was given back.',
+    tryAgain: 'Try again',
     sheetTitle: 'Get a fresh reading?',
     confirm: 'Get fresh reading · 1 question',
   },

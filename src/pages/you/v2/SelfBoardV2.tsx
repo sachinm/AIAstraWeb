@@ -10,7 +10,9 @@
  * States: preparing (chart not ready) polls every 30 s, pending (board being written) every 10 s, both for at most six
  * minutes and then "Still working… Retry" (never a silent stop). A clock change rebuilds behind the veil the same way.
  * A fresh reading (server docs/billing/03) is asked for only by a tap and a consent sheet in the board row, never on load;
- * while it is made the cards are veiled and the page polls until the board's `builtAt` moves.
+ * while it is made the cards are veiled and the page polls until the board's `builtAt` moves, or until a board read
+ * after the ask says the build failed (`refresh.failed`): then polling stops and the row says the question was given
+ * back, with Try again.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { usePlan } from '../../../Auth/ProfileGate';
@@ -151,7 +153,9 @@ export default function SelfBoardV2() {
   const [late, setLate] = useState(false);
   const [rebuild, setRebuild] = useState<{ system: string; label: string } | null>(null);
   /** a fresh reading asked for: the board's builtAt when it was asked, so the poll knows when the new one lands */
-  const [fresh, setFresh] = useState<{ builtAt: string | null } | null>(null);
+  const [fresh, setFresh] = useState<{ builtAt: string | null; from: SelfV2Response } | null>(null);
+  /** the fresh build asked for failed (server `refresh.failed`); cleared when the person asks again */
+  const [freshFailed, setFreshFailed] = useState(false);
   const waitStart = useRef<number | null>(null);
 
   const load = useCallback(
@@ -172,13 +176,18 @@ export default function SelfBoardV2() {
 
   const board = state?.kind === 'ok' ? state.board : null;
   const rebuilding = !!rebuild && !(board && board.status === 'ok' && board.clock.system === rebuild.system);
-  const freshBuilding = !!fresh && !(board && board.status === 'ok' && board.builtAt !== fresh.builtAt);
+  // only a board read after the ask can say the fresh build failed (the one on screen may carry an earlier failure)
+  const freshFailedNow = !!fresh && !!board && board !== fresh.from && !!board.refresh?.failed && !board.refresh?.building;
+  const freshBuilding = !!fresh && !freshFailedNow && !(board && board.status === 'ok' && board.builtAt !== fresh.builtAt);
   const waiting = state?.kind === 'preparing' || board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding;
 
   // poll while something is being built, for at most six minutes; then say so and offer Retry
   useEffect(() => {
     if (rebuild && !rebuilding) setRebuild(null);
-    if (fresh && !freshBuilding) setFresh(null);
+    if (fresh && !freshBuilding) {
+      setFresh(null);
+      if (freshFailedNow) setFreshFailed(true);
+    }
     if (!waiting) {
       waitStart.current = null;
       if (late) setLate(false);
@@ -198,7 +207,7 @@ export default function SelfBoardV2() {
       else void load();
     }, Math.min(every, left));
     return () => clearTimeout(t);
-  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, board?.status, load]);
+  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, load]);
 
   const retry = () => {
     setLate(false);
@@ -250,9 +259,10 @@ export default function SelfBoardV2() {
       board={board}
       rebuild={rebuilding ? rebuild : null}
       freshBuilding={freshBuilding}
+      freshFailed={freshFailed}
       lateLine={lateLine || null}
       onRebuild={(system, label) => { setLate(false); waitStart.current = Date.now(); setRebuild({ system, label }); void load(); }}
-      onFreshStarted={() => { setLate(false); waitStart.current = Date.now(); setFresh({ builtAt: board.builtAt }); }}
+      onFreshStarted={() => { setLate(false); setFreshFailed(false); waitStart.current = Date.now(); setFresh({ builtAt: board.builtAt, from: board }); }}
       onReload={() => void load()}
     />
   );
@@ -262,6 +272,7 @@ function Board({
   board,
   rebuild,
   freshBuilding,
+  freshFailed = false,
   lateLine,
   onRebuild,
   onFreshStarted,
@@ -270,6 +281,7 @@ function Board({
   board: SelfV2Response;
   rebuild: { system: string; label: string } | null;
   freshBuilding: boolean;
+  freshFailed?: boolean;
   lateLine: ReactNode;
   onRebuild: (system: string, label: string) => void;
   onFreshStarted: () => void;
@@ -289,6 +301,10 @@ function Board({
   /** a 409 not_due names the server's last good day; shown until the board is read again */
   const [notDue, setNotDue] = useState<{ validUntil: string | null } | null>(null);
   useEffect(() => setNotDue(null), [board]);
+  // a failed fresh build gave its question back: read the plan again so the count on screen is right
+  useEffect(() => {
+    if (freshFailed) void refreshPlan();
+  }, [freshFailed, refreshPlan]);
   const today = useMemo(todayIso, []);
   const items = useMemo(() => seenItems(areas), [areas]);
   const { counts, markSeen } = useSeenCounts(SEEN_KEY, items);
@@ -358,6 +374,7 @@ function Board({
       building={freshBuilding}
       noQuestions={freshAnswer === 'no_questions'}
       failed={freshAnswer === 'failed'}
+      buildFailed={freshFailed}
       onAsk={() => setFreshOpen(true)}
       compact={mode === 'duo' || mode === 'phone'}
     />

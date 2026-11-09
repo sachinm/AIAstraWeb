@@ -177,6 +177,12 @@ export interface SelfV2Refresh {
   madeAt: string | null;
   validUntil: string | null;
   due: boolean;
+  /**
+   * From today's You build marker (server fix/self-v2-single-build): a build is running now, or today's last build
+   * failed (a fresh reading's question was given back). Optional: a server before that branch omits them.
+   */
+  building?: boolean;
+  failed?: boolean;
 }
 
 export type SelfV2State =
