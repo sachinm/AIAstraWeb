@@ -8,9 +8,12 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const W = 1400;
 const H = 900;
 
+// Palettes follow the look of the Nano Banana boards generated on 2026-11-09 (docs/loading-overlay/art/plain): pale
+// ivory with a soft vignette and deep indigo lines by day; deep midnight with a violet vignette and glowing lavender
+// lines by night. The drawing itself is code so every numeral, glyph and name is exact.
 const PALETTE = {
-  dark: { line: 'rgba(216,180,254,0.95)', soft: 'rgba(216,180,254,0.45)', text: 'rgba(237,233,254,0.95)', glyph: 'rgba(253,230,138,0.95)' },
-  light: { line: 'rgba(76,29,149,0.9)', soft: 'rgba(76,29,149,0.4)', text: 'rgba(49,46,129,0.95)', glyph: 'rgba(180,83,9,0.95)' },
+  dark: { bg: '#0b0a1f', vignette: 'rgba(88,56,160,0.35)', line: 'rgba(216,180,254,0.95)', soft: 'rgba(216,180,254,0.5)', text: 'rgba(237,233,254,0.95)', glyph: 'rgba(253,230,138,0.95)', glow: true },
+  light: { bg: '#f7f5ff', vignette: 'rgba(76,29,149,0.08)', line: 'rgba(59,42,122,0.92)', soft: 'rgba(76,29,149,0.45)', text: 'rgba(49,46,129,0.95)', glyph: 'rgba(180,83,9,0.95)', glow: false },
 };
 
 const GRAHAS = ['☉', '☽', '♂', '☿', '♃', '♀', '♄', '☊', '☋'];
@@ -27,11 +30,10 @@ function pieces(p) {
   // the grahas down the left, the rashis down the right, like two ranks beside a board
   const left = GRAHAS.map((g, i) => `<text x="150" y="${250 + i * 48}" text-anchor="middle" font-size="40" fill="${p.glyph}" ${FONT}>${g}</text>`).join('');
   const right = RASHIS.map((r, i) => `<text x="1250" y="${215 + i * 42}" text-anchor="middle" font-size="34" fill="${p.text}" ${FONT}>${r}</text>`).join('');
-  const row1 = NAKSHATRAS.slice(0, 14).join('  ·  ');
-  const row2 = NAKSHATRAS.slice(14).join('  ·  ');
-  const bottom =
-    `<text x="700" y="828" text-anchor="middle" font-size="19" fill="${p.soft}" ${FONT}>${row1}</text>` +
-    `<text x="700" y="860" text-anchor="middle" font-size="19" fill="${p.soft}" ${FONT}>${row2}</text>`;
+  // three rows of nine, so the longest names fit inside the canvas
+  const bottom = [NAKSHATRAS.slice(0, 9), NAKSHATRAS.slice(9, 18), NAKSHATRAS.slice(18)]
+    .map((row, i) => `<text x="700" y="${808 + i * 28}" text-anchor="middle" font-size="18" fill="${p.soft}" ${FONT}>${row.join('  ·  ')}</text>`)
+    .join('');
   return left + right + bottom;
 }
 
@@ -53,8 +55,8 @@ function south(p) {
   const numbers = order
     .map(([cx, cy], i) => `<text x="${x0 + cx * cell + cell / 2}" y="${y0 + cy * cell + cell / 2 + 12}" text-anchor="middle" font-size="36" fill="${p.text}" ${FONT}>${i + 1}</text>`)
     .join('');
-  return `<g stroke="${p.line}" stroke-width="3" fill="none">${lines.join('')}</g>` +
-    `<rect x="${x0 + cell + 1.5}" y="${y0 + cell + 1.5}" width="${2 * cell - 3}" height="${2 * cell - 3}" fill="none" stroke="${p.line}" stroke-width="3" />` +
+  return `<g stroke="${p.line}" stroke-width="2.5" fill="none">${lines.join('')}</g>` +
+    `<rect x="${x0 + cell + 1.5}" y="${y0 + cell + 1.5}" width="${2 * cell - 3}" height="${2 * cell - 3}" fill="none" stroke="${p.line}" stroke-width="2.5" />` +
     `<g>${inner}</g>` + numbers;
 }
 
@@ -88,15 +90,24 @@ function north(p) {
   const numbers = spots
     .map(([x, y], i) => `<text x="${x}" y="${y + 12}" text-anchor="middle" font-size="36" fill="${p.text}" ${FONT}>${i + 1}</text>`)
     .join('');
-  return `<g stroke="${p.line}" stroke-width="3" fill="none">${shape}</g>` + numbers;
+  return `<g stroke="${p.line}" stroke-width="2.5" fill="none">${shape}</g>` + numbers;
 }
 
 function svg(style, theme) {
   const p = PALETTE[theme];
   const board = style === 'south' ? south(p) : north(p);
+  const glow = p.glow
+    ? `<filter id="glow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`
+    : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="An empty ${style === 'south' ? 'South' : 'North'} Indian house chart">
 <title>Empty ${style === 'south' ? 'South' : 'North'} Indian chart</title>
-${board}
+<defs>
+  <radialGradient id="vig" cx="50%" cy="48%" r="70%"><stop offset="0%" stop-color="${p.vignette}"/><stop offset="55%" stop-color="${p.vignette}" stop-opacity="0.4"/><stop offset="100%" stop-color="${p.bg}" stop-opacity="0"/></radialGradient>
+  ${glow}
+</defs>
+<rect width="${W}" height="${H}" fill="${p.bg}"/>
+<rect width="${W}" height="${H}" fill="url(#vig)"/>
+<g${p.glow ? ' filter="url(#glow)"' : ''}>${board}</g>
 ${pieces(p)}
 </svg>
 `;
