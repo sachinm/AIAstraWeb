@@ -25,6 +25,8 @@ declare interface ImportMetaEnv {
   readonly VITE_SKY_HOLD_SECONDS?: string;
   readonly VITE_LEGAL_ENTITY?: string;
   readonly VITE_SUPPORT_EMAIL?: string;
+  /** '1' renders the Self board v2 on /dashboard/you (server doc 66); `?v2=1` on the URL does the same per visit. */
+  readonly VITE_SELF_V2?: string;
 }
 
 declare interface ImportMeta {

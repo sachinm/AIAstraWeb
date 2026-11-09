@@ -57,7 +57,15 @@ describe('face gate (docs/reading-engine/52 §4)', () => {
     expect(toFractions({ detections: [{ boundingBox: { originX: 100, originY: 50, width: 200, height: 250 }, categories: [{ score: 0.9 }] }] }, 500, 500)).toEqual([{ x: 0.2, y: 0.1, w: 0.4, h: 0.5, score: 0.9 }]);
   });
   it('falls back to null when @mediapipe/tasks-vision is unavailable', async () => {
-    await expect(loadDetector()).resolves.toBeNull();
+    // the package may be installed; with it, jsdom waits on its wasm files and never settles, so it is made missing here
+    vi.doMock('@mediapipe/tasks-vision', () => {
+      throw new Error('unavailable');
+    });
+    try {
+      await expect(loadDetector()).resolves.toBeNull();
+    } finally {
+      vi.doUnmock('@mediapipe/tasks-vision');
+    }
   });
 });
 

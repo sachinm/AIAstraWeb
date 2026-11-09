@@ -38,6 +38,9 @@ describe('Ask everywhere (docs/reading-engine/51)', () => {
     );
     const headings = screen.getAllByText(/^(General|Work)$/).map((e) => e.textContent);
     expect(headings).toEqual(['General', 'Work']);
+    // groups open collapsed (206b350: past threads never clutter the sidebar on open); Expand all shows the rows
+    expect(screen.queryByText('Old')).toBeNull();
+    fireEvent.click(screen.getByTestId('conversations-toggle-all'));
     expect(screen.getByText('Old')).toBeInTheDocument();
   });
   it('pinned threads sit above every category; the pin button toggles', () => {
@@ -54,6 +57,7 @@ describe('Ask everywhere (docs/reading-engine/51)', () => {
       </MemoryRouter>,
     );
     expect(screen.getByText('Pinned')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('conversations-toggle-all'));
     fireEvent.click(screen.getByRole('button', { name: 'Unpin My nature' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pin Job change?' }));
     expect(onTogglePin.mock.calls).toEqual([['2', false], ['1', true]]);
