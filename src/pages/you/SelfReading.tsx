@@ -15,7 +15,9 @@ import {
   setSelfClock,
   type LineCertainty,
   type LineRange,
+  type PreparingStage,
   type SelfAnswer,
+  type SelfPanelPlan,
   type SelfChapter,
   type SelfLine,
   type SelfPanel,
@@ -27,12 +29,19 @@ import {
 const panelCls = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
 const SURFACE = 'you';
-const POLL_MS = 30_000;
-const MAX_POLLS = 10;
+/** the chart (digest) is checked every 30 s; the synthesis being written in the background every 10 s (server doc 64 §4) */
+export const POLL_MS: Record<PreparingStage, number> = { chart: 30_000, reading: 10_000 };
+/** after this long waiting, the page says so and offers Retry instead of polling forever */
+export const MAX_WAIT_MS = 6 * 60_000;
 
 export const SELF_WORDS = {
   loading: 'Reading your chart…',
   preparing: 'Your chart is still being prepared. This page will update by itself.',
+  writing: 'Your reading is being written. It usually takes a minute or two and will appear here by itself.',
+  tookTooLong: 'Your reading is taking longer than usual.',
+  planTitle: 'What to do with this',
+  calendarTitle: 'Dates to mark',
+  fullReading: 'The full reading',
   noKundli: 'Add your birth details in your profile to see your reading.',
   unavailable: 'Your reading is coming soon.',
   error: 'Your reading did not load.',
@@ -92,9 +101,24 @@ function adjustedFor(panelId: string, purview: SelfReadingData['purview'] | unde
   return (purview ?? []).filter((p) => p.affects.some((a) => a === panelId || a.startsWith(`${panelId}.`))).map((p) => p.text);
 }
 
+function Skeleton({ words, testId, stage }: { words: string; testId: string; stage?: PreparingStage }) {
+  return (
+    <div data-testid={testId} data-stage={stage} aria-busy="true" role="status">
+      <p className="mb-3 text-white/70">{words}</p>
+      <div className="flex gap-2 overflow-hidden" aria-hidden="true">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className="h-11 w-28 shrink-0 animate-pulse rounded-full bg-white/10" />
+        ))}
+      </div>
+      <div className="mt-3 h-40 animate-pulse rounded-2xl bg-white/5" aria-hidden="true" />
+    </div>
+  );
+}
+
 export default function SelfReading() {
   const [state, setState] = useState<SelfReadingState | null>(null);
-  const polls = useRef(0);
+  const [waited, setWaited] = useState(0);
+  const startedAt = useRef<number>(Date.now());
 
   const load = () =>
     fetchSelfReading()
@@ -104,34 +128,40 @@ export default function SelfReading() {
   useEffect(() => {
     void load();
   }, []);
-  // a chart still being prepared is checked again every 30 s, up to 10 times
+  // something is still being built: the chart is checked every 30 s, the synthesis every 10 s, for up to six minutes;
+  // after that the page says so and offers Retry (the build goes on behind it)
   useEffect(() => {
-    if (state?.kind !== 'preparing' || polls.current >= MAX_POLLS) return;
+    if (state?.kind !== 'preparing') return;
+    const elapsed = Date.now() - startedAt.current;
+    if (elapsed >= MAX_WAIT_MS) return;
     const t = setTimeout(() => {
-      polls.current += 1;
+      setWaited(Date.now() - startedAt.current);
       void load();
-    }, POLL_MS);
+    }, POLL_MS[state.stage]);
     return () => clearTimeout(t);
   }, [state]);
 
   const reload = () => {
+    startedAt.current = Date.now();
+    setWaited(0);
     setState(null);
     void load();
   };
 
-  if (!state)
-    return (
-      <div data-testid="self-reading-loading" aria-busy="true">
-        <p className="mb-3 text-white/70">{SELF_WORDS.loading}</p>
-        <div className="flex gap-2 overflow-hidden" aria-hidden="true">
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="h-11 w-28 shrink-0 animate-pulse rounded-full bg-white/10" />
-          ))}
+  if (!state) return <Skeleton words={SELF_WORDS.loading} testId="self-reading-loading" />;
+  if (state.kind === 'preparing') {
+    if (waited >= MAX_WAIT_MS)
+      return (
+        <div role="alert" className={`${panelCls} text-white/80`} data-testid="self-reading-error">
+          <p>{SELF_WORDS.tookTooLong}</p>
+          <button type="button" onClick={reload} className={`${chip} mt-3 border-white/20 bg-white/5`}>
+            Retry
+          </button>
         </div>
-        <div className="mt-3 h-40 animate-pulse rounded-2xl bg-white/5" aria-hidden="true" />
-      </div>
-    );
-  if (state.kind === 'preparing') return <div className={`${panelCls} text-white/80`} data-testid="self-reading-preparing">{SELF_WORDS.preparing}</div>;
+      );
+    if (state.stage === 'reading') return <Skeleton words={SELF_WORDS.writing} testId="self-reading-preparing" stage="reading" />;
+    return <div className={`${panelCls} text-white/80`} data-testid="self-reading-preparing" data-stage="chart">{SELF_WORDS.preparing}</div>;
+  }
   if (state.kind === 'no_kundli') return <div className={`${panelCls} text-white/80`} data-testid="self-reading-no-kundli">{SELF_WORDS.noKundli}</div>;
   if (state.kind === 'unavailable') return <div className={`${panelCls} text-white/80`} data-testid="self-reading-unavailable">{SELF_WORDS.unavailable}</div>;
   if (state.kind === 'error')
@@ -223,6 +253,8 @@ function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: ()
         </>
       )}
 
+      {reading.oracle?.status === 'ok' && reading.oracle.text && <FullReading text={reading.oracle.text} />}
+
       {reading.question && <QuestionCard question={reading.question} />}
 
       {reading.builtLine && (
@@ -311,6 +343,7 @@ function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string
         ))}
       </ul>
       {panel.chapters && panel.chapters.length > 0 && <Chapters chapters={panel.chapters} details={details} />}
+      {panel.plan && <PlanView plan={panel.plan} />}
       <button
         type="button"
         aria-expanded={details}
@@ -346,6 +379,63 @@ function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string
           </p>
         </div>
       )}
+    </section>
+  );
+}
+
+/** The Oracle's plan for a panel: what it means now, dated steps, and dates to mark (dates outside a stored window are faded). */
+function PlanView({ plan }: { plan: SelfPanelPlan }) {
+  const steps = plan.steps ?? [];
+  const calendar = plan.calendar ?? [];
+  if (!plan.summary && steps.length === 0 && calendar.length === 0) return null;
+  return (
+    <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-3" data-testid="self-panel-plan">
+      <div className="text-xs uppercase tracking-wide text-white/55">{SELF_WORDS.planTitle}</div>
+      {plan.summary && <p className="mt-1 text-base text-white/90" data-testid="self-plan-summary">{plan.summary}</p>}
+      {steps.length > 0 && (
+        <ul className="mt-2 space-y-1.5" data-testid="self-plan-steps">
+          {steps.map((s, i) => (
+            <li key={i} className="text-sm text-white/85">
+              <span className="text-white/55">{rangeWords(s.range)} · </span>
+              {s.text}
+            </li>
+          ))}
+        </ul>
+      )}
+      {calendar.length > 0 && (
+        <div className="mt-2" data-testid="self-plan-calendar">
+          <div className="text-xs uppercase tracking-wide text-white/55">{SELF_WORDS.calendarTitle}</div>
+          <ul className="mt-1 space-y-1">
+            {calendar.map((c, i) => (
+              <li key={i} className={`text-sm ${c.inWindow === false ? 'text-white/45' : 'text-white/85'}`}>
+                <span className="text-white/55">{c.from === c.to ? longDate(c.from) : range(c.from, c.to)} · </span>
+                {c.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The Oracle's narrative, paragraph by paragraph, under the panels. Validated and redacted server side; never a chart term the person did not ask for. */
+function FullReading({ text }: { text: string }) {
+  const paras = text
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/^#+\s*/, '').trim())
+    .filter(Boolean);
+  if (paras.length === 0) return null;
+  return (
+    <section className={panelCls} data-testid="self-full-reading">
+      <h3 className="mb-2 text-xl font-semibold">{SELF_WORDS.fullReading}</h3>
+      <div className="space-y-3">
+        {paras.map((p, i) => (
+          <p key={i} className="leading-relaxed text-white/85">
+            {p}
+          </p>
+        ))}
+      </div>
     </section>
   );
 }
