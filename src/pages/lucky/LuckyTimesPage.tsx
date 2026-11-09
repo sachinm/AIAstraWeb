@@ -144,11 +144,7 @@ export default function LuckyTimesPage() {
 
   if (setup === undefined)
     return (
-      <div className="h-[min(82vh,46rem)] min-h-[26rem] p-6">
-        <LoadingVeil testId="lucky-loading">
-          <div className={`${panel} h-[min(82vh,46rem)] min-h-[26rem]`} />
-        </LoadingVeil>
-      </div>
+      <LoadingVeil fullScreen testId="lucky-loading" />
     );
   if (setup === null) return <div className={`${panel} m-4 text-white/80`}>Happy Hour(s) (Panchang) is coming soon.</div>;
 

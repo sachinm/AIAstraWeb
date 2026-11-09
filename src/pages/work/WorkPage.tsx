@@ -122,11 +122,7 @@ export default function WorkPage() {
 
   if (!state)
     return (
-      <div className="h-[min(82vh,46rem)] min-h-[26rem] p-6">
-        <LoadingVeil testId="work-loading">
-          <div className={`${panel} h-[min(82vh,46rem)] min-h-[26rem]`} />
-        </LoadingVeil>
-      </div>
+      <LoadingVeil fullScreen testId="work-loading" />
     );
   if (state.kind === 'not_ready') return <div className={`${panel} m-4 text-white/80`}>Your chart is being prepared. Check back in a minute.</div>;
   if (state.kind === 'unavailable') return <div className={`${panel} m-4 text-white/80`}>The Work board is coming soon.</div>;
