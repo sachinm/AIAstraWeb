@@ -522,6 +522,54 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
     expect(refreshPosts()).toBe(1);
   });
 
+  it('a fresh build that fails: polling stops, the row says the question was given back, and Try again asks again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    srv.board = () => selfV2Fixture(due);
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    // the build runs: the server says building
+    srv.board = () => selfV2Fixture((b) => (b.refresh = { madeAt: '2026-10-20T09:00:00Z', validUntil: '2026-11-08', due: true, building: true, failed: false }));
+    fireEvent.click(within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm'));
+    expect(await screen.findByTestId('self-fresh-veil')).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending);
+    });
+    expect(screen.getByTestId('self-fresh-veil')).toBeInTheDocument();
+    // the build failed: same builtAt, refresh.failed
+    srv.board = () => selfV2Fixture((b) => (b.refresh = { madeAt: '2026-10-20T09:00:00Z', validUntil: '2026-11-08', due: true, building: false, failed: true }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending);
+    });
+    await waitFor(() => expect(screen.queryByTestId('self-fresh-veil')).toBeNull());
+    expect(screen.getByTestId('fresh-build-failed')).toHaveTextContent('That did not work; your question was given back.');
+    expect(plan.refreshPlan).toHaveBeenCalled();
+    const n = gets();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending * 3);
+    });
+    expect(gets()).toBe(n);
+    expect(screen.queryByTestId('self-v2-late')).toBeNull();
+    // Try again opens the consent sheet; confirming posts again and veils the cards, though the board on screen still
+    // carries the earlier failure
+    const again = screen.getByTestId('fresh-button');
+    expect(again).toHaveAttribute('data-state', 'build_failed');
+    expect(again).toHaveTextContent('Try again');
+    fireEvent.click(again);
+    fireEvent.click(within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm'));
+    expect(await screen.findByTestId('self-fresh-veil')).toBeInTheDocument();
+    expect(refreshPosts()).toBe(2);
+    expect(screen.queryByTestId('fresh-build-failed')).toBeNull();
+  });
+
+  it('a board that says failed on load (no ask on this page) shows no failure line', async () => {
+    srv.board = () => selfV2Fixture((b) => (b.refresh = { madeAt: '2026-10-20T09:00:00Z', validUntil: '2026-11-08', due: true, building: false, failed: true }));
+    render(<SelfBoardV2 />);
+    await ready();
+    expect(screen.getByTestId('fresh-button')).toHaveTextContent(/^Get a fresh reading$/);
+    expect(screen.queryByTestId('fresh-build-failed')).toBeNull();
+  });
+
   it('402: "No questions left" with Upgrade to the plan page; the reading stays', async () => {
     srv.board = () => selfV2Fixture(due);
     srv.refreshStatus = 402;

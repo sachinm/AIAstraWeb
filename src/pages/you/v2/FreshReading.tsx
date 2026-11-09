@@ -7,7 +7,9 @@
  *   due       primary "Get a fresh reading", line "Uses 1 of your N questions"; the tap opens the consent sheet
  *   building  disabled "Making your fresh reading…" (the page veils the cards and polls)
  *   402       "No questions left" with Upgrade to the plan page
- *   failed    "That did not work. Try again" (nothing was counted)
+ *   failed    "That did not work. Try again" (the post failed; nothing was counted)
+ *   build failed  the fresh build failed (server `refresh.failed`): "That did not work; your question was given back."
+ *             with a Try again button that opens the consent sheet again
  *
  * Only a tap on the sheet's confirm button posts; a page load never does.
  */
@@ -72,7 +74,8 @@ export function FreshSheet({ plan, onClose, onDone }: { plan: PlanStatus | null 
 
 /**
  * The button and its one line. `building`: a fresh reading is being made (the page owns the poll). `onAsk`: open the
- * consent sheet. `noQuestions` / `failed`: the last answer from the server.
+ * consent sheet. `noQuestions` / `failed`: the last answer from the server. `buildFailed`: the fresh build the person
+ * asked for failed and its question was given back (the page stopped polling).
  */
 export function FreshControl({
   refresh,
@@ -80,6 +83,7 @@ export function FreshControl({
   building,
   noQuestions,
   failed,
+  buildFailed = false,
   onAsk,
   compact = false,
 }: {
@@ -88,6 +92,7 @@ export function FreshControl({
   building: boolean;
   noQuestions: boolean;
   failed: boolean;
+  buildFailed?: boolean;
   onAsk: () => void;
   compact?: boolean;
 }) {
@@ -108,6 +113,20 @@ export function FreshControl({
       <p className="whitespace-nowrap text-[13px] font-semibold text-white/80" data-testid="fresh-no-questions" data-state="no_questions">
         {W.noQuestions} · <UpgradeLink />
       </p>
+    );
+  } else if (buildFailed) {
+    control = refresh.due ? (
+      <button type="button" onClick={onAsk} className={`${btn} bg-teal-400 text-[#06051a] shadow-[0_0_0_1px_rgba(45,212,191,0.4)] hover:bg-teal-300`} data-testid="fresh-button" data-state="build_failed">
+        <span className="truncate">{W.tryAgain}</span>
+      </button>
+    ) : null;
+    return (
+      <div className="flex min-w-0 shrink-0 flex-col items-start" data-testid="fresh-reading">
+        {control}
+        <p role="alert" className="mt-0.5 text-[11px] leading-4 text-rose-300" data-testid="fresh-build-failed">
+          {W.givenBack}
+        </p>
+      </div>
     );
   } else if (refresh.due) {
     control = (
