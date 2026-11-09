@@ -7,6 +7,10 @@ import { BANNED_ON_BOARD } from '../lucky/words';
 import { longDate } from '../../lib/careerApi';
 import type { SelfReading as SelfReadingData } from '../../lib/selfReadingApi';
 
+// server docs/billing/02: the synthesis written in the background took a question, so the count is re-read when it lands
+const refreshPlan = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../../Auth/ProfileGate', () => ({ usePlan: () => ({ plan: null, setPlan: () => {}, refreshPlan }) }));
+
 /** doc 61 §4: the body list joins the board's banned words */
 const BODY_BANNED = ['illness', 'disease', 'diagnosis', 'symptom', 'medication', 'surgery', 'doctor', 'liver', 'heart', 'lung', 'kidney', 'stomach', 'brain'];
 const BANNED = [...BANNED_ON_BOARD, 'house', 'lord', 'dasha', 'mahadasha', 'antardasha', 'nakshatra', 'varga', 'd1.', 'd9.', ...BODY_BANNED];
@@ -398,6 +402,7 @@ describe('Your reading, the code panels under the Oracle veil while the synthesi
     });
     expect(screen.getByTestId('self-oracle-waiting').textContent).not.toBe(first);
     expect(gets()).toBe(1);
+    refreshPlan.mockClear();
     pending = false;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
@@ -406,6 +411,8 @@ describe('Your reading, the code panels under the Oracle veil while the synthesi
     await waitFor(() => expect(screen.queryByTestId('self-oracle-waiting')).not.toBeInTheDocument());
     expect(within(screen.getByTestId('self-tabpanel')).getByTestId('oracle-veil-diagnosis')).toHaveAttribute('data-waiting', 'false');
     expect(within(screen.getByTestId('self-tabpanel')).getByTestId('self-area-headline')).toHaveTextContent('Built on partnership.');
+    // the question count is re-read once, when the synthesis lands (server docs/billing/02)
+    expect(refreshPlan).toHaveBeenCalledTimes(1);
   });
 });
 

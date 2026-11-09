@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { longDate } from '../../lib/careerApi';
+import { usePlan } from '../../Auth/ProfileGate';
 import { OracleVeil, OracleWaitLine } from './OracleWait';
 import { renderInline } from './readingMarkdown';
 import { track } from '../../lib/events';
@@ -134,6 +135,13 @@ export default function SelfReading() {
   // after that the page says so and offers Retry (the build goes on behind it)
   // the code panels are shown while the Oracle's synthesis is written (oracle pending): checked every 10 s the same way
   const oraclePending = state?.kind === 'ok' && state.reading.oracle?.status === 'pending';
+  // the synthesis written in the background took a question (server docs/billing/02): when it lands, the count is re-read
+  const { refreshPlan } = usePlan();
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && state?.kind === 'ok' && state.reading.oracle?.status === 'ok') void refreshPlan();
+    wasPending.current = oraclePending;
+  }, [state, oraclePending, refreshPlan]);
   useEffect(() => {
     if (state?.kind !== 'preparing' && !oraclePending) return;
     const elapsed = Date.now() - startedAt.current;

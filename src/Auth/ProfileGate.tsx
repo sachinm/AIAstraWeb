@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { Navigate, Outlet } from 'react-router-dom';
 import { fetchMe, fetchPlanState, type Me } from './api';
 import type { PlanStatus } from '../lib/billing';
+import { onUsage } from '../lib/planUsage';
 import { SessionLoadingScreen } from './RouteGuards';
 
 const MeContext = createContext<{ me: Me | null; refresh: () => Promise<void> }>({
@@ -57,7 +58,12 @@ export function ProfileGate() {
     void refreshPlan();
     const onFocus = () => void refreshPlan();
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    // a board built fresh took a question (server docs/billing/02): its response carries the new count
+    const off = onUsage((u) => setPlan(u));
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      off();
+    };
   }, [refreshPlan]);
 
   useEffect(() => {
