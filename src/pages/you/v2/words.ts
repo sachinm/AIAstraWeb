@@ -4,6 +4,7 @@
  * the hero. Chart details may carry chart terms; those come from the server.
  */
 import { longDate } from '../../../lib/careerApi';
+import type { PlanStatus } from '../../../lib/billing';
 import type { AreaCertainty, SelfV2Area, SelfV2Group, Tone } from '../../../lib/selfV2Api';
 
 export const V2_WORDS = {
@@ -49,7 +50,43 @@ export const V2_WORDS = {
     unknown_system: 'That clock is not one we can read your board on.',
     failed: 'That did not go through. Try again.',
   },
+  // the fresh reading (server docs/billing/03): offered once the reading's last good day has passed
+  fresh: {
+    get: 'Get a fresh reading',
+    /** the first day a fresh reading may be asked for: the day after the last good day */
+    from: (validUntil: string) => `Fresh reading from ${longDate(dayAfter(validUntil))}`,
+    made: (madeAt: string, validUntil: string | null) => `Made ${longDate(madeAt.slice(0, 10))}${validUntil ? ` · Good until ${longDate(validUntil)}` : ''}`,
+    working: 'Making your fresh reading…',
+    veil: 'Making your fresh reading. This page will update by itself.',
+    noQuestions: 'No questions left',
+    upgrade: 'Upgrade',
+    failed: 'That did not work. Try again',
+    sheetTitle: 'Get a fresh reading?',
+    confirm: 'Get fresh reading · 1 question',
+  },
 } as const;
+
+/** "2026-12-04" → "2026-12-05" (UTC calendar days) */
+export function dayAfter(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The line under the fresh-reading button: "Uses 1 of your 20 questions"; an unlimited plan counts none. */
+export function freshCostLine(plan: PlanStatus | null | undefined): string {
+  if (!plan) return 'Uses 1 question';
+  if (plan.exempt || plan.limit === null) return 'Included in your plan';
+  return `Uses 1 of your ${plan.limit} questions`;
+}
+
+/** The consent sheet's sentence (mockup: the clock sheet's pattern). */
+export function freshSheetBody(plan: PlanStatus | null | undefined): string {
+  const lead = "Your board will be read again from today's sky and your latest answers.";
+  if (plan && (plan.exempt || plan.limit === null)) return `${lead} This is included in your plan; no question is counted.`;
+  if (!plan) return `${lead} This uses 1 of your questions.`;
+  return `${lead} This uses 1 of your ${plan.limit} questions ${plan.window === 'day' ? 'today' : 'this month'}.`;
+}
 
 export const GROUP_LABEL: Record<SelfV2Group, string> = { now: 'Now', you: 'You', time: 'Time' };
 
