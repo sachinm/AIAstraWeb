@@ -1,14 +1,16 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import LoadingVeil from '../components/LoadingVeil';
 
 interface SessionGateProps {
   sessionReady: boolean;
   isAuthenticated: boolean;
 }
 
+/** The wait while the session is restored or `me` is read: the loading veil over the whole viewport. */
 export function SessionLoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center text-white/80">
-      <p className="text-sm tracking-wide">Loading…</p>
+    <div className="min-h-screen" data-testid="session-loading">
+      <LoadingVeil fullScreen testId="session-loading-veil" />
     </div>
   );
 }

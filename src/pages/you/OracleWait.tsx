@@ -7,6 +7,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
 import { ORACLE_LINES, LINE_MS, prefersReducedMotion } from '../chat-interface/ReadingStagesPanel';
+import LoadingVeil from '../../components/LoadingVeil';
 
 export { ORACLE_LINES, LINE_MS };
 
@@ -32,10 +33,12 @@ export function OracleWaitLine({ offset = 0, testId = 'oracle-wait-line' }: { of
 }
 
 /**
- * Wraps a panel. While `waiting`, the panel is dimmed under a translucent veil with a rotating line; when `waiting`
- * turns false the veil fades out (instantly with reduced motion) and the panel's own content is fully shown.
+ * Wraps a panel. While `waiting`, the panel sits faintly visible under the app's one loading veil (LoadingVeil: a
+ * translucent blurred layer, a chart illustration, a rotating line); when `waiting` turns false the veil fades out
+ * (instantly with reduced motion) and the panel's own content is fully shown. `offset` is kept for callers; each veil
+ * now picks its own random starting line.
  */
-export function OracleVeil({ waiting, offset = 0, panelId, children }: { waiting: boolean; offset?: number; panelId: string; children: ReactNode }) {
+export function OracleVeil({ waiting, panelId, children }: { waiting: boolean; offset?: number; panelId: string; children: ReactNode }) {
   const [shown, setShown] = useState(waiting);
   useEffect(() => {
     if (waiting) {
@@ -51,25 +54,13 @@ export function OracleVeil({ waiting, offset = 0, panelId, children }: { waiting
   }, [waiting]);
   return (
     <div className="relative" data-testid={`oracle-veil-${panelId}`} data-waiting={waiting ? 'true' : 'false'} aria-busy={waiting}>
-      <div className={waiting ? 'opacity-60 transition-opacity' : 'opacity-100 transition-opacity'}>{children}</div>
-      {shown && (
-        <div
-          className={`pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center rounded-b-2xl bg-gradient-to-t from-[#141233]/95 via-[#141233]/70 to-transparent px-4 pb-4 pt-16 ${waiting ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
-          data-testid={`oracle-veil-note-${panelId}`}
-        >
-          <VeilLine offset={offset} />
-        </div>
+      {shown ? (
+        <LoadingVeil testId={`oracle-veil-note-${panelId}`} leaving={!waiting}>
+          {children}
+        </LoadingVeil>
+      ) : (
+        children
       )}
     </div>
-  );
-}
-
-function VeilLine({ offset }: { offset: number }) {
-  const line = useOracleLine(offset);
-  return (
-    <p className="flex items-center gap-2 rounded-full border border-purple-300/20 bg-purple-900/40 px-3 py-1.5 text-sm text-purple-100">
-      <Sparkles className={`h-4 w-4 shrink-0 ${prefersReducedMotion() ? '' : 'animate-pulse'}`} aria-hidden="true" />
-      <span>{line}</span>
-    </p>
   );
 }

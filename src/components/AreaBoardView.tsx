@@ -22,6 +22,7 @@ import {
 import { longDate, monthName, type Tone } from '../lib/careerApi';
 import { track } from '../lib/events';
 import BoardAsk from './BoardAsk';
+import LoadingVeil from './LoadingVeil';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
@@ -400,8 +401,19 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
     </div>
   );
 
-  if (!state) return shell(<div className="p-2 text-white/70" data-testid="board-loading">Loading…</div>);
-  if (state.kind === 'preparing') return shell(<div className={`${panel} text-white/80`} data-testid="board-preparing">Your chart is still being prepared. This page will update by itself.</div>);
+  // the two waits share the loading veil over an empty panel; the second keeps its one factual sentence as the note
+  if (!state)
+    return shell(
+      <LoadingVeil testId="board-loading">
+        <div className={`${panel} h-72`} />
+      </LoadingVeil>
+    );
+  if (state.kind === 'preparing')
+    return shell(
+      <LoadingVeil testId="board-preparing" note="Your chart is still being prepared. This page will update by itself.">
+        <div className={`${panel} h-72`} />
+      </LoadingVeil>
+    );
   if (state.kind === 'no_kundli') return shell(<div className={`${panel} text-white/80`} data-testid="board-no-kundli">Add your birth details in your profile to see this board.</div>);
   if (state.kind === 'unavailable') return shell(<div className={`${panel} text-white/80`} data-testid="board-unavailable">{cfg.unavailable}</div>);
   if (state.kind === 'error')
