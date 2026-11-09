@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import LoadingVeil, { PIECES, shufflePieces } from './LoadingVeil';
+import LoadingVeil, { PIECES, resetVeilHandoffForTests, shufflePieces } from './LoadingVeil';
 import { LOADING_QUIPS } from '../lib/loadingQuips';
 import { LINE_MS } from '../pages/chat-interface/ReadingStagesPanel';
 import * as art from '../lib/overlayArt';
@@ -59,6 +59,32 @@ describe('LoadingVeil', () => {
     expect(screen.getByTestId('veil-slab')).toBeInTheDocument();
     expect(screen.queryByTestId('veil-chart')).toBeNull();
     expect(veil.innerHTML).not.toContain('>12</text>');
+  });
+
+  it('renders a full-screen veil on <body>, outside any page container that could trap it', () => {
+    vi.spyOn(art, 'getOverlayArt').mockResolvedValue(null);
+    render(
+      <div style={{ backdropFilter: 'blur(6px)' }} data-testid="panel">
+        <LoadingVeil fullScreen testId="veil" />
+      </div>
+    );
+    expect(screen.getByTestId('veil').parentElement).toBe(document.body);
+    expect(screen.getByTestId('panel')).not.toContainElement(screen.getByTestId('veil'));
+  });
+
+  it('a full-screen veil that follows another at once keeps its line, chart and pieces, with no entrance', () => {
+    resetVeilHandoffForTests();
+    vi.spyOn(art, 'getOverlayArt').mockResolvedValue(null);
+    const first = render(<LoadingVeil fullScreen testId="a" />);
+    const line = screen.getByTestId('a-line').textContent;
+    const chart = screen.getByTestId('a').getAttribute('data-chart');
+    const pieces = [...screen.getByTestId('a').querySelectorAll('.load-veil__tile')].map((t) => t.getAttribute('title'));
+    first.unmount();
+    render(<LoadingVeil fullScreen testId="b" />);
+    expect(screen.getByTestId('b-line').textContent).toBe(line);
+    expect(screen.getByTestId('b').getAttribute('data-chart')).toBe(chart);
+    expect([...screen.getByTestId('b').querySelectorAll('.load-veil__tile')].map((t) => t.getAttribute('title'))).toEqual(pieces);
+    expect(screen.getByTestId('b').className).not.toContain('load-veil--animate');
   });
 
   it('shuffles the pieces into four columns that hold every graha and rashi once', () => {
