@@ -122,9 +122,9 @@ export default function WorkPage() {
 
   if (!state)
     return (
-      <div className="p-6">
+      <div className="h-[min(82vh,46rem)] min-h-[26rem] p-6">
         <LoadingVeil testId="work-loading">
-          <div className={`${panel} h-72`} />
+          <div className={`${panel} h-[min(82vh,46rem)] min-h-[26rem]`} />
         </LoadingVeil>
       </div>
     );

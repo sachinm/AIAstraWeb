@@ -401,19 +401,19 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
     </div>
   );
 
-  // the two waits share the loading veil over an empty panel; the second keeps its one factual sentence as the note
-  if (!state)
-    return shell(
-      <LoadingVeil testId="board-loading">
-        <div className={`${panel} h-72`} />
-      </LoadingVeil>
-    );
-  if (state.kind === 'preparing')
-    return shell(
-      <LoadingVeil testId="board-preparing" note="Your chart is still being prepared. This page will update by itself.">
-        <div className={`${panel} h-72`} />
-      </LoadingVeil>
-    );
+  // the two waits are the loading veil alone, no page title (Sachin, 2026-11-09); the second keeps its one factual
+  // sentence as the note
+  const wait = (testId: string, note?: string) => (
+    <div className="w-full px-4 pb-24 pt-4 sm:px-6 lg:px-10" data-testid={cfg.testId}>
+      <div className="h-[min(82vh,46rem)] min-h-[26rem]">
+        <LoadingVeil testId={testId} note={note}>
+          <div className={`${panel} h-[min(82vh,46rem)] min-h-[26rem]`} />
+        </LoadingVeil>
+      </div>
+    </div>
+  );
+  if (!state) return wait('board-loading');
+  if (state.kind === 'preparing') return wait('board-preparing', 'Your chart is still being prepared. This page will update by itself.');
   if (state.kind === 'no_kundli') return shell(<div className={`${panel} text-white/80`} data-testid="board-no-kundli">Add your birth details in your profile to see this board.</div>);
   if (state.kind === 'unavailable') return shell(<div className={`${panel} text-white/80`} data-testid="board-unavailable">{cfg.unavailable}</div>);
   if (state.kind === 'error')
