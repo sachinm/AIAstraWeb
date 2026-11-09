@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import SelfReading, { certaintyWord, clockLabel, headerWords, SELF_WORDS } from './SelfReading';
+import { LINE_MS, ORACLE_LINES } from './OracleWait';
 import { BODY_NOTE, selfReadingFixture } from './selfReading.fixture';
 import { BANNED_ON_BOARD } from '../lucky/words';
 import { longDate } from '../../lib/careerApi';
@@ -392,5 +393,39 @@ describe('Your reading, while the synthesis is written in the background (server
     await screen.findByTestId('self-reading');
     expect(screen.queryByTestId('self-full-reading')).not.toBeInTheDocument();
     expect(screen.queryByTestId('self-panel-plan')).not.toBeInTheDocument();
+  });
+});
+
+describe('Your reading, the code panels under the Oracle veil while the synthesis is written (server doc 64 §4)', () => {
+  it('shows every panel at once with a rotating Oracle line and a veil per panel, polls every 10 s, and lifts the veils when the synthesis lands', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let pending = true;
+    srv.edit = (r) => {
+      r.oracle = pending ? { status: 'pending' } : { status: 'ok', text: 'In short: built on partnership.' };
+    };
+    render(<SelfReading />);
+    expect(await screen.findByTestId('self-reading')).toBeInTheDocument();
+    const note = screen.getByTestId('self-oracle-waiting');
+    expect(ORACLE_LINES).toContain(note.textContent);
+    const veil = within(screen.getByTestId('self-tabpanel')).getByTestId('oracle-veil-diagnosis');
+    expect(veil).toHaveAttribute('data-waiting', 'true');
+    expect(within(veil).getByTestId('oracle-veil-note-diagnosis').textContent).toMatch(/\S/);
+    // every carousel panel is veiled too, each starting on its own line
+    expect(screen.getByTestId('self-carousel').querySelectorAll('[data-waiting="true"]')).toHaveLength(9);
+    // the line moves on
+    const first = note.textContent;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LINE_MS);
+    });
+    expect(screen.getByTestId('self-oracle-waiting').textContent).not.toBe(first);
+    expect(gets()).toBe(1);
+    pending = false;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    await waitFor(() => expect(gets()).toBe(2));
+    await waitFor(() => expect(screen.queryByTestId('self-oracle-waiting')).not.toBeInTheDocument());
+    expect(within(screen.getByTestId('self-tabpanel')).getByTestId('oracle-veil-diagnosis')).toHaveAttribute('data-waiting', 'false');
+    expect(screen.getByTestId('self-full-reading')).toHaveTextContent('built on partnership');
   });
 });

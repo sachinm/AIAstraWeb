@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { longDate } from '../../lib/careerApi';
+import { OracleVeil, OracleWaitLine } from './OracleWait';
 import { track } from '../../lib/events';
 import {
   fetchSelfReading,
@@ -130,14 +131,16 @@ export default function SelfReading() {
   }, []);
   // something is still being built: the chart is checked every 30 s, the synthesis every 10 s, for up to six minutes;
   // after that the page says so and offers Retry (the build goes on behind it)
+  // the code panels are shown while the Oracle's synthesis is written (oracle pending): checked every 10 s the same way
+  const oraclePending = state?.kind === 'ok' && state.reading.oracle?.status === 'pending';
   useEffect(() => {
-    if (state?.kind !== 'preparing') return;
+    if (state?.kind !== 'preparing' && !oraclePending) return;
     const elapsed = Date.now() - startedAt.current;
     if (elapsed >= MAX_WAIT_MS) return;
     const t = setTimeout(() => {
       setWaited(Date.now() - startedAt.current);
       void load();
-    }, POLL_MS[state.stage]);
+    }, state?.kind === 'preparing' ? POLL_MS[state.stage] : POLL_MS.reading);
     return () => clearTimeout(t);
   }, [state]);
 
@@ -174,11 +177,13 @@ export default function SelfReading() {
       </div>
     );
 
-  return <ReadingBody reading={state.reading} reload={reload} />;
+  // past six minutes with the synthesis still pending, the panels stay and the veils lift; the note says so
+  return <ReadingBody reading={state.reading} reload={reload} waiting={oraclePending && waited < MAX_WAIT_MS} gaveUp={oraclePending && waited >= MAX_WAIT_MS} />;
 }
 
-function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: () => void }) {
+function ReadingBody({ reading, reload, waiting = false, gaveUp = false }: { reading: SelfReadingData; reload: () => void; waiting?: boolean; gaveUp?: boolean }) {
   const panels = reading.panels;
+  const offsetOf = (id: string) => Math.max(0, panels.findIndex((p) => p.id === id));
   const [sel, setSel] = useState<string | null>(panels[0]?.id ?? null);
   const [sheet, setSheet] = useState(false);
   const rail = useRef<HTMLDivElement | null>(null);
@@ -212,6 +217,16 @@ function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: ()
         </button>
       </p>
 
+      {waiting && <OracleWaitLine testId="self-oracle-waiting" />}
+      {gaveUp && (
+        <p role="status" className="text-sm text-white/60" data-testid="self-oracle-late">
+          {SELF_WORDS.tookTooLong}{' '}
+          <button type="button" onClick={reload} className="min-h-[44px] text-purple-300 underline underline-offset-4">
+            Check again
+          </button>
+        </p>
+      )}
+
       {current && (
         <>
           {/* phone and tablet: chips, a swipeable carousel and dots */}
@@ -226,7 +241,9 @@ function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: ()
             <div ref={rail} onScroll={onScroll} className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2" data-testid="self-carousel">
               {panels.map((p) => (
                 <div key={p.id} data-slide={p.id} className="w-full shrink-0 snap-start">
-                  <PanelView panel={p} today={reading.asOf} adjusted={adjustedFor(p.id, reading.purview)} />
+                  <OracleVeil waiting={waiting} offset={offsetOf(p.id)} panelId={`m-${p.id}`}>
+                    <PanelView panel={p} today={reading.asOf} adjusted={adjustedFor(p.id, reading.purview)} />
+                  </OracleVeil>
                 </div>
               ))}
             </div>
@@ -247,7 +264,9 @@ function ReadingBody({ reading, reload }: { reading: SelfReadingData; reload: ()
               ))}
             </div>
             <div role="tabpanel" className="lg:col-span-9" data-testid="self-tabpanel">
-              <PanelView key={current.id} panel={current} today={reading.asOf} adjusted={adjustedFor(current.id, reading.purview)} />
+              <OracleVeil waiting={waiting} offset={offsetOf(current.id)} panelId={current.id}>
+                <PanelView key={current.id} panel={current} today={reading.asOf} adjusted={adjustedFor(current.id, reading.purview)} />
+              </OracleVeil>
             </div>
           </div>
         </>
