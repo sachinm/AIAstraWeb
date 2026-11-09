@@ -59,7 +59,8 @@ html.light .load-veil {
   height: 90vh;
   height: 90dvh;
   top: 5dvh;
-  z-index: 60;
+  /* above the header, side nav and every page panel; it is rendered on <body> (LoadingVeil portal) */
+  z-index: 1000;
 }
 .load-veil__under {
   opacity: 0.5;
