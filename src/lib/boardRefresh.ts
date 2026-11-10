@@ -11,8 +11,8 @@ import { announceUsage } from './planUsage';
 export type RefreshBoard = 'self' | 'love' | 'work';
 
 export type RefreshResult =
-  | { kind: 'made' }
-  | { kind: 'building' }
+  | { kind: 'made'; usage?: PlanStatus | null }
+  | { kind: 'building'; usage?: PlanStatus | null }
   | { kind: 'not_due'; validUntil: string | null }
   | { kind: 'no_questions'; usage: PlanStatus | null }
   | { kind: 'error' };
@@ -32,7 +32,7 @@ export async function refreshBoard(board: RefreshBoard): Promise<RefreshResult> 
   if (j?.usage) announceUsage(j.usage);
   if (r.status === 200 || r.status === 202) {
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(BOARD_REFRESHED_EVENT, { detail: board }));
-    return { kind: r.status === 200 ? 'made' : 'building' };
+    return { kind: r.status === 200 ? 'made' : 'building', usage: j?.usage ?? null };
   }
   if (r.status === 402) return { kind: 'no_questions', usage: j?.usage ?? null };
   if (r.status === 409 && j?.code === 'not_due') return { kind: 'not_due', validUntil: j.valid_until ?? null };

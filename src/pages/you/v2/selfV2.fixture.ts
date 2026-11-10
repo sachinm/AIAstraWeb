@@ -109,6 +109,7 @@ export function selfV2Fixture(edit?: (b: SelfV2Response) => void): SelfV2Respons
     areas,
     profile: { ageBand: '36_45', hasGender: false, missing: [], role: 'public' },
     subChapterEnds: '2027-01-01',
+    refresh: { madeAt: '2026-11-09T08:00:00Z', validUntil: '2027-01-01', due: false },
     usage: {
       code: 'free',
       desired_plan: null,

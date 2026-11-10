@@ -166,6 +166,23 @@ export interface SelfV2Response {
   /** the running sub period's end date, for "Sub-chapter ends"; null when not known */
   subChapterEnds?: string | null;
   usage?: PlanStatus;
+  /**
+   * The fresh-reading control (server docs/billing/03): when the reading was made, its last good day, and whether the
+   * person may ask for a fresh one (the same rule as the v1 board). Absent from a server older than 2026-11-09.
+   */
+  refresh?: SelfV2Refresh;
+}
+
+export interface SelfV2Refresh {
+  madeAt: string | null;
+  validUntil: string | null;
+  due: boolean;
+  /**
+   * From today's You build marker (server fix/self-v2-single-build): a build is running now, or today's last build
+   * failed (a fresh reading's question was given back). Optional: a server before that branch omits them.
+   */
+  building?: boolean;
+  failed?: boolean;
 }
 
 export type SelfV2State =
