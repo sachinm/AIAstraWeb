@@ -12,6 +12,7 @@ import { track } from '../../../lib/events';
 import { sendSelfV2Confirm, sendSelfV2Mood, type HeroDoc, type Mood, type SelfConfirmAnswer, type WindowRef } from '../../../lib/selfV2Api';
 import { STEPS } from '../../welcome/WelcomeWizard';
 import { ANSWERS, MOODS, TONE_CLASS, TONE_WORD, V2_WORDS } from './words';
+import { Illustration } from './AreaCard';
 
 const SURFACE = 'self_v2';
 const optCls = 'inline-flex min-h-[40px] items-center rounded-full border px-3.5 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60';
@@ -282,6 +283,7 @@ export default function Hero({
           {hero.sub}
         </p>
       )}
+      {layout !== 'phone' && hero.illustration?.text && <Illustration illustration={hero.illustration} />}
       <button type="button" onClick={onWhy} className="mt-1.5 inline-flex min-h-[32px] items-center text-[13px] font-semibold text-purple-300 hover:text-purple-200" data-testid="hero-why">
         {V2_WORDS.why} ›
       </button>

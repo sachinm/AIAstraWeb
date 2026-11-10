@@ -100,6 +100,16 @@ export interface PersonalCard {
   certainty: AreaCertainty;
   /** per sentence of headline + body, the Oracle paragraph id or evidence key it rests on */
   sources: string[];
+  /** storyteller (server 2026-11-09): one short example, analogy or modern reference that makes one Oracle point land */
+  illustration?: CardIllustration;
+}
+
+/** server `CardIllustration` (v2types.ts "storyteller"): at most 40 words, no date, no chart term */
+export interface CardIllustration {
+  text: string;
+  kind: 'example' | 'analogy' | 'modern';
+  /** the Oracle paragraph id it illustrates */
+  illustrates: string;
 }
 
 export interface HeroDoc {
@@ -113,9 +123,19 @@ export interface HeroDoc {
   question: { claimId: string; text: string } | null;
   /** a split verdict is withheld, never shown */
   withheld: boolean;
+  /** storyteller (server 2026-11-09): the hero may carry one illustration too */
+  illustration?: CardIllustration;
 }
 
-export type CardStatus = 'ok' | 'pending' | 'withheld' | 'failed';
+/** `stale` (server 2026-11-09): the Oracle failed this area this build; the card is the last good reading's */
+export type CardStatus = 'ok' | 'pending' | 'withheld' | 'failed' | 'stale';
+
+/** server `SelfV2Quality`: the build's Oracle areas ok, repaired by its one repair pass, or failed */
+export interface SelfV2Quality {
+  okAreas: SelfV2AreaId[];
+  repaired: SelfV2AreaId[];
+  failed: SelfV2AreaId[];
+}
 export type AgeBand = 'under_25' | '25_35' | '36_45' | '46_60' | '60_plus';
 /** reading register: the plain card for the public; evidence keys under Chart details for practitioners */
 export type ReaderRole = 'public' | 'practitioner';
@@ -171,6 +191,8 @@ export interface SelfV2Response {
    * person may ask for a fresh one (the same rule as the v1 board). Absent from a server older than 2026-11-09.
    */
   refresh?: SelfV2Refresh;
+  /** the build's Oracle quality; null when none is stored, absent from an older server */
+  quality?: SelfV2Quality | null;
 }
 
 export interface SelfV2Refresh {

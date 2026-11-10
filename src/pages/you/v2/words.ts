@@ -21,6 +21,10 @@ export const V2_WORDS = {
   heroWithheld: 'Not enough stored yet to say where you are; check back soon.',
   cardWithheld: 'Not enough in your chart to say this with confidence.',
   cardFailed: 'The full reading did not finish; here is what the chart says for sure.',
+  /** an area the newest reading could not write: its card is the last reading's */
+  cardStale: 'From your last reading',
+  /** the heading over a card's illustration, one plain heading per kind */
+  illustration: { analogy: 'Think of it this way', example: 'For example', modern: 'Like…' },
   thanks: 'Thanks, noted',
   saveFailed: 'That did not save. Try again.',
   why: 'Why we think so',

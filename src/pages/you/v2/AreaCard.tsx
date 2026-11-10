@@ -5,11 +5,14 @@
  * scrolls, inside the card.
  *
  * Pending: the loading veil over the card with what the chart says for sure under it. Withheld: one line. Failed: the
- * line that says so, then the sure lines. Chart terms live only in ChartDetails (the sheet), never on the face.
+ * line that says so, then the sure lines. Stale (the newest reading could not write this area): the last reading's card
+ * with a small "From your last reading" line. Chart terms live only in ChartDetails (the sheet), never on the face.
+ *
+ * The storyteller's illustration (server 2026-11-09) sits under the body as a quote-style block, headed by its kind.
  */
 import type { ReactNode } from 'react';
 import LoadingVeil from '../../../components/LoadingVeil';
-import type { PersonalPattern, SelfV2Area } from '../../../lib/selfV2Api';
+import type { CardIllustration, PersonalPattern, SelfV2Area } from '../../../lib/selfV2Api';
 import { CERTAINTY_WORD, GROUP_LABEL, V2_WORDS, cardRange, rangeWords, spanWords } from './words';
 
 export const cardShell = 'glass flex h-full min-h-0 flex-col rounded-2xl p-4';
@@ -40,6 +43,17 @@ function FloorLines({ lines }: { lines: string[] }) {
   );
 }
 
+/** The storyteller's illustration: a quote-style block under the body, headed by its kind. */
+export function Illustration({ illustration }: { illustration: CardIllustration }) {
+  const heading = V2_WORDS.illustration[illustration.kind] ?? V2_WORDS.illustration.example;
+  return (
+    <figure className="mt-3 rounded-r-xl border-l-2 border-purple-300/60 bg-white/5 px-3 py-2.5" data-testid="area-illustration" data-kind={illustration.kind}>
+      <figcaption className="text-[11px] font-bold uppercase tracking-[0.08em] text-purple-200/80">{heading}</figcaption>
+      <blockquote className="mt-1 text-[15px] italic leading-relaxed text-white/80">{illustration.text}</blockquote>
+    </figure>
+  );
+}
+
 function Body({ area }: { area: SelfV2Area }) {
   const card = area.card;
   if (area.status === 'withheld' || (area.status === 'ok' && !card)) {
@@ -60,8 +74,15 @@ function Body({ area }: { area: SelfV2Area }) {
     );
   }
   if (area.status === 'pending' || !card) return <FloorLines lines={area.floor} />;
+  // a ladder step the server dropped is left '': it is skipped, never drawn empty
+  const ladder = card.ladder ? LADDER.filter((s) => card.ladder![s.key]?.trim()) : [];
   return (
     <>
+      {area.status === 'stale' && (
+        <p className="mb-1.5 text-xs text-white/55" data-testid="area-stale">
+          {V2_WORDS.cardStale}
+        </p>
+      )}
       <h3 className="mb-1.5 text-lg font-extrabold leading-snug text-white" data-testid="area-headline">
         {card.headline}
       </h3>
@@ -70,6 +91,7 @@ function Body({ area }: { area: SelfV2Area }) {
           {p}
         </p>
       ))}
+      {card.illustration?.text && <Illustration illustration={card.illustration} />}
       {card.patterns.length > 0 && (
         <ul className="mt-3 space-y-2" data-testid="area-patterns">
           {card.patterns.map((pt, i) => {
@@ -89,9 +111,9 @@ function Body({ area }: { area: SelfV2Area }) {
           })}
         </ul>
       )}
-      {card.ladder && (
+      {ladder.length > 0 && (
         <ul className="mt-3 grid gap-1.5" data-testid="area-ladder">
-          {LADDER.map((s) => (
+          {ladder.map((s) => (
             <li key={s.key} className="grid grid-cols-[84px_1fr] gap-2.5 rounded-xl bg-white/5 px-3 py-2 text-sm">
               <b className={`self-center text-xs font-bold uppercase tracking-wide ${s.cls}`}>{s.label}</b>
               <span className="text-white/75">{card.ladder![s.key]}</span>
@@ -149,7 +171,7 @@ export default function AreaCard({ area, nextCheck, onDetails, focused = false }
         <button type="button" onClick={() => onDetails(area)} className="inline-flex min-h-[40px] items-center rounded-lg px-1 text-purple-300 hover:text-purple-200" data-testid="area-details-open">
           {V2_WORDS.chartDetails} ›
         </button>
-        {certainty && area.status === 'ok' && <span data-testid="area-certainty">{CERTAINTY_WORD[certainty]}</span>}
+        {certainty && (area.status === 'ok' || area.status === 'stale') && <span data-testid="area-certainty">{CERTAINTY_WORD[certainty]}</span>}
       </footer>
     </article>
   );
