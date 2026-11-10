@@ -73,7 +73,7 @@ export function boardMode(w: number, h: number, segments = mq('(horizontal-viewp
 
 export const PER_VIEW: Record<BoardMode, number> = { phone: 1, portrait: 2, landscape: 3, wide: 4, duo: 1 };
 
-function useBoardMode(): BoardMode {
+export function useBoardMode(): BoardMode {
   const read = () => (typeof window === 'undefined' ? 'landscape' : boardMode(window.innerWidth, window.innerHeight));
   const [mode, setMode] = useState<BoardMode>(read);
   useEffect(() => {
@@ -127,7 +127,7 @@ function todayIso(): string {
 // The title: the person is the title
 // ---------------------------------------------------------------------------------------------------------------------
 
-function SelfTitle({ onAddPhoto, small = false }: { onAddPhoto: () => void; small?: boolean }) {
+export function SelfTitle({ onAddPhoto, small = false }: { onAddPhoto: () => void; small?: boolean }) {
   const size = small ? 'h-9 w-9' : 'h-11 w-11';
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -149,7 +149,7 @@ function SelfTitle({ onAddPhoto, small = false }: { onAddPhoto: () => void; smal
   );
 }
 
-function PersonalizeModal({ onClose }: { onClose: () => void }) {
+export function PersonalizeModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Personalize your readings" onClick={onClose} data-testid="self-personalize-modal">
       <div className="relative flex h-[min(640px,88vh)] w-[min(880px,94vw)] flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0d0c24] p-4 shadow-2xl sm:p-6" onClick={(e) => e.stopPropagation()}>

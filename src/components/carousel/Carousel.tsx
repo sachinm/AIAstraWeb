@@ -26,6 +26,8 @@ export interface CarouselProps {
   peek?: boolean;
   /** gap between cards, px */
   gap?: number;
+  /** px of the next card left showing past the last full card, so the carousel reads as one (default 0) */
+  peekPx?: number;
   className?: string;
   testId?: string;
 }
@@ -37,7 +39,7 @@ export function startFor(index: number, count: number, perView: number): number 
 
 const IGNORE_SCROLL_MS = 450;
 
-export default function Carousel({ count, index, onIndexChange, perView, label, renderSlide, slideLabel, peek = true, gap = 14, className = '', testId = 'carousel' }: CarouselProps) {
+export default function Carousel({ count, index, onIndexChange, perView, label, renderSlide, slideLabel, peek = true, gap = 14, peekPx = 0, className = '', testId = 'carousel' }: CarouselProps) {
   const track = useRef<HTMLDivElement | null>(null);
   const programmatic = useRef(0);
   const drag = useRef<number | null>(null);
@@ -110,7 +112,7 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
   const trackStyle: CSSProperties = {
     display: 'grid',
     gridAutoFlow: 'column',
-    gridAutoColumns: `calc((100% - ${(across - 1) * gap}px) / ${across})`,
+    gridAutoColumns: `calc((100% - ${(across - 1) * gap + (peekPx > 0 && count > across ? peekPx + gap : 0)}px) / ${across})`,
     gap: `${gap}px`,
     overflowX: 'auto',
     overflowY: 'hidden',

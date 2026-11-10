@@ -7,7 +7,7 @@ import AreaBoardView, { type AreaBoardConfig } from '../../components/AreaBoardV
 import { longDate } from '../../lib/careerApi';
 import type { AreaBoard } from '../../lib/areaApi';
 import SelfReading from './SelfReading';
-import SelfBoardV2 from './v2/SelfBoardV2';
+import SelfBoardV3 from './v3/SelfBoardV3';
 import { selfV2Enabled } from '../../lib/selfV2Api';
 
 export const YOU_SUBAREAS: Record<string, string> = {
@@ -68,8 +68,12 @@ export const YOU_CONFIG: AreaBoardConfig = {
   extraFirstTab: { id: 'reading', label: 'Your reading', render: () => <SelfReading /> },
 };
 
-/** The Self board v2 (server doc 66) when VITE_SELF_V2=1 or the address has ?v2=1; otherwise this board, so release can be undone. */
+/**
+ * When VITE_SELF_V2=1 or the address has ?v2=1: the Self board v3 (server doc 68) when GET /api/self/v3 answers with a
+ * v3 body, else the v2 board (server doc 66) unchanged; SelfBoardV3 makes that choice. Otherwise this board, so release
+ * can be undone.
+ */
 export default function YouPage() {
-  if (selfV2Enabled()) return <SelfBoardV2 />;
+  if (selfV2Enabled()) return <SelfBoardV3 />;
   return <AreaBoardView cfg={YOU_CONFIG} />;
 }
