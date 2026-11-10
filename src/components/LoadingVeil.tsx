@@ -28,6 +28,92 @@ export interface LoadingVeilProps {
   /** Kept for callers whose tests look for the old loading element. */
   testId?: string;
   className?: string;
+  /**
+   * Real progress from the server (server docs/loading-overlay/05). Once the wait has passed VEIL_PROGRESS_AFTER_MS a
+   * thin bar shows under the brand line with the step in plain words; before that the veil looks as it always did.
+   */
+  progress?: VeilProgress;
+}
+
+export interface VeilProgress {
+  percent: number;
+  nextPercent: number;
+  stageExpectedMs: number | null;
+  stageAt: string | null;
+  label: string;
+  step: number;
+  steps: number;
+}
+
+/** Under this long the veil shows the quip only; the bar appears after. */
+export const VEIL_PROGRESS_AFTER_MS = 5000;
+/** How often the bar is recomputed while it eases. */
+export const VEIL_PROGRESS_TICK_MS = 250;
+
+/**
+ * Where the bar stands at `now`: the server's floor plus a share of the way to the next stage's floor that grows with
+ * the time spent in this stage (1 − e^(−2x), x = elapsed / expected), capped at 90% so it never reaches the next floor
+ * before the server says that stage is done.
+ */
+export function easedPercent(p: Pick<VeilProgress, 'percent' | 'nextPercent' | 'stageExpectedMs' | 'stageAt'>, now: number = Date.now()): number {
+  const floor = Math.max(0, Math.min(100, p.percent));
+  const next = Math.max(floor, Math.min(100, p.nextPercent));
+  if (next <= floor || !p.stageAt || !p.stageExpectedMs || p.stageExpectedMs <= 0) return floor;
+  const at = Date.parse(p.stageAt);
+  if (!Number.isFinite(at)) return floor;
+  const x = Math.max(0, now - at) / p.stageExpectedMs;
+  const share = Math.min(0.9, 1 - Math.exp(-2 * x));
+  return floor + (next - floor) * share;
+}
+
+/** The bar's value, recomputed every tick, never lower than it has been. */
+function useEasedPercent(progress: VeilProgress | undefined): number {
+  const max = useRef(0);
+  const [, setTick] = useState(0);
+  const active = !!progress && progress.percent < 100;
+  useEffect(() => {
+    if (!active) return undefined;
+    const t = setInterval(() => setTick((n) => n + 1), VEIL_PROGRESS_TICK_MS);
+    return () => clearInterval(t);
+  }, [active]);
+  if (!progress) return max.current;
+  max.current = Math.max(max.current, easedPercent(progress));
+  return max.current;
+}
+
+function ProgressBar({ progress, testId }: { progress: VeilProgress; testId: string }) {
+  const value = useEasedPercent(progress);
+  return (
+    <div className="load-veil__progress" data-testid={`${testId}-progress-wrap`}>
+      <div
+        className="load-veil__progress-track"
+        role="progressbar"
+        aria-label={progress.label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.floor(value)}
+        data-testid="veil-progress"
+      >
+        <div className="load-veil__progress-fill" style={{ width: `${value}%` }} />
+      </div>
+      <p className="load-veil__progress-label" data-testid={`${testId}-progress-label`}>
+        {progress.label}
+        {progress.step > 0 && progress.steps > 0 ? ` · Step ${progress.step} of ${progress.steps}` : ''}
+      </p>
+    </div>
+  );
+}
+
+/** True once the veil has been up VEIL_PROGRESS_AFTER_MS (counted from its first show). */
+function useLongWait(enabled: boolean): boolean {
+  const shownAt = useRef(Date.now());
+  const [long, setLong] = useState(() => Date.now() - shownAt.current >= VEIL_PROGRESS_AFTER_MS);
+  useEffect(() => {
+    if (!enabled || long) return undefined;
+    const t = setTimeout(() => setLong(true), Math.max(0, VEIL_PROGRESS_AFTER_MS - (Date.now() - shownAt.current)));
+    return () => clearTimeout(t);
+  }, [enabled, long]);
+  return long;
 }
 
 /** The wordmark and the words beside it, above the quip. */
@@ -186,7 +272,8 @@ function TileColumn({ pieces, place, start }: { pieces: ReadonlyArray<typeof PIE
   );
 }
 
-export default function LoadingVeil({ fullScreen = false, note, children, foreground, leaving = false, testId = 'loading-veil', className = '' }: LoadingVeilProps) {
+export default function LoadingVeil({ fullScreen = false, note, children, foreground, leaving = false, testId = 'loading-veil', className = '', progress }: LoadingVeilProps) {
+  const longWait = useLongWait(!!progress);
   const theme = htmlTheme();
   // a full-screen veil that follows another one at once carries on from it
   const [carry] = useState(() => (fullScreen ? freshHandoff() : null));
@@ -228,6 +315,7 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
             <span className={`load-veil__brand-name ${BRAND_CLASS}`}>{BRAND_NAME}</span>
             <span className="load-veil__brand-rest">{BRAND_REST}</span>
           </p>
+          {progress && longWait && <ProgressBar progress={progress} testId={testId} />}
           <p role="status" aria-live="polite" className="load-veil__line" data-testid={`${testId}-line`}>
             <Sparkles className={`h-4 w-4 shrink-0 ${still ? '' : 'animate-pulse'}`} aria-hidden="true" />
             <span key={still ? 'still' : line} className={still ? '' : 'load-veil__line-in'}>{line}</span>

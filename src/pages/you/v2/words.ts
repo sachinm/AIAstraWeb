@@ -5,7 +5,7 @@
  */
 import { longDate } from '../../../lib/careerApi';
 import type { PlanStatus } from '../../../lib/billing';
-import type { AreaCertainty, SelfV2Area, SelfV2Group, Tone } from '../../../lib/selfV2Api';
+import type { AreaCertainty, SelfV2Area, SelfV2BuildStage, SelfV2Group, Tone } from '../../../lib/selfV2Api';
 
 export const V2_WORDS = {
   title: 'Self',
@@ -67,6 +67,30 @@ export const V2_WORDS = {
     sheetTitle: 'Get a fresh reading?',
     confirm: 'Get fresh reading · 1 question',
   },
+} as const;
+
+/**
+ * The build's steps in plain words (server docs/loading-overlay/05): what the veil's bar and the header chip say. No
+ * chart terms, no engine or technique names.
+ */
+export const BUILD_STAGE_WORDS: Record<SelfV2BuildStage | 'queued', string> = {
+  queued: 'Getting ready',
+  subs: "Reading your chart's timing",
+  briefs: 'Sorting what matters now',
+  slices: 'Lining up your reading',
+  warm: 'Lining up your reading',
+  families: 'Reading each part of your chart',
+  oracle: 'Putting it together',
+  personalizer: 'Writing your cards for you',
+};
+
+export const BUILD_WORDS = {
+  making: 'Making your reading',
+  gettingReady: 'getting ready',
+  step: (n: number, of: number) => `step ${n} of ${of}`,
+  failed: 'That did not work.',
+  stuck: 'This is taking longer than it should.',
+  tryAgain: 'Try again',
 } as const;
 
 /** "2026-12-04" → "2026-12-05" (UTC calendar days) */

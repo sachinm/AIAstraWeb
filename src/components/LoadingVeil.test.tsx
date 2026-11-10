@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import LoadingVeil, { PIECES, resetVeilHandoffForTests, shufflePieces } from './LoadingVeil';
+import LoadingVeil, { PIECES, VEIL_PROGRESS_AFTER_MS, VEIL_PROGRESS_TICK_MS, easedPercent, resetVeilHandoffForTests, shufflePieces, type VeilProgress } from './LoadingVeil';
 import { LOADING_QUIPS } from '../lib/loadingQuips';
 import { LINE_MS } from '../pages/chat-interface/ReadingStagesPanel';
 import * as art from '../lib/overlayArt';
@@ -114,5 +114,69 @@ describe('LoadingVeil', () => {
     unmount();
     expect(revoke).toHaveBeenCalledWith('blob:art');
     vi.unstubAllGlobals();
+  });
+});
+
+describe('LoadingVeil progress', () => {
+  const stage = (over: Partial<VeilProgress> = {}): VeilProgress => ({
+    percent: 20,
+    nextPercent: 35,
+    stageExpectedMs: 10_000,
+    stageAt: new Date(Date.now()).toISOString(),
+    label: 'Sorting what matters now',
+    step: 2,
+    steps: 7,
+    ...over,
+  });
+  const now = () => Number(screen.getByTestId('veil-progress').getAttribute('aria-valuenow'));
+
+  it('shows no bar for the first 5 s, then a bar between this stage and the next with the step in words', () => {
+    vi.spyOn(art, 'getOverlayArt').mockResolvedValue(null);
+    render(<LoadingVeil testId="veil" progress={stage()} />);
+    expect(screen.queryByTestId('veil-progress')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(VEIL_PROGRESS_AFTER_MS + 1000);
+    });
+    const bar = screen.getByTestId('veil-progress');
+    expect(bar).toHaveAttribute('role', 'progressbar');
+    expect(now()).toBeGreaterThan(20);
+    expect(now()).toBeLessThan(35);
+    expect(screen.getByTestId('veil-progress-label')).toHaveTextContent('Sorting what matters now · Step 2 of 7');
+    // sits under the brand line, above the quip
+    const top = screen.getByTestId('veil').querySelector('.load-veil__top')!;
+    expect(top).toContainElement(bar);
+  });
+
+  it('never goes back when a later answer has the same stage, and never reaches the next floor', () => {
+    vi.spyOn(art, 'getOverlayArt').mockResolvedValue(null);
+    const { rerender } = render(<LoadingVeil testId="veil" progress={stage()} />);
+    act(() => {
+      vi.advanceTimersByTime(9000);
+    });
+    const before = now();
+    expect(before).toBeGreaterThan(20);
+    // the same stage again, stamped later (its eased share would restart from 0)
+    rerender(<LoadingVeil testId="veil" progress={stage({ stageAt: new Date(Date.now()).toISOString() })} />);
+    act(() => {
+      vi.advanceTimersByTime(VEIL_PROGRESS_TICK_MS);
+    });
+    expect(now()).toBeGreaterThanOrEqual(before);
+    act(() => {
+      vi.advanceTimersByTime(10 * 60_000);
+    });
+    expect(now()).toBeLessThan(35);
+  });
+
+  it('easedPercent: the floor without timing, at most 90% of the way, never past the next floor', () => {
+    const at = Date.parse('2026-11-09T10:00:00Z');
+    const p = { percent: 40, nextPercent: 70, stageExpectedMs: 20_000, stageAt: new Date(at).toISOString() };
+    expect(easedPercent({ ...p, stageExpectedMs: null }, at + 60_000)).toBe(40);
+    expect(easedPercent({ ...p, stageAt: null }, at + 60_000)).toBe(40);
+    expect(easedPercent(p, at - 5000)).toBe(40);
+    const mid = easedPercent(p, at + 10_000);
+    expect(mid).toBeGreaterThan(40);
+    expect(mid).toBeLessThan(easedPercent(p, at + 20_000));
+    expect(easedPercent(p, at + 1e9)).toBeCloseTo(67, 5);
+    expect(easedPercent({ ...p, percent: 100, nextPercent: 100 }, at)).toBe(100);
   });
 });

@@ -18,26 +18,29 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { usePlan } from '../../../Auth/ProfileGate';
 import Carousel, { CarouselArrows, CarouselDots } from '../../../components/carousel/Carousel';
 import Chips, { useSeenCounts, type ChipGroup } from '../../../components/carousel/Chips';
-import LoadingVeil from '../../../components/LoadingVeil';
+import LoadingVeil, { type VeilProgress } from '../../../components/LoadingVeil';
 import UserAvatar from '../../../components/UserAvatar';
 import { ShriGaneshAvatar } from '../../../components/ShriGaneshAvatar';
 import { longDate } from '../../../lib/careerApi';
 import { track } from '../../../lib/events';
 import { announceUsage } from '../../../lib/planUsage';
 import type { RefreshResult } from '../../../lib/boardRefresh';
-import { fetchSelfV2, type SelfV2Area, type SelfV2Response, type SelfV2State } from '../../../lib/selfV2Api';
+import { fetchSelfV2, type SelfV2Area, type SelfV2BuildView, type SelfV2Response, type SelfV2State } from '../../../lib/selfV2Api';
 import WelcomeWizard from '../../welcome/WelcomeWizard';
 import AreaCard, { ChartDetails, cardShell } from './AreaCard';
 import ClockSheet from './ClockSheet';
-import { FreshControl, FreshSheet } from './FreshReading';
+import { BuildStatus, FreshControl, FreshSheet } from './FreshReading';
 import Hero, { type HeroLayout } from './Hero';
 import Sheet from './Sheet';
-import { GROUP_LABEL, V2_WORDS } from './words';
+import { BUILD_STAGE_WORDS, GROUP_LABEL, V2_WORDS } from './words';
 import './selfBoardV2.css';
 
 const SURFACE = 'self_v2';
-/** pending (the board being written) and a clock rebuild: every 10 s; preparing (the chart): every 30 s */
-export const V2_POLL_MS = { pending: 10_000, preparing: 30_000 } as const;
+/**
+ * pending (the board being written) and a clock rebuild: every 10 s; preparing (the chart): every 30 s; a build the
+ * server says is queued or running (`board.build`, server docs/loading-overlay/05): every 2 s, so the bar moves
+ */
+export const V2_POLL_MS = { pending: 10_000, preparing: 30_000, build: 2_000 } as const;
 /** after this long waiting the board says so and offers Retry */
 export const V2_MAX_WAIT_MS = 6 * 60_000;
 const SEEN_KEY = 'aiastra.self.v2.seen';
@@ -89,6 +92,31 @@ function useBoardMode(): BoardMode {
     };
   }, []);
   return mode;
+}
+
+/** The server says a build is queued or running now. */
+export function buildActive(build: SelfV2BuildView | undefined): boolean {
+  return build?.state === 'queued' || build?.state === 'running';
+}
+
+/** The server says the build failed or stalled: the page stops polling and the header offers Try again. */
+export function buildStopped(build: SelfV2BuildView | undefined): boolean {
+  return build?.state === 'failed' || build?.state === 'stuck';
+}
+
+/** The veil's bar from the server's build, while one is queued or running; undefined otherwise (no bar). */
+export function veilProgress(build: SelfV2BuildView | undefined): VeilProgress | undefined {
+  if (!build || !buildActive(build)) return undefined;
+  const label = build.state === 'queued' || !build.stage ? BUILD_STAGE_WORDS.queued : BUILD_STAGE_WORDS[build.stage];
+  return {
+    percent: build.percent,
+    nextPercent: build.nextPercent,
+    stageExpectedMs: build.stageExpectedMs,
+    stageAt: build.stageAt,
+    label,
+    step: build.state === 'running' ? build.step : 0,
+    steps: build.steps,
+  };
 }
 
 function todayIso(): string {
@@ -177,9 +205,14 @@ export default function SelfBoardV2() {
   const board = state?.kind === 'ok' ? state.board : null;
   const rebuilding = !!rebuild && !(board && board.status === 'ok' && board.clock.system === rebuild.system);
   // only a board read after the ask can say the fresh build failed (the one on screen may carry an earlier failure)
-  const freshFailedNow = !!fresh && !!board && board !== fresh.from && !!board.refresh?.failed && !board.refresh?.building;
+  const freshFailedNow =
+    !!fresh && !!board && board !== fresh.from && ((!!board.refresh?.failed && !board.refresh?.building) || board.build?.state === 'failed');
   const freshBuilding = !!fresh && !freshFailedNow && !(board && board.status === 'ok' && board.builtAt !== fresh.builtAt);
-  const waiting = state?.kind === 'preparing' || board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding;
+  // a build the server says failed or stalled stops the poll; the header says so and offers Try again
+  const stopped = buildStopped(board?.build);
+  const building = buildActive(board?.build);
+  const waiting =
+    state?.kind === 'preparing' || (!stopped && (board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding || building));
 
   // poll while something is being built, for at most six minutes; then say so and offer Retry
   useEffect(() => {
@@ -201,13 +234,13 @@ export default function SelfBoardV2() {
       setLate(true);
       return;
     }
-    const every = state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
+    const every = building ? V2_POLL_MS.build : state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
     const t = setTimeout(() => {
       if (Date.now() - (waitStart.current ?? Date.now()) >= V2_MAX_WAIT_MS) setLate(true);
       else void load();
     }, Math.min(every, left));
     return () => clearTimeout(t);
-  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, load]);
+  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, load]);
 
   const retry = () => {
     setLate(false);
@@ -264,6 +297,7 @@ export default function SelfBoardV2() {
       onRebuild={(system, label) => { setLate(false); waitStart.current = Date.now(); setRebuild({ system, label }); void load(); }}
       onFreshStarted={() => { setLate(false); setFreshFailed(false); waitStart.current = Date.now(); setFresh({ builtAt: board.builtAt, from: board }); }}
       onReload={() => void load()}
+      onRetryBuild={retry}
     />
   );
 }
@@ -277,6 +311,7 @@ function Board({
   onRebuild,
   onFreshStarted,
   onReload,
+  onRetryBuild,
 }: {
   board: SelfV2Response;
   rebuild: { system: string; label: string } | null;
@@ -286,6 +321,7 @@ function Board({
   onRebuild: (system: string, label: string) => void;
   onFreshStarted: () => void;
   onReload: () => void;
+  onRetryBuild: () => void;
 }) {
   const mode = useBoardMode();
   const perView = PER_VIEW[mode];
@@ -380,6 +416,9 @@ function Board({
     />
   );
 
+  // a paid fresh build that failed keeps its own Try again (the consent sheet) in the fresh control
+  const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
+
   const heroLayout: HeroLayout = mode === 'duo' ? 'pane' : mode;
   const ranked = areas.find((a) => a.status === 'ok' && a.card?.ladder);
   const hero = (
@@ -397,6 +436,12 @@ function Board({
     />
   );
 
+  // the build's progress for every veil; a first build or a rebuild the server is running gets one veil over the deck
+  // (not one quip veil per pending card)
+  const progress = veilProgress(board.build);
+  const buildVeil = !rebuild && !freshBuilding && !!progress && (board.status !== 'ok' || areas.some((a) => a.status === 'pending'));
+  const veiled = !!rebuild || freshBuilding || buildVeil;
+
   const slideLabel = (i: number) => `${i + 1} of ${areas.length}: ${areas[i]?.title ?? ''}`;
   const carousel = (
     <Carousel
@@ -406,20 +451,25 @@ function Board({
       perView={perView}
       label="Self areas"
       slideLabel={slideLabel}
-      renderSlide={(i) => <AreaCard area={areas[i]!} nextCheck={board.nextCheck} onDetails={setDetails} focused={perView > 1 && i === index} />}
+      renderSlide={(i) => <AreaCard area={areas[i]!} nextCheck={board.nextCheck} onDetails={setDetails} focused={perView > 1 && i === index} veil={!(veiled && progress)} />}
       testId="self-carousel"
     />
   );
-  const veiled = !!rebuild || freshBuilding;
   const deck = rebuild ? (
     <div className="relative h-full min-h-0" data-testid="self-rebuilding">
-      <LoadingVeil testId="self-rebuild-veil" note={V2_WORDS.rebuilding(rebuild.label)} foreground={lateLine || undefined}>
+      <LoadingVeil testId="self-rebuild-veil" note={V2_WORDS.rebuilding(rebuild.label)} foreground={lateLine || undefined} progress={progress}>
         {carousel}
       </LoadingVeil>
     </div>
   ) : freshBuilding ? (
     <div className="relative h-full min-h-0" data-testid="self-fresh-building">
-      <LoadingVeil testId="self-fresh-veil" note={V2_WORDS.fresh.veil} foreground={lateLine || undefined}>
+      <LoadingVeil testId="self-fresh-veil" note={V2_WORDS.fresh.veil} foreground={lateLine || undefined} progress={progress}>
+        {carousel}
+      </LoadingVeil>
+    </div>
+  ) : buildVeil ? (
+    <div className="relative h-full min-h-0" data-testid="self-building">
+      <LoadingVeil testId="self-build-veil" note={V2_WORDS.writing} foreground={lateLine || undefined} progress={progress}>
         {carousel}
       </LoadingVeil>
     </div>
@@ -474,6 +524,7 @@ function Board({
                 {!veiled && lateLine}
               </div>
               {freshControl}
+              {buildStatus}
             </div>
             {hero}
             <nav aria-label="Self areas" className="min-h-0 overflow-y-auto [scrollbar-width:thin]" data-testid="self-area-list">
@@ -530,6 +581,7 @@ function Board({
             {!veiled && lateLine}
           </div>
           {freshControl}
+          {buildStatus}
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {mode !== 'phone' && <CarouselDots index={index} count={areas.length} onIndexChange={select} label={slideLabel} testId="self-carousel" />}

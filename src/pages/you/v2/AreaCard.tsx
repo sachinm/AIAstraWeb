@@ -113,7 +113,11 @@ function Body({ area }: { area: SelfV2Area }) {
   );
 }
 
-export default function AreaCard({ area, nextCheck, onDetails, focused = false }: { area: SelfV2Area; nextCheck: string | null; onDetails: (a: SelfV2Area) => void; focused?: boolean }) {
+/**
+ * `veil`: a pending card runs its own loading veil. False when the page veils the whole deck with the build's progress
+ * (server docs/loading-overlay/05), so the cards under it do not each run a quip of their own.
+ */
+export default function AreaCard({ area, nextCheck, onDetails, focused = false, veil = true }: { area: SelfV2Area; nextCheck: string | null; onDetails: (a: SelfV2Area) => void; focused?: boolean; veil?: boolean }) {
   // the server's range line when it sends one; the inferred line only for a board built before it did
   const range = area.rangeLabel !== undefined ? area.rangeLabel : cardRange(area, nextCheck);
   const certainty = area.card?.certainty ?? area.details.certainty;
@@ -134,7 +138,7 @@ export default function AreaCard({ area, nextCheck, onDetails, focused = false }
           </p>
         )}
       </header>
-      {area.status === 'pending' ? (
+      {area.status === 'pending' && veil ? (
         <div className="relative mt-2 min-h-0 flex-1 overflow-hidden" data-testid="area-pending">
           <LoadingVeil testId={`area-veil-${area.id}`}>
             <div className="h-full overflow-y-auto" data-testid="area-body">
