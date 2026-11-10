@@ -25,6 +25,8 @@ env:
   AMPLIFY_BRANCH: release-candidate-staging
   # key for the encrypted loading-veil art made at build time (repo secret; must match the API Lambda)
   OVERLAY_ART_KEY: ${{ secrets.OVERLAY_ART_KEY }}
+  # the new Self board is the default on staging (Sachin, 2026-11-09)
+  VITE_SELF_V2: "1"
 
 jobs:
   deploy:
