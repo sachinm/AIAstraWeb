@@ -107,8 +107,8 @@ function SelfTitle({ onAddPhoto, small = false }: { onAddPhoto: () => void; smal
         className={size}
         fallback={
           <button type="button" onClick={onAddPhoto} className="group flex items-center gap-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60" data-testid="self-add-photo" aria-label={V2_WORDS.addPhoto}>
+            {/* the avatar alone is the way in (Sachin 2026-11-09: no "Add your photo" words in the header) */}
             <ShriGaneshAvatar className={size} />
-            <span className="hidden max-w-[5.5rem] text-left text-[11px] font-semibold leading-tight text-purple-300 group-hover:text-purple-200 sm:inline">{V2_WORDS.addPhoto}</span>
           </button>
         }
       />
