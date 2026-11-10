@@ -17,9 +17,9 @@ import { useState } from 'react';
 import { Link, useInRouterContext } from 'react-router-dom';
 import type { PlanStatus } from '../../../lib/billing';
 import { refreshBoard, type RefreshResult } from '../../../lib/boardRefresh';
-import type { SelfV2Refresh } from '../../../lib/selfV2Api';
+import type { SelfV2BuildView, SelfV2Refresh } from '../../../lib/selfV2Api';
 import Sheet from './Sheet';
-import { V2_WORDS, freshCostLine, freshSheetBody } from './words';
+import { BUILD_WORDS, V2_WORDS, freshCostLine, freshSheetBody } from './words';
 
 const W = V2_WORDS.fresh;
 const PLAN_PAGE = '/pricing';
@@ -158,4 +158,41 @@ export function FreshControl({
       )}
     </div>
   );
+}
+
+/**
+ * The build chip beside the fresh-reading control (server docs/loading-overlay/05): what the server says about the
+ * board's build. Queued or running: "Making your reading · step n of 7" with a tiny bar. Failed or stuck: one plain line
+ * with Try again (the page reads the board again, which queues the build again). Ready, none or no `build` (an older
+ * server): nothing.
+ */
+export function BuildStatus({ build, onRetry, testId = 'build-status' }: { build: SelfV2BuildView | undefined; onRetry: () => void; testId?: string }) {
+  if (!build) return null;
+  if (build.state === 'queued' || build.state === 'running') {
+    const where = build.state === 'running' && build.step > 0 ? BUILD_WORDS.step(build.step, build.steps) : BUILD_WORDS.gettingReady;
+    const pct = Math.max(0, Math.min(100, build.percent));
+    return (
+      <div className="flex min-w-0 shrink-0 flex-col items-start gap-1" data-testid={testId} data-state={build.state} role="status" aria-live="polite">
+        <p className="whitespace-nowrap text-[12px] font-semibold text-white/80" data-testid={`${testId}-text`}>
+          {BUILD_WORDS.making} · {where}
+        </p>
+        <div className="h-1 w-28 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+          <div className="h-full rounded-full bg-teal-300/80" style={{ width: `${pct}%` }} data-testid={`${testId}-bar`} />
+        </div>
+      </div>
+    );
+  }
+  if (build.state === 'failed' || build.state === 'stuck') {
+    return (
+      <div className="flex min-w-0 shrink-0 flex-col items-start" data-testid={testId} data-state={build.state}>
+        <p role="alert" className="whitespace-nowrap text-[12px] text-rose-300" data-testid={`${testId}-text`}>
+          {build.state === 'failed' ? BUILD_WORDS.failed : BUILD_WORDS.stuck}{' '}
+          <button type="button" onClick={onRetry} className="min-h-[32px] font-semibold text-purple-300 underline underline-offset-4 hover:text-purple-200" data-testid={`${testId}-retry`}>
+            {BUILD_WORDS.tryAgain}
+          </button>
+        </p>
+      </div>
+    );
+  }
+  return null;
 }

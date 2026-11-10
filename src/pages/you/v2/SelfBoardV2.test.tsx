@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import SelfBoardV2, { boardMode, V2_MAX_WAIT_MS, V2_POLL_MS } from './SelfBoardV2';
 import { V2_AREAS, selfV2Fixture } from './selfV2.fixture';
 import { V2_WORDS } from './words';
-import type { SelfV2Response } from '../../../lib/selfV2Api';
+import type { SelfV2BuildView, SelfV2Response } from '../../../lib/selfV2Api';
 
 const plan = vi.hoisted(() => ({ setPlan: vi.fn(), refreshPlan: vi.fn(async () => {}) }));
 vi.mock('../../../Auth/ProfileGate', () => ({ usePlan: () => ({ plan: null, setPlan: plan.setPlan, refreshPlan: plan.refreshPlan }) }));
@@ -634,5 +634,146 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
     render(<SelfBoardV2 />);
     const left = await screen.findByTestId('self-duo-left');
     expect(within(left).getByTestId('fresh-button')).toHaveTextContent('Get a fresh reading');
+  });
+
+  describe('build progress (server docs/loading-overlay/05)', () => {
+    const build = (over: Partial<SelfV2BuildView> = {}): SelfV2BuildView => ({
+      state: 'running',
+      stage: 'briefs',
+      step: 2,
+      steps: 7,
+      percent: 5,
+      nextPercent: 8,
+      stageExpectedMs: 3000,
+      startedAt: new Date(Date.now() - 4000).toISOString(),
+      stageAt: new Date(Date.now()).toISOString(),
+      ...over,
+    });
+    const building = (b: SelfV2Response, v: SelfV2BuildView) => {
+      b.status = 'pending';
+      b.areas[2]!.status = 'pending';
+      b.build = v;
+    };
+
+    it('running: one veil with the progress over the deck (no veil per card) and the chip says the step', async () => {
+      srv.board = () => selfV2Fixture((b) => building(b, build()));
+      render(<SelfBoardV2 />);
+      await ready();
+      expect(screen.getByTestId('self-build-veil')).toBeInTheDocument();
+      expect(screen.queryByTestId('area-veil-chapter')).toBeNull();
+      expect(within(screen.getByTestId('area-card-chapter')).getByTestId('area-floor')).toBeInTheDocument();
+      expect(screen.getByTestId('build-status')).toHaveAttribute('data-state', 'running');
+      expect(screen.getByTestId('build-status-text')).toHaveTextContent('Making your reading · step 2 of 7');
+      expect(screen.getByTestId('build-status-bar')).toHaveStyle({ width: '5%' });
+    });
+
+    it('queued: "Making your reading · getting ready"', async () => {
+      srv.board = () => selfV2Fixture((b) => building(b, build({ state: 'queued', stage: null, step: 0, percent: 0, nextPercent: 5, stageAt: null })));
+      render(<SelfBoardV2 />);
+      await ready();
+      expect(screen.getByTestId('build-status-text')).toHaveTextContent('Making your reading · getting ready');
+    });
+
+    it('the veil shows the bar after 5 s and polls every 2 s while running', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      srv.board = () => selfV2Fixture((b) => building(b, build({ stageExpectedMs: 20_000 })));
+      render(<SelfBoardV2 />);
+      await ready();
+      expect(gets()).toBe(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(V2_POLL_MS.build);
+      });
+      await waitFor(() => expect(gets()).toBe(2));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(V2_POLL_MS.build);
+      });
+      await waitFor(() => expect(gets()).toBe(3));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2500);
+      });
+      const bar = await screen.findByTestId('veil-progress');
+      const v = Number(bar.getAttribute('aria-valuenow'));
+      expect(v).toBeGreaterThanOrEqual(5);
+      expect(v).toBeLessThan(8);
+      expect(screen.getByTestId('self-build-veil-progress-label')).toHaveTextContent('Sorting what matters now · Step 2 of 7');
+    });
+
+    it('failed: polling stops and the chip says so; Try again reads the board again', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      srv.board = () => selfV2Fixture((b) => building(b, build({ state: 'failed', stage: null, step: 0 })));
+      render(<SelfBoardV2 />);
+      await ready();
+      expect(screen.getByTestId('build-status')).toHaveAttribute('data-state', 'failed');
+      expect(screen.getByTestId('build-status-text')).toHaveTextContent('That did not work.');
+      expect(screen.queryByTestId('self-build-veil')).toBeNull();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending * 3);
+      });
+      expect(gets()).toBe(1);
+      srv.board = () => selfV2Fixture((b) => building(b, build({ state: 'queued', stage: null, step: 0, percent: 0 })));
+      fireEvent.click(screen.getByTestId('build-status-retry'));
+      await waitFor(() => expect(gets()).toBe(2));
+      expect(await screen.findByTestId('build-status-text')).toHaveTextContent('Making your reading · getting ready');
+    });
+
+    it('a running build that turns failed stops the 2 s poll', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      srv.board = () => selfV2Fixture((b) => building(b, build()));
+      render(<SelfBoardV2 />);
+      await ready();
+      srv.board = () => selfV2Fixture((b) => building(b, build({ state: 'failed', stage: null, step: 0 })));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(V2_POLL_MS.build);
+      });
+      await waitFor(() => expect(screen.getByTestId('build-status')).toHaveAttribute('data-state', 'failed'));
+      const n = gets();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending * 3);
+      });
+      expect(gets()).toBe(n);
+    });
+
+    it('stuck: "This is taking longer than it should." with Try again', async () => {
+      srv.board = () => selfV2Fixture((b) => building(b, build({ state: 'stuck' })));
+      render(<SelfBoardV2 />);
+      await ready();
+      expect(screen.getByTestId('build-status-text')).toHaveTextContent('This is taking longer than it should.');
+      fireEvent.click(screen.getByTestId('build-status-retry'));
+      await waitFor(() => expect(gets()).toBe(2));
+    });
+
+    it('ready: no chip; the Made / Good until line stays', async () => {
+      srv.board = () =>
+        selfV2Fixture((b) => {
+          b.build = build({ state: 'ready', stage: null, step: 0, percent: 100, nextPercent: 100, stageAt: null });
+          b.refresh = { madeAt: '2026-11-10T09:00:00Z', validUntil: '2026-12-12', due: false };
+        });
+      render(<SelfBoardV2 />);
+      await ready();
+      expect(screen.queryByTestId('build-status')).toBeNull();
+      expect(screen.getByTestId('fresh-line')).toHaveTextContent('Made 10 Nov 2026 · Good until 12 Dec 2026');
+    });
+
+    it('no build field (an older server): no chip, per-card veils, the 10 s poll as before', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      srv.board = () =>
+        selfV2Fixture((b) => {
+          b.status = 'pending';
+          b.areas[2]!.status = 'pending';
+        });
+      render(<SelfBoardV2 />);
+      await ready();
+      expect(screen.queryByTestId('build-status')).toBeNull();
+      expect(screen.queryByTestId('self-build-veil')).toBeNull();
+      expect(screen.getByTestId('area-veil-chapter')).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(V2_POLL_MS.build * 2);
+      });
+      expect(gets()).toBe(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending);
+      });
+      await waitFor(() => expect(gets()).toBe(2));
+    });
   });
 });

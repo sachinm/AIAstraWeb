@@ -191,8 +191,33 @@ export interface SelfV2Response {
    * person may ask for a fresh one (the same rule as the v1 board). Absent from a server older than 2026-11-09.
    */
   refresh?: SelfV2Refresh;
+  /**
+   * Where the board's build stands (server docs/loading-overlay/05): the veil's bar and the header chip read it.
+   * Absent from a server older than that plan: the page then behaves as before.
+   */
+  build?: SelfV2BuildView;
   /** the build's Oracle quality; null when none is stored, absent from an older server */
   quality?: SelfV2Quality | null;
+}
+
+export type SelfV2BuildState = 'none' | 'queued' | 'running' | 'ready' | 'failed' | 'stuck';
+export type SelfV2BuildStage = 'subs' | 'briefs' | 'slices' | 'warm' | 'families' | 'oracle' | 'personalizer';
+
+export interface SelfV2BuildView {
+  state: SelfV2BuildState;
+  stage: SelfV2BuildStage | null;
+  /** 1..steps while running, else 0 */
+  step: number;
+  steps: number;
+  /** the bar's floor now, 0..100 (100 when ready) */
+  percent: number;
+  /** the next stage's floor: the bar eases toward it and never passes it */
+  nextPercent: number;
+  /** typical duration of the current stage, for easing */
+  stageExpectedMs: number | null;
+  startedAt: string | null;
+  /** ISO time the current stage began */
+  stageAt: string | null;
 }
 
 export interface SelfV2Refresh {
