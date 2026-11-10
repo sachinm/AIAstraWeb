@@ -44,6 +44,22 @@ export const V3_WORDS = {
   pendingCard: 'Being read for you now.',
   cardFailed: 'The full reading did not finish for this card. It will be read again with your next reading.',
   unavailableCard: 'Not available for your chart yet.',
+  // doc 70 §4.3, §4.4: a reading per card
+  cardReading: 'Reading your chart',
+  cardQueued: 'In the queue',
+  cardNotThrough: 'This one did not come through',
+  tryAgain: 'Try again',
+  notReadYet: 'Not read yet',
+  stageClocks: 'Reading five clocks of your chart',
+  stageLedger: 'Checking where they agree',
+  stageCards: (done: number, total: number) => `Writing your cards · ${done} of ${total}`,
+  chartPreparing: 'Your chart is still being prepared. Back in a few minutes.',
+  clocksAgree: (agree: number, of: number) => `${agree} of ${of} clocks agree`,
+  clocksSplit: 'The clocks are split here',
+  addFive: 'Add at least five cards to start your reading.',
+  clocksTitle: (label: string) => `The clocks for ${label}`,
+  clockAgrees: 'Agrees',
+  clockDiffers: 'Differs',
 } as const;
 
 export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'>, string> = {

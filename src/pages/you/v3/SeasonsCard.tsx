@@ -11,7 +11,19 @@ import { useState, type ReactNode } from 'react';
 import LoadingVeil from '../../../components/LoadingVeil';
 import type { RailItem, SelfSectionId, SelfV3CardView, SpanReading } from '../../../lib/selfV3Api';
 import { V2_WORDS } from '../v2/words';
-import { ConfirmSection, LadderSection, PatternSection, SectionsMenu, SensitiveNote, cardHeadline } from './CardParts';
+import {
+  ConfirmSection,
+  LadderSection,
+  PatternSection,
+  ReadStateBody,
+  SectionsMenu,
+  SensitiveNote,
+  SpanAgreement,
+  cardHeadline,
+  showsReadState,
+  spanToneShown,
+  type CardReading,
+} from './CardParts';
 import { SPAN_MODE_WORD, SPAN_TONE_DOT, SPAN_TONE_WORD, V3_WORDS } from './words';
 
 export const v3CardShell = 'glass self-v3-card flex h-full min-h-0 flex-col rounded-2xl p-5';
@@ -29,8 +41,9 @@ export function spanFor(card: SelfV3CardView, i: number): SpanReading | null {
   return (id ? spans.find((s) => s.span === id) : null) ?? spans[i] ?? null;
 }
 
-/** The plain line for a card that is not ready, or null when it is. */
-export function notReadyBody(card: SelfV3CardView, veil: boolean): ReactNode {
+/** The plain line for a card that is not ready, or null when it is. With the per-card reading on, the card's own state. */
+export function notReadyBody(card: SelfV3CardView, veil: boolean, reading?: CardReading): ReactNode {
+  if (reading && showsReadState(card, reading)) return <ReadStateBody card={card} reading={reading} />;
   if (card.status === 'pending') {
     return (
       <div className="relative mt-3 min-h-[120px] flex-1 overflow-hidden rounded-xl" data-testid="card-pending">
@@ -70,6 +83,7 @@ function Stretch({ card, railIndex }: { card: SelfV3CardView; railIndex: number 
           {SPAN_MODE_WORD[span.mode]}
           {item ? ` · ${item.label}` : ''}
         </p>
+        <SpanAgreement span={span} />
         {span.asks && <p className="text-base leading-relaxed text-white/85" data-testid="stretch-asks">{span.asks}</p>}
         {span.obstacle && <p className="text-base leading-relaxed text-white/75" data-testid="stretch-obstacle">{span.obstacle}</p>}
         {span.step && <p className="rounded-xl bg-white/5 px-3 py-2.5 text-base leading-relaxed text-white/90" data-testid="stretch-step">{span.step}</p>}
@@ -102,6 +116,7 @@ export function YearRail({ card, selected, onSelect }: { card: SelfV3CardView; s
       <ul className="mt-2 grid gap-1.5" data-testid="year-rail">
         {card.rail.map((r, i) => {
           const on = i === selected;
+          const tone = spanToneShown(card.v3 ? spanFor(card, i) : null, r.tone);
           return (
             <li key={`${r.from}-${i}`}>
               <button
@@ -114,12 +129,12 @@ export function YearRail({ card, selected, onSelect }: { card: SelfV3CardView; s
                 data-testid={`rail-${i}`}
                 data-current={r.current ? 'true' : 'false'}
               >
-                <span className={`h-2.5 w-2.5 rounded-full ${SPAN_TONE_DOT[r.tone ?? 'none']}`} aria-hidden="true" />
+                <span className={`h-2.5 w-2.5 rounded-full ${SPAN_TONE_DOT[tone ?? 'none']}`} aria-hidden="true" />
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{r.label}</span>
                   {!card.v3 && r.note && <span className="block truncate text-xs text-white/55">{r.note}</span>}
                 </span>
-                {r.tone && <span className="text-xs font-semibold text-white/70" data-testid={`rail-tone-${i}`}>{SPAN_TONE_WORD[r.tone]}</span>}
+                {tone && <span className="text-xs font-semibold text-white/70" data-testid={`rail-tone-${i}`}>{SPAN_TONE_WORD[tone]}</span>}
               </button>
             </li>
           );
@@ -136,22 +151,24 @@ export default function SeasonsCard({
   onDetails,
   focused = false,
   veil = true,
+  reading,
 }: {
   card: SelfV3CardView;
   sections: SelfSectionId[];
   onSections: (next: SelfSectionId[]) => void;
-  onDetails: (card: SelfV3CardView) => void;
+  onDetails: (card: SelfV3CardView, span?: SpanReading | null, label?: string | null) => void;
   focused?: boolean;
   veil?: boolean;
+  reading?: CardReading;
 }) {
   const [railIndex, setRailIndex] = useState(() => currentRail(card.rail));
   const on = (s: SelfSectionId) => sections.includes(s);
-  const notReady = notReadyBody(card, veil);
+  const notReady = notReadyBody(card, veil, reading);
   const headline = cardHeadline(card);
   const confirm = card.v3?.confirm ?? null;
 
   return (
-    <article className={`${v3CardShell} ${focused ? 'ring-1 ring-teal-300/40' : ''}`} data-testid={`v3-card-${card.id}`} data-status={card.status} aria-label={card.title}>
+    <article className={`${v3CardShell} ${focused ? 'ring-1 ring-teal-300/40' : ''}`} data-testid={`v3-card-${card.id}`} data-status={card.status} data-state={card.state} aria-label={card.title}>
       <header className="flex shrink-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">{card.title}</h3>
@@ -186,7 +203,7 @@ export default function SeasonsCard({
               </p>
             )}
             {on('details') && (
-              <button type="button" onClick={() => onDetails(card)} className="mt-3 inline-flex min-h-[40px] items-center rounded-lg px-1 text-sm text-purple-300 hover:text-purple-200" data-testid="card-details-open">
+              <button type="button" onClick={() => onDetails(card, card.v3 ? spanFor(card, railIndex) : null, card.rail[railIndex]?.label ?? null)} className="mt-3 inline-flex min-h-[40px] items-center rounded-lg px-1 text-sm text-purple-300 hover:text-purple-200" data-testid="card-details-open">
                 {V2_WORDS.chartDetails} ›
               </button>
             )}

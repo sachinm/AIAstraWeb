@@ -13,6 +13,10 @@
  *
  * When the server has v3 off (GET /api/self/v3 answers 404 without a v3 body) the page renders the v2 board unchanged.
  * Loading, polling, the clock switch, the fresh reading and the build progress are the v2 board's, reused.
+ *
+ * Doc 70 Phase 3 (a reading per card, when `reading.enabled`): each card shows its own state (a quiet skeleton while
+ * queued or reading, Try again when it failed, "Not read yet" otherwise), the header carries the board's reading line,
+ * and the page polls every 2 s while any card on the board is queued or reading.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePlan } from '../../../Auth/ProfileGate';
@@ -25,11 +29,15 @@ import type { RefreshResult } from '../../../lib/boardRefresh';
 import type { SelfV2Area } from '../../../lib/selfV2Api';
 import {
   DEFAULT_TEMPLATE,
+  MIN_READING_CARDS,
   SELF_TEMPLATES_LIVE,
   SUGGESTED_COUNT,
+  cardReadPending,
   cardSections,
   fetchSelfV3,
+  readSelfV3Card,
   saveSelfV3Layout,
+  type BoardReadingView,
   type SelfBoardLayout,
   type SelfBoardLayoutView,
   type SelfCardId,
@@ -38,6 +46,7 @@ import {
   type SelfV3CardView,
   type SelfV3Response,
   type SelfV3State,
+  type SpanReading,
 } from '../../../lib/selfV3Api';
 import { ChartDetails, cardShell } from '../v2/AreaCard';
 import ClockSheet from '../v2/ClockSheet';
@@ -46,6 +55,7 @@ import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, b
 import Sheet from '../v2/Sheet';
 import { V2_WORDS } from '../v2/words';
 import CardChips from './CardChips';
+import { SpanClocks, type CardReading } from './CardParts';
 import CompactCard from './CompactCard';
 import Picker from './Picker';
 import SeasonsCard from './SeasonsCard';
@@ -65,6 +75,25 @@ export function perViewFor(template: SelfTemplateId, mode: BoardMode): number {
 export const PEEK_PX = 40;
 /** the gutter between Seasons cards */
 export const SEASONS_GAP = 24;
+/** doc 70 §4.3 item 3: poll every 2 s while any card on the board is queued or reading */
+export const READING_POLL_MS = 2000;
+
+/** true while the per-card reading is on and a card on the person's board is queued or reading */
+export function readingPending(board: SelfV3Response | null): boolean {
+  if (!board?.reading?.enabled) return false;
+  const byId = new Map(board.cards.map((c) => [c.id, c]));
+  return board.layout.cards.some((id) => cardReadPending(byId.get(id)?.state));
+}
+
+/** The board's reading line (doc 70 §4.4); null for idle and done. */
+export function readingLine(reading: BoardReadingView | null | undefined): string | null {
+  if (!reading?.enabled) return null;
+  if (reading.preparing) return V3_WORDS.chartPreparing;
+  if (reading.stage === 'clocks') return V3_WORDS.stageClocks;
+  if (reading.stage === 'ledger') return V3_WORDS.stageLedger;
+  if (reading.stage === 'cards') return V3_WORDS.stageCards(reading.done, reading.total);
+  return null;
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The page: loads, polls and falls back to the v2 board
@@ -126,6 +155,15 @@ export default function SelfBoardV3() {
     }, Math.min(every, left));
     return () => clearTimeout(t);
   }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, load]);
+
+  // doc 70: poll every 2 s while a card on the board is queued or reading; stops when none is (and on unmount)
+  const cardsPending = readingPending(board);
+  const v2Polling = waiting && !late;
+  useEffect(() => {
+    if (!cardsPending || v2Polling) return;
+    const t = setTimeout(() => void load(), READING_POLL_MS);
+    return () => clearTimeout(t);
+  }, [state, cardsPending, v2Polling, load]);
 
   const retry = () => {
     setLate(false);
@@ -242,7 +280,7 @@ function Board({
   const [pickerBusy, setPickerBusy] = useState(false);
   const [editing, setEditing] = useState<SelfCardId[] | null>(null);
   const [index, setIndex] = useState(0);
-  const [details, setDetails] = useState<SelfV3CardView | null>(null);
+  const [details, setDetails] = useState<{ card: SelfV3CardView; span: SpanReading | null; label: string | null } | null>(null);
   const [clockOpen, setClockOpen] = useState(false);
   const [wizard, setWizard] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
@@ -273,14 +311,31 @@ function Board({
       saving.current -= 1;
       if (r.ok) {
         setLayout(r.layout);
+        // cards were queued for reading: read the board again so their states show and the polling starts
+        if (r.queued.length) onReload();
         return true;
       }
       setLayout(before);
       setSaveError(LAYOUT_ERROR_WORD[r.error] ?? V3_WORDS.saveFailed);
       return false;
     },
-    [layout],
+    [layout, onReload],
   );
+
+  // doc 70 Phase 3: the per-card reading, and Try again (queue the card, then read the board again)
+  const readingOn = !!board.reading?.enabled;
+  const cardReading = useMemo<CardReading>(
+    () => ({
+      on: readingOn,
+      onReadAgain: async (id) => {
+        await readSelfV3Card(id);
+        onReload();
+      },
+    }),
+    [readingOn, onReload],
+  );
+  const stageLine = readingLine(board.reading);
+  const fewForReading = readingOn && layout.chosen && layout.cards.length < MIN_READING_CARDS;
 
   const select = useCallback(
     (i: number) => {
@@ -334,6 +389,12 @@ function Board({
       {board.builtAt && <span data-testid="self-built-line"> · built {longDate(board.builtAt.slice(0, 10))}</span>}
     </p>
   );
+  const readingStatus =
+    stageLine || fewForReading ? (
+      <p className="truncate text-[13px] text-white/65" role="status" data-testid="self-reading-line">
+        {stageLine ?? V3_WORDS.addFive}
+      </p>
+    ) : null;
   const refresh = board.refresh && notDue ? { ...board.refresh, due: false, validUntil: notDue.validUntil ?? board.refresh.validUntil } : board.refresh;
   const freshAnswered = (r: RefreshResult) => {
     setFreshOpen(false);
@@ -412,9 +473,10 @@ function Board({
       card: c,
       sections: cardSections(layout, c),
       onSections: (next: SelfSectionId[]) => setSections(c.id, next),
-      onDetails: setDetails,
+      onDetails: (card: SelfV3CardView, span?: SpanReading | null, label?: string | null) => setDetails({ card, span: span ?? null, label: label ?? null }),
       focused: perView > 1 && i === index,
       veil: !(veiled && progress),
+      reading: cardReading,
     };
     return template === 'compact' ? <CompactCard key={c.id} {...props} /> : <SeasonsCard key={c.id} {...props} />;
   };
@@ -449,6 +511,7 @@ function Board({
       error={saveError}
       onDone={(cards) => void pickerDone(cards)}
       onCancel={layout.chosen ? () => { setPickerOpen(false); setSaveError(null); } : undefined}
+      readingOn={readingOn}
     />
   ) : rebuild ? (
     veil('self-rebuild-veil', V2_WORDS.rebuilding(rebuild.label))
@@ -473,6 +536,7 @@ function Board({
           <SelfTitle onAddPhoto={() => setWizard(true)} small={mode === 'phone'} />
           <div className="min-w-0">
             {clockLine}
+            {!showPicker && readingStatus}
             {!veiled && lateLine}
           </div>
           {mode !== 'phone' && freshControl}
@@ -509,8 +573,9 @@ function Board({
       {!showPicker && mode === 'phone' && <CarouselDots index={index} count={shown.length} onIndexChange={select} label={slideLabel} testId="self-v3-carousel" />}
 
       {details && (
-        <Sheet title={`${details.title} · ${V2_WORDS.chartDetails}`} onClose={() => setDetails(null)} testId="details-sheet">
-          <ChartDetails area={detailsArea(details)} showEvidence={board.profile?.role === 'practitioner'} />
+        <Sheet title={`${details.card.title} · ${V2_WORDS.chartDetails}`} onClose={() => setDetails(null)} testId="details-sheet">
+          <ChartDetails area={detailsArea(details.card)} showEvidence={board.profile?.role === 'practitioner'} />
+          <SpanClocks span={details.span} label={details.label} />
         </Sheet>
       )}
       {clockOpen && (

@@ -5,9 +5,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
 import type { LadderSteps, PersonalPattern } from '../../../lib/selfV2Api';
-import { FIXED_SECTIONS, SELF_SECTIONS, sendSelfV3Confirm, type SelfSectionId, type SelfV3CardView } from '../../../lib/selfV3Api';
+import { FIXED_SECTIONS, SELF_SECTIONS, cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfSectionId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
 import { spanWords } from '../v2/words';
-import { SECTION_WORD, V3_WORDS } from './words';
+import { SECTION_WORD, SPAN_TONE_WORD, V3_WORDS } from './words';
 
 /** the card's headline: the v3 line, else the stored v2 headline */
 export function cardHeadline(card: SelfV3CardView): string | null {
@@ -201,5 +201,121 @@ export function SensitiveNote({ card }: { card: SelfV3CardView }) {
     <p className="text-xs text-white/55" data-testid="card-sensitive">
       {V3_WORDS.sensitive}
     </p>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Doc 70 Phase 3: a reading per card (§4.3, §4.4)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** the per-card reading as a card sees it: on when the board's `reading.enabled`, and the Try again call */
+export interface CardReading {
+  on: boolean;
+  onReadAgain: (id: SelfCardId) => Promise<void> | void;
+}
+
+/** true when the card shows its reading state instead of its body */
+export function showsReadState(card: SelfV3CardView, reading: CardReading | undefined): boolean {
+  return !!reading?.on && !!card.state && card.state !== 'ready';
+}
+
+/**
+ * A card that is not read yet: a quiet skeleton and one line while it is queued or reading; "This one did not come
+ * through" with Try again when it failed; "Not read yet" otherwise (also at the spend cap, never an error).
+ */
+export function ReadStateBody({ card, reading }: { card: SelfV3CardView; reading: CardReading }) {
+  const [busy, setBusy] = useState(false);
+  if (cardReadPending(card.state)) {
+    return (
+      <div className="mt-3 min-h-[120px] flex-1" role="status" data-testid="card-reading" data-state={card.state}>
+        <div className="space-y-2.5" aria-hidden="true">
+          <div className="h-5 w-3/4 animate-pulse rounded-md bg-white/10 motion-reduce:animate-none" />
+          <div className="h-3.5 w-full animate-pulse rounded-md bg-white/[0.07] motion-reduce:animate-none" />
+          <div className="h-3.5 w-5/6 animate-pulse rounded-md bg-white/[0.07] motion-reduce:animate-none" />
+        </div>
+        <p className="mt-4 text-[15px] text-white/65" data-testid="card-reading-line">
+          {card.state === 'reading' ? V3_WORDS.cardReading : V3_WORDS.cardQueued}
+        </p>
+      </div>
+    );
+  }
+  if (card.state === 'failed') {
+    const again = async () => {
+      setBusy(true);
+      try {
+        await reading.onReadAgain(card.id);
+      } finally {
+        setBusy(false);
+      }
+    };
+    return (
+      <div className="mt-3" data-testid="card-read-failed">
+        <p className="text-[15px] text-white/75">{V3_WORDS.cardNotThrough}</p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void again()}
+          className="mt-3 inline-flex min-h-[44px] items-center rounded-full border border-white/20 bg-white/5 px-4 text-sm font-semibold text-white/85 hover:bg-white/10 disabled:opacity-40"
+          data-testid="card-try-again"
+        >
+          {V3_WORDS.tryAgain}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <p className="mt-3 text-[15px] text-white/60" data-testid="card-not-read">
+      {V3_WORDS.notReadYet}
+    </p>
+  );
+}
+
+/** "4 of 5 clocks agree", or "The clocks are split here" when too few clocks hold the span's tone */
+export function SpanAgreement({ span }: { span: SpanReading | null }) {
+  if (!span) return null;
+  if (span.held === false)
+    return (
+      <p className="text-sm text-white/60" data-testid="span-agreement" data-held="false">
+        {V3_WORDS.clocksSplit}
+      </p>
+    );
+  if (!span.agreement) return null;
+  return (
+    <p className="text-sm text-white/60" data-testid="span-agreement" data-held="true">
+      {V3_WORDS.clocksAgree(span.agreement.agree, span.agreement.of)}
+    </p>
+  );
+}
+
+/** the tone a span shows: none when the clocks are split on it */
+export function spanToneShown<T>(span: SpanReading | null, tone: T | null): T | null {
+  return span?.held === false ? null : tone;
+}
+
+/** Chart details: each clock read for the selected span, its tone and whether it agrees */
+export function SpanClocks({ span, label }: { span: SpanReading | null; label: string | null }) {
+  const clocks = span?.clocks ?? [];
+  if (!clocks.length) return null;
+  return (
+    <section className="mt-5" data-testid="details-clocks">
+      <h4 className={heading}>{V3_WORDS.clocksTitle(label ?? SECTION_WORD.stretch.toLowerCase())}</h4>
+      <ul className="mt-2 grid gap-1.5">
+        {clocks.map((c) => (
+          <li
+            key={c.system}
+            className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl bg-white/5 px-3 py-2 text-[15px]"
+            data-testid={`details-clock-${c.system}`}
+            data-agrees={c.agrees ? 'true' : 'false'}
+          >
+            <span className="text-white/90">{c.label}</span>
+            <span className="text-sm text-white/70">{SPAN_TONE_WORD[c.tone]}</span>
+            <span className={`text-sm font-semibold ${c.agrees ? 'text-teal-200' : 'text-white/50'}`} data-testid="details-clock-mark">
+              <span aria-hidden="true">{c.agrees ? '✓ ' : '· '}</span>
+              {c.agrees ? V3_WORDS.clockAgrees : V3_WORDS.clockDiffers}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

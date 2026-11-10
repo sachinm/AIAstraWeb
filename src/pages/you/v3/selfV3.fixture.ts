@@ -3,9 +3,12 @@
  * from the v2 build with rails from their dates, two filled by v3 with three spans each (Body & energy and How you
  * think), one pending (Chapters) and one unavailable (How you come across). Eight are suggested, none of them the
  * unavailable one. Plain words on every card face; chart terms only under `details`.
+ *
+ * Doc 70 Phase 3: every card is `ready`, the board's `reading` is null (the per-card reading off); Body & energy's spans
+ * carry their clock agreement (the second span is split: no tone word). `selfV3Reading` turns the per-card reading on.
  */
 import type { PersonalCard } from '../../../lib/selfV2Api';
-import type { RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardView, SelfV3Response, SpanReading } from '../../../lib/selfV3Api';
+import type { BoardReadingView, RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardView, SelfV3Response, SpanClockView, SpanReading } from '../../../lib/selfV3Api';
 import { DEFAULT_SECTIONS } from '../../../lib/selfV3Api';
 
 export const V3_CARDS: ReadonlyArray<{ id: SelfCardIdV2; group: SelfCardGroup; title: string; description: string; suggested: boolean; sensitive: boolean }> = [
@@ -57,6 +60,18 @@ function v2Rail(): RailItem[] {
   ];
 }
 
+/** the five clocks, plain names; `agree` marks the ones holding the span's tone */
+function clocks(tones: Array<[SpanClockView['tone'], boolean]>): SpanClockView[] {
+  const names: Array<[string, string]> = [
+    ['main', 'Main'],
+    ['vimshottari', 'Life chapters'],
+    ['narayana', 'Sign periods'],
+    ['tp_year', 'Birthday year'],
+    ['short', 'Short cycles'],
+  ];
+  return tones.map(([tone, agrees], i) => ({ system: names[i]![0], label: names[i]![1], tone, agrees }));
+}
+
 const BODY_SPANS: SpanReading[] = [
   {
     span: 's1',
@@ -67,6 +82,15 @@ const BODY_SPANS: SpanReading[] = [
     asks: 'This stretch asks you to guard your evenings and keep the body warm.',
     obstacle: 'The likely trap is working late to catch up.',
     step: 'If it is past ten and you are still working, stop and write tomorrow’s first task instead.',
+    held: true,
+    agreement: { agree: 4, of: 5 },
+    clocks: clocks([
+      ['heavy', true],
+      ['heavy', true],
+      ['heavy', true],
+      ['light', false],
+      ['heavy', true],
+    ]),
   },
   {
     span: 's2',
@@ -77,6 +101,15 @@ const BODY_SPANS: SpanReading[] = [
     asks: 'Energy comes back in waves; take the good days slowly.',
     obstacle: 'Spending a good day all at once.',
     step: 'If you wake rested, walk before you work.',
+    held: false,
+    agreement: { agree: 2, of: 5 },
+    clocks: clocks([
+      ['heavy', false],
+      ['light', false],
+      ['mixed', true],
+      ['mixed', true],
+      ['light', false],
+    ]),
   },
   {
     span: 's3',
@@ -87,6 +120,15 @@ const BODY_SPANS: SpanReading[] = [
     asks: 'A good stretch to build strength that lasts: a habit, a routine, a plan for the body.',
     obstacle: 'Doing too much in the first week.',
     step: 'If you start a routine, keep it to twenty minutes for the first month.',
+    held: true,
+    agreement: { agree: 3, of: 5 },
+    clocks: clocks([
+      ['light', true],
+      ['light', true],
+      ['mixed', false],
+      ['light', true],
+      ['heavy', false],
+    ]),
   },
 ];
 
@@ -129,7 +171,7 @@ function v3Rail(spans: SpanReading[]): RailItem[] {
     from: s.from,
     to: s.to,
     label: i === 0 ? `now → ${fmt(s.to)}` : `${fmt(s.from)} → ${fmt(s.to)}`,
-    tone: s.tone,
+    tone: s.held === false ? null : s.tone,
     note: null,
     current: i === 0,
     span: s.span,
@@ -151,6 +193,7 @@ function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
     available: true,
     unavailableReason: null,
     status: 'ok',
+    state: 'ready',
     firstLine: `${def.title}: ideas outrun their footing until 12 Dec 2026.`,
     defaultSections: [...DEFAULT_SECTIONS],
     rail: v2Rail(),
@@ -221,7 +264,30 @@ export function selfV3Fixture(): SelfV3Response {
       updatedAt: '2026-11-09T08:05:00Z',
     },
     cards: V3_CARDS.map(card),
+    reading: null,
   };
+}
+
+/** the per-card reading on (doc 70 Phase 3): eight cards on the board, writing cards, 5 of 8 ready */
+export function selfV3Reading(over: Partial<BoardReadingView> = {}): SelfV3Response {
+  const b = selfV3Fixture();
+  b.reading = {
+    enabled: true,
+    stage: 'cards',
+    clocks: [
+      { system: 'main', label: 'Main', state: 'read' },
+      { system: 'vimshottari', label: 'Life chapters', state: 'read' },
+      { system: 'narayana', label: 'Sign periods', state: 'read' },
+      { system: 'tp_year', label: 'Birthday year', state: 'read' },
+      { system: 'short', label: 'Short cycles', state: 'read' },
+    ],
+    done: 5,
+    total: 8,
+    capReached: false,
+    preparing: false,
+    ...over,
+  };
+  return b;
 }
 
 /** a first visit: nothing chosen yet, the picker opens */
