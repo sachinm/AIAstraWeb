@@ -160,7 +160,8 @@ html.light .load-veil {
 
 /* the chart between two columns of tiles on each side */
 .load-veil__stage {
-  --tile: clamp(28px, 8.2cqh, 72px);
+  /* sized by height and by width, so both tile columns and the chips fit beside a full-size board */
+  --tile: clamp(24px, min(8.2cqh, 4.1cqw), 72px);
   position: relative;
   z-index: 1;
   flex: 1 1 auto;
@@ -176,7 +177,8 @@ html.light .load-veil {
   max-height: 100%;
   aspect-ratio: 1 / 1;
   max-width: min(64cqw, 100%);
-  flex: 0 1 auto;
+  /* the board keeps its size; the pieces beside it give way */
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -198,14 +200,6 @@ html.light .load-veil {
     loadVeilFloat 7s ease-in-out 0.5s infinite;
 }
 
-.load-veil__col {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--tile) * 0.28);
-}
-.load-veil__col--outer {
-  margin-top: calc(var(--tile) * 0.55);
-}
 .load-veil__tile {
   width: var(--tile);
   height: var(--tile);
@@ -234,33 +228,10 @@ html.light .load-veil {
   color: var(--rashi);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 0 calc(var(--tile) * 0.25) color-mix(in srgb, var(--rashi) 45%, transparent);
 }
-.load-veil--animate .load-veil__tile {
+.load-veil--animate .load-veil__tile,
+.load-veil--animate .load-veil__chip {
   animation: loadVeilBob 5.5s ease-in-out infinite;
   animation-delay: calc(var(--i, 0) * -0.45s);
-}
-
-/* smaller spaces: drop the outer columns, then all tiles and the brand, then the chart */
-@container (max-width: 720px) {
-  .load-veil__col--outer {
-    display: none;
-  }
-}
-@container (max-width: 420px) {
-  .load-veil__col {
-    display: none;
-  }
-}
-@container (max-height: 300px) {
-  .load-veil__col,
-  .load-veil__brand-rest {
-    display: none;
-  }
-}
-@container (max-height: 170px) {
-  .load-veil__stage,
-  .load-veil__brand {
-    display: none;
-  }
 }
 
 .load-veil--leaving .load-veil__layer {
@@ -367,4 +338,91 @@ html.light .load-veil {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* The pieces (Sachin, 2026-11-10: all of them, always): beside the board on wide screens, nakshatra chips on the outside
+   and two columns of glyph tiles next to the board; above and below the board on narrow ones, smaller. Never hidden. */
+.load-veil__side {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tile) * 0.35);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-height: 100%;
+  overflow: hidden;
+  /* room for the tiles' drop shadows inside the clip */
+  padding: calc(var(--tile) * 0.15) calc(var(--tile) * 0.1) calc(var(--tile) * 0.35);
+}
+.load-veil__side--right {
+  flex-direction: row-reverse;
+}
+.load-veil__glyphs {
+  display: grid;
+  grid-template-columns: repeat(2, var(--tile));
+  gap: calc(var(--tile) * 0.26);
+}
+.load-veil__naks {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--tile) * 0.12);
+}
+.load-veil__chip {
+  display: block;
+  white-space: nowrap;
+  padding: calc(var(--tile) * 0.06) calc(var(--tile) * 0.22);
+  border-radius: 999px;
+  border: 1px solid var(--tile-border);
+  background: var(--tile-bg);
+  box-shadow:
+    inset 0 1px 0 var(--veil-hi),
+    0 calc(var(--tile) * 0.06) calc(var(--tile) * 0.16) calc(var(--tile) * -0.06) var(--tile-drop);
+  font-size: calc(var(--tile) * 0.24);
+  line-height: 1.35;
+  color: var(--note);
+  text-align: center;
+  user-select: none;
+}
+.load-veil__side--left .load-veil__chip {
+  text-align: right;
+}
+.load-veil__side--right .load-veil__chip {
+  text-align: left;
+}
+/* iPad and phone widths (Sachin, 2026-11-10): the board keeps its size; the pieces stay beside it, smaller, and what
+   does not fit is simply cut off at the panel's edge. The nakshatra chips give way first. */
+@container (max-width: 760px) {
+  .load-veil__stage {
+    --tile: clamp(18px, 6cqw, 44px);
+  }
+  .load-veil__naks {
+    display: none;
+  }
+  .load-veil__board {
+    margin: 0 calc(var(--tile) * 0.15);
+  }
+  .load-veil__side {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+  /* as many tile columns as the leftover width holds, at least one */
+  .load-veil__glyphs {
+    grid-template-columns: repeat(auto-fill, var(--tile));
+    justify-content: center;
+    width: 100%;
+  }
+}
+/* phones: the board takes most of the width (still larger than before), leaving one column of small tiles a side */
+@container (max-width: 560px) {
+  .load-veil__board {
+    max-width: 76cqw;
+  }
+}
+/* very short panels (an inline wait inside a card): tiles and chips shrink but stay */
+@container (max-height: 320px) {
+  .load-veil__stage {
+    --tile: clamp(16px, 7cqh, 28px);
+  }
+  .load-veil__brand-rest {
+    display: none;
+  }
 }
