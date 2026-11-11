@@ -55,7 +55,7 @@ describe('Auth api', () => {
       const [query, vars] = runGraphQL.mock.calls[0];
       expect(query).toMatch(/termsAccepted: \$termsAccepted/);
       expect(query).toMatch(/termsVersion: \$termsVersion/);
-      expect(query).toMatch(/\bcode\b\s+token/);
+      expect(query).toMatch(/\bcode\b\s+turnstileConsumed\s+token/);
       expect(vars).toEqual({
         email: 'user@test.com',
         code: 'ABCD2345',
