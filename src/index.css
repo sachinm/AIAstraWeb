@@ -8,6 +8,22 @@ body {
   background-color: #05060f;
 }
 
+/*
+ * The public pages are exactly one screen tall: header pinned at the top, footer at the bottom, and only the middle
+ * scrolls when a form is taller than the room (Sachin, 2026-11-10). 100vh first for a browser without dvh; the page
+ * itself never scrolls or bounces.
+ */
+.public-frame {
+  height: 100vh;
+  height: 100dvh;
+}
+html:has(.public-frame),
+body:has(.public-frame) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* The page background, drawn here so no third party controls how the app looks. */
 .app-sky {
   background-color: #0b0a1f;
@@ -133,30 +149,24 @@ body {
 }
 
 /*
- * An upright screen would crop a wide scene to a narrow strip, so on iPhone and iPad the whole picture shrinks to the
- * screen's width under the header, its edges fading into the starfield. The hero starts below it.
+ * On an upright screen the scene covers the whole screen too, cropped to its middle where the figure stands (Sachin,
+ * 2026-11-10: a picture shrunk to the screen's width ended in a hard edge above the sign-up form). The caption rests under
+ * the header, clear of the figure; on sign-in and sign-up the form fills a phone, so the caption steps aside.
  */
 @media (orientation: portrait) {
   .sky-image {
-    position: absolute;
-    top: 56px;
-    left: 0;
-    /* the scenes' own shape, so the fade below falls on their real edges */
-    height: auto;
-    aspect-ratio: 16 / 9;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
-  }
-  .sky-form-page > div {
-    padding-top: 46vw;
+    background-position: 50% 40%;
   }
   .sky-caption {
-    top: calc(56px + 46vw - 3.75rem);
+    top: calc(56px + 0.75rem);
     bottom: auto !important;
   }
-  /* no words sit over the picture here, so it can be brighter than on a wide screen */
+  body:has(.sky-form-page) .sky-caption {
+    display: none;
+  }
+  /* words sit over the picture here, so a light shade top and middle and a deeper one at the foot */
   .sky-scrim {
-    background-image: linear-gradient(to bottom, rgba(5, 6, 15, 0.08), rgba(5, 6, 15, 0.08) calc(56px + 46vw), rgba(5, 6, 15, 0.6) calc(56px + 60vw)) !important;
+    background-image: linear-gradient(to bottom, rgba(5, 6, 15, 0.45), rgba(5, 6, 15, 0.3) 40%, rgba(5, 6, 15, 0.7)) !important;
   }
 }
 

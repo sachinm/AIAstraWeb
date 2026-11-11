@@ -19,10 +19,10 @@ const Y_RANGE: [number, number] = [14, 82];
 
 /** Rectangles a scroll stays out of: [x0, x1, y0, y1]. */
 const KEEP_OUT: ReadonlyArray<readonly [number, number, number, number]> = [[36, 64, 14, 82]];
-/** The caption sits bottom right on a wide screen, and at the picture's lower right, near the top of the page, on an upright one. */
+/** The caption sits bottom right on a wide screen, and top right under the header on an upright one. */
 const CAPTION = [70, 100, 62, 100] as const;
-const CAPTION_PORTRAIT = [66, 100, 12, 44] as const;
-/** On an upright screen the picture fills the width, so only a narrow centre strip is kept clear. */
+const CAPTION_PORTRAIT = [55, 100, 6, 24] as const;
+/** On an upright screen the picture is cropped to its middle, so only a narrow centre strip is kept clear. */
 const KEEP_OUT_PORTRAIT: ReadonlyArray<readonly [number, number, number, number]> = [[30, 70, 30, 66]];
 
 /** With no random source (the prerendered page), scrolls rest at these spots, so the first paint and the server's agree. */

@@ -59,7 +59,7 @@ describe('placing the scrolls', () => {
 
   it('on an upright screen, keeps the caption near the top right clear instead', () => {
     for (let seed = 1; seed < 200; seed++) {
-      for (const p of placeScrolls(8, seeded(seed), true)) expect(p.x >= 66 && p.y >= 12 && p.y <= 44).toBe(false);
+      for (const p of placeScrolls(8, seeded(seed), true)) expect(p.x >= 55 && p.y >= 6 && p.y <= 24).toBe(false);
     }
   });
 

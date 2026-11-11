@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Star, AlertTriangle, MessageCircle, Sparkles } from 'lucide-react';
+import { Star, AlertTriangle, Menu, MessageCircle, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProfileMenu from '../components/ProfileMenu';
 import HeaderTabs from '../components/HeaderTabs';
 import { boardsEnabled } from '../components/BoardTabBar';
+import { useLeftRail } from '../components/SideNav';
 import UsageBar from '../components/UsageBar';
 import { PRODUCT_NAME, PRODUCT_TAGLINE } from '../lib/legal';
 import WelcomeWizard from './welcome/WelcomeWizard';
@@ -21,6 +22,7 @@ interface TopNavigationProps {
 
 const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMessage }) => {
   const [wizardOpen, setWizardOpen] = useState(false);
+  const rail = useLeftRail();
 
   return (
     <>
@@ -28,8 +30,22 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
         className="sticky top-0 z-50 w-screen shrink-0 glass-bar border-b border-white/10 ml-[calc(50%-50vw)]"
         aria-label="Main"
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center gap-3">
+        <div className="w-full px-3 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center gap-2 sm:gap-3">
+            {/* below 768 px the boards rail is a drawer, opened here, left of the brand (Sachin, 2026-11-10) */}
+            {rail && boardsEnabled() && (
+              <button
+                type="button"
+                onClick={() => rail.setDrawer(!rail.drawer)}
+                aria-label={rail.drawer ? 'Close the menu' : 'Open the menu'}
+                aria-expanded={rail.drawer}
+                aria-controls="side-nav"
+                data-testid="header-menu-button"
+                className="-ml-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 md:hidden"
+              >
+                <Menu className="h-6 w-6" aria-hidden="true" />
+              </button>
+            )}
             <Link to="/dashboard/you" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} className="flex shrink-0 items-center space-x-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
               <Star className="w-8 h-8 text-purple-400" />
               <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
