@@ -4,7 +4,7 @@
  * splits the rest into four pages instead of a long scroll: Now, Looking back, Ahead, Your questions. Plain words only;
  * the timing clocks behind the verdict are listed in Why and in the Master-Detail inspector.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   fetchCareer,
   getCachedCareer,
@@ -20,6 +20,9 @@ import {
 } from '../../lib/careerApi';
 import { track } from '../../lib/events';
 import BoardAsk from '../../components/BoardAsk';
+import { AreaCardChips, AreaCardsButton, AreaCardsSheet, useAreaCards } from '../../components/boardCards/AreaCards';
+import { allowedSubareas, optionsForSubarea } from '../../lib/boardCardsApi';
+import type { CardOptions } from '../../lib/cardOptions';
 import LoadingVeil from '../../components/LoadingVeil';
 import { ReadingStamp } from '../../components/ReadingStamp';
 
@@ -109,6 +112,12 @@ export default function WorkPage() {
   const [state, setState] = useState<CareerState | null>(() => getCachedCareer());
   const [page, setPage] = useState<Page>('now');
   const [why, setWhy] = useState(false);
+  // doc 71 §4.6: the person's Work cards and each card's options
+  const cards = useAreaCards('work');
+  const [activeCard, setActiveCard] = useState<string | null>(null);
+  const allowed = useMemo(() => allowedSubareas(cards.layout, cards.catalogue), [cards.layout, cards.catalogue]);
+  const optionsOf = useMemo(() => (key: string) => optionsForSubarea(key, cards.layout, cards.catalogue), [cards.layout, cards.catalogue]);
+  const [cardFocus, setCardFocus] = useState<string | null>(null);
 
   const load = () =>
     fetchCareer()
@@ -142,8 +151,12 @@ export default function WorkPage() {
           <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl font-bold text-transparent">Work</h1>
           <ReadingStamp madeAt={state.madeAt} validUntil={state.validUntil} board="work" refreshDue={state.refreshDue} onRefreshed={() => void load()} />
         </div>
-        <BoardAsk category="work" />
+        <div className="flex shrink-0 items-center gap-2">
+          <AreaCardsButton cards={cards} />
+          <BoardAsk category="work" />
+        </div>
       </div>
+      <AreaCardsSheet board="work" cards={cards} />
 
       {work === null && (
         <div className={`${panel} mb-4`} data-testid="work-question">
@@ -180,6 +193,18 @@ export default function WorkPage() {
         </button>
       </section>
 
+      <AreaCardChips
+        cards={cards}
+        active={activeCard}
+        onSelect={(c) => {
+          setActiveCard(c?.id ?? null);
+          const only = c && c.subareas[0] !== '*' ? c.subareas[0]! : null;
+          setCardFocus(only);
+          if (c) setPage('worries');
+          track('chip_select', SURFACE, c ? `card_${c.id}` : 'card_all');
+        }}
+      />
+
       <div role="tablist" aria-label="Work pages" className="mb-4 flex gap-1 overflow-x-auto glass rounded-xl p-1">
         {(['now', 'back', 'ahead', 'worries'] as Page[]).map((p) => (
           <button key={p} role="tab" type="button" aria-selected={page === p} onClick={() => { setPage(p); track('tab_select', SURFACE, p); }} className={`min-h-[44px] flex-1 whitespace-nowrap rounded-lg px-4 text-sm ${page === p ? 'bg-white/15 text-white' : 'text-white/60'}`}>
@@ -191,7 +216,7 @@ export default function WorkPage() {
       {page === 'now' && <NowPage map={map} />}
       {page === 'back' && <BackPage map={map} checks={checks} onAnswered={() => void load()} />}
       {page === 'ahead' && <AheadPage map={map} />}
-      {page === 'worries' && <WorriesPage map={map} />}
+      {page === 'worries' && <WorriesPage map={map} allowed={allowed} focus={cardFocus} optionsOf={optionsOf} />}
 
       {why && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="Why we think so" onClick={() => setWhy(false)}>
@@ -452,13 +477,44 @@ function AheadPage({ map }: { map: CareerMap }) {
   );
 }
 
-function WorriesPage({ map }: { map: CareerMap }) {
-  const subs = [...new Set(map.ahead.map((w) => w.subarea))];
-  const [sel, setSel] = useState<string | null>(subs[0] ?? null);
+/** doc 71 §4.6: a card's View as a horizon over the windows (now: open today; year: starting within twelve months) */
+export function inView(w: { from: string; to: string }, asOf: string, view: CardOptions['view'] | undefined): boolean {
+  if (!view || view === 'arc') return true;
+  if (view === 'now') return w.from <= asOf && w.to >= asOf;
+  const y = new Date(`${asOf}T00:00:00Z`);
+  y.setUTCFullYear(y.getUTCFullYear() + 1);
+  return w.from <= y.toISOString().slice(0, 10);
+}
+
+function WorriesPage({
+  map,
+  allowed = null,
+  focus = null,
+  optionsOf,
+}: {
+  map: CareerMap;
+  allowed?: Set<string> | null;
+  focus?: string | null;
+  optionsOf?: (subarea: string) => CardOptions | null;
+}) {
+  const subs = [...new Set(map.ahead.map((w) => w.subarea))].filter((s) => !allowed || allowed.has(s));
+  const [sel, setSel] = useState<string | null>(focus && subs.includes(focus) ? focus : subs[0] ?? null);
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
+  useEffect(() => {
+    if (focus && subs.includes(focus)) {
+      setSel(focus);
+      setSelectedIdx(0);
+    } else if (sel && !subs.includes(sel)) setSel(subs[0] ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, allowed]);
 
   if (!subs.length) return <div className={panel}>Nothing specific is opening or pressing in the next two years.</div>;
-  const list = map.ahead.filter((w) => w.subarea === sel);
+  const opts = sel ? optionsOf?.(sel) ?? null : null;
+  const all = map.ahead.filter((w) => w.subarea === sel);
+  const viewed = all.filter((w) => inView(w, map.asOf, opts?.view));
+  const list = viewed.length ? viewed : all;
+  const glance = opts?.length === 'glance';
+  const plain = opts ? opts.words === 'plain' : false;
   const activeWin = list[selectedIdx] ?? list[0]!;
   const activeClocks = (activeWin?.families ?? []).map((f) => WORK_CLOCK_LABELS[f] ?? f);
 
@@ -522,7 +578,7 @@ function WorriesPage({ map }: { map: CareerMap }) {
                   {openingText}
                   {` · ${w.families.length} of 5 families agree`}
                 </div>
-                {clockList && (
+                {clockList && !plain && (
                   <div className="mt-1 text-xs text-purple-200/90">
                     Vedic Timing Clocks Aligned: {clockList}
                   </div>
@@ -553,7 +609,8 @@ function WorriesPage({ map }: { map: CareerMap }) {
               <span>{longDate(activeWin.from)} – {longDate(activeWin.to)} (Peak: {monthName(activeWin.peakMonth)})</span>
             </div>
 
-            <div className="space-y-3 text-sm leading-relaxed text-white/85">
+            {!glance && (
+            <div className="space-y-3 text-sm leading-relaxed text-white/85" data-testid="finding-detail-body">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-white/50">Astrology Oracle Reading</div>
                 <p className="mt-1" data-testid="finding-detail-reading">
@@ -563,6 +620,8 @@ function WorriesPage({ map }: { map: CareerMap }) {
                 </p>
               </div>
 
+              {!plain && (
+              <>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">Natal Promise (10th Bhava & Dasamsa D10)</div>
@@ -595,7 +654,10 @@ function WorriesPage({ map }: { map: CareerMap }) {
                   </li>
                 </ul>
               </div>
+              </>
+              )}
             </div>
+            )}
           </div>
         )}
       </div>

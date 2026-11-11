@@ -64,6 +64,7 @@ export const LOVE_CONFIG: AreaBoardConfig = {
   emptyAhead: 'Nothing large is moving in love in the next three years.',
   emptyBack: 'Nothing sharp enough in the last year to check with you.',
   unavailable: 'The Love board is coming soon.',
+  cardsBoard: 'love',
 };
 
 export default function LovePage() {

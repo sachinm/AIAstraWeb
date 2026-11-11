@@ -13,6 +13,7 @@
  *                                | 400 unknown_card, card_not_offered | 404 no_kundli | 503 off
  * The clock switch stays PUT /api/self/v2/clock (selfV2Api.changeSelfV2Clock).
  */
+import type { BoardCardOptions, CardOptions } from './cardOptions';
 import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
 import type {
@@ -88,6 +89,8 @@ export interface SelfBoardLayout {
   cards: SelfCardId[];
   /** per card, the sections switched on, when the person changed them; absent: the card's defaults */
   sections: Partial<Record<SelfCardId, SelfSectionId[]>>;
+  /** per card, how it reads (server doc 71 §4.3), only the keys the person changed */
+  options?: BoardCardOptions;
 }
 
 export interface SelfBoardLayoutView extends SelfBoardLayout {
@@ -106,7 +109,8 @@ export type LayoutError =
   | 'too_few_cards'
   | 'unknown_section'
   | 'fixed_section_off'
-  | 'bad_body';
+  | 'bad_body'
+  | 'unknown_option';
 
 /** the engine's word for a span on one clock */
 export type SpanTone = 'heavy' | 'mixed' | 'light';
@@ -191,6 +195,9 @@ export interface SelfV3CardView {
   /** the card's real first line for this person, for the picker tile; null until read */
   firstLine: string | null;
   defaultSections: SelfSectionId[];
+  /** doc 71: the options in force and the plain lines where one cannot be honoured yet (absent from older servers) */
+  options?: CardOptions;
+  optionNotes?: string[];
   rail: RailItem[];
   /** Phase B content; null while the card is filled from the v2 build */
   v3: SelfV3CardContent | null;
@@ -314,6 +321,7 @@ const LAYOUT_ERRORS = new Set<LayoutError>([
   'unknown_section',
   'fixed_section_off',
   'bad_body',
+  'unknown_option',
 ]);
 
 async function call(method: string, path: string, payload?: unknown): Promise<Response> {
@@ -355,7 +363,7 @@ export async function fetchSelfV3(): Promise<SelfV3State> {
 export async function saveSelfV3Layout(layout: SelfBoardLayout): Promise<LayoutSaveResult> {
   let r: Response;
   try {
-    r = await call('PUT', '/api/self/v3/layout', { template: layout.template, cards: layout.cards, sections: layout.sections });
+    r = await call('PUT', '/api/self/v3/layout', { template: layout.template, cards: layout.cards, sections: layout.sections, ...(layout.options ? { options: layout.options } : {}) });
   } catch {
     return { ok: false, error: 'failed' };
   }

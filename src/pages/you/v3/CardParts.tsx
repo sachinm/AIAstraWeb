@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
 import type { LadderSteps, PersonalPattern } from '../../../lib/selfV2Api';
 import { FIXED_SECTIONS, SELF_SECTIONS, cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfSectionId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
+import CardOptionsControls from '../../../components/boardCards/CardOptionsControls';
+import type { CardOptionKey, CardOptions } from '../../../lib/cardOptions';
 import { spanWords } from '../v2/words';
 import { SECTION_WORD, SPAN_TONE_WORD, V3_WORDS } from './words';
 
@@ -133,7 +135,20 @@ export function ConfirmSection({ confirm }: { confirm: { claimId: string; text: 
 }
 
 /** "Edit sections": line and year are shown on and locked; the others toggle and save at once. */
-export function SectionsMenu({ card, sections, onChange }: { card: SelfV3CardView; sections: SelfSectionId[]; onChange: (next: SelfSectionId[]) => void }) {
+export function SectionsMenu({
+  card,
+  sections,
+  onChange,
+  options,
+  onOption,
+}: {
+  card: SelfV3CardView;
+  sections: SelfSectionId[];
+  onChange: (next: SelfSectionId[]) => void;
+  /** doc 71 §4.3: "How this card reads" above the section switches, when the board passes it */
+  options?: Partial<CardOptions>;
+  onOption?: (key: CardOptionKey, value: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -171,7 +186,18 @@ export function SectionsMenu({ card, sections, onChange }: { card: SelfV3CardVie
         {V3_WORDS.editSections}
       </button>
       {open && (
-        <div role="group" aria-label={V3_WORDS.sectionsTitle(card.title)} className="absolute right-0 top-full z-20 mt-1 w-60 rounded-2xl border border-white/10 bg-[#141233] p-2 shadow-2xl" data-testid={`sections-menu-${card.id}`}>
+        <div
+          role="group"
+          aria-label={V3_WORDS.sectionsTitle(card.title)}
+          className="absolute right-0 top-full z-20 mt-1 max-h-[70vh] w-72 overflow-y-auto rounded-2xl border border-white/10 bg-[#141233] p-3 shadow-2xl [scrollbar-width:thin]"
+          data-testid={`sections-menu-${card.id}`}
+        >
+          {onOption && (
+            <div className="mb-3 border-b border-white/10 pb-3">
+              <CardOptionsControls cardId={card.id} title={card.title} chosen={options} notes={card.optionNotes} onChange={onOption} />
+            </div>
+          )}
+          {onOption && <p className="mb-1 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-white/50">{V3_WORDS.fineTune}</p>}
           {SELF_SECTIONS.map((s) => {
             const fixed = FIXED_SECTIONS.includes(s);
             return (
@@ -192,6 +218,16 @@ export function SectionsMenu({ card, sections, onChange }: { card: SelfV3CardVie
         </div>
       )}
     </div>
+  );
+}
+
+/** doc 71: the server's plain lines where a card's options cannot be honoured yet */
+export function OptionNotes({ card }: { card: SelfV3CardView }) {
+  if (!card.optionNotes?.length) return null;
+  return (
+    <p className="text-xs text-white/55" data-testid="card-option-note">
+      {card.optionNotes.join(' ')}
+    </p>
   );
 }
 

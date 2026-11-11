@@ -245,6 +245,42 @@ describe('Self board v3: the board', () => {
     expect(within(c).getByTestId('section-year')).toBeInTheDocument();
   });
 
+  it('doc 71: "How this card reads" saves the option with the sections it means, and the server note shows on the card', async () => {
+    srv.v3Body = () => {
+      const b = selfV3Fixture();
+      b.cards.find((x) => x.id === 'body')!.optionNotes = ['Deep shows every part we have. Longer writing comes with a later reading.'];
+      return json(b);
+    };
+    render(<SelfBoardV3 />);
+    const c = await screen.findByTestId('v3-card-body');
+    expect(within(c).getByTestId('card-option-note')).toHaveTextContent('Longer writing comes with a later reading.');
+    fireEvent.click(within(c).getByTestId('edit-sections-body'));
+    const opts = within(c).getByTestId('card-options-body');
+    expect(within(opts).getByTestId('opt-body-length-usual')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(opts).getByTestId('opt-body-length-glance'));
+    // shown at once, before the server answers
+    expect(within(c).queryByTestId('section-stretch')).toBeNull();
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    expect(puts()[0]!.body!.options).toEqual({ body: { length: 'glance' } });
+    expect(puts()[0]!.body!.sections).toEqual({ body: ['line', 'year'] });
+  });
+
+  it('doc 71: a card back on every default leaves the options map', async () => {
+    srv.v3Body = () => {
+      const b = selfV3Fixture();
+      b.layout = { ...b.layout, options: { body: { words: 'terms' } }, sections: { ...b.layout.sections, body: ['line', 'year', 'stretch', 'confirm', 'details'] } };
+      return json(b);
+    };
+    render(<SelfBoardV3 />);
+    const c = await screen.findByTestId('v3-card-body');
+    fireEvent.click(within(c).getByTestId('edit-sections-body'));
+    fireEvent.click(within(c).getByTestId('opt-body-words-plain'));
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    // an empty map is sent so the stored choice is cleared
+    expect(puts()[0]!.body!.options).toEqual({});
+    expect(puts()[0]!.body!.sections).toMatchObject({ body: ['line', 'year', 'stretch', 'confirm'] });
+  });
+
   it('cardSections keeps line and year even when a stored list leaves them out', () => {
     const b = selfV3Fixture();
     const card = b.cards.find((x) => x.id === 'body')!;

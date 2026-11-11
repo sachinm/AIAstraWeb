@@ -25,6 +25,7 @@ export const V3_WORDS = {
   ofCount: (i: number, n: number) => `${i} of ${n}`,
   template: 'Layout',
   editSections: 'Edit sections',
+  fineTune: 'Fine-tune',
   sectionsTitle: (title: string) => `${title} · sections`,
   locked: 'Always on',
   yourYear: 'Your year',
@@ -96,4 +97,5 @@ export const LAYOUT_ERROR_WORD: Record<string, string> = {
   card_not_offered: 'One of those cards is not offered yet.',
   fixed_section_off: '"In a line" and "Your year" always stay on.',
   failed: 'That did not save. Try again.',
+  unknown_option: 'That choice is not offered yet.',
 };

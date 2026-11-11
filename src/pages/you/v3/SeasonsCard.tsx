@@ -7,6 +7,7 @@
  * A v3 card's period text is "Get through" or "Build", then what it asks, the likely trap and one step. A card filled
  * from the v2 build (Phase A) shows the stored body with the period's own note.
  */
+import type { CardOptionKey, CardOptions } from '../../../lib/cardOptions';
 import { useState, type ReactNode } from 'react';
 import LoadingVeil from '../../../components/LoadingVeil';
 import type { RailItem, SelfSectionId, SelfV3CardView, SpanReading } from '../../../lib/selfV3Api';
@@ -17,7 +18,7 @@ import {
   PatternSection,
   ReadStateBody,
   SectionsMenu,
-  SensitiveNote,
+  OptionNotes, SensitiveNote,
   SpanAgreement,
   cardHeadline,
   showsReadState,
@@ -148,6 +149,8 @@ export default function SeasonsCard({
   card,
   sections,
   onSections,
+  options,
+  onOption,
   onDetails,
   focused = false,
   veil = true,
@@ -156,6 +159,8 @@ export default function SeasonsCard({
   card: SelfV3CardView;
   sections: SelfSectionId[];
   onSections: (next: SelfSectionId[]) => void;
+  options?: Partial<CardOptions>;
+  onOption?: (key: CardOptionKey, value: string) => void;
   onDetails: (card: SelfV3CardView, span?: SpanReading | null, label?: string | null) => void;
   focused?: boolean;
   veil?: boolean;
@@ -179,8 +184,9 @@ export default function SeasonsCard({
             </p>
           )}
           <SensitiveNote card={card} />
+          <OptionNotes card={card} />
         </div>
-        {!notReady && <SectionsMenu card={card} sections={sections} onChange={onSections} />}
+        {!notReady && <SectionsMenu card={card} sections={sections} onChange={onSections} options={options} onOption={onOption} />}
       </header>
       {notReady ?? (
         <div className="self-v3-seasons mt-3 min-h-0 flex-1">
