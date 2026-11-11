@@ -361,6 +361,7 @@ html.light .load-veil {
   .load-veil__progress-fill {
     transition: none;
   }
+}
 /* the board is inline vector art; it fills its square */
 .load-veil__art > svg {
   display: block;
