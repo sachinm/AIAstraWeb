@@ -20,6 +20,7 @@ import type { BoardCardOptions } from '../../lib/cardOptions';
 import { track } from '../../lib/events';
 import BoardCardPicker from './BoardCardPicker';
 import CardArt from './CardArt';
+import { loadCardPhotos } from './cardPhotos';
 
 export const AREA_CARDS_WORDS = {
   button: 'Your cards',
@@ -148,6 +149,7 @@ export function AreaCardChips({
   onSelect: (card: AreaCatalogueCard | null) => void;
 }) {
   if (!cards.layout?.chosen || !cards.catalogue) return null;
+  void loadCardPhotos(cards.layout.board);
   const chosen = cards.layout.cards.map((id) => cards.catalogue!.cards.find((c) => c.id === id)).filter((c): c is AreaCatalogueCard => !!c);
   const notes = active ? (cards.layout.effective[active]?.notes ?? []) : [];
   return (

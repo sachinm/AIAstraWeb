@@ -6,6 +6,7 @@
  */
 import { useId, type ReactNode } from 'react';
 import { glyphOf, themeOf, type ArtTheme } from './cardArtRegistry';
+import { useCardPhoto } from './cardPhotos';
 import '../../styles/board-cards.css';
 
 const LINE = {
@@ -144,12 +145,14 @@ export default function CardArt({
   const Glyph = glyphOf(id, group);
   const medallion = size === 'tile' ? 'h-11 w-11' : size === 'small' ? 'h-8 w-8' : 'h-7 w-7';
   const glyph = size === 'tile' ? 'h-5 w-5' : 'h-4 w-4';
+  const photo = useCardPhoto(id);
   return (
     <div
       className={`card-art relative overflow-hidden ${className}`}
       data-art-theme={theme}
       data-muted={muted ? 'true' : 'false'}
       data-testid={`card-art-${id}`}
+      data-photo={photo ? 'true' : 'false'}
     >
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 320 120" preserveAspectRatio={size === 'tile' || size === 'small' ? 'xMaxYMid slice' : 'xMidYMid slice'} aria-hidden="true" focusable="false">
         <defs>
@@ -164,8 +167,15 @@ export default function CardArt({
         </defs>
         <rect width="320" height="120" fill={`url(#g${uid})`} />
         <rect width="320" height="120" fill={`url(#r${uid})`} />
-        <Backdrop theme={theme} />
+        {!photo && <Backdrop theme={theme} />}
       </svg>
+      {photo && (
+        <>
+          {/* a real photo, tinted in the category colour so the page stays one design in light and dark */}
+          <img src={photo} alt="" decoding="async" className="card-art-photo absolute inset-0 h-full w-full object-cover" data-testid={`card-photo-${id}`} />
+          <span className="card-art-tint absolute inset-0" aria-hidden="true" />
+        </>
+      )}
       {size !== 'swatch' && (
         <span
           className={`card-art-medallion absolute grid place-items-center rounded-full ${medallion} ${size === 'tile' ? 'bottom-3 left-3' : 'bottom-2 left-2'}`}

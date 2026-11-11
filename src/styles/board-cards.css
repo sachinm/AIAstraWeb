@@ -41,6 +41,27 @@ html.light .card-art[data-art-theme='standing'] { --art-a: #d6f5e8; --art-b: #dd
 html.light .card-art[data-art-theme='money'] { --art-a: #fdf6c8; --art-b: #d6f5e8; --art-line: rgba(161, 98, 7, 0.5); --art-glow: rgba(234, 179, 8, 0.45); --medal-ink: #854d0e; }
 html.light .card-art[data-art-theme='growth'] { --art-a: #dcfce7; --art-b: #fdf3d0; --art-line: rgba(21, 128, 61, 0.5); --art-glow: rgba(132, 204, 22, 0.4); --medal-ink: #166534; }
 
+/* photos: greyed, then tinted with the category gradient (a duotone), darker in dark mode */
+.card-art-photo {
+  /* the photos ship greyscale already (scripts/encrypt-card-art.mjs), so no grayscale filter is paid per tile */
+  filter: brightness(0.82);
+}
+.card-art-tint {
+  background: linear-gradient(135deg, var(--art-a), var(--art-b));
+  mix-blend-mode: color;
+  opacity: 0.9;
+}
+html.light .card-art-photo {
+  filter: brightness(1.06);
+}
+html.light .card-art-tint {
+  mix-blend-mode: multiply;
+  opacity: 0.75;
+}
+.card-art[data-muted='true'] .card-art-photo {
+  opacity: 0.55;
+}
+
 .card-art[data-muted='true'] svg {
   filter: grayscale(0.85) brightness(0.8);
   opacity: 0.7;

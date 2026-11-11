@@ -151,7 +151,7 @@ function openDb(): Promise<IDBDatabase | null> {
   });
 }
 
-async function cacheGet(id: string): Promise<ArrayBuffer | null> {
+export async function cacheGet(id: string): Promise<ArrayBuffer | null> {
   if (memoryCache.has(id)) return memoryCache.get(id)!;
   const db = await openDb();
   if (!db) return null;
@@ -166,7 +166,7 @@ async function cacheGet(id: string): Promise<ArrayBuffer | null> {
   });
 }
 
-async function cachePut(id: string, cipher: ArrayBuffer): Promise<void> {
+export async function cachePut(id: string, cipher: ArrayBuffer): Promise<void> {
   memoryCache.set(id, cipher);
   const db = await openDb();
   if (!db) return;

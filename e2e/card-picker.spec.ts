@@ -83,6 +83,9 @@ async function stubBoards(page: Page) {
   await page.route('**/api/area/career', (r) => json(r, { status: 'ok', map: WORK_MAP, work: 'yes', checks: {}, built_at: '2026-11-09', cached: true, made_at: '2026-11-09T10:00:00.000Z', valid_until: '2026-12-20', refresh_due: false }));
   await page.route('**/api/analytics/events', (r) => r.fulfill({ status: 204 }));
   await page.route('**/api/telemetry/page-render', (r) => json(r, { ok: true }));
+  // the throwaway art key the build used for this run (E2E_ART_KEY), as the API serves it to a signed-in session
+  const hex = process.env.E2E_ART_KEY ?? '';
+  if (hex) await page.route('**/api/assets/overlay-key', (r) => json(r, { key: Buffer.from(hex, 'hex').toString('base64'), version: 'e2e' }));
 }
 
 for (const theme of ['dark', 'light'] as const) {
@@ -102,6 +105,7 @@ for (const theme of ['dark', 'light'] as const) {
     await page.goto('/dashboard/you?v2=1');
     await expect(page.getByTestId('self-v3-picker')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('card-art-body')).toBeVisible();
+    if (process.env.E2E_ART_KEY) await expect(page.getByTestId('card-photo-body')).toBeVisible({ timeout: 15_000 });
     await shot('self-picker');
     await page.getByTestId('picker-add-suggested').click();
     await shot('self-picker-suggested-on');
@@ -125,6 +129,7 @@ for (const theme of ['dark', 'light'] as const) {
     await shot('love-board-button');
     await page.getByTestId('area-cards-open').click();
     await expect(page.getByTestId('area-cards-sheet')).toBeVisible();
+    if (process.env.E2E_ART_KEY) await expect(page.getByTestId('card-photo-love_where')).toBeVisible({ timeout: 15_000 });
     await shot('love-picker');
     await page.getByTestId('picker-add-suggested').click();
     await page.getByTestId('picker-options-love_meet').click();
@@ -142,6 +147,7 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(page.getByTestId('area-cards-open')).toBeVisible({ timeout: 30_000 });
     await page.getByTestId('area-cards-open').click();
     await expect(page.getByTestId('area-cards-sheet')).toBeVisible();
+    if (process.env.E2E_ART_KEY) await expect(page.getByTestId('card-photo-work_where')).toBeVisible({ timeout: 15_000 });
     await shot('work-picker');
     await page.getByTestId('picker-add-suggested').click();
     await page.getByTestId('picker-options-work_money').click();

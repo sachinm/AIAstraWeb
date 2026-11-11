@@ -10,6 +10,7 @@ import { Check, SlidersHorizontal, Star } from 'lucide-react';
 import { optionsFor, withCardOption, type BoardCardOptions } from '../../lib/cardOptions';
 import CardArt from './CardArt';
 import CardOptionsControls from './CardOptionsControls';
+import { useLoadCardPhotos } from './cardPhotos';
 import { GROUP_ART, type BoardKind } from './cardArtRegistry';
 
 export interface PickerCard {
@@ -97,6 +98,7 @@ export default function BoardCardPicker({
   options?: { initial: BoardCardOptions; notes?: Record<string, string[]> };
   testId?: string;
 }) {
+  useLoadCardPhotos(board);
   const [picked, setPicked] = useState<string[]>(initial);
   const [opts, setOpts] = useState<BoardCardOptions>(options?.initial ?? {});
   const [openOpts, setOpenOpts] = useState<string | null>(null);
