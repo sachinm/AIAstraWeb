@@ -43,7 +43,7 @@ describe('LoadingVeil', () => {
     expect(screen.getByTestId('veil').querySelector('.load-veil__bottom')).toContainElement(screen.getByRole('button', { name: 'Retry' }));
   });
 
-  it('puts the brand and the quip above the chart, the note below, and all 21 pieces beside it in a shuffled order', () => {
+  it('puts the brand and the quip above the chart, the note below, and every piece beside it: 9 grahas, 12 rashis, 27 nakshatras', () => {
     vi.spyOn(art, 'getOverlayArt').mockResolvedValue(null);
     render(<LoadingVeil testId="veil" note="Your chart is still being prepared." />);
     const veil = screen.getByTestId('veil');
@@ -52,9 +52,12 @@ describe('LoadingVeil', () => {
     expect(top).toContainElement(screen.getByTestId('veil-line'));
     expect(screen.getByTestId('veil-brand')).toHaveTextContent('AdAstra AI');
     expect(veil.querySelector('.load-veil__bottom')).toContainElement(screen.getByTestId('veil-note'));
-    expect(screen.getByTestId('veil-stage')).not.toHaveTextContent(/[a-z]{3}/i);
-    expect(veil.querySelectorAll('.load-veil__tile')).toHaveLength(PIECES.length);
-    expect(veil.querySelectorAll('.load-veil__col')).toHaveLength(4);
+    // the board itself carries numerals only, no words
+    expect(screen.getByTestId('veil-chart')).not.toHaveTextContent(/[a-z]{3}/i);
+    expect(veil.querySelectorAll('.load-veil__tile')).toHaveLength(21);
+    expect(veil.querySelectorAll('.load-veil__chip')).toHaveLength(27);
+    expect(veil.querySelectorAll('.load-veil__side')).toHaveLength(2);
+    expect(PIECES).toHaveLength(48);
     // no key, no network: the 12-house board is on the stage from the first render, never an empty slab
     expect(screen.getByTestId('veil-chart').tagName).toBe('DIV');
     expect(screen.queryByTestId('veil-slab')).toBeNull();
@@ -88,12 +91,16 @@ describe('LoadingVeil', () => {
   });
 
   it('shuffles the pieces into four columns that hold every graha and rashi once', () => {
-    const cols = shufflePieces(() => 0.3);
-    expect(cols).toHaveLength(4);
-    const names = cols.flat().map((p) => p.name).sort();
+    const { left, right } = shufflePieces(() => 0.3);
+    const names = [...left.glyphs, ...left.naks, ...right.glyphs, ...right.naks].map((p) => p.name).sort();
     expect(names).toEqual(PIECES.map((p) => p.name).sort());
+    // both sides carry glyphs and nakshatras
+    expect(left.glyphs.length).toBeGreaterThan(0);
+    expect(right.glyphs.length).toBeGreaterThan(0);
+    expect(left.naks.length + right.naks.length).toBe(27);
     expect(PIECES.filter((p) => p.kind === 'graha')).toHaveLength(9);
     expect(PIECES.filter((p) => p.kind === 'rashi')).toHaveLength(12);
+    expect(PIECES.filter((p) => p.kind === 'nakshatra')).toHaveLength(27);
   });
 
   it('draws the 12-house board for the current theme in the first render, with nothing fetched', () => {

@@ -37,41 +37,58 @@ export const BRAND_NAME = 'AdAstra AI';
 export const BRAND_CLASS = 'font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent';
 export const BRAND_REST = 'preparing your board…';
 
-/** The pieces beside the board: the nine grahas (gold) and the twelve rashis (violet). */
-export const PIECES: ReadonlyArray<{ glyph: string; name: string; kind: 'graha' | 'rashi' }> = [
-  { glyph: '☉', name: 'Sun', kind: 'graha' },
-  { glyph: '☽', name: 'Moon', kind: 'graha' },
-  { glyph: '♂', name: 'Mars', kind: 'graha' },
-  { glyph: '☿', name: 'Mercury', kind: 'graha' },
-  { glyph: '♃', name: 'Jupiter', kind: 'graha' },
-  { glyph: '♀', name: 'Venus', kind: 'graha' },
-  { glyph: '♄', name: 'Saturn', kind: 'graha' },
-  { glyph: '☊', name: 'Rahu', kind: 'graha' },
-  { glyph: '☋', name: 'Ketu', kind: 'graha' },
-  { glyph: '♈', name: 'Mesha', kind: 'rashi' },
-  { glyph: '♉', name: 'Vrishabha', kind: 'rashi' },
-  { glyph: '♊', name: 'Mithuna', kind: 'rashi' },
-  { glyph: '♋', name: 'Karka', kind: 'rashi' },
-  { glyph: '♌', name: 'Simha', kind: 'rashi' },
-  { glyph: '♍', name: 'Kanya', kind: 'rashi' },
-  { glyph: '♎', name: 'Tula', kind: 'rashi' },
-  { glyph: '♏', name: 'Vrishchika', kind: 'rashi' },
-  { glyph: '♐', name: 'Dhanu', kind: 'rashi' },
-  { glyph: '♑', name: 'Makara', kind: 'rashi' },
-  { glyph: '♒', name: 'Kumbha', kind: 'rashi' },
-  { glyph: '♓', name: 'Meena', kind: 'rashi' },
-];
+export type PieceKind = 'graha' | 'rashi' | 'nakshatra';
+export interface Piece {
+  glyph: string;
+  name: string;
+  kind: PieceKind;
+}
 
-/** A shuffled copy of the pieces, split into four columns: two for the left of the board, two for the right. */
-export function shufflePieces(random: () => number = Math.random): Array<typeof PIECES[number][]> {
-  const a = [...PIECES];
+/**
+ * Every piece beside the board, always all of them (Sachin, 2026-11-10): the nine grahas with Rahu and Ketu as glyph
+ * tiles (gold), the twelve rashis as glyph tiles (violet) and the twenty-seven nakshatras as named chips. Which piece
+ * stands on which side, and in what order, is shuffled on every show.
+ */
+const GRAHAS: Piece[] = [
+  ['☉', 'Sun'], ['☽', 'Moon'], ['♂', 'Mars'], ['☿', 'Mercury'], ['♃', 'Jupiter'], ['♀', 'Venus'], ['♄', 'Saturn'], ['☊', 'Rahu'], ['☋', 'Ketu'],
+].map(([glyph, name]) => ({ glyph: glyph!, name: name!, kind: 'graha' as const }));
+const RASHIS: Piece[] = [
+  ['♈', 'Mesha'], ['♉', 'Vrishabha'], ['♊', 'Mithuna'], ['♋', 'Karka'], ['♌', 'Simha'], ['♍', 'Kanya'],
+  ['♎', 'Tula'], ['♏', 'Vrishchika'], ['♐', 'Dhanu'], ['♑', 'Makara'], ['♒', 'Kumbha'], ['♓', 'Meena'],
+].map(([glyph, name]) => ({ glyph: glyph!, name: name!, kind: 'rashi' as const }));
+const NAKSHATRAS: Piece[] = [
+  'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra', 'Punarvasu', 'Pushya', 'Ashlesha',
+  'Magha', 'Purva Phalguni', 'Uttara Phalguni', 'Hasta', 'Chitra', 'Swati', 'Vishakha', 'Anuradha', 'Jyeshtha',
+  'Mula', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishta', 'Shatabhisha', 'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati',
+].map((name) => ({ glyph: '', name, kind: 'nakshatra' as const }));
+
+export const PIECES: readonly Piece[] = [...GRAHAS, ...RASHIS, ...NAKSHATRAS];
+
+/** One side of the board: its glyph tiles and its nakshatra chips. */
+export interface Side {
+  glyphs: Piece[];
+  naks: Piece[];
+}
+
+function shuffled<T>(list: readonly T[], random: () => number): T[] {
+  const a = [...list];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [a[i], a[j]] = [a[j]!, a[i]!];
   }
-  const cols: Array<typeof PIECES[number][]> = [[], [], [], []];
-  a.forEach((p, i) => cols[i % 4]!.push(p));
-  return cols;
+  return a;
+}
+
+/** Every piece, shuffled, split between the left and the right of the board. */
+export function shufflePieces(random: () => number = Math.random): { left: Side; right: Side } {
+  const glyphs = shuffled([...GRAHAS, ...RASHIS], random);
+  const naks = shuffled(NAKSHATRAS, random);
+  const g = Math.ceil(glyphs.length / 2);
+  const n = Math.ceil(naks.length / 2);
+  return {
+    left: { glyphs: glyphs.slice(0, g), naks: naks.slice(0, n) },
+    right: { glyphs: glyphs.slice(g), naks: naks.slice(n) },
+  };
 }
 
 /** The theme on <html> now (src/lib/theme.ts puts `light` there on the signed-in pages). */
@@ -127,15 +144,24 @@ function ChartBoard({ style, theme, className, testId }: { style: ArtStyle; them
 /** U+FE0E asks for the text form of a sign, so Windows and phones do not swap in a coloured emoji. */
 const TEXT_FORM = '︎';
 
-function TileColumn({ pieces, place, start }: { pieces: ReadonlyArray<typeof PIECES[number]>; place: 'outer' | 'inner'; start: number }) {
+function SidePieces({ side, place, start }: { side: Side; place: 'left' | 'right'; start: number }) {
   return (
-    <div className={`load-veil__col load-veil__col--${place}`} aria-hidden="true">
-      {pieces.map((p, i) => (
-        <span key={p.name} className={`load-veil__tile load-veil__tile--${p.kind}`} title={p.name} style={{ '--i': start + i } as React.CSSProperties}>
-          {p.glyph}
-          {TEXT_FORM}
-        </span>
-      ))}
+    <div className={`load-veil__side load-veil__side--${place}`} aria-hidden="true">
+      <div className="load-veil__naks">
+        {side.naks.map((p, i) => (
+          <span key={p.name} className="load-veil__chip" style={{ '--i': start + i } as React.CSSProperties}>
+            {p.name}
+          </span>
+        ))}
+      </div>
+      <div className="load-veil__glyphs">
+        {side.glyphs.map((p, i) => (
+          <span key={p.name} className={`load-veil__tile load-veil__tile--${p.kind}`} title={p.name} style={{ '--i': start + i } as React.CSSProperties}>
+            {p.glyph}
+            {TEXT_FORM}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -187,13 +213,11 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
           </p>
         </div>
         <div className="load-veil__stage" data-testid={`${testId}-stage`}>
-          <TileColumn pieces={cols[0]!} place="outer" start={0} />
-          <TileColumn pieces={cols[1]!} place="inner" start={6} />
+          <SidePieces side={cols.left} place="left" start={0} />
           <div className="load-veil__board">
             <ChartBoard style={style} theme={theme} className={`load-veil__art ${still ? '' : 'load-veil__art--in'}`} testId={`${testId}-chart`} />
           </div>
-          <TileColumn pieces={cols[2]!} place="inner" start={11} />
-          <TileColumn pieces={cols[3]!} place="outer" start={16} />
+          <SidePieces side={cols.right} place="right" start={14} />
         </div>
         <div className="load-veil__bottom">
           {note && (
