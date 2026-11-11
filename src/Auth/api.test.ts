@@ -43,7 +43,7 @@ describe('Auth api', () => {
 
     it('sends the Terms box with the code and asks for the refusal code', async () => {
       runGraphQL.mockResolvedValueOnce({
-        data: { loginWithMagicLink: { success: false, code: 'terms_required', message: 'Please confirm.' } },
+        data: { loginWithMagicLink: { success: false, code: 'terms_required', message: 'Please confirm.', turnstileConsumed: false } },
       });
 
       const result = await loginWithMagicLink('user@test.com', 'ABCD2345', 'tt', {
@@ -51,7 +51,7 @@ describe('Auth api', () => {
         termsVersion: '2026-11-08',
       });
 
-      expect(result).toEqual({ success: false, code: 'terms_required', message: 'Please confirm.' });
+      expect(result).toEqual({ success: false, code: 'terms_required', message: 'Please confirm.', turnstileConsumed: false });
       const [query, vars] = runGraphQL.mock.calls[0];
       expect(query).toMatch(/termsAccepted: \$termsAccepted/);
       expect(query).toMatch(/termsVersion: \$termsVersion/);
