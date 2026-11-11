@@ -1,7 +1,7 @@
 /**
  * The header's navigation (Sachin, 2026-11-05): Happy Hour(s) (the home) and General Reading, which opens over
  * the page as a 98 % modal. The personal boards (You, Love, Work) live in the left sidebar. On a phone the labels drop
- * and the icons stay.
+ * and the icons stay; below 768 px Happy Hour(s) moves into the menu drawer (SideNav), so the header has room.
  */
 import { NavLink } from 'react-router-dom';
 import { Clock, MessageCircle } from 'lucide-react';
@@ -20,7 +20,7 @@ export default function HeaderTabs() {
     <nav aria-label="Main" className="min-w-0 shrink-0" data-testid="header-tabs">
       <ul className="flex items-center justify-start gap-1 overflow-x-auto">
         {HEADER_TABS.map(({ to, label, icon: Icon }) => (
-          <li key={to}>
+          <li key={to} className="max-md:hidden">
             <NavLink to={to} onClick={() => track('tab_select', 'header', label.toLowerCase())} className={tab} aria-label={label}>
               <Icon className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{label}</span>

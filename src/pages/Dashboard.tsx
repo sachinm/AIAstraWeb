@@ -55,13 +55,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </main>
       </div>
       {!onChat && (
-        <footer className="glass-bar flex shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-t border-white/10 px-4 py-2 text-center text-[11px] leading-5 text-gray-500" data-test-id="dashboard-footer">
-          {/* one row (Sachin, 2026-11-05): the disclaimer in a sentence, the copyright, Terms and Privacy */}
-          <span data-test-id="disclaimer">For education and entertainment only, not advice. You are responsible for your decisions.</span>
+        <footer className="glass-bar flex shrink-0 items-center justify-center gap-x-1.5 overflow-hidden whitespace-nowrap border-t border-white/10 px-3 py-0.5 text-center text-[11px] leading-4 text-gray-500 md:flex-wrap md:gap-x-2 md:gap-y-0.5 md:whitespace-normal md:px-4 md:py-2 md:leading-5" data-test-id="dashboard-footer">
+          {/* one row (Sachin, 2026-11-05): the disclaimer in a sentence, the copyright, Terms and Privacy. Below 768 px a
+              sliver about 26 px tall (Sachin, 2026-11-10): the short disclaimer, Terms and Privacy on one line. */}
+          <span data-test-id="disclaimer" className="hidden md:inline">For education and entertainment only, not advice. You are responsible for your decisions.</span>
+          <span data-test-id="disclaimer-short" className="truncate md:hidden">For education and entertainment only</span>
+          <span aria-hidden="true" className="hidden md:inline">·</span>
+          <span data-test-id="copyright-notice" className="hidden md:inline">© 2026 AdAstra AI (vedic-astrology.app)</span>
           <span aria-hidden="true">·</span>
-          <span data-test-id="copyright-notice">© 2026 AdAstra AI (vedic-astrology.app)</span>
-          <span aria-hidden="true">·</span>
-          <LegalLinks className="inline-flex" />
+          <LegalLinks compact className="inline-flex shrink-0 flex-nowrap md:flex-wrap" />
         </footer>
       )}
     </div>
