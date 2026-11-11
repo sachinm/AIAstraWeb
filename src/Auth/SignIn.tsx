@@ -118,7 +118,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         setCooldown(RESEND_COOLDOWN_SECONDS);
       } else {
         setError(r.message || 'Something went wrong. Please try again.');
-        turnstile.reset();
+        // refused before the check was used: the token is still good, so keep it
+        if (r.turnstileConsumed !== false) turnstile.reset();
       }
     } catch (err) {
       console.error('Code request:', err);
@@ -165,10 +166,12 @@ const SignIn: React.FC<SignInProps> = ({ onSignUp, onBack, handleSignIn }) => {
         } else {
           setError(SIGNIN_TERMS_REQUIRED_MESSAGE);
         }
-        turnstile.reset();
+        // the server checks the box before Turnstile: the token is only spent if it says so
+        if (result.turnstileConsumed !== false) turnstile.reset();
       } else {
         setError(result.message || LOGIN_FAILED_GENERIC);
-        turnstile.reset();
+        // refused before the check was used (bad email or code shape): keep the token
+        if (result.turnstileConsumed !== false) turnstile.reset();
       }
     } catch (err) {
       console.error('Code sign-in:', err);

@@ -32,3 +32,5 @@ public/mediapipe/wasm/
 # The loading veil's encrypted illustrations, made at build from art/overlay (scripts/encrypt-overlay-art.mjs)
 public/overlay/
 public/_a/
+
+*.tsbuildinfo
