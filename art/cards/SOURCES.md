@@ -1,6 +1,6 @@
 # Card photos
 
-Public-domain photos (CC0, no attribution required), found through Openverse, cropped to 480x360 and saved as greyscale WebP (the page tints them per category). Encrypted at build by scripts/encrypt-card-art.mjs; never served as plain images. Picked for server docs/reading-engine/71. Credits kept anyway.
+Public-domain photos (CC0, no attribution required), found through Openverse, cropped to 480x360 and saved as WebP. Encrypted at build by scripts/encrypt-card-art.mjs; never served as plain images. Picked for server docs/reading-engine/71. Credits kept anyway.
 
 | Card | Title | Creator | Source | Licence | Page |
 |---|---|---|---|---|---|

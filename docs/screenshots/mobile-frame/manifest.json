@@ -1,0 +1,136 @@
+[
+  {
+    "file": "01-landing-portrait.png",
+    "pageScroll": 0,
+    "footerBottom": 844,
+    "footerHeight": 57,
+    "viewport": 844,
+    "scene": {
+      "top": 0,
+      "bottom": 844,
+      "left": 0,
+      "right": 390
+    }
+  },
+  {
+    "file": "02-signin-portrait.png",
+    "pageScroll": 0,
+    "footerBottom": 844,
+    "footerHeight": 57,
+    "viewport": 844,
+    "scene": {
+      "top": 0,
+      "bottom": 844,
+      "left": 0,
+      "right": 390
+    }
+  },
+  {
+    "file": "03-signup-portrait.png",
+    "pageScroll": 0,
+    "footerBottom": 844,
+    "footerHeight": 57,
+    "viewport": 844,
+    "scene": {
+      "top": 0,
+      "bottom": 844,
+      "left": 0,
+      "right": 390
+    }
+  },
+  {
+    "file": "04-landing-landscape.png",
+    "pageScroll": 0,
+    "footerBottom": 390,
+    "footerHeight": 48,
+    "viewport": 390,
+    "scene": {
+      "top": 0,
+      "bottom": 390,
+      "left": 0,
+      "right": 844
+    }
+  },
+  {
+    "file": "05-signin-landscape.png",
+    "pageScroll": 0,
+    "footerBottom": 390,
+    "footerHeight": 48,
+    "viewport": 390,
+    "scene": {
+      "top": 0,
+      "bottom": 390,
+      "left": 0,
+      "right": 844
+    }
+  },
+  {
+    "file": "06-signup-landscape.png",
+    "pageScroll": 0,
+    "footerBottom": 390,
+    "footerHeight": 48,
+    "viewport": 390,
+    "scene": {
+      "top": 0,
+      "bottom": 390,
+      "left": 0,
+      "right": 844
+    }
+  },
+  {
+    "file": "07-landing-desktop.png",
+    "pageScroll": 0,
+    "footerBottom": 900,
+    "footerHeight": 73,
+    "viewport": 900,
+    "scene": {
+      "top": 0,
+      "bottom": 900,
+      "left": 0,
+      "right": 1440
+    }
+  },
+  {
+    "file": "08-signin-desktop.png",
+    "pageScroll": 0,
+    "footerBottom": 900,
+    "footerHeight": 73,
+    "viewport": 900,
+    "scene": {
+      "top": 0,
+      "bottom": 900,
+      "left": 0,
+      "right": 1440
+    }
+  },
+  {
+    "file": "09-signup-desktop.png",
+    "pageScroll": 0,
+    "footerBottom": 900,
+    "footerHeight": 73,
+    "viewport": 900,
+    "scene": {
+      "top": 0,
+      "bottom": 900,
+      "left": 0,
+      "right": 1440
+    }
+  },
+  {
+    "file": "10-board-phone.png",
+    "pageScroll": 0,
+    "footerBottom": 800,
+    "footerHeight": 29,
+    "viewport": 800
+  },
+  {
+    "file": "11-board-phone-menu-open.png"
+  },
+  {
+    "file": "12-board-tablet.png",
+    "pageScroll": 0,
+    "footerBottom": 1024,
+    "footerHeight": 55,
+    "viewport": 1024
+  }
+]
