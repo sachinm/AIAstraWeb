@@ -26,7 +26,7 @@ describe('LoadingVeil', () => {
       vi.advanceTimersByTime(LINE_MS);
     });
     expect(line).toHaveTextContent(LOADING_QUIPS[1]!);
-    expect(screen.getByTestId('veil')).toHaveAttribute('data-art', 'none');
+    expect(screen.getByTestId('veil').getAttribute('data-art')).toMatch(/^(south|north)$/);
     expect(screen.getByTestId('veil')).toHaveAttribute('data-theme', 'dark');
   });
 
@@ -55,10 +55,10 @@ describe('LoadingVeil', () => {
     expect(screen.getByTestId('veil-stage')).not.toHaveTextContent(/[a-z]{3}/i);
     expect(veil.querySelectorAll('.load-veil__tile')).toHaveLength(PIECES.length);
     expect(veil.querySelectorAll('.load-veil__col')).toHaveLength(4);
-    // no key, no decrypted art: an empty glass slab holds the place, and no chart is in the page
-    expect(screen.getByTestId('veil-slab')).toBeInTheDocument();
-    expect(screen.queryByTestId('veil-chart')).toBeNull();
-    expect(veil.innerHTML).not.toContain('>12</text>');
+    // no key, no network: the 12-house board is on the stage from the first render, never an empty slab
+    expect(screen.getByTestId('veil-chart').tagName).toBe('DIV');
+    expect(screen.queryByTestId('veil-slab')).toBeNull();
+    expect(screen.getByTestId('veil-chart').innerHTML).toContain('>12</text>');
   });
 
   it('renders a full-screen veil on <body>, outside any page container that could trap it', () => {
@@ -96,23 +96,17 @@ describe('LoadingVeil', () => {
     expect(PIECES.filter((p) => p.kind === 'rashi')).toHaveLength(12);
   });
 
-  it('shows the illustration for the current theme once it decrypts, and revokes it on unmount', async () => {
+  it('draws the 12-house board for the current theme in the first render, with nothing fetched', () => {
     document.documentElement.classList.add('light');
-    const get = vi.spyOn(art, 'getOverlayArt').mockResolvedValue(new Blob(['<svg/>'], { type: 'image/svg+xml' }));
-    const create = vi.fn(() => 'blob:art');
-    const revoke = vi.fn();
-    vi.stubGlobal('URL', Object.assign(Object.create(URL), { createObjectURL: create, revokeObjectURL: revoke }));
-    const { unmount } = render(<LoadingVeil testId="veil" />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(get).toHaveBeenCalledWith(expect.stringMatching(/^(south|north)$/), 'light');
-    // painted onto a canvas, never an <img> anyone can save
-    expect(screen.getByTestId('veil-chart').tagName).toBe('CANVAS');
+    const get = vi.spyOn(art, 'getOverlayArt');
+    render(<LoadingVeil testId="veil" />);
+    // inline vector art in the first render, never an <img> anyone can save
+    expect(screen.getByTestId('veil-chart').tagName).toBe('DIV');
     expect(screen.getByTestId('veil').querySelector('img')).toBeNull();
+    expect(screen.getByTestId('veil')).toHaveAttribute('data-theme', 'light');
     expect(screen.getByTestId('veil').getAttribute('data-art')).toMatch(/^(south|north)$/);
-    unmount();
-    expect(revoke).toHaveBeenCalledWith('blob:art');
-    vi.unstubAllGlobals();
+    expect(get).not.toHaveBeenCalled();
+    expect(screen.getByTestId('veil-chart').querySelector('svg')).not.toBeNull();
+    expect(screen.getByTestId('veil-chart').innerHTML).toContain('>12</text>');
   });
 });

@@ -11,7 +11,8 @@ import { createPortal } from 'react-dom';
 import { Sparkles } from 'lucide-react';
 import { LINE_MS, prefersReducedMotion } from '../pages/chat-interface/ReadingStagesPanel';
 import { LOADING_QUIPS, pickQuipStart } from '../lib/loadingQuips';
-import { getOverlayArt, pickStyle, type ArtStyle, type ArtTheme } from '../lib/overlayArt';
+import { pickStyle, type ArtStyle, type ArtTheme } from '../lib/overlayArt';
+import { chartSvg } from '../lib/chartBoard.js';
 import '../styles/loading-veil.css';
 
 export interface LoadingVeilProps {
@@ -90,7 +91,6 @@ interface Handoff {
   quip: number;
   style: ArtStyle;
   cols: ReturnType<typeof shufflePieces>;
-  blob: Blob | null;
 }
 let handoff: Handoff | null = null;
 
@@ -113,61 +113,15 @@ export function useLoadingQuip(start?: number): { line: string; index: number } 
   return { line: LOADING_QUIPS[i]!, index: i };
 }
 
-/** An object URL for a chart style in the given theme, or null while loading or when unavailable. */
-export function useOverlayArt(theme: ArtTheme, style: ArtStyle, carried: Blob | null): { url: string | null; blob: Blob | null } {
-  const canUrl = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function';
-  const [art, setArt] = useState<{ url: string | null; blob: Blob | null }>(() =>
-    carried && canUrl ? { url: URL.createObjectURL(carried), blob: carried } : { url: null, blob: null }
-  );
-  useEffect(() => {
-    let alive = true;
-    if (!art.blob) {
-      void getOverlayArt(style, theme).then((blob) => {
-        if (!alive || !blob || !canUrl) return;
-        setArt({ url: URL.createObjectURL(blob), blob });
-      });
-    }
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [style, theme]);
-  useEffect(() => {
-    const made = art.url;
-    return () => {
-      if (made) URL.revokeObjectURL(made);
-    };
-  }, [art.url]);
-  return art;
-}
-
 /**
- * The decrypted chart painted onto a canvas, never an <img>: no "Save image as", nothing to drag out, and no URL left
- * behind (the hook revokes its object URL on unmount). Screenshots cannot be stopped by any page.
+ * The 12-house board, South or North Indian, in the viewer's theme, drawn here in the app as inline vector art. It is
+ * painted in the same frame as the rest of the veil: no download, key, decryption or image decode to wait for (Sachin,
+ * 2026-11-09: "the board needs to start out with the 12 houses drawn"). There is no image file to save or drag, and the
+ * veil blocks the context menu. Screenshots cannot be stopped by any page.
  */
-function ChartCanvas({ url, className, testId }: { url: string; className: string; testId: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    let alive = true;
-    const img = new Image();
-    img.onload = () => {
-      const c = ref.current;
-      if (!alive || !c) return;
-      c.width = img.naturalWidth || 1000;
-      c.height = img.naturalHeight || 1000;
-      try {
-        c.getContext('2d')?.drawImage(img, 0, 0);
-      } catch {
-        /* a canvas the browser will not draw on: the slab stays */
-      }
-    };
-    img.src = url;
-    return () => {
-      alive = false;
-      img.src = '';
-    };
-  }, [url]);
-  return <canvas ref={ref} className={className} data-testid={testId} aria-hidden="true" onContextMenu={(e) => e.preventDefault()} />;
+function ChartBoard({ style, theme, className, testId }: { style: ArtStyle; theme: ArtTheme; className: string; testId: string }) {
+  const [svg] = useState(() => chartSvg(style, theme));
+  return <div className={className} data-testid={testId} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
 /** U+FE0E asks for the text form of a sign, so Windows and phones do not swap in a coloured emoji. */
@@ -193,16 +147,15 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
   const [style] = useState<ArtStyle>(() => carry?.style ?? pickStyle());
   const [cols] = useState(() => carry?.cols ?? shufflePieces());
   const { line, index } = useLoadingQuip(carry?.quip);
-  const { url, blob } = useOverlayArt(theme, style, carry?.blob ?? null);
   const still = prefersReducedMotion() || carry !== null;
 
   // remember where this veil is, so a veil mounted right after it can take over
-  const last = useRef({ index, blob });
-  last.current = { index, blob };
+  const last = useRef({ index });
+  last.current = { index };
   useEffect(() => {
     if (!fullScreen) return undefined;
     return () => {
-      handoff = { at: Date.now(), quip: last.current.index, style, cols, blob: last.current.blob };
+      handoff = { at: Date.now(), quip: last.current.index, style, cols };
     };
   }, [fullScreen, style, cols]);
 
@@ -211,7 +164,7 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
       className={`load-veil ${fullScreen ? 'load-veil--fixed' : 'load-veil--fill'} ${still ? '' : 'load-veil--animate'} ${leaving ? 'load-veil--leaving' : ''} ${className}`}
       data-testid={testId}
       data-theme={theme}
-      data-art={url ? style : 'none'}
+      data-art={style}
       data-chart={style}
       aria-busy="true"
       onContextMenu={(e) => e.preventDefault()}
@@ -237,11 +190,7 @@ export default function LoadingVeil({ fullScreen = false, note, children, foregr
           <TileColumn pieces={cols[0]!} place="outer" start={0} />
           <TileColumn pieces={cols[1]!} place="inner" start={6} />
           <div className="load-veil__board">
-            {url ? (
-              <ChartCanvas url={url} className={`load-veil__art ${still ? '' : 'load-veil__art--in'}`} testId={`${testId}-chart`} />
-            ) : (
-              <div className="load-veil__slab" aria-hidden="true" data-testid={`${testId}-slab`} />
-            )}
+            <ChartBoard style={style} theme={theme} className={`load-veil__art ${still ? '' : 'load-veil__art--in'}`} testId={`${testId}-chart`} />
           </div>
           <TileColumn pieces={cols[2]!} place="inner" start={11} />
           <TileColumn pieces={cols[3]!} place="outer" start={16} />

@@ -119,11 +119,9 @@ function north(p) {
 /** The board as an SVG string. */
 export function chartSvg(style, theme) {
   const p = PALETTE[theme];
-  const label = style === 'south' ? 'South' : 'North';
   const w = S - 2 * BOARD;
   const rect = (dy, fill, extra = '') => `<rect x="${BOARD}" y="${BOARD + dy}" width="${w}" height="${w}" rx="${RADIUS}" fill="${fill}" ${extra}/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S + DEPTH + 40}" width="${S}" height="${S + DEPTH + 40}" role="img" aria-label="An empty ${label} Indian house chart">
-<title>Empty ${label} Indian chart</title>
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S + DEPTH + 40}" width="${S}" height="${S + DEPTH + 40}" aria-hidden="true">
 <defs>
   <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.faceTop}"/><stop offset="1" stop-color="${p.faceBottom}"/></linearGradient>
   <linearGradient id="frame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.frameTop}"/><stop offset="1" stop-color="${p.frameBottom}"/></linearGradient>
