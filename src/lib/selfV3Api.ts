@@ -6,8 +6,11 @@
  *
  * GET /api/self/v3            -> 200 SelfV3Response (`status` ok | pending | preparing) | 404 no_kundli
  *                                | 404 without a v3 body: the server has v3 off, the page shows the v2 board
- * PUT /api/self/v3/layout     -> 200 SelfBoardLayoutView | 400 { error: LayoutError }
+ * PUT /api/self/v3/layout     -> 200 SelfBoardLayoutView (+ `reading: { queued }` when five or more cards and the per-card
+ *                                reading is on) | 400 { error: LayoutError }
  * POST /api/self/v3/confirm   -> 204
+ * POST /api/self/v3/cards/:id/read (doc 70 §4.2) -> 202 { state: 'queued' } | 409 already_reading | 429 spend_cap
+ *                                | 400 unknown_card, card_not_offered | 404 no_kundli | 503 off
  * The clock switch stays PUT /api/self/v2/clock (selfV2Api.changeSelfV2Clock).
  */
 import { buildApiHeaders } from './apiHeaders';
@@ -33,7 +36,7 @@ import type {
 
 /** Phase A and B: the eleven v2 areas (the `now` hero is not a card; the top strip is gone) */
 export type SelfCardIdV2 = Exclude<SelfV2AreaId, 'now'>;
-/** Phase C and D ids, reserved and not offered yet */
+/** Phase C ids (offered when the per-card reading is on) and Phase D ids (reserved) */
 export type SelfCardIdLater =
   | 'fitness'
   | 'sleep'
@@ -123,6 +126,20 @@ export interface SpanReading {
   obstacle: string;
   /** one if-then sentence */
   step: string;
+  /** false when fewer than READING_CLOCKS_MIN clocks hold the frame span's tone: the page shows no tone word */
+  held?: boolean;
+  /** doc 70 §4.2: how many clocks hold the span's tone, of how many read ("4 of 5 clocks agree") */
+  agreement?: { agree: number; of: number } | null;
+  /** doc 70 §4.3 item 6, Chart details: each clock read for this span, its tone, and whether it holds the span's tone */
+  clocks?: SpanClockView[];
+}
+
+/** one clock's word for a span, as Chart details lists it (labels are plain names) */
+export interface SpanClockView {
+  system: string;
+  label: string;
+  tone: SpanTone;
+  agrees: boolean;
 }
 
 export interface SelfV3CardContent {
@@ -169,6 +186,8 @@ export interface SelfV3CardView {
   available: boolean;
   unavailableReason: string | null;
   status: CardStatus;
+  /** doc 70 §4.2: the card's own reading state (always `ready` or `not_read` while the per-card reading is off) */
+  state: CardReadState;
   /** the card's real first line for this person, for the picker tile; null until read */
   firstLine: string | null;
   defaultSections: SelfSectionId[];
@@ -196,7 +215,42 @@ export interface SelfV3Response {
   layout: SelfBoardLayoutView;
   /** every catalogue card in registry order, offered or not; the page shows `layout.cards` on the board */
   cards: SelfV3CardView[];
+  /** doc 70 §4.2: the board's reading progress; null when nothing is known yet */
+  reading: BoardReadingView | null;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Doc 70 Phase 3: a reading per card (§4.2, §4.4)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * One card's reading state. `ready`: a stored reading is served; `reading`: its calls are running; `queued`: waiting
+ * for its turn; `failed`: its last attempt did not come through (Try again); `not_read`: not read yet (the person has
+ * not chosen it, the rest is off, or the spend cap stopped the queue).
+ */
+export type CardReadState = 'ready' | 'reading' | 'queued' | 'failed' | 'not_read';
+export const CARD_READ_STATES: readonly CardReadState[] = ['ready', 'reading', 'queued', 'failed', 'not_read'];
+
+/** where the board's reading is: reading the clocks, checking agreement, writing cards, done; idle when nothing runs */
+export type BoardReadingStage = 'idle' | 'clocks' | 'ledger' | 'cards' | 'done';
+
+export interface BoardReadingView {
+  /** false when the per-card reading is off on this server (the board is filled the Phase B way) */
+  enabled: boolean;
+  stage: BoardReadingStage;
+  /** the clocks the ledger stands on, plain labels; `missing`: not stored yet; `failed`: its reader did not come through */
+  clocks: Array<{ system: string; label: string; state: 'read' | 'missing' | 'failed' }>;
+  /** board cards ready, of board cards */
+  done: number;
+  total: number;
+  /** the day's spend cap stopped the queue: the rest stays "Not read yet" */
+  capReached: boolean;
+  /** fewer clocks stored than READING_CLOCKS_MIN: "Your chart is still being prepared" */
+  preparing: boolean;
+}
+
+/** POST /api/self/v3/cards/:id/read */
+export type CardReadError = 'unknown_card' | 'card_not_offered' | 'already_reading' | 'spend_cap' | 'off' | 'no_kundli';
 
 /** GET /api/self/v3/catalogue: the picker without card bodies */
 export interface SelfV3CatalogueEntry {
@@ -208,6 +262,7 @@ export interface SelfV3CatalogueEntry {
   available: boolean;
   unavailableReason: string | null;
   firstLine: string | null;
+  state: CardReadState;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -222,7 +277,20 @@ export type SelfV3State =
   | { kind: 'v2' }
   | { kind: 'error' };
 
-export type LayoutSaveResult = { ok: true; layout: SelfBoardLayoutView } | { ok: false; error: LayoutError | 'failed' };
+/** PUT /api/self/v3/layout 200: the layout, plus the cards queued for reading (five or more cards, the reading on) */
+export type SelfBoardLayoutSaved = SelfBoardLayoutView & { reading?: { queued: SelfCardId[] } };
+
+export type LayoutSaveResult = { ok: true; layout: SelfBoardLayoutView; queued: SelfCardId[] } | { ok: false; error: LayoutError | 'failed' };
+
+export type CardReadResult = { ok: true; state: CardReadState } | { ok: false; status: number; error: CardReadError | 'failed' };
+
+/** the fewest cards that start the per-card reading (doc 70 §4.3 item 1); three and four still save */
+export const MIN_READING_CARDS = 5;
+
+/** the states a card is still being read in: the page polls while any card on the board has one */
+export function cardReadPending(state: CardReadState | undefined): boolean {
+  return state === 'queued' || state === 'reading';
+}
 
 /** The sections a card shows: the person's choice when stored, else the card's defaults; the fixed two always on. */
 export function cardSections(layout: SelfBoardLayout, card: Pick<SelfV3CardView, 'id' | 'defaultSections'>): SelfSectionId[] {
@@ -291,8 +359,11 @@ export async function saveSelfV3Layout(layout: SelfBoardLayout): Promise<LayoutS
   } catch {
     return { ok: false, error: 'failed' };
   }
-  const j = (await r.json().catch(() => null)) as (SelfBoardLayoutView & { error?: string }) | null;
-  if (r.ok && isLayoutView(j)) return { ok: true, layout: j };
+  const j = (await r.json().catch(() => null)) as (SelfBoardLayoutSaved & { error?: string }) | null;
+  if (r.ok && isLayoutView(j)) {
+    const { reading, ...layoutView } = j;
+    return { ok: true, layout: layoutView, queued: Array.isArray(reading?.queued) ? reading.queued : [] };
+  }
   if (r.status === 400 && j?.error && LAYOUT_ERRORS.has(j.error as LayoutError)) return { ok: false, error: j.error as LayoutError };
   return { ok: false, error: 'failed' };
 }
@@ -304,4 +375,20 @@ export async function sendSelfV3Confirm(claimId: string, answer: SelfConfirmAnsw
   } catch {
     return false;
   }
+}
+
+const CARD_READ_ERRORS = new Set<CardReadError>(['unknown_card', 'card_not_offered', 'already_reading', 'spend_cap', 'off', 'no_kundli']);
+
+/** Queue or retry one card's reading (doc 70 §4.2). 202 is `{ ok: true, state: 'queued' }`. */
+export async function readSelfV3Card(id: SelfCardId): Promise<CardReadResult> {
+  let r: Response;
+  try {
+    r = await call('POST', `/api/self/v3/cards/${encodeURIComponent(id)}/read`);
+  } catch {
+    return { ok: false, status: 0, error: 'failed' };
+  }
+  const j = (await r.json().catch(() => null)) as { state?: CardReadState; error?: string } | null;
+  if (r.ok) return { ok: true, state: j?.state && CARD_READ_STATES.includes(j.state) ? j.state : 'queued' };
+  const error = j?.error && CARD_READ_ERRORS.has(j.error as CardReadError) ? (j.error as CardReadError) : 'failed';
+  return { ok: false, status: r.status, error };
 }

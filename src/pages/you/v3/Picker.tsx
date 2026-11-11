@@ -6,7 +6,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
-import { MIN_CARDS, SELF_CARD_GROUPS, SUGGESTED_COUNT, type SelfCardId, type SelfV3CardView } from '../../../lib/selfV3Api';
+import { MIN_CARDS, MIN_READING_CARDS, SELF_CARD_GROUPS, SUGGESTED_COUNT, type SelfCardId, type SelfV3CardView } from '../../../lib/selfV3Api';
 import { V3_WORDS } from './words';
 
 export default function Picker({
@@ -16,6 +16,7 @@ export default function Picker({
   error = null,
   onDone,
   onCancel,
+  readingOn = false,
 }: {
   cards: SelfV3CardView[];
   /** the cards ticked when the picker opens: none on a first visit, the person's own from the `+` chip */
@@ -25,6 +26,8 @@ export default function Picker({
   onDone: (cards: SelfCardId[]) => void;
   /** absent on a first visit: there is nothing to go back to */
   onCancel?: () => void;
+  /** the per-card reading is on: under five cards the board saves but is not read (doc 70 §4.3 item 1) */
+  readingOn?: boolean;
 }) {
   const [picked, setPicked] = useState<SelfCardId[]>(initial);
   const on = useMemo(() => new Set(picked), [picked]);
@@ -109,7 +112,13 @@ export default function Picker({
       </div>
       <footer className="mt-3 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-white/10 pt-3">
         <p className="mr-auto text-sm text-white/65" aria-live="polite" data-testid="picker-note">
-          {!enough ? V3_WORDS.needThree(picked.length) : picked.length > SUGGESTED_COUNT ? V3_WORDS.moreThanEight : ''}
+          {!enough
+            ? V3_WORDS.needThree(picked.length)
+            : readingOn && picked.length < MIN_READING_CARDS
+              ? V3_WORDS.addFive
+              : picked.length > SUGGESTED_COUNT
+                ? V3_WORDS.moreThanEight
+                : ''}
         </p>
         {error && (
           <p role="alert" className="w-full text-right text-sm text-rose-300" data-testid="picker-error">
