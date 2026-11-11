@@ -6,8 +6,8 @@
  * The choice is remembered per device; phones start minimized.
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
-import { Briefcase, ChevronLeft, ChevronRight, Heart, User } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Briefcase, ChevronLeft, ChevronRight, Clock, Heart, User, X } from 'lucide-react';
 import { track } from '../lib/events';
 
 export const SIDE_TABS = [
@@ -15,6 +15,9 @@ export const SIDE_TABS = [
   { to: '/dashboard/love', label: 'Love', icon: Heart },
   { to: '/dashboard/work', label: 'Work', icon: Briefcase },
 ];
+
+/** The header's own tabs (HeaderTabs.tsx), which move into the drawer below 768 px to give the header room. */
+const DRAWER_EXTRA_TABS = [{ to: '/dashboard/lucky', label: 'Happy Hour(s)', icon: Clock }];
 
 function remembered(key: string, fallback: boolean): boolean {
   try {
@@ -44,13 +47,17 @@ interface LeftRail {
   setOpen: (open: boolean) => void;
   slot: HTMLElement | null;
   setSlot: (el: HTMLElement | null) => void;
+  /** below 768 px the rail is hidden and slides in as a drawer from the header's menu button (Sachin, 2026-11-10) */
+  drawer: boolean;
+  setDrawer: (open: boolean) => void;
 }
 const RailCtx = createContext<LeftRail | null>(null);
 
 export function SideNavProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useRemembered('astra_sidenav_open', true);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  return <RailCtx.Provider value={{ open, setOpen, slot, setSlot }}>{children}</RailCtx.Provider>;
+  const [drawer, setDrawer] = useState(false);
+  return <RailCtx.Provider value={{ open, setOpen, slot, setSlot, drawer, setDrawer }}>{children}</RailCtx.Provider>;
 }
 
 /** For a page that adds items to the left rail: where to portal them, and whether the rail is open. */
@@ -83,31 +90,66 @@ function RailToggle({ side, open, onToggle, label }: { side: 'left' | 'right'; o
 export default function SideNav() {
   const rail = useLeftRail();
   const [localOpen, setLocalOpen] = useState(true);
-  const open = rail ? rail.open : localOpen;
+  const drawer = rail?.drawer ?? false;
+  const setDrawer = rail?.setDrawer;
+  // in the phone drawer the labels always show
+  const open = drawer || (rail ? rail.open : localOpen);
   const setOpen = rail ? rail.setOpen : setLocalOpen;
+  const { pathname } = useLocation();
+
+  // a move to another page closes the drawer
+  useEffect(() => {
+    setDrawer?.(false);
+  }, [pathname, setDrawer]);
+
+  useEffect(() => {
+    if (!drawer) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDrawer?.(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawer, setDrawer]);
 
   const item = ({ isActive }: { isActive: boolean }) =>
     `flex min-h-[40px] items-center gap-2.5 rounded-xl px-2.5 text-sm transition-colors ${isActive ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'} ${open ? '' : 'justify-center'}`;
 
   return (
-    <aside
-      aria-label="Your boards"
-      data-testid="side-nav"
-      data-open={open}
-      className={`glass-bar relative flex h-full shrink-0 flex-col border-r border-white/10 transition-[width] duration-200 ${open ? 'w-40' : 'w-14'}`}
-    >
-      <nav className="shrink-0 space-y-1 p-1.5">
-        {SIDE_TABS.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} title={open ? undefined : label} aria-label={label} onClick={() => track('tab_select', 'sidenav', label.toLowerCase())} className={item}>
-            <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-            {open && <span className="truncate">{label}</span>}
-          </NavLink>
-        ))}
-      </nav>
-      {/* the open page's own items (General Reading's conversations) */}
-      <div ref={rail?.setSlot} data-testid="side-nav-slot" className="flex min-h-0 flex-1 flex-col border-t border-white/10 empty:border-0" />
-      <RailToggle side="left" open={open} onToggle={() => setOpen(!open)} label="sidebar" />
-    </aside>
+    <>
+      {/* below 768 px the rail is a drawer over the page, behind a tap-to-close shade; from 768 px it is the rail */}
+      {drawer && <div className="fixed inset-0 z-[55] bg-black/60 md:hidden" onClick={() => setDrawer?.(false)} aria-hidden="true" data-testid="side-nav-shade" />}
+      <aside
+        id="side-nav"
+        aria-label="Your boards"
+        data-testid="side-nav"
+        data-open={open}
+        data-drawer={drawer}
+        className={`glass-bar flex shrink-0 flex-col border-r border-white/10 transition-[width,transform] duration-200 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-[60] max-md:w-64 max-md:!bg-[#0d0c24] md:relative md:h-full ${drawer ? 'max-md:translate-x-0' : 'max-md:-translate-x-full max-md:invisible'} ${open ? 'md:w-40' : 'md:w-14'}`}
+      >
+        <div className="flex h-14 shrink-0 items-center justify-end border-b border-white/10 px-2 md:hidden">
+          <button type="button" onClick={() => setDrawer?.(false)} aria-label="Close the menu" data-testid="side-nav-close" className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white">
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+        <nav className="shrink-0 space-y-1 p-1.5">
+          {SIDE_TABS.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} title={open ? undefined : label} aria-label={label} onClick={() => track('tab_select', 'sidenav', label.toLowerCase())} className={item}>
+              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+              {open && <span className="truncate">{label}</span>}
+            </NavLink>
+          ))}
+          {DRAWER_EXTRA_TABS.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} aria-label={label} onClick={() => track('tab_select', 'drawer', label.toLowerCase())} className={(s) => `${item(s)} md:hidden`}>
+              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        {/* the open page's own items (General Reading's conversations) */}
+        <div ref={rail?.setSlot} data-testid="side-nav-slot" className="flex min-h-0 flex-1 flex-col border-t border-white/10 empty:border-0" />
+        <div className="max-md:hidden">
+          <RailToggle side="left" open={open} onToggle={() => setOpen(!open)} label="sidebar" />
+        </div>
+      </aside>
+    </>
   );
 }
 

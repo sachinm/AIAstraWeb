@@ -33,7 +33,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
   }, [nav, path]);
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden text-white">
+    <div className="public-frame flex h-dvh flex-col overflow-hidden text-white" data-test-id="public-frame">
       {nav ?? (
         <header className="z-20 shrink-0 bg-transparent px-4 py-3 sm:px-6" data-test-id="public-header">
           <div className="flex w-full items-center justify-between gap-3">
@@ -60,30 +60,32 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
         </header>
       )}
 
-      <main ref={scroller} className="relative min-h-0 flex-1 overflow-y-auto">
+      <main ref={scroller} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {children}
       </main>
 
-      <footer className="z-20 shrink-0 bg-gradient-to-t from-black/40 via-black/20 to-transparent px-4 pb-2 pt-6 sm:px-6 [@media(max-height:480px)]:pt-1 [@media(max-height:480px)]:pb-1" data-test-id="public-footer">
+      <footer className="z-20 shrink-0 bg-gradient-to-t from-black/40 via-black/20 to-transparent px-4 pb-1.5 pt-3 sm:px-6 sm:pb-2 sm:pt-6 [@media(max-height:480px)]:pt-1 [@media(max-height:480px)]:pb-1" data-test-id="public-footer">
         <div className="w-full">
           {/* On a wide screen one row of three, top lines level and equal gaps either side of the disclaimer; narrower,
-              the disclaimer wraps under copyright and links. */}
-          <div className="flex items-center justify-between gap-x-3 sm:flex-wrap sm:gap-x-6 lg:flex-nowrap lg:items-start">
-            <p className="order-1 shrink-0 py-1 text-xs leading-snug text-gray-400" data-test-id="copyright-notice">
+              the disclaimer wraps under copyright and links. On a phone two short lines (Sachin, 2026-11-10):
+              "© 2026 name (site) · Terms · Privacy", then the one-line disclaimer. */}
+          <div className="flex flex-wrap items-center justify-center gap-x-1.5 sm:justify-between sm:gap-x-6 lg:flex-nowrap lg:items-start">
+            <p className="order-1 shrink-0 text-[11px] leading-snug text-gray-400 sm:py-1 sm:text-xs" data-test-id="copyright-notice">
               &copy; 2026 {PRODUCT_NAME} (vedic-astrology.app)<span className="hidden sm:inline">. All rights reserved.</span>
             </p>
             {/* three lines on a phone, or a very short window, covered the page, so they get one; the full text is in the Terms */}
             <Disclaimer className="order-3 hidden w-full py-1 sm:block lg:order-2 lg:w-auto [@media(max-height:480px)]:!hidden" />
-            <div className="order-2 flex shrink-0 flex-wrap items-center gap-x-3 py-1 leading-snug lg:order-3">
-              <LegalLinks />
+            <div className="order-2 flex shrink-0 flex-wrap items-center gap-x-1.5 leading-snug sm:gap-x-3 sm:py-1 lg:order-3">
+              <span className="text-[11px] text-gray-500 sm:hidden" aria-hidden="true">·</span>
+              <LegalLinks compact />
               {SUPPORT_EMAIL && (
-                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-xs text-gray-400 hover:text-purple-300">
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="hidden text-xs text-gray-400 hover:text-purple-300 sm:inline">
                   {SUPPORT_EMAIL}
                 </a>
               )}
             </div>
           </div>
-          <p role="note" data-test-id="disclaimer-short" className="text-center text-xs leading-snug text-slate-400 sm:hidden [@media(max-height:480px)]:!block">
+          <p role="note" data-test-id="disclaimer-short" className="text-center text-[11px] leading-snug text-slate-400 sm:hidden sm:text-xs [@media(max-height:480px)]:!block">
             {DISCLAIMER_SHORT}
           </p>
         </div>
