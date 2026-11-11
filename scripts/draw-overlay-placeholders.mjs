@@ -5,7 +5,7 @@
 // the chart floats on the veil's own glass. The grahas and rashis are drawn by the veil as 3D tiles beside the chart
 // (src/components/LoadingVeil.tsx). Every numeral is exact because it is code, not a model's guess.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { chartSvg } from './chartBoard.mjs';
+import { chartSvg } from '../src/lib/chartBoard.js';
 
 mkdirSync('art/overlay', { recursive: true });
 for (const style of ['south', 'north']) {

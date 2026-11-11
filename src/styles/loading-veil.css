@@ -362,3 +362,9 @@ html.light .load-veil {
     transition: none;
   }
 }
+/* the board is inline vector art; it fills its square */
+.load-veil__art > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
