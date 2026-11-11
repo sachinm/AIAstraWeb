@@ -16,6 +16,7 @@ const REQUEST_MAGIC_LINK_MUTATION = `
     requestMagicLink(email: $email, turnstileToken: $turnstileToken) {
       success
       message
+      turnstileConsumed
     }
   }
 `;
@@ -38,6 +39,7 @@ const LOGIN_WITH_MAGIC_LINK_MUTATION = `
       success
       message
       code
+      turnstileConsumed
       token
       user
       role
@@ -73,6 +75,8 @@ export interface LoginResult {
   message?: string;
   /** Stable server code for a refusal, e.g. terms_required or terms_outdated. */
   code?: string;
+  /** False when the server refused before checking the Turnstile token, so the token is still good (keep it). */
+  turnstileConsumed?: false;
 }
 
 /**
@@ -115,6 +119,8 @@ export const EMAIL_EXISTS_CODE = 'EMAIL_EXISTS';
 export interface MagicLinkRequestResult {
   success: boolean;
   message?: string;
+  /** False when the server refused before checking the Turnstile token, so the token is still good (keep it). */
+  turnstileConsumed?: false;
 }
 
 export async function requestMagicLinkEmail(
@@ -123,7 +129,7 @@ export async function requestMagicLinkEmail(
 ): Promise<MagicLinkRequestResult> {
   try {
     const { data, errors } = await runGraphQL<{
-      requestMagicLink?: { success: boolean; message?: string };
+      requestMagicLink?: { success: boolean; message?: string; turnstileConsumed?: boolean | null };
     }>(REQUEST_MAGIC_LINK_MUTATION, {
       email: email.trim(),
       turnstileToken: turnstileToken ?? null,
@@ -136,6 +142,7 @@ export async function requestMagicLinkEmail(
     return {
       success: Boolean(r?.success),
       message: r?.message,
+      ...(r?.turnstileConsumed === false ? { turnstileConsumed: false as const } : {}),
     };
   } catch (e) {
     console.error('requestMagicLinkEmail:', e);
@@ -157,6 +164,7 @@ export async function loginWithMagicLink(
         success: boolean;
         message?: string;
         code?: string | null;
+        turnstileConsumed?: boolean | null;
         token?: string;
         user?: string;
         role?: string;
@@ -178,7 +186,12 @@ export async function loginWithMagicLink(
       setAuth(result.token, result.user);
       return { success: true, user: result.user };
     }
-    return { success: false, message: result?.message || CODE_FAILED, code: result?.code ?? undefined };
+    return {
+      success: false,
+      message: result?.message || CODE_FAILED,
+      code: result?.code ?? undefined,
+      ...(result?.turnstileConsumed === false ? { turnstileConsumed: false as const } : {}),
+    };
   } catch (e) {
     console.error('loginWithMagicLink:', e);
     return { success: false, message: CODE_FAILED };
@@ -234,6 +247,7 @@ const START_SIGNUP_MUTATION = `
       success
       code
       message
+      turnstileConsumed
     }
   }
 `;
@@ -307,13 +321,15 @@ export interface StartSignupResult {
   success: boolean;
   code?: string;
   message?: string;
+  /** False when the server refused before checking the Turnstile token, so the token is still good (keep it). */
+  turnstileConsumed?: false;
 }
 
 /** Page 1 of registration: name and email only. The server emails a verification code. */
 export async function startSignup(input: StartSignupInput): Promise<StartSignupResult> {
   try {
     const { data, errors } = await runGraphQL<{
-      startSignup?: { success: boolean; code?: string | null; message?: string | null };
+      startSignup?: { success: boolean; code?: string | null; message?: string | null; turnstileConsumed?: boolean | null };
     }>(START_SIGNUP_MUTATION, {
       input: {
         name: input.name.trim(),
@@ -331,6 +347,7 @@ export async function startSignup(input: StartSignupInput): Promise<StartSignupR
       success: Boolean(r?.success),
       code: r?.code ?? undefined,
       message: r?.message ?? undefined,
+      ...(r?.turnstileConsumed === false ? { turnstileConsumed: false as const } : {}),
     };
   } catch (e) {
     console.error('startSignup:', e);

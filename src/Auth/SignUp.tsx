@@ -102,10 +102,12 @@ const SignUp: React.FC<SignUpProps> = ({ onVerified, onSignIn, onBack }) => {
         setAccepted(false);
         if (r.code === TERMS_OUTDATED_CODE) void terms.refresh();
         setError(r.message || TERMS_REQUIRED_MESSAGE);
-        turnstile.reset();
+        // the server checks the box before Turnstile: the token is only spent if it says so
+        if (r.turnstileConsumed !== false) turnstile.reset();
       } else {
         setError(r.message || 'Something went wrong. Please try again.');
-        turnstile.reset();
+        // refused before the check was used: keep the token
+        if (r.turnstileConsumed !== false) turnstile.reset();
       }
     } catch (err) {
       console.error('Start signup:', err);
