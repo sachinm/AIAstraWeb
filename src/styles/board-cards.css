@@ -41,25 +41,25 @@ html.light .card-art[data-art-theme='standing'] { --art-a: #d6f5e8; --art-b: #dd
 html.light .card-art[data-art-theme='money'] { --art-a: #fdf6c8; --art-b: #d6f5e8; --art-line: rgba(161, 98, 7, 0.5); --art-glow: rgba(234, 179, 8, 0.45); --medal-ink: #854d0e; }
 html.light .card-art[data-art-theme='growth'] { --art-a: #dcfce7; --art-b: #fdf3d0; --art-line: rgba(21, 128, 61, 0.5); --art-glow: rgba(132, 204, 22, 0.4); --medal-ink: #166534; }
 
-/* photos: greyed, then tinted with the category gradient (a duotone), darker in dark mode */
+/* photos: full colour and well contrasted in both themes (Sachin 2026-11-11: no deep tint in dark mode). The category
+   colour is only a short fade at the foot of the photo, behind the icon, so the icon stays legible and the topic still
+   reads by colour. One filter and one gradient layer per tile; no blend modes. */
 .card-art-photo {
-  /* the photos ship greyscale already (scripts/encrypt-card-art.mjs), so no grayscale filter is paid per tile */
-  filter: brightness(0.82);
+  filter: contrast(1.12) saturate(1.1);
 }
 .card-art-tint {
-  background: linear-gradient(135deg, var(--art-a), var(--art-b));
-  mix-blend-mode: color;
-  opacity: 0.9;
+  background: linear-gradient(to top, var(--art-a) 0%, transparent 42%);
+  opacity: 0.85;
 }
 html.light .card-art-photo {
-  filter: brightness(1.06);
+  filter: contrast(1.04) saturate(1.05);
 }
 html.light .card-art-tint {
-  mix-blend-mode: multiply;
-  opacity: 0.75;
+  opacity: 0.55;
 }
 .card-art[data-muted='true'] .card-art-photo {
-  opacity: 0.55;
+  filter: grayscale(0.85) contrast(0.95);
+  opacity: 0.6;
 }
 
 .card-art[data-muted='true'] svg {
