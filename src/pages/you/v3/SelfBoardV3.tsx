@@ -57,6 +57,7 @@ import { V2_WORDS } from '../v2/words';
 import CardChips from './CardChips';
 import { SpanClocks, type CardReading } from './CardParts';
 import CompactCard from './CompactCard';
+import { optionsFor, sectionsFor, withCardOption, type CardOptionKey } from '../../../lib/cardOptions';
 import Picker from './Picker';
 import SeasonsCard from './SeasonsCard';
 import { LAYOUT_ERROR_WORD, TEMPLATE_WORD, V3_WORDS } from './words';
@@ -242,8 +243,14 @@ function detailsArea(card: SelfV3CardView): SelfV2Area {
   };
 }
 
+/** the options of the cards still on the board, sent only when there are any (an older body stays as it was) */
+function keptOptions(all: SelfBoardLayout['options'], cards: readonly string[]): Pick<SelfBoardLayout, 'options'> {
+  const kept = optionsFor(all, cards);
+  return Object.keys(kept).length ? { options: kept } : {};
+}
+
 function plainLayout(l: SelfBoardLayoutView): SelfBoardLayout {
-  return { template: l.template, cards: l.cards, sections: l.sections };
+  return { template: l.template, cards: l.cards, sections: l.sections, ...keptOptions(l.options, l.cards) };
 }
 
 function Board({
@@ -348,6 +355,12 @@ function Board({
   const selectId = (id: SelfCardId) => select(Math.max(0, shown.findIndex((c) => c.id === id)));
 
   const setSections = (id: SelfCardId, next: SelfSectionId[]) => void save({ ...plainLayout(layout), sections: { ...layout.sections, [id]: next } });
+  // doc 71 §4.3: an option rewrites that card's sections at once; the server's answer (rail, notes) follows on reload
+  const setOption = async (id: SelfCardId, key: CardOptionKey, value: string) => {
+    const options = withCardOption(layout.options ?? {}, id, key, value);
+    track('chip_select', SURFACE, `option_${key}_${value}`);
+    if (await save({ ...plainLayout(layout), options, sections: { ...layout.sections, [id]: sectionsFor(options[id]) as SelfSectionId[] } })) onReload();
+  };
   const setTemplate = (t: SelfTemplateId) => {
     if (t === template) return;
     track('chip_select', SURFACE, `template_${t}`);
@@ -357,7 +370,7 @@ function Board({
   const pickerDone = async (cards: SelfCardId[]) => {
     setPickerBusy(true);
     const sections = Object.fromEntries(Object.entries(layout.sections).filter(([id]) => cards.includes(id as SelfCardId))) as SelfBoardLayout['sections'];
-    const ok = await save({ template, cards, sections });
+    const ok = await save({ template, cards, sections, ...keptOptions(layout.options, cards) });
     setPickerBusy(false);
     if (ok) {
       setPickerOpen(false);
@@ -373,7 +386,7 @@ function Board({
       return;
     }
     const sections = Object.fromEntries(Object.entries(layout.sections).filter(([id]) => editing.includes(id as SelfCardId))) as SelfBoardLayout['sections'];
-    if (await save({ template, cards: editing, sections })) {
+    if (await save({ template, cards: editing, sections, ...keptOptions(layout.options, editing) })) {
       setEditing(null);
       setIndex(0);
     }
@@ -473,6 +486,8 @@ function Board({
       card: c,
       sections: cardSections(layout, c),
       onSections: (next: SelfSectionId[]) => setSections(c.id, next),
+      options: layout.options?.[c.id],
+      onOption: (key: CardOptionKey, value: string) => void setOption(c.id, key, value),
       onDetails: (card: SelfV3CardView, span?: SpanReading | null, label?: string | null) => setDetails({ card, span: span ?? null, label: label ?? null }),
       focused: perView > 1 && i === index,
       veil: !(veiled && progress),
@@ -567,7 +582,7 @@ function Board({
           error={saveError}
         />
       )}
-      <div className="relative min-h-0" data-testid="self-v3-deck">
+      <div className="relative min-h-0 min-w-0" data-testid="self-v3-deck">
         {deck}
       </div>
       {!showPicker && mode === 'phone' && <CarouselDots index={index} count={shown.length} onIndexChange={select} label={slideLabel} testId="self-v3-carousel" />}

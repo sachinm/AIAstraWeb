@@ -23,6 +23,9 @@ import {
 import { longDate, monthName, type Tone } from '../lib/careerApi';
 import { track } from '../lib/events';
 import BoardAsk from './BoardAsk';
+import { AreaCardChips, AreaCardsButton, AreaCardsSheet, useAreaCards } from './boardCards/AreaCards';
+import { allowedSubareas, optionsForSubarea, VIEW_TIMEFRAME, type AreaCardsBoard } from '../lib/boardCardsApi';
+import { effectiveOptions, type CardOptions } from '../lib/cardOptions';
 import LoadingVeil from './LoadingVeil';
 import { ReadingStamp } from './ReadingStamp';
 
@@ -82,6 +85,8 @@ export interface AreaBoardConfig {
   emptyAhead: string;
   emptyBack: string;
   unavailable: string;
+  /** Love (server doc 71 §4.6): the person chooses cards and each card's options; absent on the You board */
+  cardsBoard?: AreaCardsBoard;
   /** a page shown before Now and selected by default (the You board's "Your reading", doc 58 §4.3); Love has none */
   extraFirstTab?: { id: string; label: string; render: () => ReactNode };
 }
@@ -371,6 +376,10 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
   const [focusFilter, setFocusFilter] = useState<string>('all');
   const [timeframeFilter, setTimeframeFilter] = useState<TimeframeFilter>('all');
   const polls = useRef(0);
+  const cards = useAreaCards(cfg.cardsBoard ?? null);
+  const [activeCard, setActiveCard] = useState<string | null>(null);
+  const allowed = useMemo(() => allowedSubareas(cards.layout, cards.catalogue), [cards.layout, cards.catalogue]);
+  const optionsOf = useMemo(() => (key: string) => optionsForSubarea(key, cards.layout, cards.catalogue), [cards.layout, cards.catalogue]);
 
   const load = () =>
     fetchArea(cfg.area)
@@ -411,9 +420,13 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
             />
           )}
         </div>
-        <BoardAsk category={cfg.askCategory} />
+        <div className="flex shrink-0 items-center gap-2">
+          <AreaCardsButton cards={cards} />
+          <BoardAsk category={cfg.askCategory} />
+        </div>
       </div>
       {body}
+      {cfg.cardsBoard && <AreaCardsSheet board={cfg.cardsBoard} cards={cards} />}
     </div>
   );
 
@@ -521,6 +534,18 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
         </button>
       </section>
 
+      <AreaCardChips
+        cards={cards}
+        active={activeCard}
+        onSelect={(c) => {
+          setActiveCard(c?.id ?? null);
+          const only = c && c.subareas.length === 1 && c.subareas[0] !== '*' ? c.subareas[0]! : 'all';
+          setFocusFilter(only);
+          setTimeframeFilter(c ? VIEW_TIMEFRAME[effectiveOptions(cards.layout?.options[c.id]).view] : 'all');
+          track('chip_select', cfg.surface, c ? `card_${c.id}` : 'card_all');
+        }}
+      />
+
       <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div role="tablist" aria-label={`${cfg.title} pages`} className="flex flex-1 gap-1 overflow-x-auto glass rounded-xl p-1">
           {PAGES.map(([p, label]) => (
@@ -545,7 +570,9 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
                 className="rounded-lg border border-white/15 bg-[#141233] px-2.5 py-1.5 text-xs text-white focus:border-purple-400 focus:outline-none"
               >
                 <option value="all">All sub-areas</option>
-                {Object.entries(cfg.subareas).map(([k, label]) => (
+                {Object.entries(cfg.subareas)
+                  .filter(([k]) => !allowed || allowed.has(k))
+                  .map(([k, label]) => (
                   <option key={k} value={k}>
                     {label}
                   </option>
@@ -588,6 +615,8 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
           focusFilter={focusFilter}
           timeframeFilter={timeframeFilter}
           asOf={board.asOf}
+          allowed={allowed}
+          optionsOf={optionsOf}
         />
       )}
       {page === 'presses' && (
@@ -599,6 +628,8 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
           focusFilter={focusFilter}
           timeframeFilter={timeframeFilter}
           asOf={board.asOf}
+          allowed={allowed}
+          optionsOf={optionsOf}
         />
       )}
       {page === 'ahead' && <AheadPage board={board} focus={focus} cfg={cfg} focusFilter={focusFilter} timeframeFilter={timeframeFilter} />}
@@ -899,6 +930,8 @@ function FindingsMasterDetail({
   focusFilter,
   timeframeFilter,
   asOf,
+  allowed = null,
+  optionsOf,
 }: {
   items: EnrichedFindingItem[];
   empty: string;
@@ -907,12 +940,17 @@ function FindingsMasterDetail({
   focusFilter: string;
   timeframeFilter: TimeframeFilter;
   asOf: string;
+  /** doc 71: the sub-areas the person's chosen cards show; null: every one */
+  allowed?: Set<string> | null;
+  /** doc 71: the options of the card a finding belongs to; null: the board as before */
+  optionsOf?: (subareaKey: string) => CardOptions | null;
 }) {
   const filtered = useMemo(() => {
-    const byFocus = focusFilter === 'all' ? items : items.filter((it) => it.subareaKey === focusFilter);
+    const chosen = allowed ? items.filter((it) => allowed.has(it.subareaKey)) : items;
+    const byFocus = focusFilter === 'all' ? chosen : chosen.filter((it) => it.subareaKey === focusFilter);
     const byTf = byFocus.filter((it) => matchesTimeframe(it, timeframeFilter, asOf));
-    return byTf.length > 0 ? byTf : items;
-  }, [items, focusFilter, timeframeFilter, asOf]);
+    return byTf.length > 0 ? byTf : chosen;
+  }, [items, focusFilter, timeframeFilter, asOf, allowed]);
 
   const [selectedId, setSelectedId] = useState<string | null>(filtered[0]?.id ?? null);
 
@@ -935,7 +973,18 @@ function FindingsMasterDetail({
     );
   }
 
+  if (!filtered.length) {
+    return (
+      <div className={panel} data-testid={testId}>
+        {empty}
+      </div>
+    );
+  }
   const selected = filtered.find((it) => it.id === selectedId) ?? filtered[0]!;
+  // doc 71 §4.6: a glance keeps the headline and dates; plain words leave out the chart-term boxes
+  const opts = optionsOf?.(selected.subareaKey) ?? null;
+  const glance = opts?.length === 'glance';
+  const plain = opts ? opts.words === 'plain' : false;
 
   return (
     <div className="grid gap-4 lg:grid-cols-12" data-testid={testId}>
@@ -989,19 +1038,22 @@ function FindingsMasterDetail({
           <span>{selected.dateLabel}</span>
         </div>
 
-        <div className="space-y-3 text-sm leading-relaxed text-white/85">
+        {!glance && (
+        <div className="space-y-3 text-sm leading-relaxed text-white/85" data-testid="finding-detail-body">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-white/50">Astrology Oracle Reading</div>
             <p className="mt-1" data-testid="finding-detail-reading">{selected.reading}</p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 ${plain ? '' : 'sm:grid-cols-2'}`}>
+            {!plain && (
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">Natal Promise</div>
               <p className="mt-1 text-xs leading-relaxed text-white/75" data-testid="finding-detail-promise">
                 {selected.natalPromise}
               </p>
             </div>
+            )}
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-pink-200">Time-Period Charter</div>
               <p className="mt-1 text-xs leading-relaxed text-white/75" data-testid="finding-detail-charter">
@@ -1010,6 +1062,7 @@ function FindingsMasterDetail({
             </div>
           </div>
 
+          {!plain && (
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">
               Vedic Placements, Aspects & Strength Signals
@@ -1023,7 +1076,9 @@ function FindingsMasterDetail({
               ))}
             </ul>
           </div>
+          )}
         </div>
+        )}
       </div>
     </div>
   );

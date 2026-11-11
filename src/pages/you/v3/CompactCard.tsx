@@ -3,9 +3,10 @@
  * landscape, filled from the same card view as Seasons. Headline, the current period's text, the sections the person
  * keeps on, and the dates at the bottom. Only the card's body scrolls, inside the card. No strip.
  */
+import type { CardOptionKey, CardOptions } from '../../../lib/cardOptions';
 import type { SelfSectionId, SelfV3CardView, SpanReading } from '../../../lib/selfV3Api';
 import { CERTAINTY_WORD, V2_WORDS } from '../v2/words';
-import { ConfirmSection, LadderSection, PatternSection, SectionsMenu, SensitiveNote, SpanAgreement, cardHeadline, spanToneShown, type CardReading } from './CardParts';
+import { ConfirmSection, LadderSection, PatternSection, SectionsMenu, OptionNotes, SensitiveNote, SpanAgreement, cardHeadline, spanToneShown, type CardReading } from './CardParts';
 import { currentRail, notReadyBody, spanFor } from './SeasonsCard';
 import { SPAN_MODE_WORD, SPAN_TONE_WORD } from './words';
 
@@ -15,6 +16,8 @@ export default function CompactCard({
   card,
   sections,
   onSections,
+  options,
+  onOption,
   onDetails,
   focused = false,
   veil = true,
@@ -23,6 +26,8 @@ export default function CompactCard({
   card: SelfV3CardView;
   sections: SelfSectionId[];
   onSections: (next: SelfSectionId[]) => void;
+  options?: Partial<CardOptions>;
+  onOption?: (key: CardOptionKey, value: string) => void;
   onDetails: (card: SelfV3CardView, span?: SpanReading | null, label?: string | null) => void;
   focused?: boolean;
   veil?: boolean;
@@ -42,8 +47,9 @@ export default function CompactCard({
           {card.v2?.rangeLabel && <p className="text-xs text-white/55">{card.v2.rangeLabel}</p>}
           {card.status === 'pending' && <p className="text-sm text-white/60">{card.description}</p>}
           <SensitiveNote card={card} />
+          <OptionNotes card={card} />
         </div>
-        {!notReady && <SectionsMenu card={card} sections={sections} onChange={onSections} />}
+        {!notReady && <SectionsMenu card={card} sections={sections} onChange={onSections} options={options} onOption={onOption} />}
       </header>
       {notReady ?? (
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1.5 [scrollbar-width:thin]" data-testid="card-body" tabIndex={0} aria-label={`${card.title}, more`}>

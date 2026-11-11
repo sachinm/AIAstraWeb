@@ -1,0 +1,172 @@
+/* The card picker's art and tiles (src/components/boardCards; server docs/reading-engine/71 §4.1, §4.2).
+   Dark values are the default; html.light overrides them. Each theme sets the art's two gradient stops, its line
+   colour and its glow. Depth is on the tiles and medallions only, never on words. */
+
+.card-art {
+  --art-a: #3b1d5e;
+  --art-b: #1b1440;
+  --art-line: rgba(237, 233, 254, 0.7);
+  --art-glow: rgba(253, 230, 138, 0.85);
+  --medal-bg: linear-gradient(150deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.06) 60%, rgba(0, 0, 0, 0.18));
+  --medal-border: rgba(255, 255, 255, 0.3);
+  --medal-ink: #fff;
+  isolation: isolate;
+}
+.card-art[data-art-theme='body'] { --art-a: #7a2e3a; --art-b: #8a4b12; --art-line: rgba(255, 214, 196, 0.8); --art-glow: rgba(252, 196, 120, 0.9); }
+.card-art[data-art-theme='mind'] { --art-a: #23286e; --art-b: #0e4a6e; --art-line: rgba(186, 230, 253, 0.8); --art-glow: rgba(125, 211, 252, 0.9); }
+.card-art[data-art-theme='character'] { --art-a: #3d1f6e; --art-b: #5a3a12; --art-line: rgba(221, 214, 254, 0.75); --art-glow: rgba(253, 224, 138, 0.95); }
+.card-art[data-art-theme='indian'] { --art-a: #7c2d12; --art-b: #5b1230; --art-line: rgba(254, 215, 170, 0.75); --art-glow: rgba(251, 146, 60, 0.8); }
+.card-art[data-art-theme='time'] { --art-a: #0f4c4c; --art-b: #14204f; --art-line: rgba(153, 246, 228, 0.75); --art-glow: rgba(94, 234, 212, 0.9); }
+.card-art[data-art-theme='bond'] { --art-a: #6b1d24; --art-b: #252a5e; --art-line: rgba(254, 215, 200, 0.8); --art-glow: rgba(248, 113, 80, 0.8); }
+.card-art[data-art-theme='meeting'] { --art-a: #7a4a12; --art-b: #1f3a5a; --art-line: rgba(254, 230, 190, 0.8); --art-glow: rgba(251, 191, 36, 0.85); }
+.card-art[data-art-theme='circle'] { --art-a: #3f4a1a; --art-b: #4a2e17; --art-line: rgba(236, 240, 200, 0.8); --art-glow: rgba(190, 220, 120, 0.75); }
+.card-art[data-art-theme='standing'] { --art-a: #0d4f3c; --art-b: #1b2f52; --art-line: rgba(167, 243, 208, 0.75); --art-glow: rgba(52, 211, 153, 0.85); }
+.card-art[data-art-theme='money'] { --art-a: #4f4a0d; --art-b: #0d4f3c; --art-line: rgba(254, 240, 138, 0.8); --art-glow: rgba(250, 204, 21, 0.85); }
+.card-art[data-art-theme='growth'] { --art-a: #14532d; --art-b: #4a3b0d; --art-line: rgba(187, 247, 208, 0.8); --art-glow: rgba(163, 230, 53, 0.8); }
+
+html.light .card-art {
+  --medal-bg: linear-gradient(150deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.7));
+  --medal-border: rgba(15, 23, 42, 0.12);
+  --medal-ink: #3b0764;
+}
+html.light .card-art[data-art-theme='body'] { --art-a: #ffe1d6; --art-b: #fde9c4; --art-line: rgba(190, 70, 50, 0.55); --art-glow: rgba(249, 115, 22, 0.45); --medal-ink: #9a3412; }
+html.light .card-art[data-art-theme='mind'] { --art-a: #dfe4ff; --art-b: #d5f0ff; --art-line: rgba(55, 65, 160, 0.5); --art-glow: rgba(56, 132, 230, 0.4); --medal-ink: #312e81; }
+html.light .card-art[data-art-theme='character'] { --art-a: #ece3ff; --art-b: #fdf1d0; --art-line: rgba(91, 33, 182, 0.45); --art-glow: rgba(202, 138, 4, 0.6); --medal-ink: #5b21b6; }
+html.light .card-art[data-art-theme='indian'] { --art-a: #ffe4cc; --art-b: #fbd9e4; --art-line: rgba(154, 52, 18, 0.5); --art-glow: rgba(234, 88, 12, 0.35); --medal-ink: #9a3412; }
+html.light .card-art[data-art-theme='time'] { --art-a: #d2f5ef; --art-b: #dde3ff; --art-line: rgba(15, 118, 110, 0.5); --art-glow: rgba(20, 184, 166, 0.45); --medal-ink: #115e59; }
+html.light .card-art[data-art-theme='bond'] { --art-a: #fbe3d6; --art-b: #e0e4f7; --art-line: rgba(153, 27, 27, 0.45); --art-glow: rgba(234, 88, 12, 0.35); --medal-ink: #7f1d1d; }
+html.light .card-art[data-art-theme='meeting'] { --art-a: #fdeccb; --art-b: #dbe7f5; --art-line: rgba(146, 64, 14, 0.45); --art-glow: rgba(217, 119, 6, 0.4); --medal-ink: #78350f; }
+html.light .card-art[data-art-theme='circle'] { --art-a: #e8eed2; --art-b: #f3e4d0; --art-line: rgba(77, 90, 30, 0.5); --art-glow: rgba(101, 163, 13, 0.35); --medal-ink: #3f4a1a; }
+html.light .card-art[data-art-theme='standing'] { --art-a: #d6f5e8; --art-b: #dde6f7; --art-line: rgba(4, 120, 87, 0.5); --art-glow: rgba(16, 185, 129, 0.4); --medal-ink: #065f46; }
+html.light .card-art[data-art-theme='money'] { --art-a: #fdf6c8; --art-b: #d6f5e8; --art-line: rgba(161, 98, 7, 0.5); --art-glow: rgba(234, 179, 8, 0.45); --medal-ink: #854d0e; }
+html.light .card-art[data-art-theme='growth'] { --art-a: #dcfce7; --art-b: #fdf3d0; --art-line: rgba(21, 128, 61, 0.5); --art-glow: rgba(132, 204, 22, 0.4); --medal-ink: #166534; }
+
+.card-art[data-muted='true'] svg {
+  filter: grayscale(0.85) brightness(0.8);
+  opacity: 0.7;
+}
+html.light .card-art[data-muted='true'] svg {
+  filter: grayscale(0.9) brightness(1.02);
+}
+
+.card-art-medallion {
+  background: var(--medal-bg);
+  border: 1px solid var(--medal-border);
+  color: var(--medal-ink);
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(6px);
+}
+html.light .card-art-medallion {
+  box-shadow: 0 6px 14px -8px rgba(76, 29, 149, 0.35), inset 0 1px 0 #fff;
+}
+
+/* ---- tiles ---------------------------------------------------------------------------------------------------- */
+.bc-tile {
+  --tile-bg: linear-gradient(170deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  --tile-border: rgba(255, 255, 255, 0.1);
+  --tile-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.8);
+  --tile-on: rgb(94, 234, 212);
+  background: var(--tile-bg);
+  border: 1px solid var(--tile-border);
+  box-shadow: var(--tile-shadow);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+html.light .bc-tile {
+  --tile-bg: linear-gradient(170deg, #ffffff, #f7f5ff);
+  --tile-border: rgba(76, 29, 149, 0.12);
+  --tile-shadow: 0 12px 26px -18px rgba(76, 29, 149, 0.45);
+  --tile-on: rgb(13, 148, 136);
+}
+.bc-tile[data-state='open']:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 36px -18px rgba(0, 0, 0, 0.85);
+}
+html.light .bc-tile[data-state='open']:hover {
+  box-shadow: 0 18px 32px -18px rgba(76, 29, 149, 0.5);
+}
+.bc-tile[data-state='on'] {
+  border-color: var(--tile-on);
+  box-shadow: 0 0 0 1px var(--tile-on), var(--tile-shadow);
+}
+.bc-tile[data-state='soon'] {
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.78;
+}
+
+/* solid chips laid over the art: state words, never glowing */
+.bc-chip {
+  background: rgba(10, 9, 30, 0.82);
+  color: #fff;
+}
+html.light .bc-chip {
+  background: rgba(255, 255, 255, 0.94);
+  color: #3b0764;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+.bc-chip[data-kind='on'] {
+  background: rgb(45, 212, 191);
+  color: #06051a;
+}
+html.light .bc-chip[data-kind='on'] {
+  background: rgb(13, 148, 136);
+  color: #fff;
+}
+
+/* phone: each group is a swipe row (Sachin's carousel rule); tablet and up: a grid */
+.bc-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.bc-row::-webkit-scrollbar {
+  display: none;
+}
+.bc-row > * {
+  flex: 0 0 86%;
+  scroll-snap-align: center;
+}
+.bc-row-soon > * {
+  flex-basis: 56%;
+}
+@media (min-width: 640px) {
+  .bc-row {
+    display: grid;
+    overflow: visible;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bc-row > * {
+    flex: none;
+  }
+  .bc-row-soon {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) {
+  .bc-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .bc-row-soon {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1500px) {
+  .bc-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .bc-row-soon {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bc-tile {
+    transition: none;
+  }
+  .bc-tile[data-state='open']:hover {
+    transform: none;
+  }
+}
