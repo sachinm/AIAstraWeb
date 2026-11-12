@@ -38,11 +38,11 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
         <header className="z-20 shrink-0 bg-transparent px-4 py-3 sm:px-6" data-test-id="public-header">
           <div className="flex w-full items-center justify-between gap-3">
             <Link to="/" className="flex min-w-0 items-center gap-3" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`}>
-              <img src="/images/logo-128.png" alt="" width={64} height={64} className="h-12 w-12 shrink-0 rounded-2xl sm:h-14 sm:w-14 md:h-16 md:w-16" data-test-id="brand-logo" />
-              {/* The tagline sits under the name on phones and beside it from tablet width up. */}
-              <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent md:flex-row md:items-center md:gap-3">
-                <span className="whitespace-nowrap text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">{PRODUCT_NAME}</span>
-                <span className="text-xs leading-tight md:text-lg" data-test-id="header-tagline">
+              <img src="/images/logo-128.png" alt="" width={80} height={80} className="h-12 w-12 shrink-0 rounded-2xl sm:h-16 sm:w-16 lg:h-20 lg:w-20" data-test-id="brand-logo" />
+              {/* The tagline sits under the name at every width; the logo grows with the pair above phone width (Sachin, 2026-11-11). */}
+              <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                <span className="whitespace-nowrap text-2xl font-bold leading-tight sm:text-3xl lg:text-4xl">{PRODUCT_NAME}</span>
+                <span className="text-xs leading-tight sm:text-sm lg:text-lg" data-test-id="header-tagline">
                   {PRODUCT_TAGLINE}
                 </span>
               </span>
