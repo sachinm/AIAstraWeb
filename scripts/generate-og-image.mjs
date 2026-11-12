@@ -3,15 +3,16 @@
  * Run: node scripts/generate-og-image.mjs
  *
  * Renders an inline SVG in headless Chromium (Playwright is already a dev dependency), so no image library is needed.
- * The star and its gradient are copied from public/favicon.svg; change one, change the other.
+ * The logo is public/images/logo-512.png, the same picture as the favicon; change that file and run this again.
  */
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const out = resolve(root, 'public/images/og-aiastra.png');
+const logo = readFileSync(resolve(root, 'public/images/logo-512.png')).toString('base64');
 
 const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
@@ -22,16 +23,12 @@ const svg = `
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="#111827"/>
-  <!-- the favicon's 64x64 star, scaled 6x -->
-  <g transform="translate(120 123) scale(6)">
-    <path fill="url(#g)" d="M32 8l5.8 15.9L54 30l-16.2 6.1L32 52l-5.8-15.9L10 30l16.2-6.1z"/>
-  </g>
+  <image href="data:image/png;base64,${logo}" x="90" y="115" width="400" height="400"/>
   <g font-family="Segoe UI, Helvetica, Arial, sans-serif" fill="#ffffff">
     <text x="540" y="290" font-size="112" font-weight="700">AdAstra AI</text>
-    <text x="544" y="370" font-size="38" fill="#d1d5db">Your Personal Vedic</text>
-    <text x="544" y="420" font-size="38" fill="#d1d5db">Astrology Assistant</text>
+    <text x="544" y="375" font-size="38" fill="#d1d5db">Your Personal Vedic Astrologer</text>
   </g>
-  <rect x="544" y="460" width="160" height="6" rx="3" fill="url(#g)"/>
+  <rect x="544" y="420" width="160" height="6" rx="3" fill="url(#g)"/>
 </svg>`;
 
 const browser = await chromium.launch();
