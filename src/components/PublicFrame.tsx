@@ -37,19 +37,19 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
       {nav ?? (
         <header className="z-20 shrink-0 bg-transparent px-4 py-3 sm:px-6" data-test-id="public-header">
           <div className="flex w-full items-center justify-between gap-3">
-            <Link to="/" className="flex min-w-0 items-center gap-2" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`}>
-              <img src="/images/logo-128.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" data-test-id="brand-logo" />
+            <Link to="/" className="flex min-w-0 items-center gap-3" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`}>
+              <img src="/images/logo-128.png" alt="" width={64} height={64} className="h-12 w-12 shrink-0 rounded-2xl sm:h-14 sm:w-14 md:h-16 md:w-16" data-test-id="brand-logo" />
               {/* The tagline sits under the name on phones and beside it from tablet width up. */}
               <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent md:flex-row md:items-center md:gap-3">
-                <span className="text-2xl font-bold leading-tight">{PRODUCT_NAME}</span>
-                <span className="text-[11px] leading-tight md:text-sm" data-test-id="header-tagline">
+                <span className="whitespace-nowrap text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">{PRODUCT_NAME}</span>
+                <span className="text-xs leading-tight md:text-lg" data-test-id="header-tagline">
                   {PRODUCT_TAGLINE}
                 </span>
               </span>
             </Link>
             {!NO_CTA_PATHS.includes(path) && (
               <Link
-                to="/signup"
+                to="/signin"
                 className="group flex shrink-0 items-center whitespace-nowrap rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-white sm:px-5 transition-all duration-300 hover:from-purple-700 hover:to-pink-700"
               >
                 Get Started

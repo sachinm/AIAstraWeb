@@ -25,7 +25,7 @@ describe('PublicFrame', () => {
 
   it('offers Get Started, and no Sign in or Pricing, on the main page', () => {
     show('/');
-    expect(screen.getByRole('link', { name: /get started/i })).toHaveAttribute('href', '/signup');
+    expect(screen.getByRole('link', { name: /get started/i })).toHaveAttribute('href', '/signin');
     expect(screen.queryByText(/^sign in$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^pricing$/i)).not.toBeInTheDocument();
   });

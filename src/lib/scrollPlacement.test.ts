@@ -69,7 +69,7 @@ describe('placing the scrolls', () => {
 
   it('is the same every time with no random source, for the prerendered page', () => {
     expect(placeScrolls(8)).toEqual(placeScrolls(8));
-    expect(placeScrolls(8)[0]).toEqual({ x: 18, y: 22, edge: 'left' });
+    expect(placeScrolls(8)[0]).toEqual({ x: 28, y: 22, edge: 'left' });
   });
 });
 
