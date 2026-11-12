@@ -26,10 +26,10 @@ function scrollsFor(onSignUp: () => void): Scroll[] {
   return [
     {
       id: 'tagline',
-      label: 'Your Vedic astrology assistant',
+      label: 'Your Vedic astrologer',
       body: (
         <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-amber-950 sm:text-base">
-          Your personal Vedic Astrology Assistant, mastered on the ancient text unabridged and astrological celestial sky
+          Your personal Vedic Astrologer, mastered on the ancient text unabridged and astrological celestial sky
         </p>
       ),
     },

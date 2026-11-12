@@ -9,11 +9,13 @@ import { LANDING_FAQS } from './landingFaqs';
 
 export const PRODUCT_NAME = 'AdAstra AI';
 export const DEFAULT_DESCRIPTION =
-  'Your personal Vedic astrology assistant. Ask about your birth chart, kundli and dasha, mastered on the ancient texts unabridged and the celestial sky.';
+  'Your personal Vedic astrologer. Ask about your birth chart, kundli and dasha, mastered on the ancient texts unabridged and the celestial sky.';
 /** Served from /public: 1200x630, made by scripts/generate-og-image.mjs. */
 export const DEFAULT_OG_IMAGE = '/images/og-aiastra.png';
+/** The square logo (the favicon's picture), served from /public; the Organization's logo in structured data. */
+export const LOGO_IMAGE = '/images/logo-512.png';
 /** What the share picture says, for screen readers and for crawlers that read an image's alt. */
-export const SHARE_IMAGE_ALT = `${PRODUCT_NAME} – Your Personal Vedic Astrology Assistant`;
+export const SHARE_IMAGE_ALT = `${PRODUCT_NAME} – Your Personal Vedic Astrologer`;
 export const DEFAULT_LOCALE = 'en_US';
 
 /** One tag for `<head>`, as data: `headTagsFor()` makes them, the browser and the prerender each write them. */
@@ -39,7 +41,7 @@ export interface PageSeo {
 export const PUBLIC_PAGES: ReadonlyArray<PageSeo> = [
   {
     path: '/',
-    title: `${PRODUCT_NAME} – Your Personal Vedic Astrology Assistant`,
+    title: `${PRODUCT_NAME} – Your Personal Vedic Astrologer`,
     description: DEFAULT_DESCRIPTION,
     index: true,
     changefreq: 'weekly',
@@ -189,15 +191,15 @@ export function jsonLdFor(siteUrl: string, pathname: string): JsonLd[] {
     '@type': 'Organization',
     '@id': `${base}/#organization`,
     name: PRODUCT_NAME,
-    slogan: 'Your Personal Vedic Astrology Assistant',
+    slogan: 'Your Personal Vedic Astrologer',
     url: `${base}/`,
-    logo: `${base}${DEFAULT_OG_IMAGE}`,
+    logo: `${base}${LOGO_IMAGE}`,
   };
   const site: JsonLd = {
     '@type': 'WebSite',
     '@id': `${base}/#website`,
     name: PRODUCT_NAME,
-    alternateName: `${PRODUCT_NAME} – Your Personal Vedic Astrology Assistant`,
+    alternateName: `${PRODUCT_NAME} – Your Personal Vedic Astrologer`,
     url: `${base}/`,
     inLanguage: 'en',
     publisher: { '@id': `${base}/#organization` },

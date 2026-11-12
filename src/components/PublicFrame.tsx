@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ArrowRight, Star } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Disclaimer, { DISCLAIMER_SHORT } from './Disclaimer';
 import LegalLinks from './LegalLinks';
@@ -38,7 +38,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
         <header className="z-20 shrink-0 bg-transparent px-4 py-3 sm:px-6" data-test-id="public-header">
           <div className="flex w-full items-center justify-between gap-3">
             <Link to="/" className="flex min-w-0 items-center gap-2" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`}>
-              <Star className="h-7 w-7 shrink-0 text-purple-400" aria-hidden="true" />
+              <img src="/images/logo-128.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" data-test-id="brand-logo" />
               {/* The tagline sits under the name on phones and beside it from tablet width up. */}
               <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent md:flex-row md:items-center md:gap-3">
                 <span className="text-2xl font-bold leading-tight">{PRODUCT_NAME}</span>

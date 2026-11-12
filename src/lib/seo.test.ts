@@ -116,8 +116,8 @@ describe('head tags', () => {
     expect(find(tags, '', 'canonical')?.attrs.href).toBe(`${SITE}/pricing`);
     expect(find(tags, '', 'og:url')?.attrs.content).toBe(`${SITE}/pricing`);
     expect(find(tags, '', 'og:image')?.attrs.content).toBe(`${SITE}/images/og-aiastra.png`);
-    expect(find(tags, '', 'og:image:alt')?.attrs.content).toBe('AdAstra AI – Your Personal Vedic Astrology Assistant');
-    expect(find(tags, '', 'twitter:image:alt')?.attrs.content).toBe('AdAstra AI – Your Personal Vedic Astrology Assistant');
+    expect(find(tags, '', 'og:image:alt')?.attrs.content).toBe('AdAstra AI – Your Personal Vedic Astrologer');
+    expect(find(tags, '', 'twitter:image:alt')?.attrs.content).toBe('AdAstra AI – Your Personal Vedic Astrologer');
     expect(find(tags, '', 'twitter:card')?.attrs.content).toBe('summary_large_image');
     expect(tags.some((t) => t.tag === 'script' && t.attrs.type === 'application/ld+json')).toBe(true);
   });
