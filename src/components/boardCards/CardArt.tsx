@@ -4,7 +4,7 @@
  * for Love, steps for Work), and the card's glyph on a small glass medallion. Colours are CSS variables
  * (src/styles/board-cards.css) so light and dark each get their own. No text is drawn on the art.
  */
-import { useId, type ReactNode } from 'react';
+import { useId, type CSSProperties, type ReactNode } from 'react';
 import { glyphOf, themeOf, type ArtTheme } from './cardArtRegistry';
 import { useCardPhoto } from './cardPhotos';
 import '../../styles/board-cards.css';
@@ -129,32 +129,71 @@ export default function CardArt({
   muted = false,
   children,
   className = '',
+  motion = true,
+  decorative = false,
+  centered = false,
+  medallion: showMedallion = true,
+  testId,
+  style,
 }: {
   id: string;
   group: string;
-  /** tile: the art band on a picker tile; small: a coming-soon tile; thumb: the chosen tray; swatch: a group banner */
-  size?: 'tile' | 'small' | 'thumb' | 'swatch';
+  /**
+   * tile: the art band on a picker tile; small: a coming-soon tile; thumb: a small square (the chosen tray, the board's
+   * chips); swatch: a group banner; banner: a wide, short band at the head of a board card
+   */
+  size?: 'tile' | 'small' | 'thumb' | 'swatch' | 'banner';
   /** coming soon: desaturated */
   muted?: boolean;
   /** labels laid over the art on their own solid chips */
   children?: ReactNode;
   className?: string;
+  /** the board-wide "turn animation" setting: false stops the banner's slow drift (it also stops under prefers-reduced-motion) */
+  motion?: boolean;
+  /** pure decoration: hidden from assistive technology */
+  decorative?: boolean;
+  /** icon-only tile (gradient and a centred medallion, no backdrop), for small squares */
+  centered?: boolean;
+  /** the glyph medallion (default on) */
+  medallion?: boolean;
+  /** replaces the default `card-art-<id>` test id (a card can show its art in more than one place) */
+  testId?: string;
+  style?: CSSProperties;
 }) {
   const uid = useId().replace(/:/g, '');
   const theme = themeOf(group);
   const Glyph = glyphOf(id, group);
-  const medallion = size === 'tile' ? 'h-11 w-11' : size === 'small' ? 'h-8 w-8' : 'h-7 w-7';
-  const glyph = size === 'tile' ? 'h-5 w-5' : 'h-4 w-4';
+  const banner = size === 'banner';
+  const medallion = centered ? 'h-[72%] w-[72%]' : banner ? 'h-10 w-10' : size === 'tile' ? 'h-11 w-11' : size === 'small' ? 'h-8 w-8' : 'h-7 w-7';
+  const glyph = centered ? 'h-[58%] w-[58%]' : size === 'tile' || banner ? 'h-5 w-5' : 'h-4 w-4';
+  const place = centered
+    ? 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'
+    : banner
+      ? 'left-3 top-1/2 -translate-y-1/2'
+      : size === 'tile'
+        ? 'bottom-3 left-3'
+        : 'bottom-2 left-2';
   const photo = useCardPhoto(id);
+  const rootId = testId ?? `card-art-${id}`;
   return (
     <div
       className={`card-art relative overflow-hidden ${className}`}
       data-art-theme={theme}
       data-muted={muted ? 'true' : 'false'}
-      data-testid={`card-art-${id}`}
+      data-size={size}
+      data-motion={motion ? 'on' : 'off'}
+      data-testid={rootId}
       data-photo={photo ? 'true' : 'false'}
+      aria-hidden={decorative ? 'true' : undefined}
+      style={style}
     >
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 320 120" preserveAspectRatio={size === 'tile' || size === 'small' ? 'xMaxYMid slice' : 'xMidYMid slice'} aria-hidden="true" focusable="false">
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox="0 0 320 120"
+        preserveAspectRatio={banner ? 'xMaxYMid meet' : size === 'tile' || size === 'small' ? 'xMaxYMid slice' : 'xMidYMid slice'}
+        aria-hidden="true"
+        focusable="false"
+      >
         <defs>
           <linearGradient id={`g${uid}`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="var(--art-a)" />
@@ -165,22 +204,31 @@ export default function CardArt({
             <stop offset="1" stopColor="var(--art-glow)" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <rect width="320" height="120" fill={`url(#g${uid})`} />
-        <rect width="320" height="120" fill={`url(#r${uid})`} />
-        {!photo && <Backdrop theme={theme} />}
+        {/* a banner is wider than the drawing: its gradient is CSS (.card-art[data-size='banner']) and only the backdrop is drawn */}
+        {!banner && <rect width="320" height="120" fill={`url(#g${uid})`} />}
+        {!banner && <rect width="320" height="120" fill={`url(#r${uid})`} />}
+        {!photo && !centered && (
+          <g className="card-art-backdrop">
+            <Backdrop theme={theme} />
+          </g>
+        )}
       </svg>
       {photo && (
         <>
           {/* a real photo, tinted in the category colour so the page stays one design in light and dark */}
-          <img src={photo} alt="" decoding="async" className="card-art-photo absolute inset-0 h-full w-full object-cover" data-testid={`card-photo-${id}`} />
+          <img
+            src={photo}
+            alt=""
+            decoding="async"
+            className="card-art-photo absolute inset-0 h-full w-full object-cover"
+            data-testid={testId ? `${testId}-photo` : `card-photo-${id}`}
+          />
           <span className="card-art-tint absolute inset-0" aria-hidden="true" />
         </>
       )}
-      {size !== 'swatch' && (
-        <span
-          className={`card-art-medallion absolute grid place-items-center rounded-full ${medallion} ${size === 'tile' ? 'bottom-3 left-3' : 'bottom-2 left-2'}`}
-          aria-hidden="true"
-        >
+      {banner && <span className="card-art-scrim absolute inset-0" aria-hidden="true" />}
+      {size !== 'swatch' && showMedallion && (
+        <span className={`card-art-medallion absolute grid place-items-center rounded-full ${medallion} ${place}`} aria-hidden="true">
           <Glyph className={glyph} strokeWidth={1.8} />
         </span>
       )}

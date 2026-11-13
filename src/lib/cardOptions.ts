@@ -9,13 +9,42 @@ export type CardView = 'year' | 'now' | 'arc';
 export type CardWords = 'plain' | 'terms';
 export type CardPlan = 'with' | 'without';
 
+/** the faces a card turns between (default 'read'); the server holds the live list */
+export type CardFace = 'read' | 'light' | 'breakdown' | 'research';
+/** the tools a card can open (default none) */
+export type CardTool = 'table' | 'calendar' | 'dates' | 'timeframe' | 'plan' | 'info';
+/** how the periods are grouped (default 'quarters') */
+export type CardGroupBy = 'weeks' | 'months' | 'quarters' | 'years' | 'decades';
+/** how the groups show (default 'swipe') */
+export type CardGroupsAs = 'swipe' | 'accordion';
+/** how a card starts (default 'short', with Show more) */
+export type CardStart = 'short' | 'full';
+
+export const CARD_FACES: readonly CardFace[] = ['read', 'light', 'breakdown', 'research'];
+export const CARD_TOOLS: readonly CardTool[] = ['table', 'calendar', 'dates', 'timeframe', 'plan', 'info'];
+export const CARD_GROUP_BYS: readonly CardGroupBy[] = ['weeks', 'months', 'quarters', 'years', 'decades'];
+
 export interface CardOptions {
   length: CardLength;
   view: CardView;
   words: CardWords;
   plan: CardPlan;
+  face: CardFace;
+  tools: CardTool[];
+  groupBy: CardGroupBy;
+  groupsAs: CardGroupsAs;
+  start: CardStart;
 }
-export type CardOptionKey = keyof CardOptions;
+/** the four choices the "How this card reads" controls list (the rest are chosen on the card's toolbar and the gear) */
+export type CardOptionKey = 'length' | 'view' | 'words' | 'plan';
+
+/** the board-wide gear settings: every card option, plus two that belong to the board */
+export interface BoardOptions extends CardOptions {
+  /** show "Is this right?" on cards (default true) */
+  confirm: boolean;
+  /** animate card and period changes (default true) */
+  motion: boolean;
+}
 
 /** per card id, only the keys the person changed */
 export type BoardCardOptions = Record<string, Partial<CardOptions>>;
@@ -25,9 +54,75 @@ export const DEFAULT_CARD_OPTIONS: Readonly<CardOptions> = Object.freeze({
   view: 'year',
   words: 'plain',
   plan: 'with',
+  face: 'read',
+  tools: Object.freeze([]) as unknown as CardTool[],
+  groupBy: 'quarters',
+  groupsAs: 'swipe',
+  start: 'short',
 });
 
+/**
+ * Cold-start fallback only: the server sends the real, env-driven defaults as `layout.boardDefaults`, and the page uses
+ * those as soon as it has them.
+ */
+export const COLD_BOARD_DEFAULTS: BoardOptions = Object.freeze({
+  ...DEFAULT_CARD_OPTIONS,
+  confirm: true,
+  motion: true,
+}) as BoardOptions;
+
 export const CARD_OPTION_KEYS: readonly CardOptionKey[] = ['length', 'view', 'words', 'plan'];
+/** every key a card can carry */
+export const ALL_CARD_OPTION_KEYS: readonly (keyof CardOptions)[] = [
+  'length',
+  'view',
+  'words',
+  'plan',
+  'face',
+  'tools',
+  'groupBy',
+  'groupsAs',
+  'start',
+];
+
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
+  }
+  return a === b;
+}
+
+/**
+ * The options a card reads with: the card's own choice wins, then the board-wide setting, then the defaults (the
+ * server's `boardDefaults`, or COLD_BOARD_DEFAULTS before they arrive). Mirrors the server's merge.
+ */
+export function effectiveCardOptions(
+  card: Partial<CardOptions> | undefined,
+  board: Partial<BoardOptions> | undefined,
+  defaults: BoardOptions,
+): CardOptions {
+  const out: Record<string, unknown> = {};
+  for (const k of ALL_CARD_OPTION_KEYS) {
+    const v = card?.[k] ?? board?.[k] ?? defaults[k];
+    out[k] = Array.isArray(v) ? [...v] : v;
+  }
+  return out as unknown as CardOptions;
+}
+
+/** only the keys that differ from `base`, as the server stores them; `tools` is compared as an ordered list */
+export function diffFromDefaults(opts: Partial<CardOptions>, base: CardOptions): Partial<CardOptions> {
+  const out: Record<string, unknown> = {};
+  for (const k of ALL_CARD_OPTION_KEYS) {
+    const v = opts[k];
+    if (v !== undefined && !sameValue(v, base[k])) out[k] = Array.isArray(v) ? [...v] : v;
+  }
+  return out as Partial<CardOptions>;
+}
+
+/** "Apply to all cards": every card's own choice is dropped, so the board-wide setting reads everywhere */
+export function applyToAllCards(_layoutOptions?: BoardCardOptions): BoardCardOptions {
+  return {};
+}
 
 /** the words for each choice, default first (doc 71 §4.3) */
 export const CARD_OPTION_WORDS: {
@@ -71,14 +166,12 @@ export const CARD_OPTION_WORDS: {
 export const CARD_OPTIONS_TITLE = 'How this card reads';
 
 export function effectiveOptions(chosen: Partial<CardOptions> | undefined): CardOptions {
-  return { ...DEFAULT_CARD_OPTIONS, ...(chosen ?? {}) };
+  return { ...DEFAULT_CARD_OPTIONS, ...(chosen ?? {}), tools: [...(chosen?.tools ?? DEFAULT_CARD_OPTIONS.tools)] };
 }
 
 /** only the keys that differ from the default, as the server stores them */
 export function changedOnly(o: Partial<CardOptions>): Partial<CardOptions> {
-  const out: Partial<CardOptions> = {};
-  for (const k of CARD_OPTION_KEYS) if (o[k] !== undefined && o[k] !== DEFAULT_CARD_OPTIONS[k]) (out as Record<string, string>)[k] = o[k] as string;
-  return out;
+  return diffFromDefaults(o, DEFAULT_CARD_OPTIONS);
 }
 
 /** the next options map with one card's choice set (a card back on every default leaves the map) */

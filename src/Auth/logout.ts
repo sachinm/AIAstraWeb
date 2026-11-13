@@ -1,5 +1,6 @@
 import { clearAuth } from '../lib/graphql';
 import { REGION_KEY } from '../lib/region';
+import { clearSelfV3Persisted } from '../lib/selfV3Cache';
 import { THEME_KEY } from '../lib/theme';
 import { PREFS_KEY as READING_UI_PREFS_KEY } from '../pages/chat-interface/readingUi';
 import { forgetQuestionLocation } from '../pages/chat-interface/useQuestionLocation';
@@ -73,6 +74,8 @@ export function performLogout(options?: PerformLogoutOptions): void {
   }
   clearClientSession();
   clearAppStorage();
+  // The Self board's encrypted offline copy (memory + IndexedDB) belongs to the signed-in person only.
+  void clearSelfV3Persisted();
 
   window.dispatchEvent(
     new CustomEvent('auth:logout', { detail: { reason } })

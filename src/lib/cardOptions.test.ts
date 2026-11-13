@@ -3,7 +3,72 @@
  */
 import { describe, expect, it } from 'vitest';
 import { allowedSubareas, optionsForSubarea, VIEW_TIMEFRAME, type AreaCardsLayout, type AreaCatalogue } from './boardCardsApi';
-import { DEFAULT_CARD_OPTIONS, changedOnly, optionsFor, sectionsFor, withCardOption } from './cardOptions';
+import {
+  COLD_BOARD_DEFAULTS,
+  DEFAULT_CARD_OPTIONS,
+  applyToAllCards,
+  changedOnly,
+  diffFromDefaults,
+  effectiveCardOptions,
+  effectiveOptions,
+  optionsFor,
+  sectionsFor,
+  withCardOption,
+  type BoardOptions,
+} from './cardOptions';
+
+describe('face, tools and board options', () => {
+  it('the cold defaults are the server defaults', () => {
+    expect(COLD_BOARD_DEFAULTS).toEqual({
+      length: 'usual',
+      view: 'year',
+      words: 'plain',
+      plan: 'with',
+      face: 'read',
+      tools: [],
+      groupBy: 'quarters',
+      groupsAs: 'swipe',
+      start: 'short',
+      confirm: true,
+      motion: true,
+    });
+  });
+  it('effective options: the card wins, then the board, then the defaults', () => {
+    const defaults: BoardOptions = { ...COLD_BOARD_DEFAULTS, groupBy: 'months' };
+    expect(effectiveCardOptions(undefined, undefined, defaults)).toEqual({ ...DEFAULT_CARD_OPTIONS, groupBy: 'months', tools: [] });
+    const board = { face: 'light', groupBy: 'years', tools: ['table'] } as const;
+    const out = effectiveCardOptions({ face: 'research', tools: [] }, { ...board, tools: ['table'] }, defaults);
+    expect(out.face).toBe('research');
+    expect(out.groupBy).toBe('years');
+    expect(out.tools).toEqual([]);
+    expect(effectiveCardOptions({ view: 'now' }, { ...board, tools: ['table'] }, defaults).tools).toEqual(['table']);
+    expect(Object.keys(effectiveCardOptions(undefined, { confirm: false, motion: false }, defaults))).not.toContain('motion');
+  });
+  it('effective options never share the defaults\' tools array', () => {
+    const out = effectiveCardOptions(undefined, undefined, COLD_BOARD_DEFAULTS);
+    out.tools.push('plan');
+    expect(COLD_BOARD_DEFAULTS.tools).toEqual([]);
+    const legacy = effectiveOptions(undefined);
+    legacy.tools.push('plan');
+    expect(DEFAULT_CARD_OPTIONS.tools).toEqual([]);
+  });
+  it('diffFromDefaults keeps only the differing keys; tools compare as ordered lists', () => {
+    const base = effectiveCardOptions(undefined, { tools: ['table', 'plan'] }, COLD_BOARD_DEFAULTS);
+    expect(diffFromDefaults({}, base)).toEqual({});
+    expect(diffFromDefaults({ tools: ['table', 'plan'], face: 'read' }, base)).toEqual({});
+    expect(diffFromDefaults({ tools: ['plan', 'table'] }, base)).toEqual({ tools: ['plan', 'table'] });
+    expect(diffFromDefaults({ tools: ['table'] }, base)).toEqual({ tools: ['table'] });
+    expect(diffFromDefaults({ tools: [], face: 'light', start: 'short' }, COLD_BOARD_DEFAULTS)).toEqual({ face: 'light' });
+  });
+  it('changedOnly and withCardOption keep face, tools and grouping while a legacy key changes', () => {
+    const next = withCardOption({ body: { face: 'light', tools: ['dates'], groupBy: 'weeks' } }, 'body', 'length', 'deep');
+    expect(next).toEqual({ body: { face: 'light', tools: ['dates'], groupBy: 'weeks', length: 'deep' } });
+    expect(changedOnly({ ...DEFAULT_CARD_OPTIONS, tools: ['info'] })).toEqual({ tools: ['info'] });
+  });
+  it('Apply to all cards drops every per-card choice', () => {
+    expect(applyToAllCards({ a: { face: 'light' }, b: { view: 'now' } })).toEqual({});
+  });
+});
 
 describe('card options', () => {
   it('sections mirror the server rule', () => {

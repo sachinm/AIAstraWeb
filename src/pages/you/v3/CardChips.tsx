@@ -11,10 +11,13 @@ import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { CarouselArrows } from '../../../components/carousel/Carousel';
 import { MIN_CARDS, type SelfCardId } from '../../../lib/selfV3Api';
 import { V3_WORDS } from './words';
+import { CardThumb, cardGroupClass } from './CardBanner';
 
 const chipCls =
   'inline-flex min-h-[40px] shrink-0 items-center rounded-full border px-3.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60';
 const onCls = 'border-transparent bg-teal-500/15 font-semibold text-teal-200';
+/** the active chip in its card's category colours (board-cards.css `.card-chip-on`, set by `card-grp-<group>`) */
+const onTintCls = 'card-chip-on font-semibold';
 const offCls = 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10';
 const smallBtn = 'inline-flex h-7 w-7 items-center justify-center rounded-full text-white/70 hover:bg-white/10 disabled:opacity-30 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60';
 
@@ -121,6 +124,7 @@ export default function CardChips({
                 <button type="button" className={smallBtn} aria-label={V3_WORDS.moveLeft(title(id))} disabled={i === 0} onClick={() => onEditOrder(moveBy(cards, id, -1))} data-testid={`chip-left-${id}`}>
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                 </button>
+                <CardThumb cardId={id} size={24} />
                 <span className="px-1">{title(id)}</span>
                 <button type="button" className={smallBtn} aria-label={V3_WORDS.moveRight(title(id))} disabled={i === cards.length - 1} onClick={() => onEditOrder(moveBy(cards, id, 1))} data-testid={`chip-right-${id}`}>
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -136,9 +140,10 @@ export default function CardChips({
                 role="tab"
                 aria-selected={id === activeId}
                 onClick={() => onSelect(id)}
-                className={`${chipCls} ${id === activeId ? onCls : offCls}`}
+                className={`${chipCls} gap-2 pl-2 ${cardGroupClass(id)} ${id === activeId ? (cardGroupClass(id) ? onTintCls : onCls) : offCls}`}
                 data-testid={`self-v3-chip-${id}`}
               >
+                <CardThumb cardId={id} />
                 {title(id)}
               </button>
             ),

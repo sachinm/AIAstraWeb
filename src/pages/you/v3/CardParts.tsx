@@ -1,13 +1,11 @@
-/**
- * The parts every Self v3 card shares, whichever template draws it (server docs/reading-engine/68 §4.4): the sections
- * menu, "Is this right?", the pattern, the ladder, the sensitive line and the plain lines for a card that is not ready.
+﻿/**
+ * The parts every Self v3 card shares, whichever template draws it (server docs/reading-engine/68 §4.4): "Is this
+ * right?", the pattern, the ladder, the sensitive line and the plain lines for a card that is not ready. The toolbar
+ * (CardToolbar) replaced the old "Edit sections" menu.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Lock } from 'lucide-react';
+import { useState } from 'react';
 import type { LadderSteps, PersonalPattern } from '../../../lib/selfV2Api';
-import { FIXED_SECTIONS, SELF_SECTIONS, cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfSectionId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
-import CardOptionsControls from '../../../components/boardCards/CardOptionsControls';
-import type { CardOptionKey, CardOptions } from '../../../lib/cardOptions';
+import { cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
 import { spanWords } from '../v2/words';
 import { SECTION_WORD, SPAN_TONE_WORD, V3_WORDS } from './words';
 
@@ -95,7 +93,7 @@ export function LadderSection({ card }: { card: SelfV3CardView }) {
 }
 
 /** "Is this right?": Yes / Partly / No; the answer replaces the question with one line. */
-export function ConfirmSection({ confirm }: { confirm: { claimId: string; text: string } }) {
+export function ConfirmSection({ confirm, slim = false }: { confirm: { claimId: string; text: string }; slim?: boolean }) {
   const [state, setState] = useState<'ask' | 'busy' | 'done' | 'failed'>('ask');
   const answer = async (a: 'yes' | 'partly' | 'no') => {
     setState('busy');
@@ -103,9 +101,29 @@ export function ConfirmSection({ confirm }: { confirm: { claimId: string; text: 
   };
   if (state === 'done')
     return (
-      <p className="mt-4 text-[15px] text-teal-200" role="status" data-testid="section-confirm-done">
+      <p className={`${slim ? '' : 'mt-4 '}text-[15px] text-teal-200`} role="status" data-testid="section-confirm-done">
         {V3_WORDS.noted}
       </p>
+    );
+  if (slim)
+    return (
+      <section className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1" data-testid="section-confirm" aria-label={V3_WORDS.isThisRight}>
+        <p className="min-w-0 text-[14px] text-white/80">
+          <b className="font-semibold text-white/90">{V3_WORDS.isThisRight}</b> <span className="text-white/65">{confirm.text}</span>
+        </p>
+        <span className="flex gap-1.5">
+          {(['yes', 'partly', 'no'] as const).map((a) => (
+            <button key={a} type="button" disabled={state === 'busy'} onClick={() => void answer(a)} className="self-v3-btn rounded-full border border-white/15 bg-white/5 px-3.5 text-[13px] font-semibold text-white/85 hover:bg-white/10 disabled:opacity-40" data-testid={`confirm-${a}`}>
+              {a === 'yes' ? 'Yes' : a === 'partly' ? 'Partly' : 'No'}
+            </button>
+          ))}
+        </span>
+        {state === 'failed' && (
+          <span role="alert" className="text-sm text-rose-300">
+            {V3_WORDS.saveFailed}
+          </span>
+        )}
+      </section>
     );
   return (
     <section className="mt-4" data-testid="section-confirm">
@@ -131,93 +149,6 @@ export function ConfirmSection({ confirm }: { confirm: { claimId: string; text: 
         </p>
       )}
     </section>
-  );
-}
-
-/** "Edit sections": line and year are shown on and locked; the others toggle and save at once. */
-export function SectionsMenu({
-  card,
-  sections,
-  onChange,
-  options,
-  onOption,
-}: {
-  card: SelfV3CardView;
-  sections: SelfSectionId[];
-  onChange: (next: SelfSectionId[]) => void;
-  /** doc 71 §4.3: "How this card reads" above the section switches, when the board passes it */
-  options?: Partial<CardOptions>;
-  onOption?: (key: CardOptionKey, value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    const onDown = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('mousedown', onDown);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('mousedown', onDown);
-    };
-  }, [open]);
-  const on = new Set(sections);
-  const toggle = (s: SelfSectionId) => {
-    if (FIXED_SECTIONS.includes(s)) return;
-    const next = new Set(on);
-    if (next.has(s)) next.delete(s);
-    else next.add(s);
-    onChange(SELF_SECTIONS.filter((x) => next.has(x) || FIXED_SECTIONS.includes(x)));
-  };
-  return (
-    <div ref={box} className="relative shrink-0">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex min-h-[40px] items-center rounded-lg px-2 text-[13px] font-semibold text-purple-300 hover:text-purple-200"
-        data-testid={`edit-sections-${card.id}`}
-      >
-        {V3_WORDS.editSections}
-      </button>
-      {open && (
-        <div
-          role="group"
-          aria-label={V3_WORDS.sectionsTitle(card.title)}
-          className="absolute right-0 top-full z-20 mt-1 max-h-[70vh] w-72 overflow-y-auto rounded-2xl border border-white/10 bg-[#141233] p-3 shadow-2xl [scrollbar-width:thin]"
-          data-testid={`sections-menu-${card.id}`}
-        >
-          {onOption && (
-            <div className="mb-3 border-b border-white/10 pb-3">
-              <CardOptionsControls cardId={card.id} title={card.title} chosen={options} notes={card.optionNotes} onChange={onOption} />
-            </div>
-          )}
-          {onOption && <p className="mb-1 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-white/50">{V3_WORDS.fineTune}</p>}
-          {SELF_SECTIONS.map((s) => {
-            const fixed = FIXED_SECTIONS.includes(s);
-            return (
-              <label key={s} className={`flex min-h-[40px] items-center justify-between gap-2 rounded-lg px-2 text-sm ${fixed ? 'text-white/55' : 'cursor-pointer text-white/85 hover:bg-white/5'}`}>
-                <span className="flex items-center gap-2">
-                  {SECTION_WORD[s]}
-                  {fixed && (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-white/45">
-                      <Lock className="h-3 w-3" aria-hidden="true" />
-                      {V3_WORDS.locked}
-                    </span>
-                  )}
-                </span>
-                <input type="checkbox" className="h-4 w-4 accent-teal-400" checked={on.has(s) || fixed} disabled={fixed} onChange={() => toggle(s)} data-testid={`section-toggle-${s}`} />
-              </label>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }
 

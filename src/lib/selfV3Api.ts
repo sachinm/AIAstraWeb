@@ -13,8 +13,9 @@
  *                                | 400 unknown_card, card_not_offered | 404 no_kundli | 503 off
  * The clock switch stays PUT /api/self/v2/clock (selfV2Api.changeSelfV2Clock).
  */
-import type { BoardCardOptions, CardOptions } from './cardOptions';
+import { optionsFor, type BoardCardOptions, type BoardOptions, type CardOptions } from './cardOptions';
 import { buildApiHeaders } from './apiHeaders';
+import { getSelfV3Cached, setSelfV3Cached } from './selfV3Cache';
 import { ledgerApiUrl } from './ledgerApi';
 import type {
   CardStatus,
@@ -91,12 +92,25 @@ export interface SelfBoardLayout {
   sections: Partial<Record<SelfCardId, SelfSectionId[]>>;
   /** per card, how it reads (server doc 71 §4.3), only the keys the person changed */
   options?: BoardCardOptions;
+  /** the board-wide gear settings, only the keys that differ from the defaults (absent from older servers) */
+  boardOptions?: Partial<BoardOptions>;
 }
 
 export interface SelfBoardLayoutView extends SelfBoardLayout {
   /** false until the person has pressed Done once: the page opens the picker */
   chosen: boolean;
   updatedAt: string | null;
+  /** the server's env-driven defaults; the client holds COLD_BOARD_DEFAULTS only until these arrive (absent from older servers) */
+  boardDefaults?: BoardOptions;
+}
+
+/** PUT /api/self/v3/layout body; without `options` / `boardOptions` the server keeps what is stored */
+export interface SelfV3LayoutBody {
+  template: SelfTemplateId;
+  cards: SelfCardId[];
+  sections?: Partial<Record<SelfCardId, SelfSectionId[]>>;
+  options?: BoardCardOptions;
+  boardOptions?: Partial<BoardOptions>;
 }
 
 /** PUT /api/self/v3/layout errors */
@@ -177,6 +191,8 @@ export interface RailItem {
   current: boolean;
   /** the SpanReading.span this bar opens, when the card is v3 */
   span: string | null;
+  /** the period's own words for the Read face, paragraph by paragraph; null when none is written (absent from older servers) */
+  text?: string[] | null;
 }
 
 export interface SelfV3CardView {
@@ -198,6 +214,8 @@ export interface SelfV3CardView {
   /** doc 71: the options in force and the plain lines where one cannot be honoured yet (absent from older servers) */
   options?: CardOptions;
   optionNotes?: string[];
+  /** what stands for the person on this card regardless of period, plain lines (absent from older servers) */
+  standing?: string[];
   rail: RailItem[];
   /** Phase B content; null while the card is filled from the v2 build */
   v3: SelfV3CardContent | null;
@@ -324,11 +342,41 @@ const LAYOUT_ERRORS = new Set<LayoutError>([
   'unknown_option',
 ]);
 
-async function call(method: string, path: string, payload?: unknown): Promise<Response> {
+async function call(method: string, path: string, payload?: unknown, extra?: { headers?: Record<string, string>; signal?: AbortSignal }): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const body = payload === undefined ? undefined : JSON.stringify(payload);
-  const headers = await buildApiHeaders({ token, body, method });
-  return fetch(ledgerApiUrl(path), { method, headers, ...(body !== undefined ? { body } : {}) });
+  const headers = await buildApiHeaders({ token, body, method, ...(extra?.headers ? { extra: extra.headers } : {}) });
+  return fetch(ledgerApiUrl(path), { method, headers, ...(body !== undefined ? { body } : {}), ...(extra?.signal ? { signal: extra.signal } : {}) });
+}
+
+/** the longest a 503's Retry-After is honoured (ms), and the wait when it names none */
+const RETRY_AFTER_DEFAULT_MS = 1000;
+const RETRY_AFTER_MAX_MS = 5000;
+
+function retryAfterMs(r: Response): number {
+  const secs = Number(r.headers?.get('Retry-After'));
+  return Number.isFinite(secs) && secs >= 0 ? Math.min(secs * 1000, RETRY_AFTER_MAX_MS) : RETRY_AFTER_DEFAULT_MS;
+}
+
+function abortError(): Error {
+  const e = new Error('aborted');
+  e.name = 'AbortError';
+  return e;
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(abortError());
+    const t = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(abortError());
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export function isV3Board(j: unknown): j is SelfV3Response {
@@ -341,39 +389,145 @@ function isLayoutView(j: unknown): j is SelfBoardLayoutView {
   return !!l && typeof l === 'object' && typeof l.template === 'string' && Array.isArray(l.cards);
 }
 
-export async function fetchSelfV3(): Promise<SelfV3State> {
+/**
+ * GET /api/self/v3 with the cache in play: sends `If-None-Match` with the ETag selfV3Cache holds (the response is
+ * no-store, so the browser keeps nothing itself), answers a 304 with the cached body, stores body and tag on a 200 `ok`
+ * board, and retries once after Retry-After on a 503. Throws only an AbortError when `signal` aborts.
+ */
+export async function fetchSelfV3State(opts?: { signal?: AbortSignal }): Promise<{ state: SelfV3State; notModified: boolean }> {
+  const signal = opts?.signal;
+  let retried = false;
+  let useTag = true;
+  for (;;) {
+    const held = getSelfV3Cached();
+    const tag = useTag ? held?.etag : null;
+    let r: Response;
+    try {
+      r = await call('GET', '/api/self/v3', undefined, { ...(tag ? { headers: { 'If-None-Match': tag } } : {}), ...(signal ? { signal } : {}) });
+    } catch (e) {
+      if (signal?.aborted || (e as { name?: string } | null)?.name === 'AbortError') throw abortError();
+      return { state: { kind: 'error' }, notModified: false };
+    }
+    if (r.status === 304) {
+      if (held) return { state: { kind: 'ok', board: held.data }, notModified: true };
+      // a 304 with nothing held (the cache was cleared meanwhile): ask again without a tag, once
+      if (!useTag) return { state: { kind: 'error' }, notModified: false };
+      useTag = false;
+      continue;
+    }
+    if (r.status === 503 && !retried) {
+      retried = true;
+      await sleep(retryAfterMs(r), signal);
+      continue;
+    }
+    if (TRANSIENT.has(r.status)) return { state: { kind: 'preparing' }, notModified: false };
+    const j = (await r.json().catch(() => null)) as (Partial<SelfV3Response> & { error?: string }) | null;
+    if (j?.status === ('no_kundli' as string) || j?.error === 'no_kundli') return { state: { kind: 'no_kundli' }, notModified: false };
+    // a 404 without a v3 body: the route is off on this server, the v2 board stands in
+    if (r.status === 404) return { state: { kind: 'v2' }, notModified: false };
+    if (j?.status === 'preparing' && !isV3Board(j)) return { state: { kind: 'preparing' }, notModified: false };
+    if (!r.ok && r.status !== 202) return { state: { kind: 'error' }, notModified: false };
+    if (!isV3Board(j)) return { state: r.status === 202 ? { kind: 'preparing' } : { kind: 'error' }, notModified: false };
+    // only a finished board is held: a pending one must not be drawn as the next visit's first frame
+    if (r.status === 200 && j.status === 'ok') setSelfV3Cached(j, r.headers?.get('ETag') ?? null);
+    return { state: { kind: 'ok', board: j }, notModified: false };
+  }
+}
+
+/** Why `fetchSelfV3` has no board: the page state to show instead */
+export class SelfV3FetchError extends Error {
+  constructor(public readonly state: Exclude<SelfV3State, { kind: 'ok' }>) {
+    super(`self_v3_${state.kind}`);
+    this.name = 'SelfV3FetchError';
+  }
+}
+
+/**
+ * The board, conditional on the cached ETag. `notModified: true` means `data` is the cached body itself (same
+ * reference), so nothing needs to redraw. Rejects with SelfV3FetchError (`state`: preparing, no_kundli, v2, error) when
+ * there is no board, and with an AbortError when `signal` aborts.
+ */
+export async function fetchSelfV3(opts?: { signal?: AbortSignal }): Promise<{ data: SelfV3Response; notModified: boolean }> {
+  const { state, notModified } = await fetchSelfV3State(opts);
+  if (state.kind === 'ok') return { data: state.board, notModified };
+  throw new SelfV3FetchError(state);
+}
+
+/** PUT /api/self/v3/layout failed: `code` is the server's LayoutError, or 'failed' */
+export class SelfV3LayoutError extends Error {
+  constructor(public readonly code: LayoutError | 'failed') {
+    super(`self_v3_layout_${code}`);
+    this.name = 'SelfV3LayoutError';
+  }
+}
+
+/**
+ * Save the layout (template, cards, sections, per-card options, board options). The server's answer is the saved
+ * layout (plus `reading.queued` when cards were queued). Rejects with SelfV3LayoutError so a caller can roll back. The
+ * cached board takes the saved layout and drops its tag, so the next open draws the new layout and fetches in full.
+ */
+export async function putSelfV3Layout(body: SelfV3LayoutBody): Promise<SelfBoardLayoutSaved> {
   let r: Response;
   try {
-    r = await call('GET', '/api/self/v3');
+    r = await call('PUT', '/api/self/v3/layout', body);
   } catch {
-    return { kind: 'error' };
+    throw new SelfV3LayoutError('failed');
   }
-  if (TRANSIENT.has(r.status)) return { kind: 'preparing' };
-  const j = (await r.json().catch(() => null)) as (Partial<SelfV3Response> & { error?: string }) | null;
-  if (j?.status === ('no_kundli' as string) || j?.error === 'no_kundli') return { kind: 'no_kundli' };
-  // a 404 without a v3 body: the route is off on this server, the v2 board stands in
-  if (r.status === 404) return { kind: 'v2' };
-  if (j?.status === 'preparing' && !isV3Board(j)) return { kind: 'preparing' };
-  if (!r.ok && r.status !== 202) return { kind: 'error' };
-  if (!isV3Board(j)) return r.status === 202 ? { kind: 'preparing' } : { kind: 'error' };
-  return { kind: 'ok', board: j };
+  const j = (await r.json().catch(() => null)) as (SelfBoardLayoutSaved & { error?: string }) | null;
+  if (r.ok && isLayoutView(j)) {
+    const held = getSelfV3Cached();
+    if (held) {
+      const { reading: _reading, ...layoutView } = j;
+      setSelfV3Cached({ ...held.data, layout: layoutView }, null);
+    }
+    return j;
+  }
+  if (r.status === 400 && j?.error && LAYOUT_ERRORS.has(j.error as LayoutError)) throw new SelfV3LayoutError(j.error as LayoutError);
+  throw new SelfV3LayoutError('failed');
 }
 
 /** Save the template, the card order and the sections. Never triggers a reading. */
 export async function saveSelfV3Layout(layout: SelfBoardLayout): Promise<LayoutSaveResult> {
-  let r: Response;
   try {
-    r = await call('PUT', '/api/self/v3/layout', { template: layout.template, cards: layout.cards, sections: layout.sections, ...(layout.options ? { options: layout.options } : {}) });
-  } catch {
-    return { ok: false, error: 'failed' };
-  }
-  const j = (await r.json().catch(() => null)) as (SelfBoardLayoutSaved & { error?: string }) | null;
-  if (r.ok && isLayoutView(j)) {
+    const j = await putSelfV3Layout({
+      template: layout.template,
+      cards: layout.cards,
+      sections: layout.sections,
+      ...(layout.options ? { options: layout.options } : {}),
+      ...(layout.boardOptions ? { boardOptions: layout.boardOptions } : {}),
+    });
     const { reading, ...layoutView } = j;
     return { ok: true, layout: layoutView, queued: Array.isArray(reading?.queued) ? reading.queued : [] };
+  } catch (e) {
+    return { ok: false, error: e instanceof SelfV3LayoutError ? e.code : 'failed' };
   }
-  if (r.status === 400 && j?.error && LAYOUT_ERRORS.has(j.error as LayoutError)) return { ok: false, error: j.error as LayoutError };
-  return { ok: false, error: 'failed' };
+}
+
+/**
+ * A layout change that shows at once and is confirmed by the server. `optimistic` is `current` with the patch applied
+ * (a patched `options` map or `boardOptions` replaces the stored one: the caller builds the whole next map, e.g. with
+ * `withCardOption` or `applyToAllCards`; a patched `cards` list also drops the options of cards that left). `done`
+ * resolves with the server's saved layout, which replaces `optimistic`, and rejects when the save fails so the caller can
+ * go back to `current`. Debouncing is the caller's job.
+ */
+export function saveLayoutOptimistic(args: {
+  current: SelfBoardLayoutView;
+  patch: { options?: Record<string, Partial<CardOptions>>; boardOptions?: Partial<BoardOptions>; cards?: string[] };
+  send: typeof putSelfV3Layout;
+}): { optimistic: SelfBoardLayoutView; done: Promise<SelfBoardLayoutSaved> } {
+  const { current, patch, send } = args;
+  const cards = (patch.cards ?? current.cards) as SelfCardId[];
+  const options = optionsFor(patch.options ?? current.options, cards);
+  const boardOptions = patch.boardOptions ?? current.boardOptions ?? {};
+  const optimistic: SelfBoardLayoutView = { ...current, cards, options, boardOptions };
+  const done = send({
+    template: current.template,
+    cards,
+    sections: current.sections,
+    options,
+    boardOptions,
+  });
+  return { optimistic, done };
 }
 
 /** A card's "Is this right?"; true on 204. */
