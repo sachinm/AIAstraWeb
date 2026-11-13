@@ -4,7 +4,6 @@ export const en = {
     used: '{{used}} of {{limit}} questions used',
     lastOne: '1 question left',
     label: 'Questions used this month',
-    upgrade: 'Upgrade',
   },
   menu: {
     open: 'Open profile menu',

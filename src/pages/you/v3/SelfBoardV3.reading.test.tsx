@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import SelfBoardV3, { READING_POLL_MS, readingLine } from './SelfBoardV3';
 import { selfV3Fixture, selfV3Reading } from './selfV3.fixture';
 import { V3_WORDS } from './words';
+import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import type { CardReadState, SelfCardId, SelfV3Response } from '../../../lib/selfV3Api';
 
 const plan = vi.hoisted(() => ({ setPlan: vi.fn(), refreshPlan: vi.fn(async () => {}) }));
@@ -21,6 +22,8 @@ let readBody: unknown;
 const json = (b: unknown) => JSON.stringify(b);
 
 beforeEach(() => {
+  clearSelfV3Cached();
+  sessionStorage.clear();
   localStorage.setItem('token', 't');
   Object.defineProperty(window, 'innerWidth', { value: 1180, configurable: true, writable: true });
   Object.defineProperty(window, 'innerHeight', { value: 820, configurable: true, writable: true });
@@ -141,9 +144,9 @@ describe('Self board v3, doc 70: clock agreement', () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-body');
     expect(within(c).getByTestId('span-agreement')).toHaveTextContent('4 of 5 clocks agree');
-    expect(within(c).queryByTestId('rail-tone-1')).toBeNull();
-    expect(within(c).getByTestId('rail-tone-0')).toHaveTextContent('Heavy');
-    fireEvent.click(within(c).getByTestId('rail-1'));
+    expect(within(c).queryByTestId('period-tone-1')).toBeNull();
+    expect(within(c).getByTestId('period-tone-0')).toHaveTextContent('Heavy');
+    fireEvent.click(within(c).getByTestId('period-1'));
     expect(within(c).getByTestId('span-agreement')).toHaveTextContent('The clocks are split here');
     expect(within(c).getByTestId('span-agreement')).not.toHaveTextContent(/Heavy|Mixed|Light/);
   });
@@ -156,7 +159,7 @@ describe('Self board v3, doc 70: clock agreement', () => {
     };
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-body');
-    fireEvent.click(within(c).getByTestId('rail-2'));
+    fireEvent.click(within(c).getByTestId('period-2'));
     fireEvent.click(within(c).getByTestId('card-details-open'));
     const list = await screen.findByTestId('details-clocks');
     expect(list).toHaveTextContent('The clocks for 1 Mar 2027 → 4 Oct 2027');

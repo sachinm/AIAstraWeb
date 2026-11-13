@@ -5,7 +5,9 @@ html.light .bg-\[\#0b0a1f\]\/80 { background-color: rgb(255 255 255 / 0.92); }
 html.light .bg-\[\#0b0a1f\]\/95 { background-color: rgb(255 255 255 / 0.95); }
 html.light .bg-\[\#0d0c24\] { background-color: rgb(255 255 255 / 1); }
 html.light .bg-\[\#0d0c24\]\/90 { background-color: rgb(255 255 255 / 0.92); }
+html.light .bg-\[\#0e1650\] { background-color: rgb(255 255 255 / 1); }
 html.light .bg-\[\#141233\] { background-color: rgb(255 255 255 / 1); }
+html.light .bg-amber-300\/30 { background-color: rgb(217 119 6 / 0.22); }
 html.light .bg-amber-500\/10 { background-color: rgb(217 119 6 / 0.11); }
 html.light .bg-amber-500\/15 { background-color: rgb(217 119 6 / 0.165); }
 html.light .bg-amber-500\/25 { background-color: rgb(217 119 6 / 0.22); }
@@ -41,6 +43,7 @@ html.light .bg-slate-900\/80 { background-color: rgb(255 255 255 / 0.9); }
 html.light .bg-slate-900\/95 { background-color: rgb(255 255 255 / 0.95); }
 html.light .bg-slate-950\/35 { background-color: rgb(255 255 255 / 0.9); }
 html.light .bg-slate-950\/80 { background-color: rgb(255 255 255 / 0.9); }
+html.light .bg-teal-300\/30 { background-color: rgb(13 148 136 / 0.22); }
 html.light .bg-teal-500\/10 { background-color: rgb(13 148 136 / 0.11); }
 html.light .bg-teal-500\/15 { background-color: rgb(13 148 136 / 0.165); }
 html.light .bg-teal-500\/20 { background-color: rgb(13 148 136 / 0.22); }
@@ -71,7 +74,6 @@ html.light .border-purple-400 { border-color: rgb(147 51 234 / 0.7); }
 html.light .border-purple-400\/20 { border-color: rgb(147 51 234 / 0.27999999999999997); }
 html.light .border-purple-400\/25 { border-color: rgb(147 51 234 / 0.35); }
 html.light .border-purple-400\/30 { border-color: rgb(147 51 234 / 0.42); }
-html.light .border-purple-400\/35 { border-color: rgb(147 51 234 / 0.48999999999999994); }
 html.light .border-purple-400\/40 { border-color: rgb(147 51 234 / 0.5599999999999999); }
 html.light .border-purple-400\/50 { border-color: rgb(147 51 234 / 0.7); }
 html.light .border-purple-400\/60 { border-color: rgb(147 51 234 / 0.84); }
@@ -118,11 +120,13 @@ html.light .hover\:border-white\/25:hover { border-color: rgb(15 23 42 / 0.225);
 html.light .hover\:text-purple-200:hover:not(:where([class~='bg-amber-500/90'], [class~='bg-purple-500'], [class~='bg-purple-600'], [class~='bg-purple-600/80'], [class~='bg-red-500'], [class~='bg-red-500/90'], [class~='bg-rose-500'], [class~='from-blue-500'], [class~='from-blue-600'], [class~='from-purple-500'], [class~='from-purple-600'], [class~='from-purple-700'], [class~='from-purple-900'], .keep-dark, .parchment, [class~='bg-amber-500/90'] *, [class~='bg-purple-500'] *, [class~='bg-purple-600'] *, [class~='bg-purple-600/80'] *, [class~='bg-red-500'] *, [class~='bg-red-500/90'] *, [class~='bg-rose-500'] *, [class~='from-blue-500'] *, [class~='from-blue-600'] *, [class~='from-purple-500'] *, [class~='from-purple-600'] *, [class~='from-purple-700'] *, [class~='from-purple-900'] *, .keep-dark *, .parchment *)) { color: rgb(107 33 168 / 1); }
 html.light .hover\:text-purple-300:hover:not(:where([class~='bg-amber-500/90'], [class~='bg-purple-500'], [class~='bg-purple-600'], [class~='bg-purple-600/80'], [class~='bg-red-500'], [class~='bg-red-500/90'], [class~='bg-rose-500'], [class~='from-blue-500'], [class~='from-blue-600'], [class~='from-purple-500'], [class~='from-purple-600'], [class~='from-purple-700'], [class~='from-purple-900'], .keep-dark, .parchment, [class~='bg-amber-500/90'] *, [class~='bg-purple-500'] *, [class~='bg-purple-600'] *, [class~='bg-purple-600/80'] *, [class~='bg-red-500'] *, [class~='bg-red-500/90'] *, [class~='bg-rose-500'] *, [class~='from-blue-500'] *, [class~='from-blue-600'] *, [class~='from-purple-500'] *, [class~='from-purple-600'] *, [class~='from-purple-700'] *, [class~='from-purple-900'] *, .keep-dark *, .parchment *)) { color: rgb(126 34 206 / 1); }
 html.light .hover\:text-white:hover:not(:where([class~='bg-amber-500/90'], [class~='bg-purple-500'], [class~='bg-purple-600'], [class~='bg-purple-600/80'], [class~='bg-red-500'], [class~='bg-red-500/90'], [class~='bg-rose-500'], [class~='from-blue-500'], [class~='from-blue-600'], [class~='from-purple-500'], [class~='from-purple-600'], [class~='from-purple-700'], [class~='from-purple-900'], .keep-dark, .parchment, [class~='bg-amber-500/90'] *, [class~='bg-purple-500'] *, [class~='bg-purple-600'] *, [class~='bg-purple-600/80'] *, [class~='bg-red-500'] *, [class~='bg-red-500/90'] *, [class~='bg-rose-500'] *, [class~='from-blue-500'] *, [class~='from-blue-600'] *, [class~='from-purple-500'] *, [class~='from-purple-600'] *, [class~='from-purple-700'] *, [class~='from-purple-900'] *, .keep-dark *, .parchment *)) { color: rgb(15 23 42 / 1); }
+html.light .hover\:text-white\/80:hover:not(:where([class~='bg-amber-500/90'], [class~='bg-purple-500'], [class~='bg-purple-600'], [class~='bg-purple-600/80'], [class~='bg-red-500'], [class~='bg-red-500/90'], [class~='bg-rose-500'], [class~='from-blue-500'], [class~='from-blue-600'], [class~='from-purple-500'], [class~='from-purple-600'], [class~='from-purple-700'], [class~='from-purple-900'], .keep-dark, .parchment, [class~='bg-amber-500/90'] *, [class~='bg-purple-500'] *, [class~='bg-purple-600'] *, [class~='bg-purple-600/80'] *, [class~='bg-red-500'] *, [class~='bg-red-500/90'] *, [class~='bg-rose-500'] *, [class~='from-blue-500'] *, [class~='from-blue-600'] *, [class~='from-purple-500'] *, [class~='from-purple-600'] *, [class~='from-purple-700'] *, [class~='from-purple-900'] *, .keep-dark *, .parchment *)) { color: rgb(15 23 42 / 0.8); }
 html.light .placeholder-gray-400::placeholder { color: rgb(71 85 105 / 1); }
 html.light .placeholder-slate-400::placeholder { color: rgb(71 85 105 / 1); }
 html.light .placeholder-white\/40::placeholder { color: rgb(15 23 42 / 0.45); }
 html.light .ring-purple-400\/50 { --tw-ring-color: rgb(147 51 234 / 0.7); }
 html.light .ring-teal-300\/40 { --tw-ring-color: rgb(13 148 136 / 0.5599999999999999); }
+html.light .ring-white { --tw-ring-color: rgb(15 23 42 / 0.25); }
 html.light .ring-white\/25 { --tw-ring-color: rgb(15 23 42 / 0.225); }
 html.light .stroke-teal-300:not(:where([class~='bg-amber-500/90'], [class~='bg-purple-500'], [class~='bg-purple-600'], [class~='bg-purple-600/80'], [class~='bg-red-500'], [class~='bg-red-500/90'], [class~='bg-rose-500'], [class~='from-blue-500'], [class~='from-blue-600'], [class~='from-purple-500'], [class~='from-purple-600'], [class~='from-purple-700'], [class~='from-purple-900'], .keep-dark, .parchment, [class~='bg-amber-500/90'] *, [class~='bg-purple-500'] *, [class~='bg-purple-600'] *, [class~='bg-purple-600/80'] *, [class~='bg-red-500'] *, [class~='bg-red-500/90'] *, [class~='bg-rose-500'] *, [class~='from-blue-500'] *, [class~='from-blue-600'] *, [class~='from-purple-500'] *, [class~='from-purple-600'] *, [class~='from-purple-700'] *, [class~='from-purple-900'] *, .keep-dark *, .parchment *)) { stroke: rgb(15 118 110 / 1); }
 html.light .stroke-white:not(:where([class~='bg-amber-500/90'], [class~='bg-purple-500'], [class~='bg-purple-600'], [class~='bg-purple-600/80'], [class~='bg-red-500'], [class~='bg-red-500/90'], [class~='bg-rose-500'], [class~='from-blue-500'], [class~='from-blue-600'], [class~='from-purple-500'], [class~='from-purple-600'], [class~='from-purple-700'], [class~='from-purple-900'], .keep-dark, .parchment, [class~='bg-amber-500/90'] *, [class~='bg-purple-500'] *, [class~='bg-purple-600'] *, [class~='bg-purple-600/80'] *, [class~='bg-red-500'] *, [class~='bg-red-500/90'] *, [class~='bg-rose-500'] *, [class~='from-blue-500'] *, [class~='from-blue-600'] *, [class~='from-purple-500'] *, [class~='from-purple-600'] *, [class~='from-purple-700'] *, [class~='from-purple-900'] *, .keep-dark *, .parchment *)) { stroke: rgb(15 23 42 / 1); }

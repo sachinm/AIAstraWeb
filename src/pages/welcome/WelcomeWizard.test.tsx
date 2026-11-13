@@ -113,15 +113,16 @@ describe('personalization wizard', () => {
     await waitFor(() => expect(onFinish).toHaveBeenCalled());
     expect(saved).toEqual([{ 'wizard.skipped': expect.stringMatching(/^\d{4}-/) }]);
   });
-  it('opens from TopNavigation header Personalize button as a modal, preloads facts, and closes on completion', async () => {
+  it('opens from the avatar menu Personalize setup as a modal, and the header has no separate Personalize button', async () => {
     render(
       <MemoryRouter>
         <TopNavigation user={{ name: 'Sachin', email: 's@example.com' }} onLogout={() => undefined} />
       </MemoryRouter>,
     );
-    const trigger = screen.getByTestId('header-wizard-trigger');
-    expect(trigger).toBeInTheDocument();
-    fireEvent.click(trigger);
+    expect(screen.queryByTestId('header-wizard-trigger')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('header-tabs')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open profile menu' }));
+    fireEvent.click(screen.getByTestId('menu-personalize-wizard'));
 
     const modal = await screen.findByTestId('header-wizard-modal');
     expect(modal).toBeInTheDocument();

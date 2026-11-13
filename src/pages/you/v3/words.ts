@@ -3,6 +3,7 @@
  * Plain words only: no chart term, clock count or engine name on a card face. The v2 words (header, clock sheet, fresh
  * reading, build progress) are reused from ../v2/words.
  */
+import type { CardFace, CardGroupBy, CardGroupsAs, CardStart, CardTool } from '../../../lib/cardOptions';
 import type { SelfSectionId, SelfTemplateId, SpanMode, SpanTone } from '../../../lib/selfV3Api';
 
 export const V3_WORDS = {
@@ -24,11 +25,41 @@ export const V3_WORDS = {
   editHint: 'Drag a chip to move it, or use the arrows. Keep at least three.',
   ofCount: (i: number, n: number) => `${i} of ${n}`,
   template: 'Layout',
-  editSections: 'Edit sections',
-  fineTune: 'Fine-tune',
-  sectionsTitle: (title: string) => `${title} · sections`,
-  locked: 'Always on',
   yourYear: 'Your year',
+  // the card toolbar, the faces and the tools (card-faces plan)
+  faces: 'How this card reads',
+  tools: 'Tools',
+  ownSettings: 'This card has its own settings',
+  chartDetails: 'Chart details',
+  periods: 'Periods',
+  prevPeriod: 'Previous period',
+  nextPeriod: 'Next period',
+  periodN: (i: number, n: number) => `Period ${i} of ${n}`,
+  noPeriodWords: 'Readings for each period come with your next reading.',
+  standing: 'True whatever the date',
+  thisStretch: 'This stretch',
+  otherWindows: 'Other dated windows',
+  whatToDo: 'What to do',
+  showLess: 'Show less',
+  checkThis: 'Check this',
+  builtOn: (when: string) => `Built ${when}`,
+  noGroupText: 'Nothing written for these dates yet.',
+  groupBy: 'Group by',
+  groupN: (i: number, n: number) => `Group ${i} of ${n}`,
+  nothingYet: 'Nothing more for this card yet.',
+  // the board's card settings (gear)
+  cardSettings: 'Card settings',
+  settingsLead: 'How every card reads by default. A card changed on its own keeps its choice.',
+  readAs: 'Read as',
+  openTools: 'Open tools',
+  groupsAs: 'Show groups as',
+  startCards: 'Start cards',
+  showConfirm: 'Show “Is this right?”',
+  turnAnimation: 'Turn animation',
+  applyAll: 'Apply to all cards',
+  ownCount: (n: number) => (n === 1 ? '1 card has its own settings.' : `${n} cards have their own settings.`),
+  allFollow: 'Every card follows these settings.',
+  clockInfo: 'About this reading',
   isThisRight: 'Is this right?',
   noted: 'Noted. This sharpens your next reading.',
   saveFailed: 'That did not save. Try again.',
@@ -61,6 +92,16 @@ export const V3_WORDS = {
   clocksTitle: (label: string) => `The clocks for ${label}`,
   clockAgrees: 'Agrees',
   clockDiffers: 'Differs',
+  // faces and tools
+  more: 'More',
+  less: 'Less',
+  moreForStretch: 'More on this stretch',
+  researchTitle: 'Behind this card',
+  period: 'Period',
+  tone: 'Tone',
+  timeframeTitle: 'By timeframe',
+  boardSettingsClose: 'Close card settings',
+  seeDetails: 'Chart details ›',
 } as const;
 
 export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'>, string> = {
@@ -78,6 +119,12 @@ export const SPAN_TONE_DOT: Record<SpanTone | 'none', string> = {
   light: 'bg-teal-300',
   none: 'bg-white/35',
 };
+
+export const FACE_WORD: Record<CardFace, string> = { read: 'Read', light: 'Light', breakdown: 'Breakdown', research: 'Research' };
+export const TOOL_WORD: Record<CardTool, string> = { table: 'Table', calendar: 'Calendar', dates: 'Dates', timeframe: 'By timeframe', plan: 'Plan', info: 'Info' };
+export const GROUP_BY_WORD: Record<CardGroupBy, string> = { weeks: 'Weeks', months: 'Months', quarters: 'Quarters', years: 'Years', decades: 'Decades' };
+export const GROUPS_AS_WORD: Record<CardGroupsAs, string> = { swipe: 'Swipe', accordion: 'Accordion' };
+export const START_WORD: Record<CardStart, string> = { short: 'Short', full: 'Full' };
 
 export const SPAN_MODE_WORD: Record<SpanMode, string> = { get_through: 'Get through', build: 'Build' };
 

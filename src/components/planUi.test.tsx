@@ -60,7 +60,7 @@ describe('UsageBar', () => {
     rerender(<MemoryRouter><UsageBar /></MemoryRouter>);
     expect(screen.getByText('5 of 5 questions used')).toBeInTheDocument();
     expect(document.querySelector('[data-test-id="usage-bar"]')).toHaveAttribute('data-tone', 'red');
-    expect(screen.getByRole('link', { name: 'Upgrade' })).toHaveAttribute('href', '/pricing');
+    expect(screen.queryByRole('link', { name: 'Upgrade' })).not.toBeInTheDocument();
   });
 });
 
@@ -73,6 +73,8 @@ describe('ProfileMenu', () => {
         <Routes>
           <Route path="/pricing" element={<h1>pricing page</h1>} />
           <Route path="/profile" element={<h1>profile page</h1>} />
+          <Route path="/dashboard/lucky" element={<h1>happy hours page</h1>} />
+          <Route path="/dashboard/chat" element={<h1>chat page</h1>} />
           <Route path="*" element={null} />
         </Routes>
       </MemoryRouter>
@@ -89,10 +91,21 @@ describe('ProfileMenu', () => {
     expect(within(menu).getByText('asha@example.com')).toBeInTheDocument();
     expect(within(menu).getByText('Free plan')).toBeInTheDocument();
     expect(within(menu).getByText('2 of 5 questions left this month')).toBeInTheDocument();
-    expect(within(menu).getByRole('menuitem', { name: 'Upgrade plan' })).toHaveFocus();
+    expect(within(menu).getByRole('menuitem', { name: 'General Reading' })).toHaveFocus();
     await u.keyboard('{ArrowDown}');
-    expect(within(menu).getByRole('menuitem', { name: 'Profile' })).toHaveFocus();
-    for (const name of ['Plan and usage', 'Locale', 'Log out']) expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'Happy Hour(s)' })).toHaveFocus();
+    await u.keyboard('{ArrowDown}');
+    expect(within(menu).getByRole('menuitem', { name: 'Upgrade plan' })).toHaveFocus();
+    expect(within(menu).getAllByRole('menuitem').map((el) => el.textContent)).toEqual([
+      'General Reading',
+      'Happy Hour(s)',
+      'Upgrade plan',
+      'Profile',
+      'Plan and usage',
+      'Locale',
+      'Log out',
+    ]);
+    expect(within(menu).getAllByRole('separator')).toHaveLength(2);
     for (const gone of ['Chat', 'Work', 'Life timeline', 'Close account']) expect(within(menu).queryByRole('menuitem', { name: gone })).not.toBeInTheDocument();
     await u.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
@@ -114,6 +127,19 @@ describe('ProfileMenu', () => {
     await u.click(trigger);
     await u.click(screen.getByRole('menuitem', { name: 'Log out' }));
     expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens Happy Hour(s), and General Reading falls back to the chat route outside its provider', async () => {
+    withPlan(free(0));
+    renderMenu();
+    const u = userEvent.setup();
+    const trigger = screen.getByRole('button', { name: 'Open profile menu' });
+    await u.click(trigger);
+    await u.click(screen.getByTestId('menu-happy-hours'));
+    expect(screen.getByText('happy hours page')).toBeInTheDocument();
+    await u.click(trigger);
+    await u.click(screen.getByTestId('menu-general-reading'));
+    expect(screen.getByText('chat page')).toBeInTheDocument();
   });
 
   it('closes on an outside click', async () => {

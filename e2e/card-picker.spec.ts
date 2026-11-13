@@ -118,10 +118,12 @@ for (const theme of ['dark', 'light'] as const) {
     }
     await page.getByTestId('picker-done').click();
     await expect(page.getByTestId('self-v3-picker')).toBeHidden({ timeout: 15_000 });
-    const edit = page.locator('[data-testid^="edit-sections-"]').first();
-    await edit.click();
-    await expect(page.locator('[data-testid^="card-options-"]').first()).toBeVisible();
+    // The old "Edit sections" popover is gone: the card toolbar carries the faces and tools, the gear the board's defaults.
+    await expect(page.locator('[data-testid^="face-body-"]').first()).toBeVisible();
+    await page.getByTestId('board-settings-open').click();
+    await expect(page.getByTestId('board-settings-panel')).toBeVisible();
     await shot('self-card-options');
+    await page.getByTestId('bs-close').click();
 
     // Love: nothing forced; Your cards opens the picker in a sheet
     await page.goto('/dashboard/love');
