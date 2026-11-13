@@ -29,7 +29,7 @@ function scrollsFor(onSignUp: () => void): Scroll[] {
       label: 'Your Vedic astrologer',
       body: (
         <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-amber-950 sm:text-base">
-          Your personal Vedic Astrologer, mastered on the ancient text unabridged and astrological celestial sky
+          Your Personal Vedic Astrologer, mastered on the ancient text unabridged and astrological celestial sky
         </p>
       ),
     },
