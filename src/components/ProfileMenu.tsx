@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, CreditCard, Globe, LogOut, Sparkles, User as UserIcon } from 'lucide-react';
+import { ChevronDown, Clock, CreditCard, Globe, LogOut, MessageCircle, Sparkles, User as UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
+import { track } from '../lib/events';
+import { useGeneralReadingIfAvailable } from './GeneralReading';
 import UserAvatar from './UserAvatar';
 
 interface ProfileMenuProps {
@@ -19,6 +21,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout, onOpenWizard 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { plan } = usePlan();
+  const openGeneralReading = useGeneralReadingIfAvailable();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -99,15 +102,32 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout, onOpenWizard 
             </div>
           )}
           <div className="pt-1">
-            {canUpgrade && (
-              <button type="button" role="menuitem" className={`${itemCls} text-purple-200`} onClick={() => go('/pricing')}>
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-                {t('menu.upgrade')}
-              </button>
-            )}
-            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile')}>
-              <UserIcon className="h-4 w-4" aria-hidden="true" />
-              {t('menu.profile')}
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="menu-general-reading"
+              className={itemCls}
+              onClick={() => {
+                setOpen(false);
+                if (openGeneralReading) openGeneralReading();
+                else navigate('/dashboard/chat');
+              }}
+            >
+              <MessageCircle className="h-4 w-4 text-purple-300" aria-hidden="true" />
+              General Reading
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="menu-happy-hours"
+              className={itemCls}
+              onClick={() => {
+                track('tab_select', 'header', 'happy hour(s)');
+                go('/dashboard/lucky');
+              }}
+            >
+              <Clock className="h-4 w-4" aria-hidden="true" />
+              Happy Hour(s)
             </button>
             {onOpenWizard && (
               <button
@@ -124,6 +144,17 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout, onOpenWizard 
                 Personalize setup
               </button>
             )}
+            <div role="separator" className="my-1 border-t border-white/10" />
+            {canUpgrade && (
+              <button type="button" role="menuitem" className={`${itemCls} text-purple-200`} onClick={() => go('/pricing')}>
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                {t('menu.upgrade')}
+              </button>
+            )}
+            <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile')}>
+              <UserIcon className="h-4 w-4" aria-hidden="true" />
+              {t('menu.profile')}
+            </button>
             <button type="button" role="menuitem" className={itemCls} onClick={() => go('/profile/plan')}>
               <CreditCard className="h-4 w-4" aria-hidden="true" />
               {t('menu.plan')}
@@ -132,6 +163,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout, onOpenWizard 
               <Globe className="h-4 w-4" aria-hidden="true" />
               {t('menu.locale')}
             </button>
+            <div role="separator" className="my-1 border-t border-white/10" />
             <button
               type="button"
               role="menuitem"

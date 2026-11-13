@@ -16,7 +16,7 @@ describe('PublicFrame', () => {
   it('holds the page between a header and a footer, and only the middle scrolls', () => {
     show('/');
     expect(screen.getByRole('banner')).toHaveTextContent('AdAstra AI');
-    expect(document.querySelector('[data-test-id="header-tagline"]')).toHaveTextContent('Your Personal Vedic Astrologer');
+    expect(document.querySelector('[data-test-id="header-tagline"]')).toHaveTextContent('Your personal Vedic astrologer.');
     expect(screen.getByRole('main')).toHaveTextContent('page body');
     expect(screen.getByRole('main')).toHaveClass('overflow-y-auto');
     expect(screen.getByRole('contentinfo')).toHaveTextContent(/for education and entertainment/i);

@@ -17,6 +17,11 @@ export function useGeneralReading(): () => void {
   return useContext(Ctx)?.open ?? (() => undefined);
 }
 
+/** Opens General Reading, or null outside the provider (the signed-in header on public pages such as /pricing). */
+export function useGeneralReadingIfAvailable(): (() => void) | null {
+  return useContext(Ctx)?.open ?? null;
+}
+
 export function GeneralReadingProvider({ user, children }: { user: User; children: ReactNode }) {
   const [isOpen, setOpen] = useState(false);
   const open = useCallback(() => {

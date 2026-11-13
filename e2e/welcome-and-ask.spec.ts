@@ -30,7 +30,7 @@ test('welcome wizard: no camera falls back, answers saved, skip-able', async ({ 
   expect(saved).toEqual(expect.arrayContaining([{ 'wizard.selfie': 'skipped' }, { 'place.current': 'Pune, India' }, { 'work.status': 'yes' }]));
 });
 
-test('ask everywhere: the Work board opens a 98% reading modal; the header shows General Reading', async ({ page }) => {
+test('ask everywhere: the Work board opens a 98% reading modal; the avatar menu offers General Reading', async ({ page }) => {
   const s = newState();
   await stubApi(page, s);
   await page.route('**/api/area/career', (r) =>
@@ -42,7 +42,10 @@ test('ask everywhere: the Work board opens a 98% reading modal; the header shows
   await page.goto('/dashboard/work');
 
   const vp = page.viewportSize()!;
-  if (vp.width >= 640) await expect(page.getByTestId('general-reading-link')).toContainText('General Reading');
+  await page.getByRole('button', { name: 'Open profile menu' }).click();
+  await expect(page.getByTestId('menu-general-reading')).toContainText('General Reading');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('menu-general-reading')).toHaveCount(0);
   await page.getByRole('button', { name: 'Ask about Work' }).click();
   const modal = page.getByTestId('ask-modal');
   await expect(modal).toBeVisible();
