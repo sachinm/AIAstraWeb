@@ -172,6 +172,49 @@ export const CARD_GLYPH: Record<string, LucideIcon> = {
   work_venture: TrendingUp,
 };
 
+/**
+ * The Self board's card ids and the picker group each belongs to, so the board (which gets only card ids, not the
+ * catalogue) draws a card in the same colours as its picker tile. Keep in step with the server's Self catalogue.
+ */
+export const SELF_CARD_GROUP: Record<string, string> = {
+  // Body
+  body: 'body',
+  fitness: 'body',
+  sleep: 'body',
+  blood: 'body',
+  // Mind
+  mind: 'mind',
+  stuck: 'mind',
+  sharpness: 'mind',
+  mood: 'mind',
+  restores: 'mind',
+  play: 'mind',
+  // Character
+  diagnosis: 'character',
+  lagna: 'character',
+  drive: 'character',
+  presence: 'character',
+  yogas: 'character',
+  purpose: 'character',
+  learning: 'character',
+  // Indian lens
+  constitution: 'indian',
+  layers: 'indian',
+  aims: 'indian',
+  practice: 'indian',
+  saturn: 'indian',
+  helps: 'indian',
+  // Time
+  chapter: 'time',
+  chapters: 'time',
+  year: 'time',
+};
+
+/** the picker group of a Self card id, or null when the id is not a Self card */
+export function selfGroupOf(id: string): string | null {
+  return Object.prototype.hasOwnProperty.call(SELF_CARD_GROUP, id) ? SELF_CARD_GROUP[id]! : null;
+}
+
 export function themeOf(group: string): ArtTheme {
   return GROUP_ART[group]?.theme ?? 'character';
 }

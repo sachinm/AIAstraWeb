@@ -33,15 +33,13 @@ import {
   SELF_TEMPLATES_LIVE,
   SUGGESTED_COUNT,
   cardReadPending,
-  cardSections,
-  fetchSelfV3,
+  fetchSelfV3State,
   readSelfV3Card,
   saveSelfV3Layout,
   type BoardReadingView,
   type SelfBoardLayout,
   type SelfBoardLayoutView,
   type SelfCardId,
-  type SelfSectionId,
   type SelfTemplateId,
   type SelfV3CardView,
   type SelfV3Response,
@@ -49,6 +47,9 @@ import {
   type SpanReading,
 } from '../../../lib/selfV3Api';
 import { ChartDetails, cardShell } from '../v2/AreaCard';
+import { useLoadCardPhotos } from '../../../components/boardCards/cardPhotos';
+import { getUserId } from '../../../lib/graphql';
+import { getActiveCard, getSelfV3Cached, readSelfV3Persisted, setActiveCard, setSelfV3Cached, writeSelfV3Persisted } from '../../../lib/selfV3Cache';
 import ClockSheet from '../v2/ClockSheet';
 import { BuildStatus, FreshControl, FreshSheet } from '../v2/FreshReading';
 import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, useBoardMode, veilProgress, type BoardMode } from '../v2/SelfBoardV2';
@@ -57,7 +58,10 @@ import { V2_WORDS } from '../v2/words';
 import CardChips from './CardChips';
 import { SpanClocks, type CardReading } from './CardParts';
 import CompactCard from './CompactCard';
-import { optionsFor, sectionsFor, withCardOption, type CardOptionKey } from '../../../lib/cardOptions';
+import { optionsFor, type CardOptions } from '../../../lib/cardOptions';
+import BoardSettings from './BoardSettings';
+import { boardNow, cardNow, hasOwnOptions, ownCount } from './boardOptions';
+import { useOptionSaves } from './useOptionSaves';
 import Picker from './Picker';
 import SeasonsCard from './SeasonsCard';
 import { LAYOUT_ERROR_WORD, TEMPLATE_WORD, V3_WORDS } from './words';
@@ -101,17 +105,58 @@ export function readingLine(reading: BoardReadingView | null | undefined): strin
 // ---------------------------------------------------------------------------------------------------------------------
 
 export default function SelfBoardV3() {
-  const [state, setState] = useState<SelfV3State | null>(null);
+  // the picker's and the cards' photos load once for the board
+  useLoadCardPhotos('self');
+  // paints at once from the cache (memory, then the encrypted copy on disk) and revalidates behind it
+  const [state, setState] = useState<SelfV3State | null>(() => {
+    const held = getSelfV3Cached();
+    return held ? { kind: 'ok', board: held.data } : null;
+  });
   const [late, setLate] = useState(false);
   const [rebuild, setRebuild] = useState<{ system: string; label: string } | null>(null);
   const [fresh, setFresh] = useState<{ builtAt: string | null; from: SelfV3Response } | null>(null);
   const [freshFailed, setFreshFailed] = useState(false);
   const waitStart = useRef<number | null>(null);
 
-  const load = useCallback(() => fetchSelfV3().then(setState).catch(() => setState({ kind: 'error' })), []);
+  const alive = useRef(true);
+  useEffect(() => () => void (alive.current = false), []);
+  const load = useCallback(
+    () =>
+      fetchSelfV3State()
+        .then(({ state: next, notModified }) => {
+          if (!alive.current) return;
+          // a board that is on screen stays when the server is briefly unable: no flash of an empty or loading state
+          setState((prev) => {
+            if (prev?.kind === 'ok' && (next.kind === 'error' || next.kind === 'preparing')) return prev;
+            if (prev?.kind === 'ok' && next.kind === 'ok' && prev.board === next.board) return prev;
+            return next;
+          });
+          const held = getSelfV3Cached();
+          if (!notModified && next.kind === 'ok' && held && held.data === next.board) void writeSelfV3Persisted({ userId: getUserId() ?? '', kundliId: null }, held.data, held.etag);
+        })
+        .catch(() => alive.current && setState((prev) => (prev?.kind === 'ok' ? prev : { kind: 'error' }))),
+    [],
+  );
 
   useEffect(() => {
-    void load();
+    let off = false;
+    const start = () => void load();
+    // no board in memory: the encrypted copy on disk, if there is one, draws first; its tag goes into the request
+    if (getSelfV3Cached()) {
+      start();
+      return;
+    }
+    void readSelfV3Persisted({ userId: getUserId() ?? '', kundliId: null })
+      .then((entry) => {
+        if (off || !entry) return;
+        setSelfV3Cached(entry.data, entry.etag);
+        setState((prev) => prev ?? { kind: 'ok', board: entry.data });
+      })
+      .catch(() => undefined)
+      .finally(() => !off && start());
+    return () => {
+      off = true;
+    };
   }, [load]);
   // counted once, on the first v3 board (a v2 fallback counts its own open)
   const opened = useRef(false);
@@ -286,7 +331,8 @@ function Board({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerBusy, setPickerBusy] = useState(false);
   const [editing, setEditing] = useState<SelfCardId[] | null>(null);
-  const [index, setIndex] = useState(0);
+  // a reload lands on the card the person was reading
+  const [index, setIndex] = useState(() => Math.max(0, board.layout.cards.findIndex((id) => id === getActiveCard())));
   const [details, setDetails] = useState<{ card: SelfV3CardView; span: SpanReading | null; label: string | null } | null>(null);
   const [clockOpen, setClockOpen] = useState(false);
   const [wizard, setWizard] = useState(false);
@@ -348,19 +394,21 @@ function Board({
     (i: number) => {
       setIndex(i);
       const c = shown[i];
-      if (c) track('chip_select', SURFACE, c.id);
+      if (c) {
+        setActiveCard(c.id);
+        track('chip_select', SURFACE, c.id);
+      }
     },
     [shown],
   );
   const selectId = (id: SelfCardId) => select(Math.max(0, shown.findIndex((c) => c.id === id)));
 
-  const setSections = (id: SelfCardId, next: SelfSectionId[]) => void save({ ...plainLayout(layout), sections: { ...layout.sections, [id]: next } });
-  // doc 71 §4.3: an option rewrites that card's sections at once; the server's answer (rail, notes) follows on reload
-  const setOption = async (id: SelfCardId, key: CardOptionKey, value: string) => {
-    const options = withCardOption(layout.options ?? {}, id, key, value);
-    track('chip_select', SURFACE, `option_${key}_${value}`);
-    if (await save({ ...plainLayout(layout), options, sections: { ...layout.sections, [id]: sectionsFor(options[id]) as SelfSectionId[] } })) onReload();
-  };
+  // card and board options: shown at once, one save 400 ms after the last change, rolled back when the server refuses
+  const optionSaves = useOptionSaves({ layout, setLayout, saving, onError: () => setSaveError(V3_WORDS.saveFailed) });
+  const optionsOf = (c: SelfV3CardView) => cardNow(layout, c.id);
+  const boardSettings = boardNow(layout);
+  const confirmOn = boardSettings.confirm !== false;
+  const motionOn = boardSettings.motion !== false;
   const setTemplate = (t: SelfTemplateId) => {
     if (t === template) return;
     track('chip_select', SURFACE, `template_${t}`);
@@ -484,10 +532,16 @@ function Board({
     const c = shown[i]!;
     const props = {
       card: c,
-      sections: cardSections(layout, c),
-      onSections: (next: SelfSectionId[]) => setSections(c.id, next),
-      options: layout.options?.[c.id],
-      onOption: (key: CardOptionKey, value: string) => void setOption(c.id, key, value),
+      options: optionsOf(c),
+      hasOwn: hasOwnOptions(layout, c.id),
+      confirmOn,
+      motion: motionOn,
+      builtOn: board.builtAt ? board.builtAt.slice(0, 10) : null,
+      showEvidence: board.profile?.role === 'practitioner',
+      onOptions: (patch: Partial<CardOptions>) => {
+        track('chip_select', SURFACE, `option_${Object.keys(patch).join('_')}`);
+        optionSaves.changeCard(c.id, patch);
+      },
       onDetails: (card: SelfV3CardView, span?: SpanReading | null, label?: string | null) => setDetails({ card, span: span ?? null, label: label ?? null }),
       focused: perView > 1 && i === index,
       veil: !(veiled && progress),
@@ -540,14 +594,16 @@ function Board({
 
   return (
     <div
-      className={`grid h-full min-h-0 w-full flex-1 gap-3 overflow-hidden px-4 py-3 text-white sm:px-6 ${showPicker ? 'grid-rows-[auto_minmax(0,1fr)]' : mode === 'phone' ? 'grid-rows-[auto_auto_minmax(0,1fr)_auto]' : 'grid-rows-[auto_auto_minmax(0,1fr)]'}`}
+      className={`grid h-full min-h-0 w-full flex-1 gap-3 overflow-hidden px-4 py-3 text-white sm:px-6 xl:gap-2 xl:py-2 ${!showPicker && mode === 'phone' ? 'grid-rows-[auto_minmax(0,1fr)_auto]' : 'grid-rows-[auto_minmax(0,1fr)]'}`}
       data-testid="self-v3-page"
       data-board-grid="true"
       data-mode={mode}
       data-template={template}
     >
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2" data-testid="self-board-row">
-        <div className="flex min-w-0 items-center gap-4">
+      {/* from 1280 px the title, the chips and the controls share one row (the two groups become flex items around the chips) */}
+      <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:flex-nowrap xl:items-center xl:gap-3" data-testid="self-v3-head">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 xl:contents" data-testid="self-board-row">
+        <div className="flex min-w-0 items-center gap-4 xl:order-1 xl:shrink xl:basis-auto">
           <SelfTitle onAddPhoto={() => setWizard(true)} small={mode === 'phone'} />
           <div className="min-w-0">
             {clockLine}
@@ -557,13 +613,25 @@ function Board({
           {mode !== 'phone' && freshControl}
           {buildStatus}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 xl:order-3">
           {mode === 'phone' && freshControl}
           {editButton}
           {templateSwitch}
+          <BoardSettings
+            value={boardSettings}
+            onChange={(patch) => optionSaves.changeBoard(patch)}
+            ownCount={ownCount(layout)}
+            onApplyAll={() => {
+              track('chip_select', SURFACE, 'options_apply_all');
+              optionSaves.applyToAll();
+            }}
+            phone={mode === 'phone'}
+            disabled={showPicker}
+          />
         </div>
       </div>
       {!showPicker && (
+        <div className="min-w-0 xl:order-2 xl:flex-1" data-testid="self-v3-chips-slot">
         <CardChips
           cards={order}
           titles={titles}
@@ -581,7 +649,9 @@ function Board({
           onEditDone={() => void editDone()}
           error={saveError}
         />
+        </div>
       )}
+      </div>
       <div className="relative min-h-0 min-w-0" data-testid="self-v3-deck">
         {deck}
       </div>

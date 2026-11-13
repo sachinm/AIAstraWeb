@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import Disclaimer, { DISCLAIMER_SHORT } from './Disclaimer';
 import LegalLinks from './LegalLinks';
 import { logVisit } from '../lib/assistantApi';
-import { PRODUCT_NAME, PRODUCT_TAGLINE, SUPPORT_EMAIL } from '../lib/legal';
+import { PRODUCT_NAME, PRODUCT_TAGLINE, PRODUCT_TITLE, SUPPORT_EMAIL } from '../lib/legal';
 
 /** Sign-up and sign-in have their own switch between the two, so the header does not repeat it. */
 const NO_CTA_PATHS = ['/signin', '/signup', '/signup/details'];
@@ -37,7 +37,7 @@ const PublicFrame: React.FC<PublicFrameProps> = ({ children, nav }) => {
       {nav ?? (
         <header className="z-20 shrink-0 bg-transparent px-4 py-3 sm:px-6" data-test-id="public-header">
           <div className="flex w-full items-center justify-between gap-3">
-            <Link to="/" className="flex min-w-0 items-center gap-3" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`}>
+            <Link to="/" className="flex min-w-0 items-center gap-3" title={PRODUCT_TITLE} aria-label={PRODUCT_TITLE}>
               <img src="/images/logo-128.png" alt="" width={80} height={80} className="h-12 w-12 shrink-0 rounded-2xl sm:h-16 sm:w-16 lg:h-20 lg:w-20" data-test-id="brand-logo" />
               {/* The tagline sits under the name at every width; the logo grows with the pair above phone width (Sachin, 2026-11-11). */}
               <span className="flex min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">

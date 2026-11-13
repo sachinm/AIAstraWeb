@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Menu, MessageCircle, Sparkles } from 'lucide-react';
+import { AlertTriangle, Menu } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProfileMenu from '../components/ProfileMenu';
-import HeaderTabs from '../components/HeaderTabs';
 import { boardsEnabled } from '../components/BoardTabBar';
 import { useLeftRail } from '../components/SideNav';
 import UsageBar from '../components/UsageBar';
-import { PRODUCT_NAME, PRODUCT_TAGLINE } from '../lib/legal';
+import { PRODUCT_NAME, PRODUCT_TAGLINE, PRODUCT_TITLE } from '../lib/legal';
 import WelcomeWizard from './welcome/WelcomeWizard';
 
 interface User {
@@ -46,42 +45,22 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
                 <Menu className="h-6 w-6" aria-hidden="true" />
               </button>
             )}
-            <Link to="/dashboard/you" title={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} aria-label={`${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`} className="flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-              <img src="/images/logo-128.png" alt="" width={56} height={56} className="h-12 w-12 shrink-0 rounded-xl lg:h-14 lg:w-14" data-test-id="brand-logo" />
-              {/* name over tagline, so the logo can be tall; the tagline needs the room of a wide screen (Sachin, 2026-11-11) */}
-              <div className="hidden min-w-0 flex-col bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent sm:flex">
-                <h1 className="text-2xl font-bold leading-tight">AdAstra AI</h1>
-                <span className="hidden text-sm leading-tight xl:block" data-test-id="header-tagline">
+            <Link to="/dashboard/you" title={PRODUCT_TITLE} aria-label={PRODUCT_TITLE} className="flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <img src="/images/logo-128.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" data-test-id="brand-logo" />
+              {/* name over tagline; General Reading, Happy Hour(s) and Personalize live in the avatar menu (Sachin, 2026-11-12) */}
+              <div className="hidden min-w-0 flex-col justify-center bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent sm:flex">
+                <h1 className="text-xl font-bold leading-none">{PRODUCT_NAME}</h1>
+                <span className="mt-1 text-[11px] leading-tight" data-test-id="header-tagline">
                   {PRODUCT_TAGLINE}
                 </span>
               </div>
             </Link>
 
-            {/* the question quota takes the middle; the menu, the chat's location control and the avatar sit at the right (Sachin, 2026-11-05) */}
+            {/* the question quota takes the middle; the chat's location control and the avatar sit at the right (Sachin, 2026-11-05) */}
             <div className="flex min-w-0 flex-1 justify-center">
               <UsageBar />
             </div>
-            {boardsEnabled() ? (
-              <HeaderTabs />
-            ) : (
-              <Link to="/dashboard/chat" className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/85 hover:bg-white/10 sm:inline-flex" data-testid="general-reading-link">
-                <MessageCircle className="h-4 w-4 text-purple-300" aria-hidden="true" />
-                General Reading
-              </Link>
-              )}
             <div data-chat-header-slot className="flex min-w-0 items-center" />
-
-            <button
-              type="button"
-              onClick={() => setWizardOpen(true)}
-              data-testid="header-wizard-trigger"
-              title="Personalize your readings"
-              aria-label="Personalize your readings"
-              className="inline-flex min-h-[38px] shrink-0 items-center gap-1.5 rounded-full border border-purple-400/35 bg-purple-500/15 px-3 py-1.5 text-xs font-medium text-purple-100 hover:bg-purple-500/25 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-purple-300" aria-hidden="true" />
-              <span className="hidden sm:inline">Personalize</span>
-            </button>
 
             <ProfileMenu user={user} onLogout={onLogout} onOpenWizard={() => setWizardOpen(true)} />
           </div>

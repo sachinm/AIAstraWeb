@@ -8,14 +8,15 @@
 import { LANDING_FAQS } from './landingFaqs';
 
 export const PRODUCT_NAME = 'AdAstra AI';
-export const DEFAULT_DESCRIPTION =
-  'Your personal Vedic astrologer. Ask about your birth chart, kundli and dasha, mastered on the ancient texts unabridged and the celestial sky.';
+/** The catch phrase, one spelling everywhere (header, page titles, share image, structured data, landing hero). */
+export const PRODUCT_TAGLINE = 'Your Personal Vedic Astrologer';
+export const DEFAULT_DESCRIPTION = `${PRODUCT_TAGLINE}. Ask about your birth chart, kundli and dasha, mastered on the ancient texts unabridged and the celestial sky.`;
 /** Served from /public: 1200x630, made by scripts/generate-og-image.mjs. */
 export const DEFAULT_OG_IMAGE = '/images/og-aiastra.png';
 /** The square logo (the favicon's picture), served from /public; the Organization's logo in structured data. */
 export const LOGO_IMAGE = '/images/logo-512.png';
 /** What the share picture says, for screen readers and for crawlers that read an image's alt. */
-export const SHARE_IMAGE_ALT = `${PRODUCT_NAME} – Your Personal Vedic Astrologer`;
+export const SHARE_IMAGE_ALT = `${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`;
 export const DEFAULT_LOCALE = 'en_US';
 
 /** One tag for `<head>`, as data: `headTagsFor()` makes them, the browser and the prerender each write them. */
@@ -41,7 +42,7 @@ export interface PageSeo {
 export const PUBLIC_PAGES: ReadonlyArray<PageSeo> = [
   {
     path: '/',
-    title: `${PRODUCT_NAME} – Your Personal Vedic Astrologer`,
+    title: `${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`,
     description: DEFAULT_DESCRIPTION,
     index: true,
     changefreq: 'weekly',
@@ -191,7 +192,7 @@ export function jsonLdFor(siteUrl: string, pathname: string): JsonLd[] {
     '@type': 'Organization',
     '@id': `${base}/#organization`,
     name: PRODUCT_NAME,
-    slogan: 'Your Personal Vedic Astrologer',
+    slogan: PRODUCT_TAGLINE,
     url: `${base}/`,
     logo: `${base}${LOGO_IMAGE}`,
   };
@@ -199,7 +200,7 @@ export function jsonLdFor(siteUrl: string, pathname: string): JsonLd[] {
     '@type': 'WebSite',
     '@id': `${base}/#website`,
     name: PRODUCT_NAME,
-    alternateName: `${PRODUCT_NAME} – Your Personal Vedic Astrologer`,
+    alternateName: `${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`,
     url: `${base}/`,
     inLanguage: 'en',
     publisher: { '@id': `${base}/#organization` },

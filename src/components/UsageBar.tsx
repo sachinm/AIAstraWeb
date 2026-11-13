@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
 
 /** Free plan only: this month's questions, in the top navigation on every signed-in page. */
@@ -34,9 +33,6 @@ const UsageBar: React.FC = () => {
           <div className={`h-full rounded-full transition-all duration-300 ${fill}`} style={{ width: `${percent}%` }} />
         </div>
       </div>
-      <Link to="/pricing" className="inline-flex min-h-11 shrink-0 items-center font-medium text-purple-300 hover:text-purple-200 sm:inline sm:min-h-0">
-        {t('usage.upgrade')}
-      </Link>
     </div>
   );
 };

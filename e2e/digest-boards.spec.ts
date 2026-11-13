@@ -123,7 +123,7 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
   await expect(page.getByTestId('character-stage-next_10y')).toContainText('Next 10 Years');
   await expect(page.getByTestId('self-personality-joy')).toBeVisible();
   await expect(page.getByTestId('joy-item-0')).toContainText('Cooking, music & tactile comfort at home');
-  await expect(page.getByTestId('header-wizard-trigger')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open profile menu' })).toBeVisible();
   await expect(page.getByAltText('Shri Ganesh')).toBeVisible();
   const youText = (await page.getByTestId('you-page').textContent())!.toLowerCase();
   for (const w of [...BANNED_ON_BOARD, 'house', 'lord', 'kendra', 'dusthana', 'aspected', 'd1.']) {
@@ -138,8 +138,9 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
     await page.setViewportSize({ width: 1440, height: 900 });
   }
 
-  // 1b. Header Personalize Wizard Modal (opened from TopNavigation)
-  await page.getByTestId('header-wizard-trigger').click();
+  // 1b. Personalize Wizard Modal (opened from the avatar menu)
+  await page.getByRole('button', { name: 'Open profile menu' }).click();
+  await page.getByTestId('menu-personalize-wizard').click();
   await expect(page.getByTestId('header-wizard-modal')).toBeVisible();
   await expect(page.getByTestId('header-wizard-modal')).toContainText('Personalize Your Readings');
   await saveP5OnlyShot(page, '04-header-personalize-wizard-modal.png', saveToTargets);

@@ -55,8 +55,9 @@ function v2Card(id: SelfCardIdV2, title: string): PersonalCard {
 function v2Rail(): RailItem[] {
   return [
     { from: '2026-05-05', to: '2026-12-12', label: 'now → 12 Dec 2026', tone: null, note: 'Money and effort press', current: true, span: null },
-    { from: '2026-12-12', to: '2027-06-03', label: '12 Dec → 3 Jun 2027', tone: null, note: 'The pull eases', current: false, span: null },
-    { from: '2027-06-03', to: '2027-10-04', label: '3 Jun → 4 Oct 2027', tone: null, note: 'A good stretch to build', current: false, span: null },
+    // the second period has words of its own and can be picked; the third has none, so it is not offered
+    { from: '2026-12-12', to: '2027-06-03', label: '12 Dec → 3 Jun 2027', tone: null, note: 'The pull eases', current: false, span: null, text: ['The pull on money and effort eases once the heavy stretch ends.', 'Take the first free month to tidy what you postponed.'] },
+    { from: '2027-06-03', to: '2027-10-04', label: '3 Jun → 4 Oct 2027', tone: null, note: 'A good stretch to build', current: false, span: null, text: null },
   ];
 }
 
@@ -220,6 +221,7 @@ function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
       ...base,
       firstLine: 'Your thinking is clear until 15 January; use it to learn one hard thing.',
       rail: v3Rail(MIND_SPANS),
+      standing: ['You decide best after sleeping on it.', 'Worry is loudest when you are tired.'],
       v3: {
         line: 'Your thinking is clear until 15 January; use it to learn one hard thing.',
         spans: MIND_SPANS,

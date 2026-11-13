@@ -1,6 +1,11 @@
+import { PRODUCT_TAGLINE } from './seoConfig';
+
 /** Names used by the legal pages and footers. Both come from the build env; nothing is invented when they are unset. */
 export const PRODUCT_NAME = 'AdAstra AI';
-export const PRODUCT_TAGLINE = 'Your Personal Vedic Astrologer';
+/** The catch phrase, "Your Personal Vedic Astrologer": defined once in seoConfig.ts so the header, titles and structured data agree. */
+export { PRODUCT_TAGLINE };
+/** Name and tagline as one label (link titles, aria-labels). */
+export const PRODUCT_TITLE = `${PRODUCT_NAME} – ${PRODUCT_TAGLINE}`;
 export const LEGAL_ENTITY = (import.meta.env.VITE_LEGAL_ENTITY as string | undefined)?.trim() || `the operator of ${PRODUCT_NAME}`;
 export const SUPPORT_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string | undefined)?.trim() || '';
 export const LEGAL_UPDATED = '2 November 2026';
