@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Menu } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { AlertTriangle, Clock, Menu } from 'lucide-react';
+import { Link, NavLink } from 'react-router-dom';
 import ProfileMenu from '../components/ProfileMenu';
 import { boardsEnabled } from '../components/BoardTabBar';
 import { useLeftRail } from '../components/SideNav';
-import UsageBar from '../components/UsageBar';
+import UsageRing from '../components/UsageRing';
+import { track } from '../lib/events';
 import { PRODUCT_NAME, PRODUCT_TAGLINE, PRODUCT_TITLE } from '../lib/legal';
 import WelcomeWizard from './welcome/WelcomeWizard';
 
@@ -47,7 +48,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
             )}
             <Link to="/dashboard/you" title={PRODUCT_TITLE} aria-label={PRODUCT_TITLE} className="flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
               <img src="/images/logo-128.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" data-test-id="brand-logo" />
-              {/* name over tagline; General Reading, Happy Hour(s) and Personalize live in the avatar menu (Sachin, 2026-11-12) */}
+              {/* name over tagline; General Reading and Personalize live in the avatar menu (Sachin, 2026-11-12) */}
               <div className="hidden min-w-0 flex-col justify-center bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent sm:flex">
                 <h1 className="text-xl font-bold leading-none">{PRODUCT_NAME}</h1>
                 <span className="mt-1 text-[11px] leading-tight" data-test-id="header-tagline">
@@ -56,12 +57,23 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
               </div>
             </Link>
 
-            {/* the question quota takes the middle; the chat's location control and the avatar sit at the right (Sachin, 2026-11-05) */}
-            <div className="flex min-w-0 flex-1 justify-center">
-              <UsageBar />
-            </div>
+            <div className="min-w-0 flex-1" />
+            {/* below 768 px Happy Hour(s) lives in the menu drawer (SideNav) */}
+            {boardsEnabled() && (
+              <NavLink
+                to="/dashboard/lucky"
+                onClick={() => track('tab_select', 'header', 'happy hour(s)')}
+                data-testid="header-happy-hours"
+                className={({ isActive }) =>
+                  `hidden min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-3 text-sm md:flex ${isActive ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'}`
+                }
+              >
+                <Clock className="h-4 w-4" aria-hidden="true" />
+                Happy Hour(s)
+              </NavLink>
+            )}
             <div data-chat-header-slot className="flex min-w-0 items-center" />
-
+            <UsageRing />
             <ProfileMenu user={user} onLogout={onLogout} onOpenWizard={() => setWizardOpen(true)} />
           </div>
 

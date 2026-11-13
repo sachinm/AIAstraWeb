@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Clock, CreditCard, Globe, LogOut, MessageCircle, Sparkles, User as UserIcon } from 'lucide-react';
+import { ChevronDown, CreditCard, Globe, LogOut, MessageCircle, Sparkles, User as UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { usePlan } from '../Auth/ProfileGate';
-import { track } from '../lib/events';
 import { useGeneralReadingIfAvailable } from './GeneralReading';
 import UserAvatar from './UserAvatar';
 
@@ -115,19 +114,6 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout, onOpenWizard 
             >
               <MessageCircle className="h-4 w-4 text-purple-300" aria-hidden="true" />
               General Reading
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="menu-happy-hours"
-              className={itemCls}
-              onClick={() => {
-                track('tab_select', 'header', 'happy hour(s)');
-                go('/dashboard/lucky');
-              }}
-            >
-              <Clock className="h-4 w-4" aria-hidden="true" />
-              Happy Hour(s)
             </button>
             {onOpenWizard && (
               <button
