@@ -59,12 +59,12 @@ for (const theme of ['dark', 'light'] as const) {
 
     await page.goto('/dashboard/work');
     await expect(page.getByTestId('refresh-button')).toHaveText('Get a fresh reading · uses 1 question', { timeout: 20_000 });
-    await expect(page.locator('[data-test-id="usage-bar"]').first()).toContainText('3 of 20 questions used');
+    await expect(page.locator('[data-test-id="usage-ring"]').first()).toHaveAttribute('aria-label', '3 of 20 questions used this month');
     await shot('work-due');
     await page.getByTestId('refresh-button').click();
     await expect(stamp()).toContainText('Made 9 Nov 2026 · Good until 20 Dec 2026', { timeout: 20_000 });
     await expect(page.getByTestId('refresh-later')).toHaveText('Fresh reading after 20 Dec 2026');
-    await expect(page.locator('[data-test-id="usage-bar"]').first()).toContainText('4 of 20 questions used');
+    await expect(page.locator('[data-test-id="usage-ring"]').first()).toHaveAttribute('aria-label', '4 of 20 questions used this month');
     expect(refreshes).toEqual(['/api/boards/work/refresh']);
     await shot('work-after-fresh');
 

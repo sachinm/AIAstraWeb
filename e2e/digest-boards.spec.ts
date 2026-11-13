@@ -167,8 +167,16 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
   await assertNoOverflow(page);
   await saveShot(page, '03-work-board.png', saveToTargets, '06-work-board-ndjson-stream.png');
 
-  // 4. Lucky Times board (/dashboard/lucky)
-  await page.goto('/dashboard/lucky');
+  // 4. Lucky Times board (/dashboard/lucky): the header pill from 768 px, the menu drawer below
+  if (isPhone) {
+    await expect(page.getByTestId('header-happy-hours')).toBeHidden();
+    await page.getByTestId('header-menu-button').click();
+    await page.getByTestId('drawer-happy-hours').click();
+  } else {
+    await page.getByTestId('header-happy-hours').click();
+  }
+  await expect(page).toHaveURL(/\/dashboard\/lucky$/);
+  await expect(page.getByTestId('header-happy-hours')).toHaveClass(/bg-white\/15/);
   await expect(page.getByTestId('today-work.sign_contract')).toBeVisible();
   const luckyText = (await page.getByTestId('lucky-page').textContent())!.toLowerCase();
   for (const w of BANNED_ON_BOARD) {

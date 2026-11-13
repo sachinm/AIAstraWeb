@@ -70,6 +70,8 @@ function graphql(s: StubState, op: string, variables: Record<string, unknown>): 
       return { meDetails: { user_id: 'u1', is_active: true, kundli_added: true, queue_status: 'completed' } };
     case 'MyPlan':
       return { me: { language: 'en', plan: plan(s) } };
+    case 'MyPlanBreakdown':
+      return { me: { plan: { breakdown: { chat: s.used, cardchat: 0, board_refresh: 0, other: 0 } } } };
     case 'MyProfile':
       return {
         me: {

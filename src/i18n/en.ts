@@ -3,7 +3,16 @@ export const en = {
   usage: {
     used: '{{used}} of {{limit}} questions used',
     lastOne: '1 question left',
+    noneLeft: 'No questions left',
     label: 'Questions used this month',
+    usedMonth: '{{used}} of {{limit}} questions used this month',
+    usedToday: '{{used}} of {{limit}} questions used today',
+    chat: 'Chat answers {{count}}',
+    cardchat: 'Card chats {{count}}',
+    boardRefresh: 'Fresh readings {{count}}',
+    other: 'Other {{count}}',
+    renews: 'Renews {{date}}',
+    upgrade: 'Upgrade',
   },
   menu: {
     open: 'Open profile menu',

@@ -7,7 +7,7 @@
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Briefcase, ChevronLeft, ChevronRight, Heart, User, X } from 'lucide-react';
+import { Briefcase, ChevronLeft, ChevronRight, Clock, Heart, User, X } from 'lucide-react';
 import { track } from '../lib/events';
 
 export const SIDE_TABS = [
@@ -15,6 +15,9 @@ export const SIDE_TABS = [
   { to: '/dashboard/love', label: 'Love', icon: Heart },
   { to: '/dashboard/work', label: 'Work', icon: Briefcase },
 ];
+/** in the header from 768 px; below that, in the drawer only */
+const DRAWER_EXTRA_TABS = [{ to: '/dashboard/lucky', label: 'Happy Hour(s)', icon: Clock }];
+
 function remembered(key: string, fallback: boolean): boolean {
   try {
     const v = localStorage.getItem(key);
@@ -130,6 +133,12 @@ export default function SideNav() {
             <NavLink key={to} to={to} title={open ? undefined : label} aria-label={label} onClick={() => track('tab_select', 'sidenav', label.toLowerCase())} className={item}>
               <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
               {open && <span className="truncate">{label}</span>}
+            </NavLink>
+          ))}
+          {DRAWER_EXTRA_TABS.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} aria-label={label} data-testid="drawer-happy-hours" onClick={() => track('tab_select', 'drawer', label.toLowerCase())} className={(s) => `${item(s)} md:hidden`}>
+              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{label}</span>
             </NavLink>
           ))}
         </nav>

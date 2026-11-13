@@ -44,6 +44,7 @@ test('ask everywhere: the Work board opens a 98% reading modal; the avatar menu 
   const vp = page.viewportSize()!;
   await page.getByRole('button', { name: 'Open profile menu' }).click();
   await expect(page.getByTestId('menu-general-reading')).toContainText('General Reading');
+  await expect(page.getByTestId('menu-happy-hours')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('menu-general-reading')).toHaveCount(0);
   await page.getByRole('button', { name: 'Ask about Work' }).click();
