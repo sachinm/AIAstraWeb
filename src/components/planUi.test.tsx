@@ -1,17 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Dashboard from '../pages/Dashboard';
 import ProfileMenu from './ProfileMenu';
 import RegionSwitch from './RegionSwitch';
 import UpgradeCard from './UpgradeCard';
-import UsageBar from './UsageBar';
+import UsageRing from './UsageRing';
 import { usePlan } from '../Auth/ProfileGate';
+import { fetchPlanBreakdown } from '../Auth/api';
 import { formatPrice, loadRegion, saveRegion } from '../lib/region';
 import { isExhausted, type PlanStatus } from '../lib/billing';
 
 vi.mock('../Auth/ProfileGate', () => ({ usePlan: vi.fn(), useMe: () => null }));
+vi.mock('../Auth/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../Auth/api')>()),
+  fetchPlanBreakdown: vi.fn(async () => null),
+}));
 
 const free = (used: number): PlanStatus => ({
   code: 'free',
@@ -32,35 +37,84 @@ const withPlan = (plan: PlanStatus | null) =>
 
 const inRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
-describe('UsageBar', () => {
-  it('shows nothing when limits are off, on a paid plan, or for exempt staff', () => {
+describe('UsageRing', () => {
+  const ring = () => document.querySelector('[data-test-id="usage-ring"]');
+  const panel = () => document.querySelector('[data-test-id="usage-ring-panel"]');
+
+  it('shows nothing when limits are off, on Unlimited, or for exempt staff; shows on Plus', () => {
     withPlan(null);
-    const { container, rerender } = inRouter(<UsageBar />);
+    const { container, rerender } = inRouter(<UsageRing />);
     expect(container).toBeEmptyDOMElement();
-    withPlan({ ...free(0), code: 'plus', limit: 20, remaining: 20, window: 'month', is_paid: true });
-    rerender(<MemoryRouter><UsageBar /></MemoryRouter>);
+    withPlan({ ...free(0), code: 'unlimited', limit: null, remaining: null, is_paid: true });
+    rerender(<MemoryRouter><UsageRing /></MemoryRouter>);
     expect(container).toBeEmptyDOMElement();
     withPlan({ ...free(0), exempt: true, limit: null, remaining: null, window: 'none' });
-    rerender(<MemoryRouter><UsageBar /></MemoryRouter>);
+    rerender(<MemoryRouter><UsageRing /></MemoryRouter>);
     expect(container).toBeEmptyDOMElement();
+    withPlan({ ...free(0), code: 'plus', limit: 20, remaining: 20, is_paid: true });
+    rerender(<MemoryRouter><UsageRing /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: '0 of 20 questions used this month' })).toBeInTheDocument();
   });
 
-  it('counts used questions, then warns, then says they are gone', () => {
+  it('names the count in full, shows what is left, then warns, then turns red', () => {
     withPlan(free(2));
-    const { rerender } = inRouter(<UsageBar />);
-    expect(screen.getByText('2 of 5 questions used')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
+    const { rerender } = inRouter(<UsageRing />);
+    expect(screen.getByRole('button', { name: '2 of 5 questions used this month' })).toBeInTheDocument();
+    expect(document.querySelector('[data-test-id="usage-ring-left"]')).toHaveTextContent('3');
+    expect(ring()).toHaveAttribute('data-tone', 'purple');
 
     withPlan(free(4));
-    rerender(<MemoryRouter><UsageBar /></MemoryRouter>);
+    rerender(<MemoryRouter><UsageRing /></MemoryRouter>);
+    expect(ring()).toHaveAttribute('data-tone', 'amber');
     expect(screen.getByText('1 question left')).toBeInTheDocument();
-    expect(document.querySelector('[data-test-id="usage-bar"]')).toHaveAttribute('data-tone', 'amber');
 
     withPlan(free(5));
-    rerender(<MemoryRouter><UsageBar /></MemoryRouter>);
-    expect(screen.getByText('5 of 5 questions used')).toBeInTheDocument();
-    expect(document.querySelector('[data-test-id="usage-bar"]')).toHaveAttribute('data-tone', 'red');
+    rerender(<MemoryRouter><UsageRing /></MemoryRouter>);
+    expect(ring()).toHaveAttribute('data-tone', 'red');
+    expect(document.querySelector('[data-test-id="usage-ring-left"]')).toHaveTextContent('0');
+  });
+
+  it('opens on focus with the renewal date and an upgrade for Free, and closes on Escape', async () => {
+    withPlan({ ...free(3), resets_at: '2026-12-01T00:00:00.000Z' });
+    inRouter(<UsageRing />);
+    const button = screen.getByRole('button', { name: '3 of 5 questions used this month' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(button).toHaveAttribute('aria-controls', panel()!.id);
+    expect(panel()).not.toBeVisible();
+
+    const u = userEvent.setup();
+    await u.tab();
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(panel()).toBeVisible();
+    expect(within(panel() as HTMLElement).getByText('Renews 1 Dec 2026')).toBeInTheDocument();
+    expect(within(panel() as HTMLElement).getByRole('link', { name: 'Upgrade' })).toHaveAttribute('href', '/pricing');
+    await waitFor(() => expect(fetchPlanBreakdown).toHaveBeenCalled());
+    expect(document.querySelector('[data-test-id="usage-ring-breakdown"]')).not.toBeInTheDocument();
+
+    await u.keyboard('{Escape}');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(panel()).not.toBeVisible();
+    expect(button).toHaveFocus();
+  });
+
+  it('lists the kinds that spent questions, always chat, and offers no upgrade on Plus', async () => {
+    vi.mocked(fetchPlanBreakdown).mockResolvedValueOnce({ chat: 0, cardchat: 1, board_refresh: 2, other: 0 });
+    withPlan({ ...free(3), code: 'plus', limit: 20, remaining: 17, is_paid: true });
+    inRouter(<UsageRing />);
+    await userEvent.setup().click(screen.getByRole('button', { name: '3 of 20 questions used this month' }));
+    expect(await screen.findByText('Chat answers 0 · Card chats 1 · Fresh readings 2')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Upgrade' })).not.toBeInTheDocument();
+  });
+
+  it('closes on a click elsewhere', async () => {
+    withPlan(free(1));
+    inRouter(<UsageRing />);
+    const u = userEvent.setup();
+    await u.click(screen.getByRole('button', { name: '1 of 5 questions used this month' }));
+    expect(panel()).toBeVisible();
+    fireEvent.mouseDown(document.body);
+    expect(panel()).not.toBeVisible();
   });
 });
 
@@ -73,7 +127,6 @@ describe('ProfileMenu', () => {
         <Routes>
           <Route path="/pricing" element={<h1>pricing page</h1>} />
           <Route path="/profile" element={<h1>profile page</h1>} />
-          <Route path="/dashboard/lucky" element={<h1>happy hours page</h1>} />
           <Route path="/dashboard/chat" element={<h1>chat page</h1>} />
           <Route path="*" element={null} />
         </Routes>
@@ -93,12 +146,9 @@ describe('ProfileMenu', () => {
     expect(within(menu).getByText('2 of 5 questions left this month')).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: 'General Reading' })).toHaveFocus();
     await u.keyboard('{ArrowDown}');
-    expect(within(menu).getByRole('menuitem', { name: 'Happy Hour(s)' })).toHaveFocus();
-    await u.keyboard('{ArrowDown}');
     expect(within(menu).getByRole('menuitem', { name: 'Upgrade plan' })).toHaveFocus();
     expect(within(menu).getAllByRole('menuitem').map((el) => el.textContent)).toEqual([
       'General Reading',
-      'Happy Hour(s)',
       'Upgrade plan',
       'Profile',
       'Plan and usage',
@@ -129,15 +179,12 @@ describe('ProfileMenu', () => {
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
-  it('opens Happy Hour(s), and General Reading falls back to the chat route outside its provider', async () => {
+  it('leaves Happy Hour(s) to the header, and General Reading falls back to the chat route outside its provider', async () => {
     withPlan(free(0));
     renderMenu();
     const u = userEvent.setup();
-    const trigger = screen.getByRole('button', { name: 'Open profile menu' });
-    await u.click(trigger);
-    await u.click(screen.getByTestId('menu-happy-hours'));
-    expect(screen.getByText('happy hours page')).toBeInTheDocument();
-    await u.click(trigger);
+    await u.click(screen.getByRole('button', { name: 'Open profile menu' }));
+    expect(screen.queryByTestId('menu-happy-hours')).not.toBeInTheDocument();
     await u.click(screen.getByTestId('menu-general-reading'));
     expect(screen.getByText('chat page')).toBeInTheDocument();
   });

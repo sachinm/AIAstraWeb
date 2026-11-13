@@ -1,4 +1,4 @@
-import type { PlanStatus } from '../lib/billing';
+import type { PlanStatus, UsageBreakdown } from '../lib/billing';
 import { runGraphQL, setAuth } from '../lib/graphql';
 
 const SIGNUP_MUTATION = `
@@ -527,6 +527,28 @@ export async function fetchPlanState(): Promise<{ plan: PlanStatus | null; langu
   } catch (e) {
     console.debug('fetchPlanState failed', e instanceof Error ? e.message : String(e));
     return { plan: null, language: null };
+  }
+}
+
+const PLAN_BREAKDOWN_QUERY = `
+  query MyPlanBreakdown {
+    me {
+      plan {
+        breakdown { chat cardchat board_refresh other }
+      }
+    }
+  }
+`;
+
+/** The questions used by kind, apart from `MyPlan` so a server without `breakdown` fails only this. Null on any error. */
+export async function fetchPlanBreakdown(): Promise<UsageBreakdown | null> {
+  try {
+    const { data, errors } = await runGraphQL<{ me?: { plan?: { breakdown?: UsageBreakdown | null } | null } | null }>(PLAN_BREAKDOWN_QUERY);
+    if (errors?.length) return null;
+    return data?.me?.plan?.breakdown ?? null;
+  } catch (e) {
+    console.debug('fetchPlanBreakdown failed', e instanceof Error ? e.message : String(e));
+    return null;
   }
 }
 

@@ -24,6 +24,16 @@ export interface PlanStatus {
   window: 'month' | 'day' | 'none';
   resets_at: string | null;
   exempt: boolean;
+  /** this window's questions by kind; read on its own (`fetchPlanBreakdown`), null when the server cannot say */
+  breakdown?: UsageBreakdown | null;
+}
+
+/** `PlanStatus.breakdown`: questions used this window, by what spent them. */
+export interface UsageBreakdown {
+  chat: number;
+  cardchat: number;
+  board_refresh: number;
+  other: number;
 }
 
 export interface PlanPrice {

@@ -15,6 +15,9 @@ describe('board tabs (server docs/reading-engine/45 §4, 54 §3)', () => {
     const you = screen.getByRole('link', { name: 'You' });
     expect(you).toHaveAttribute('href', '/dashboard/you');
     expect(screen.getByRole('link', { name: 'Love' })).toHaveAttribute('href', '/dashboard/love');
+    const happy = screen.getByRole('link', { name: 'Happy Hour(s)' });
+    expect(happy).toHaveAttribute('href', '/dashboard/lucky');
+    expect(happy).toHaveClass('md:hidden');
   });
   it('the bottom tab bar has You before Love and Work', () => {
     render(
