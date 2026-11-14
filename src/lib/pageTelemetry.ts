@@ -57,6 +57,9 @@ export function getTelemetrySessionId(): string {
   return memorySessionId;
 }
 
+/** Alias matching errorTelemetry session correlation callers. */
+export const getPageSessionId = getTelemetrySessionId;
+
 export function getCurrentPagePath(): string {
   if (typeof window === 'undefined' || !window.location?.pathname) return '/';
   return window.location.pathname || '/';
