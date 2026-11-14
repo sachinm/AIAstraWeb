@@ -60,6 +60,26 @@ export default defineConfig(({ mode }) => ({
       // a scene keeps only its content hash, so its URL never names it (src/lib/skies.ts)
       output: {
         assetFileNames: (asset) => (asset.name?.endsWith('.webp') ? 'assets/[hash][extname]' : 'assets/[name]-[hash][extname]'),
+        manualChunks(id) {
+          const normalized = id.replace(/\\/g, '/');
+          if (normalized.includes('/node_modules/')) {
+            if (
+              normalized.includes('/react/') ||
+              normalized.includes('/react-dom/') ||
+              normalized.includes('/react-router/') ||
+              normalized.includes('/react-router-dom/') ||
+              normalized.includes('/@remix-run/')
+            ) {
+              return 'vendor-react';
+            }
+            if (normalized.includes('/lucide-react/')) {
+              return 'vendor-ui';
+            }
+            if (normalized.includes('/@marsidev/react-turnstile/')) {
+              return 'vendor-turnstile';
+            }
+          }
+        },
       },
     },
   },
