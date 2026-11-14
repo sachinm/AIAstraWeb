@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import AppRoutes from './routes';
 import AppFrame from './components/AppFrame';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import ThemeScope from './components/ThemeScope';
 import AuthProvider from './Auth/AuthProvider';
+import { installGlobalErrorListeners } from './lib/errorTelemetry';
 import { clearClientSession, performLogout } from './Auth/logout';
 import { resolveUserForSession, restoreSessionFromStorage } from './Auth/sessionRestore';
 import { toUser, writeStoredUser } from './Auth/storedUser';
@@ -60,6 +62,8 @@ const App = () => {
     performLogout({ reason: 'manual', redirect: true });
   };
 
+  useEffect(() => installGlobalErrorListeners(), []);
+
   useEffect(() => {
     const restored = restoreSessionFromStorage();
     if (!restored.isAuthenticated) {
@@ -104,24 +108,26 @@ const App = () => {
 
   return (
     <AppFrame>
-      <Router>
-        <ThemeScope />
-        <AuthProvider
-          user={user}
-          setUser={setUser}
-          isAuthenticated={isAuthenticated}
-          setIsAuthenticated={setIsAuthenticated}
-        >
-          <AppRoutes
+      <GlobalErrorBoundary name="AppRoot">
+        <Router>
+          <ThemeScope />
+          <AuthProvider
             user={user}
+            setUser={setUser}
             isAuthenticated={isAuthenticated}
-            sessionReady={sessionReady}
-            handleSignIn={handleSignIn}
-            handleSignUp={handleSignUp}
-            handleLogout={handleLogout}
-          />
-        </AuthProvider>
-      </Router>
+            setIsAuthenticated={setIsAuthenticated}
+          >
+            <AppRoutes
+              user={user}
+              isAuthenticated={isAuthenticated}
+              sessionReady={sessionReady}
+              handleSignIn={handleSignIn}
+              handleSignUp={handleSignUp}
+              handleLogout={handleLogout}
+            />
+          </AuthProvider>
+        </Router>
+      </GlobalErrorBoundary>
     </AppFrame>
   );
 };

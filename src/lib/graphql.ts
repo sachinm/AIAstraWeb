@@ -1,4 +1,6 @@
 import { buildApiHeaders } from './apiHeaders';
+import { reportClientError } from './errorTelemetry';
+import { getTelemetrySessionId } from './pageTelemetry';
 
 /**
  * GraphQL client – single endpoint, no Supabase or internal API details exposed.
@@ -22,9 +24,49 @@ const getToken = (): string | null => {
   return localStorage.getItem('token');
 };
 
+export interface GraphQLErrorExtensions {
+  code?: string;
+  requestId?: string;
+  [key: string]: unknown;
+}
+
+export interface GraphQLErrorItem {
+  message: string;
+  extensions?: GraphQLErrorExtensions;
+}
+
 export interface GraphQLResponse<T = unknown> {
   data?: T;
-  errors?: Array<{ message: string }>;
+  errors?: GraphQLErrorItem[];
+}
+
+const TRACKED_GRAPHQL_ERROR_CODES = new Set([
+  'INTERNAL_SERVER_ERROR',
+  'FORBIDDEN',
+  'AUTH_UNAVAILABLE',
+  'DEPTH_LIMIT_EXCEEDED',
+  'ALIAS_LIMIT_EXCEEDED',
+  'SELECTION_LIMIT_EXCEEDED',
+  'INTROSPECTION_DISABLED',
+]);
+
+function extractGraphQLOperationName(operation: string): string {
+  const named = /\b(?:query|mutation|subscription)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(operation);
+  if (named?.[1]) return named[1].slice(0, 80);
+  const field = /\{\s*([A-Za-z_][A-Za-z0-9_]*)/.exec(operation);
+  return field?.[1]?.slice(0, 80) ?? 'graphql_operation';
+}
+
+function readRequestIdHeader(headers?: Headers | null): string | undefined {
+  if (!headers || typeof headers.get !== 'function') return undefined;
+  const val = headers.get('x-request-id') || headers.get('X-Request-Id');
+  return typeof val === 'string' && val.trim() ? val.trim().slice(0, 64) : undefined;
+}
+
+function resolveErrorRequestId(err: GraphQLErrorItem | undefined, headerRequestId?: string): string | undefined {
+  const extReqId = err?.extensions?.requestId;
+  if (typeof extReqId === 'string' && extReqId.trim()) return extReqId.trim().slice(0, 64);
+  return headerRequestId;
 }
 
 /** Default for normal queries (me, login). Chat `ask` passes a longer timeout via `sendChatMessage`. */
@@ -76,8 +118,14 @@ export async function runGraphQL<T = unknown>(
   }
 
   const token = getToken();
+  const operationName = extractGraphQLOperationName(operation);
   const body = JSON.stringify({ query: operation, variables });
-  const headers = await buildApiHeaders({ token, body, method: 'POST' });
+  const headers = await buildApiHeaders({
+    token,
+    body,
+    method: 'POST',
+    extra: { 'X-Astra-Session': getTelemetrySessionId() },
+  });
 
   const endpoint = getGraphQLEndpoint();
   let res: Response;
@@ -96,7 +144,16 @@ export async function runGraphQL<T = unknown>(
       ...(options?.keepalive ? { keepalive: true } : {}),
     });
   } catch (e) {
-    if (isAbortError(e)) {
+    const abort = isAbortError(e);
+    reportClientError({
+      source: 'web_network',
+      severity: 'error',
+      category: 'graphql_client',
+      errorCode: abort ? 'GRAPHQL_TIMEOUT' : 'GRAPHQL_NETWORK_ERROR',
+      operation: operationName,
+      message: e instanceof Error ? e.message : String(e),
+    });
+    if (abort) {
       const detail =
         e instanceof DOMException && e.message
           ? e.message
@@ -110,6 +167,7 @@ export async function runGraphQL<T = unknown>(
     if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
 
+  const headerRequestId = readRequestIdHeader(res.headers);
   const rawText = await res.text();
   console.log('[GraphQL] response meta', {
     ok: res.ok,
@@ -123,27 +181,85 @@ export async function runGraphQL<T = unknown>(
       throw new Error('Not authenticated');
     }
     // Try to surface GraphQL-style error message if present
-    try {
-      const parsed = rawText ? (JSON.parse(rawText) as GraphQLResponse<T>) : undefined;
-      const message = parsed?.errors?.[0]?.message;
-      throw new Error(message || `Request failed with status ${res.status}`);
-    } catch (e) {
-      if (e instanceof Error && e.message === 'Not authenticated') throw e;
-      throw new Error(`Request failed with status ${res.status}`);
+    let parsed: GraphQLResponse<T> | undefined;
+    if (rawText) {
+      try {
+        parsed = JSON.parse(rawText) as GraphQLResponse<T>;
+      } catch {
+        parsed = undefined;
+      }
     }
+    const firstErr = parsed?.errors?.[0];
+    const message = firstErr?.message;
+    const extCode = typeof firstErr?.extensions?.code === 'string' ? firstErr.extensions.code : undefined;
+    const requestId = resolveErrorRequestId(firstErr, headerRequestId);
+    if (res.status >= 500 || (extCode !== undefined && TRACKED_GRAPHQL_ERROR_CODES.has(extCode))) {
+      reportClientError({
+        source: 'web_network',
+        severity: res.status >= 500 || extCode === 'INTERNAL_SERVER_ERROR' || extCode === 'AUTH_UNAVAILABLE' ? 'error' : 'warn',
+        category: 'graphql_client',
+        errorCode: extCode || `HTTP_${res.status}`,
+        statusCode: res.status,
+        operation: operationName,
+        requestId,
+        message: message || `Request failed with status ${res.status}`,
+      });
+    }
+    throw new Error(message || `Request failed with status ${res.status}`);
   }
 
   if (!rawText) {
     console.error('[GraphQL] empty response body');
+    reportClientError({
+      source: 'web_network',
+      severity: 'error',
+      category: 'graphql_client',
+      errorCode: 'GRAPHQL_EMPTY_RESPONSE',
+      statusCode: res.status,
+      operation: operationName,
+      requestId: headerRequestId,
+      message: 'Empty response from server while processing your request.',
+    });
     throw new Error('Empty response from server while processing your request.');
   }
 
+  let parsed: GraphQLResponse<T>;
   try {
-    return JSON.parse(rawText) as GraphQLResponse<T>;
+    parsed = JSON.parse(rawText) as GraphQLResponse<T>;
   } catch {
     console.error('[GraphQL] JSON parse failed, rawText snippet:', rawText.slice(0, 200));
+    reportClientError({
+      source: 'web_network',
+      severity: 'error',
+      category: 'graphql_client',
+      errorCode: 'GRAPHQL_INVALID_JSON',
+      statusCode: res.status,
+      operation: operationName,
+      requestId: headerRequestId,
+      message: 'Failed to parse server response as JSON.',
+    });
     throw new Error('Failed to parse server response as JSON.');
   }
+
+  if (Array.isArray(parsed.errors)) {
+    for (const err of parsed.errors) {
+      const code = typeof err?.extensions?.code === 'string' ? err.extensions.code : undefined;
+      if (code && TRACKED_GRAPHQL_ERROR_CODES.has(code)) {
+        reportClientError({
+          source: 'web_network',
+          severity: code === 'INTERNAL_SERVER_ERROR' || code === 'AUTH_UNAVAILABLE' ? 'error' : 'warn',
+          category: 'graphql_client',
+          errorCode: code,
+          statusCode: res.status,
+          operation: operationName,
+          requestId: resolveErrorRequestId(err, headerRequestId),
+          message: err.message || code,
+        });
+      }
+    }
+  }
+
+  return parsed;
 }
 
 export async function checkGraphQLStartupHealth(): Promise<void> {
