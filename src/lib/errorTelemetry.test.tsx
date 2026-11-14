@@ -158,7 +158,7 @@ describe('errorTelemetry', () => {
 
     cleanup();
     // Keep a dummy listener while dispatching ErrorEvent so Vitest's catchWindowErrors does not re-emit as uncaughtException.
-    const noop = () => {};
+    const noop = () => { };
     window.addEventListener('error', noop);
     try {
       window.dispatchEvent(
@@ -342,13 +342,16 @@ describe('errorTelemetry', () => {
     expect(customHttp).toContain("value: 'nosniff'");
     expect(customHttp).toContain("value: 'strict-origin-when-cross-origin'");
     expect(customHttp).toContain("value: 'max-age=31536000; includeSubDomains'");
+    expect(customHttp).toContain("pattern: '/skies/*'");
+    expect(customHttp).toContain("value: 'public, max-age=2592000'");
     expect(customHttp).toContain("value: 'DENY'");
-    expect(customHttp).toContain("value: 'camera=(), microphone=(), geolocation=(), payment=()'");
+    expect(customHttp).toContain("value: 'camera=(self), microphone=(self), geolocation=(self), payment=()'");
     expect(customHttp).toContain('Content-Security-Policy');
+    expect(customHttp).toContain("worker-src 'self' blob:");
     expect(customHttp).toContain("object-src 'none'");
     expect(customHttp).toContain("base-uri 'self'");
     expect(customHttp).toContain("frame-ancestors 'none'");
-    expect(customHttp).toContain('report-uri /api/telemetry/csp-report');
+    expect(customHttp).toContain('report-uri https://dzsm2dbswvuqy.cloudfront.net/api/telemetry/csp-report');
     expect(customHttp).toContain('https://challenges.cloudflare.com');
 
     const inlineScripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)];
