@@ -375,7 +375,7 @@ function NowPage({ map }: { map: CareerMap }) {
         </div>
         <div className="mt-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/60">Best-Fit Choices of Work & Vocation Domains</div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-4">
             {vocationChoices.map((ch, idx) => (
               <div key={idx} className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid={`vocation-choice-${idx}`}>
                 <div className="font-medium text-white">{ch.title}</div>
@@ -403,7 +403,7 @@ function BackPage({ map, checks, onAnswered }: { map: CareerMap; checks: Record<
       {answered.length > 0 && <p className="mb-3 text-white/70" data-testid="confirmed-line">You confirmed {yes} of {answered.length}.</p>}
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
         {map.back.map((b) => (
-          <div key={b.month} className={`${panel} w-[85%] shrink-0 snap-start sm:w-[48%]`} data-testid={`back-${b.month}`}>
+          <div key={b.month} className={`${panel} w-[85%] shrink-0 snap-start sm:w-[48%] lg:w-[32%] 2xl:w-[24%]`} data-testid={`back-${b.month}`}>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs uppercase tracking-wide text-white/50">{monthName(b.month)}</div>
               <span className={techBadgeClass} data-testid="panel-technique-badge">
@@ -544,7 +544,7 @@ function WorriesPage({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-12">
-        <ul className="grid gap-2 lg:col-span-5" data-testid="findings-list-view">
+        <ul className="grid gap-2 lg:col-span-5 xl:col-span-4" data-testid="findings-list-view">
           {list.map((w, i) => {
             const isSelected = i === selectedIdx;
             const clockList = w.families.map((f) => WORK_CLOCK_LABELS[f] ?? f).join(' · ');
@@ -589,7 +589,7 @@ function WorriesPage({
         </ul>
 
         {activeWin && (
-          <div className={`${panel} lg:col-span-7`} data-testid="finding-detail-panel">
+          <div className={`${panel} lg:col-span-7 xl:col-span-8`} data-testid="finding-detail-panel">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wide text-purple-300">

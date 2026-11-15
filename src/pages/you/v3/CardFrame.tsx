@@ -1,13 +1,13 @@
 /**
  * One Self v3 card, for both templates. From the top: the card's art band, the title row with the toolbar (faces and
- * tools), the period strip, the open tool panels, then a centred reading column (headline and the face on screen,
- * up to 72 characters wide) and the slim footer ("Is this right?", Chart details). The old right-hand "Your year"
- * column is gone: the periods live in the strip and the dots, and a swipe moves between them.
+ * tools), the period strip, the open tool panels, then a full-width reading column (headline and the face on screen)
+ * and the slim footer ("Is this right?", Chart details). The old right-hand "Your year" column is gone: the periods live
+ * in the strip and the dots, and a swipe moves between them.
  *
  * The card reads its options (face, tools, grouping, start) from `options`, already merged with the board's settings;
  * a change goes up through `onOptions` and the board saves it. Nothing here calls the network.
  */
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { CARD_TOOLS, type CardOptions, type CardTool } from '../../../lib/cardOptions';
 import type { SelfV3CardView, SpanReading } from '../../../lib/selfV3Api';
 import { V2_WORDS } from '../v2/words';
@@ -20,7 +20,9 @@ import FaceBody from './faces/FaceBody';
 import ToolPanels from './faces/ToolPanels';
 import { notReadyBody } from './notReady';
 import PeriodStrip, { PeriodDots } from './PeriodStrip';
+import { vetCardTools } from './toolVetting';
 import { swipeHandlers, useCardView, useCoarsePointer } from './useCardView';
+import { V3_WORDS } from './words';
 
 export interface CardProps {
   card: SelfV3CardView;
@@ -61,10 +63,33 @@ export default function CardFrame({
   const headline = cardHeadline(card);
   const compact = variant === 'compact';
 
-  const toggleTool = (t: CardTool) => onOptions({ tools: CARD_TOOLS.filter((x) => (x === t ? !options.tools.includes(t) : options.tools.includes(x))) });
+  const vetted = useMemo(
+    () =>
+      vetCardTools({
+        card,
+        periods: view.periods,
+        options,
+        confirmOn,
+        builtOn,
+        hasDetailsHandler: true,
+        staleCopy: V3_WORDS.staleCardDates,
+      }),
+    [card, view.periods, options, confirmOn, builtOn],
+  );
+
+  const toggleTool = (t: CardTool) => {
+    if (!vetted.availableTools.includes(t)) return;
+    onOptions({
+      tools: CARD_TOOLS.filter((x) => vetted.availableTools.includes(x) && (x === t ? !options.tools.includes(t) : options.tools.includes(x))),
+    });
+  };
+  const closeTool = (t: CardTool) => {
+    onOptions({ tools: CARD_TOOLS.filter((x) => x !== t && vetted.availableTools.includes(x) && options.tools.includes(x)) });
+  };
   const details = () => onDetails(card, view.period?.span ?? null, view.period?.item.label ?? null);
-  const face: FaceProps = { card, periods: view.periods, period: view.period, onSelect: view.select, standing: view.standing, options, expanded: view.expanded, onExpanded: view.setExpanded, showEvidence };
-  const tools: ToolProps = { ...face, coarse, onGroupBy: (groupBy) => onOptions({ groupBy }), builtOn, confirmOn };
+  const planToolOpen = !compact && vetted.openTools.includes('plan');
+  const face: FaceProps = { card, periods: view.periods, period: view.period, onSelect: view.select, standing: view.standing, options, expanded: view.expanded, onExpanded: view.setExpanded, showEvidence, planToolOpen };
+  const tools: ToolProps = { ...face, coarse, onGroupBy: (groupBy) => onOptions({ groupBy }), builtOn, confirmOn, vetted, onCloseTool: closeTool };
   const prev = neighbour(view.periods, view.selected, -1);
   const next = neighbour(view.periods, view.selected, 1);
   const swipe = swipeHandlers(
@@ -75,14 +100,16 @@ export default function CardFrame({
   const body: ReactNode = (
     <>
       <PeriodStrip cardId={card.id} periods={view.periods} selected={view.selected} onSelect={view.select} />
-      {!compact && <ToolPanels {...tools} />}
-      <div className="self-v3-scroll min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]" data-testid="card-body" {...swipe} tabIndex={0} aria-label={`${card.title}, more`}>
-        <div className="self-v3-column mx-auto w-full max-w-[72ch] space-y-3 px-1 pb-1">
-          {card.status === 'stale' && <p className="text-center text-xs text-white/55" data-testid="card-stale">{V2_WORDS.cardStale}</p>}
-          <p className={`text-center font-bold leading-snug text-white ${compact ? 'text-lg' : 'text-[22px] sm:text-2xl'}`} data-testid="card-line">
-            {headline}
-          </p>
-          <FaceBody {...face} />
+      <div className="self-v3-stage flex min-h-0 flex-1 flex-col gap-2">
+        {!compact && <ToolPanels {...tools} />}
+        <div className="self-v3-scroll min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]" data-testid="card-body" {...swipe} tabIndex={0} aria-label={`${card.title}, more`}>
+          <div className="self-v3-column w-full max-w-none space-y-3 px-1 pb-1">
+            {card.status === 'stale' && <p className="text-left text-xs text-white/55" data-testid="card-stale">{V2_WORDS.cardStale}</p>}
+            <p className={`text-left font-bold leading-snug text-white ${compact ? 'text-lg' : 'text-[22px] sm:text-2xl'}`} data-testid="card-line">
+              {headline}
+            </p>
+            <FaceBody {...face} />
+          </div>
         </div>
       </div>
       <PeriodDots periods={view.periods} selected={view.selected} onSelect={view.select} />
@@ -108,7 +135,17 @@ export default function CardFrame({
             <SensitiveNote card={card} />
           </div>
           {!notReady && (
-            <CardToolbar cardId={card.id} face={options.face} onFace={(f) => onOptions({ face: f })} tools={options.tools} onTool={toggleTool} onDetails={details} hasOwn={hasOwn} variant={compact ? 'compact' : 'full'} />
+            <CardToolbar
+              cardId={card.id}
+              face={options.face}
+              onFace={(f) => onOptions({ face: f })}
+              tools={vetted.openTools}
+              availableTools={vetted.availableTools}
+              onTool={toggleTool}
+              onDetails={details}
+              hasOwn={hasOwn}
+              variant={compact ? 'compact' : 'full'}
+            />
           )}
         </header>
         {notReady ?? (

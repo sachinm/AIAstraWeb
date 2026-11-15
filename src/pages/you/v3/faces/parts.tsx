@@ -15,7 +15,7 @@ export function PeriodHeading({ period }: { period: PeriodView | null }) {
   if (!period) return null;
   const bits = [period.span ? SPAN_MODE_WORD[period.span.mode] : null, period.item.label, period.item.note, period.tone ? SPAN_TONE_WORD[period.tone] : null].filter(Boolean);
   return (
-    <div className="space-y-0.5 text-center" data-testid="period-heading" data-period={period.index}>
+    <div className="space-y-0.5 text-left" data-testid="period-heading" data-period={period.index}>
       <p className={eyebrow} data-testid="stretch-mode">
         {bits.join(' · ')}
       </p>
@@ -46,7 +46,7 @@ export function WindowsList({ windows, onSelect }: { windows: PeriodView[]; onSe
   return (
     <section data-testid="section-windows">
       <h4 className={eyebrow}>{V3_WORDS.otherWindows}</h4>
-      <ul className="mt-1.5 grid gap-1.5">
+      <ul className="self-v3-windows-grid mt-1.5 grid gap-1.5">
         {windows.map((w) => (
           <li key={w.index}>
             <button type="button" onClick={() => onSelect(w.index)} className="self-v3-btn w-full rounded-xl bg-white/5 px-3 py-2 text-left text-[15px] text-white/80 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60" data-testid={`window-${w.index}`}>
@@ -71,12 +71,12 @@ const LADDER_LABEL: Record<keyof LadderSteps, { label: string; cls: string }> = 
 };
 
 /** the plan's steps, best to floor */
-export function PlanList({ steps, heading = V3_WORDS.whatToDo }: { steps: Array<{ key: keyof LadderSteps; text: string }>; heading?: string }) {
+export function PlanList({ steps, heading = V3_WORDS.whatToDo }: { steps: Array<{ key: keyof LadderSteps; text: string }>; heading?: string | null }) {
   if (!steps.length) return null;
   return (
     <section data-testid="section-plan">
-      <h4 className={eyebrow}>{heading}</h4>
-      <ul className="mt-1.5 grid gap-1.5">
+      {heading ? <h4 className={`${eyebrow} mb-1.5`}>{heading}</h4> : null}
+      <ul className="self-v3-plan-grid grid gap-1.5">
         {steps.map((s) => (
           <li key={s.key} className="grid grid-cols-[84px_1fr] gap-2.5 rounded-xl bg-white/5 px-3 py-2 text-[15px]">
             <b className={`self-center text-xs font-bold uppercase tracking-wide ${LADDER_LABEL[s.key].cls}`}>{LADDER_LABEL[s.key].label}</b>

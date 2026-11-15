@@ -1,10 +1,10 @@
 /*
  * The Self board v3 (server docs/reading-engine/68 §4.2, §4.7; card-faces plan). A card is one full-width column: the
- * art band, a toolbar, a period strip and a centred reading column up to 72 characters. The "Your year" column is gone.
+ * art band, a toolbar, a period strip and a full-width reading column. The "Your year" column is gone.
  * The page itself never scrolls vertically on tablet or desktop; only the reading column scrolls, inside its card.
  */
 .self-v3-card {
-  container-type: inline-size;
+  container: self-card / inline-size;
   overflow: hidden;
 }
 
@@ -13,13 +13,33 @@
   border-radius: 0;
 }
 
-/* controls: a 36px target on a mouse, 44px on a finger */
+/* controls: a 36px target on a mouse, 44px on a finger; active visual state bound to ARIA attributes with >= 3:1 border cue */
 .self-v3-btn {
   min-height: 32px;
 }
-.self-v3-on {
-  background: rgb(20 184 166 / 0.2);
+.self-v3-on,
+.self-v3-toolbar button[aria-pressed='true'],
+.self-v3-toolbar button[aria-checked='true'] {
+  background: rgb(20 184 166 / 0.22);
   color: rgb(153 246 228);
+  box-shadow: inset 0 0 0 1px rgb(94 234 212 / 0.65);
+}
+@media (forced-colors: active) {
+  .self-v3-on,
+  .self-v3-toolbar button[aria-pressed='true'],
+  .self-v3-toolbar button[aria-checked='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+/* stage-proportional cap: open tool panels take at most 38% of the card's inner stage so prose keeps >= 55% on desktop & phone */
+.self-v3-stage {
+  container: card-stage / size;
+}
+.self-v3-tools {
+  max-height: 38%;
+  max-height: 38cqh;
 }
 @media (pointer: coarse) {
   .self-v3-btn,
@@ -41,7 +61,7 @@
 .self-v3-toolbar {
   flex-wrap: nowrap;
 }
-@container (max-width: 639px) {
+@container self-card (max-width: 639px) {
   .self-v3-toolbar {
     flex-wrap: wrap;
   }
@@ -73,19 +93,16 @@
   display: none;
 }
 
-/* the calendar: three months on a narrow card, twelve on a wide one */
+/* the calendar renders all vetted active months in compact responsive columns inside the scrollable tool panel */
 .self-v3-months {
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-}
-@container (max-width: 719px) {
-  .self-v3-months > .self-v3-month:nth-child(n + 4) {
-    display: none;
-  }
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
 }
 
-/* Breakdown: two columns of blocks once the card is 900px wide */
-@container (min-width: 900px) {
-  .self-v3-blocks {
+/* Wide individual cards (e.g. 1-2 cards selected on a large screen): lay out structured blocks and lists in two columns */
+@container self-card (min-width: 820px) {
+  .self-v3-blocks,
+  .self-v3-windows-grid,
+  .self-v3-plan-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

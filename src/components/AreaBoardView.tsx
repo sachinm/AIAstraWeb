@@ -761,7 +761,7 @@ function NowPage({
           {board.personalityAndJoy.whatFeelsGood.length > 0 && (
             <div className="mt-3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/60">What You Naturally Enjoy & Recharge With</div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-4">
                 {board.personalityAndJoy.whatFeelsGood.map((item, idx) => (
                   <div key={idx} className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid={`joy-item-${idx}`}>
                     <div className="font-medium text-white">{item.title}</div>
@@ -887,7 +887,7 @@ function LoveVedicDeepDive({ board, lead }: { board: AreaBoard; lead: AreaWindow
           {chem?.personalitySummary ??
             'In relationships you show love through reliability, thoughtful acts, and protecting your partner’s peace of mind rather than loud performative gestures.'}
         </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">How You Bond Emotionally (Chandra & 4th/8th Bhava)</div>
             <p className="mt-1 text-sm text-white/75">
@@ -989,7 +989,7 @@ function FindingsMasterDetail({
   return (
     <div className="grid gap-4 lg:grid-cols-12" data-testid={testId}>
       {/* Left column: selectable list view of Oracle findings */}
-      <ul className="space-y-2.5 lg:col-span-5" data-testid="findings-list-view">
+      <ul className="space-y-2.5 lg:col-span-5 xl:col-span-4" data-testid="findings-list-view">
         {filtered.map((item, idx) => {
           const isSelected = item.id === selected.id;
           return (
@@ -1022,7 +1022,7 @@ function FindingsMasterDetail({
       </ul>
 
       {/* Right column: selected finding's detailed Vedic reading, dates, aspects & time-period charter */}
-      <div className={`${panel} lg:col-span-7`} data-testid="finding-detail-panel">
+      <div className={`${panel} lg:col-span-7 xl:col-span-8`} data-testid="finding-detail-panel">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wide text-purple-300">{selected.subCategoryLabel}</span>
@@ -1204,7 +1204,7 @@ function BackPage({ board, checks, cfg, onAnswered }: { board: AreaBoard; checks
       {answered.length > 0 && <p className="mb-3 text-white/70" data-testid="confirmed-line">You confirmed {yes} of {answered.length}.</p>}
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
         {board.back.map((b) => (
-          <div key={b.month} className={`${panel} w-[85%] shrink-0 snap-start sm:w-[48%]`} data-testid={`back-${b.month}`}>
+          <div key={b.month} className={`${panel} w-[85%] shrink-0 snap-start sm:w-[48%] lg:w-[32%] 2xl:w-[24%]`} data-testid={`back-${b.month}`}>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs uppercase tracking-wide text-white/50">{monthName(b.month)}</div>
               <span className={techBadgeClass} data-testid="panel-technique-badge">

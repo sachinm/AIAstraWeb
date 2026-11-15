@@ -324,8 +324,8 @@ function TodayView(props: { range: LuckyRange; today: LuckyDay | null; picks: Pi
           ))}
         </ul>
       </div>
-      <div className="grid gap-3 lg:col-span-2">
-        {props.picks.length === 0 && <div className={panel}>All your plans are hidden. Tap a plan above to show it.</div>}
+      <div className="grid content-start gap-3 lg:col-span-2 xl:grid-cols-2">
+        {props.picks.length === 0 && <div className={`${panel} xl:col-span-2`}>All your plans are hidden. Tap a plan above to show it.</div>}
         {props.picks.map((p) => {
           const layer = today.layers[p.scenario];
           const next = bestNext(range, p.scenario);

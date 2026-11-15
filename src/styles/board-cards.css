@@ -204,6 +204,14 @@ html.light .bc-chip[data-kind='on'] {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
+@media (min-width: 1920px) {
+  .bc-row {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .bc-row-soon {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .bc-tile {

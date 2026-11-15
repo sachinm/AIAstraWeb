@@ -111,7 +111,7 @@ export function AreaCardsSheet({ board, cards }: { board: AreaCardsBoard; cards:
       aria-label={AREA_CARDS_WORDS.button}
       data-testid="area-cards-sheet"
     >
-      <div className="h-full w-full max-w-[1500px] rounded-2xl bg-[#0d0c24]">
+      <div className="h-full w-full max-w-[96vw] rounded-2xl bg-[#0d0c24] 2xl:max-w-[2200px]">
         <BoardCardPicker
           board={board}
           title={AREA_CARDS_WORDS.button}

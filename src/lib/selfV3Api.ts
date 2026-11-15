@@ -195,10 +195,41 @@ export interface RailItem {
   text?: string[] | null;
 }
 
+/** doc 75: a named, vetted period window sent by the server when a window has its own prose */
+export interface CardPeriodView {
+  id: string;
+  name: string;
+  label: string;
+  from: IsoDate;
+  to: IsoDate;
+  headline: string;
+  text: string[];
+  tone: SpanTone | null;
+  current: boolean;
+  passed: boolean;
+  span: string | null;
+}
+
+/** doc 75: a turning-point date derived from stored engine windows */
+export interface KeyDateView {
+  date: IsoDate;
+  label: string;
+  tone?: SpanTone | null;
+  passed: boolean;
+}
+
+/** doc 75 §4.2: feature usability per card */
+export interface CardFeatureGrant {
+  usable: boolean;
+  locked: boolean;
+  minPlan: string | null;
+}
+
 export interface SelfV3CardView {
   id: SelfCardId;
   group: SelfCardGroup;
   title: string;
+  subtitle?: string;
   description: string;
   suggested: boolean;
   sensitive: boolean;
@@ -216,6 +247,12 @@ export interface SelfV3CardView {
   optionNotes?: string[];
   /** what stands for the person on this card regardless of period, plain lines (absent from older servers) */
   standing?: string[];
+  /** doc 75 optional server-computed periods, key dates, freshness and feature grants */
+  periods?: CardPeriodView[];
+  keyDates?: KeyDateView[];
+  stale?: boolean;
+  staleDates?: IsoDate[];
+  features?: Record<string, CardFeatureGrant>;
   rail: RailItem[];
   /** Phase B content; null while the card is filled from the v2 build */
   v3: SelfV3CardContent | null;

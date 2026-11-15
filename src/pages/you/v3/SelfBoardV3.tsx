@@ -58,9 +58,12 @@ import { V2_WORDS } from '../v2/words';
 import CardChips from './CardChips';
 import { SpanClocks, type CardReading } from './CardParts';
 import CompactCard from './CompactCard';
-import { optionsFor, type CardOptions } from '../../../lib/cardOptions';
+import { optionsFor, type CardOptions, type CardTool } from '../../../lib/cardOptions';
 import BoardSettings from './BoardSettings';
 import { boardNow, cardNow, hasOwnOptions, ownCount } from './boardOptions';
+import { periodsOf } from './cardModel';
+import { notReadyBody } from './notReady';
+import { vetCardTools } from './toolVetting';
 import { useOptionSaves } from './useOptionSaves';
 import Picker from './Picker';
 import SeasonsCard from './SeasonsCard';
@@ -69,11 +72,19 @@ import './selfBoardV3.css';
 
 const SURFACE = 'self_v3';
 
-/** Cards across per template: Seasons two at tablet landscape and up, Compact four; one on a phone. */
+/** Cards across per template: Seasons scales 2 -> 3 -> 4 across desktop widths, Compact 4 -> 5 -> 6; one on a phone or two-fold. */
 export function perViewFor(template: SelfTemplateId, mode: BoardMode): number {
-  if (mode === 'phone') return 1;
-  if (template === 'compact') return mode === 'portrait' ? 2 : 4;
-  return mode === 'portrait' ? 1 : 2;
+  if (mode === 'phone' || mode === 'duo') return 1;
+  if (template === 'compact') {
+    if (mode === 'portrait') return 2;
+    if (mode === 'ultrawide') return 6;
+    if (mode === 'xwide') return 5;
+    return 4;
+  }
+  if (mode === 'portrait') return 1;
+  if (mode === 'ultrawide') return 4;
+  if (mode === 'xwide') return 3;
+  return 2;
 }
 
 /** the next card left showing past the last full card */
@@ -409,6 +420,26 @@ function Board({
   const boardSettings = boardNow(layout);
   const confirmOn = boardSettings.confirm !== false;
   const motionOn = boardSettings.motion !== false;
+  const { toolSupport, readyCardCount } = useMemo(() => {
+    const counts: Record<CardTool, number> = { table: 0, calendar: 0, dates: 0, timeframe: 0, plan: 0, info: 0 };
+    let readyCount = 0;
+    const builtOn = board.builtAt ? board.builtAt.slice(0, 10) : null;
+    for (const c of shown) {
+      if (notReadyBody(c, true, cardReading)) continue;
+      readyCount += 1;
+      const res = vetCardTools({
+        card: c,
+        periods: periodsOf(c),
+        options: cardNow(layout, c.id),
+        confirmOn,
+        builtOn,
+        hasDetailsHandler: true,
+        staleCopy: V3_WORDS.staleCardDates,
+      });
+      for (const t of res.availableTools) counts[t] += 1;
+    }
+    return { toolSupport: counts, readyCardCount: readyCount };
+  }, [shown, layout, confirmOn, board.builtAt, cardReading]);
   const setTemplate = (t: SelfTemplateId) => {
     if (t === template) return;
     track('chip_select', SURFACE, `template_${t}`);
@@ -621,6 +652,8 @@ function Board({
             value={boardSettings}
             onChange={(patch) => optionSaves.changeBoard(patch)}
             ownCount={ownCount(layout)}
+            toolSupport={toolSupport}
+            cardCount={readyCardCount}
             onApplyAll={() => {
               track('chip_select', SURFACE, 'options_apply_all');
               optionSaves.applyToAll();
