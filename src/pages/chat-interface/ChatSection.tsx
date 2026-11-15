@@ -23,6 +23,7 @@ import { useSpeechRecognition } from './useSpeechRecognition';
 import { useQuestionLocation } from './useQuestionLocation';
 import { applyReadingEvent, nextPartsOf, type NextPart } from './readingProgress';
 import { trackChatQuestionSent } from '../../lib/analytics';
+import { createTokenDeltaFlusher } from './tokenFlusher';
 import { useMe, usePlan, useRefreshMe } from '../../Auth/ProfileGate';
 import { isExhausted, QuotaExhaustedError } from '../../lib/billing';
 import UpgradeCard from '../../components/UpgradeCard';
@@ -326,13 +327,20 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
       ]);
       setIsTyping(true);
       setStreamingMessageId(id);
+      const flusher = createTokenDeltaFlusher({
+        intervalMs: 50,
+        onFlush: (chunk) => {
+          if (!mountedRef.current || !chunk) return;
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: m.text + chunk } : m)));
+        },
+      });
       try {
         const { answer, chatId: cid } = await sendChatMessageStream(
           question,
           thread,
           (delta) => {
             if (!mountedRef.current || !delta) return;
-            setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: m.text + delta } : m)));
+            flusher.push(delta);
           },
           {
             focus: { subject: part.id, parts: rest.map((p) => p.id) },
@@ -348,12 +356,14 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
             },
           }
         );
+        flusher.flushSync();
         thread = cid || thread;
         if (mountedRef.current) {
           if (thread) setActiveChat(thread);
           setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: answer } : m)));
         }
       } catch (err) {
+        flusher.flushSync();
         if (mountedRef.current) {
           if (err instanceof QuotaExhaustedError && err.usage) setPlan(err.usage);
           const msg = err instanceof Error ? err.message : 'Something went wrong';
@@ -361,6 +371,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         }
         break;
       } finally {
+        flusher.dispose();
         if (mountedRef.current) {
           setStreamingMessageId(null);
           setIsTyping(false);
@@ -395,6 +406,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
 
     const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     let streamPlaceholderId: string | null = null;
+    let flusher: ReturnType<typeof createTokenDeltaFlusher> | null = null;
 
     try {
       if (isChatStreamEnabled()) {
@@ -404,14 +416,21 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         setStreamingMessageId(aiPlaceholderId);
         setMessages((prev) => [...prev, { id: aiPlaceholderId, text: '', sender: 'ai', timestamp: ts }]);
         let nextParts: NextPart[] = [];
+        flusher = createTokenDeltaFlusher({
+          intervalMs: 50,
+          onFlush: (chunk) => {
+            if (!mountedRef.current || !chunk) return;
+            setMessages((prev) =>
+              prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + chunk } : m))
+            );
+          },
+        });
         const { answer, chatId, clarifyingRunId } = await sendChatMessageStream(
           userMessage.text,
           activeChat,
           (delta) => {
             if (!mountedRef.current || !delta) return;
-            setMessages((prev) =>
-              prev.map((m) => (m.id === aiPlaceholderId ? { ...m, text: m.text + delta } : m))
-            );
+            flusher?.push(delta);
           },
           {
             clarify: isClarifyEnabled(),
@@ -435,6 +454,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
             },
           }
         );
+        flusher.flushSync();
         if (clarifyingRunId) return; // the card on the message now drives the conversation
         if (mountedRef.current) {
           setActiveChat(chatId);
@@ -457,6 +477,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         void refreshPlan();
       }
     } catch (err) {
+      flusher?.flushSync();
       if (err instanceof QuotaExhaustedError) {
         // no answer is coming: the question goes back in the box, and the upgrade card takes the input's place
         if (mountedRef.current) {
@@ -482,6 +503,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         setMessages((prev) => [...prev, errorMessage]);
       }
     } finally {
+      flusher?.dispose();
       if (mountedRef.current) {
         setStreamingMessageId(null);
         setIsTyping(false);
@@ -529,13 +551,20 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
     setClarify(messageId, undefined);
     setIsTyping(true);
     setStreamingMessageId(messageId);
+    const flusher = createTokenDeltaFlusher({
+      intervalMs: 50,
+      onFlush: (chunk) => {
+        if (!mountedRef.current || !chunk) return;
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text + chunk } : m)));
+      },
+    });
     try {
       const { answer, chatId } = await confirmClarifyStream(
         runId,
         activeChat,
         (delta) => {
           if (!mountedRef.current || !delta) return;
-          setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)));
+          flusher.push(delta);
         },
         {
           ...(focus ? { focus: { subject: focus, parts: [] } } : {}),
@@ -554,6 +583,7 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
           },
         }
       );
+      flusher.flushSync();
       if (mountedRef.current && chatId) {
         setActiveChat(chatId);
         setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: answer } : m)));
@@ -561,12 +591,16 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
         if (nextParts.length) continueFrom = { chatId, parts: nextParts };
       }
     } catch (err) {
-      if (err instanceof QuotaExhaustedError && mountedRef.current) {
-        if (err.usage) setPlan(err.usage);
-        else void refreshPlan();
+      flusher.flushSync();
+      if (mountedRef.current) {
+        if (err instanceof QuotaExhaustedError) {
+          if (err.usage) setPlan(err.usage);
+          else void refreshPlan();
+        }
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text || (err instanceof Error ? err.message : 'Something went wrong') } : m)));
       }
-      if (mountedRef.current) setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: m.text || (err instanceof Error ? err.message : 'Something went wrong') } : m)));
     } finally {
+      flusher.dispose();
       if (mountedRef.current) {
         setStreamingMessageId(null);
         setIsTyping(false);
