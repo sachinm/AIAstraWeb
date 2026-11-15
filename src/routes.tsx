@@ -15,10 +15,14 @@ import {
 } from './Auth/RouteGuards';
 import { User } from './App';
 
-// Lazy-loaded page components for route-level code splitting
-const LandingPage = lazy(() => import('./LandingPage'));
-const SignIn = lazy(() => import('./Auth/SignIn'));
-const SignUp = lazy(() => import('./Auth/SignUp'));
+// Build-time SSR prerendered public & auth routes remain eager so renderToString emits complete static HTML
+import LandingPage from './LandingPage';
+import SignIn from './Auth/SignIn';
+import SignUp from './Auth/SignUp';
+import PricingPage from './pages/pricing/PricingPage';
+import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
+
+// Lazy-loaded authenticated page components for route-level code splitting
 const BirthDetails = lazy(() => import('./Auth/BirthDetails'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ProfileSection = lazy(() => import('./pages/profile/ProfileSection'));
@@ -32,10 +36,6 @@ const WorkPage = lazy(() => import('./pages/work/WorkPage'));
 const LovePage = lazy(() => import('./pages/love/LovePage'));
 const YouPage = lazy(() => import('./pages/you/YouPage'));
 const WelcomeWizard = lazy(() => import('./pages/welcome/WelcomeWizard'));
-const PricingPage = lazy(() => import('./pages/pricing/PricingPage'));
-const PrivacyPage = lazy(() => import('./pages/legal/LegalPages').then((m) => ({ default: m.PrivacyPage })));
-const TermsPage = lazy(() => import('./pages/legal/LegalPages').then((m) => ({ default: m.TermsPage })));
-const RefundsPage = lazy(() => import('./pages/legal/LegalPages').then((m) => ({ default: m.RefundsPage })));
 
 /** Accessible loading fallback for lazy-loaded route boundaries */
 export function RouteLoadingFallback() {
