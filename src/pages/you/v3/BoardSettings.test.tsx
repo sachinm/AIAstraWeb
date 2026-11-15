@@ -57,6 +57,37 @@ describe('BoardSettings', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByTestId('board-settings-panel')).toBeNull();
   });
+
+  it('hides board-wide tools that pass vetting on zero cards (unless active) and displays partial card-support counts', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <BoardSettings
+        value={COLD_BOARD_DEFAULTS}
+        ownCount={0}
+        toolSupport={{ table: 2, calendar: 2, dates: 2, timeframe: 2, plan: 7, info: 0 }}
+        cardCount={8}
+        onChange={onChange}
+        onApplyAll={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('board-settings-open'));
+    expect(screen.queryByTestId('bs-tool-info')).toBeNull();
+    expect(screen.getByTestId('bs-tool-table')).toHaveTextContent('Table2/8');
+    expect(screen.getByTestId('bs-tool-plan')).toHaveTextContent('Plan7/8');
+
+    // If a zero-card tool was previously toggled on in value.tools, keep it visible so the user can turn it off
+    rerender(
+      <BoardSettings
+        value={{ ...COLD_BOARD_DEFAULTS, tools: ['info'] }}
+        ownCount={0}
+        toolSupport={{ table: 2, calendar: 2, dates: 2, timeframe: 2, plan: 7, info: 0 }}
+        cardCount={8}
+        onChange={onChange}
+        onApplyAll={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('bs-tool-info')).toHaveAttribute('aria-pressed', 'true');
+  });
 });
 
 describe('board options', () => {

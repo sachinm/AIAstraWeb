@@ -49,7 +49,7 @@ const SEEN_KEY = 'aiastra.self.v2.seen';
 // Layout
 // ---------------------------------------------------------------------------------------------------------------------
 
-export type BoardMode = 'phone' | 'portrait' | 'landscape' | 'wide' | 'duo';
+export type BoardMode = 'phone' | 'portrait' | 'landscape' | 'wide' | 'xwide' | 'ultrawide' | 'duo';
 
 function mq(q: string): boolean {
   try {
@@ -65,13 +65,15 @@ function mq(q: string): boolean {
  */
 export function boardMode(w: number, h: number, segments = mq('(horizontal-viewport-segments: 2)'), coarse = mq('(pointer: coarse)')): BoardMode {
   if (segments || (w >= 1200 && h <= 740 && coarse)) return 'duo';
+  if (w >= 2300) return 'ultrawide';
+  if (w >= 1680) return 'xwide';
   if (w >= 1440) return 'wide';
   if (w >= 1100) return 'landscape';
   if (w >= 768) return 'portrait';
   return 'phone';
 }
 
-export const PER_VIEW: Record<BoardMode, number> = { phone: 1, portrait: 2, landscape: 3, wide: 4, duo: 1 };
+export const PER_VIEW: Record<BoardMode, number> = { phone: 1, portrait: 2, landscape: 3, wide: 4, xwide: 4, ultrawide: 5, duo: 1 };
 
 export function useBoardMode(): BoardMode {
   const read = () => (typeof window === 'undefined' ? 'landscape' : boardMode(window.innerWidth, window.innerHeight));
@@ -419,7 +421,7 @@ function Board({
   // a paid fresh build that failed keeps its own Try again (the consent sheet) in the fresh control
   const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
 
-  const heroLayout: HeroLayout = mode === 'duo' ? 'pane' : mode;
+  const heroLayout: HeroLayout = mode === 'duo' ? 'pane' : mode === 'xwide' || mode === 'ultrawide' ? 'wide' : mode;
   const ranked = areas.find((a) => a.status === 'ok' && a.card?.ladder);
   const hero = (
     <Hero

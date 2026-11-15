@@ -26,13 +26,13 @@ function Block({ title, text, testId }: { title: string; text: string; testId: s
   );
 }
 
-export default function BreakdownFace({ card, period, standing, options }: FaceProps) {
+export default function BreakdownFace({ card, period, standing, options, planToolOpen = false }: FaceProps) {
   const span = period?.span ?? null;
   const asks = span ? span.asks : period?.text?.[0];
   const trap = span ? span.obstacle : period?.text?.[1];
   const rest = span ? [] : (period?.text ?? []).slice(2);
   const patterns = cardPatterns(card);
-  const steps = planSteps(card, options);
+  const steps = planToolOpen ? [] : planSteps(card, options);
   const any = asks || trap || period?.step || rest.length || patterns.length || steps.length || standing.length;
   return (
     <div className="space-y-3" data-testid="face-body-breakdown">

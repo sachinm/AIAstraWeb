@@ -7,22 +7,33 @@ import { useState } from 'react';
 import type { LadderSteps, PersonalPattern } from '../../../lib/selfV2Api';
 import { cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
 import { spanWords } from '../v2/words';
+import { scrubEmptyRefs } from './textClean';
 import { SECTION_WORD, SPAN_TONE_WORD, V3_WORDS } from './words';
 
 /** the card's headline: the v3 line, else the stored v2 headline */
 export function cardHeadline(card: SelfV3CardView): string | null {
-  return card.v3?.line || card.v2?.card?.headline || null;
+  const raw = card.v3?.line || card.v2?.card?.headline || null;
+  if (!raw) return null;
+  return scrubEmptyRefs(raw) || null;
 }
 
 /** the patterns a card can show: the v3 pattern, else the v2 card's */
 export function cardPatterns(card: SelfV3CardView): PersonalPattern[] {
-  if (card.v3) return card.v3.pattern ? [card.v3.pattern] : [];
-  return card.v2?.card?.patterns ?? [];
+  const raw = card.v3 ? (card.v3.pattern ? [card.v3.pattern] : []) : (card.v2?.card?.patterns ?? []);
+  return raw
+    .map((pt) => ({ ...pt, text: scrubEmptyRefs(pt.text) }))
+    .filter((pt) => Boolean(pt.text));
 }
 
 export function cardLadder(card: SelfV3CardView): LadderSteps | null {
-  if (card.v3) return card.v3.ladder;
-  return card.v2?.card?.ladder ?? null;
+  const raw = card.v3 ? card.v3.ladder : (card.v2?.card?.ladder ?? null);
+  if (!raw) return null;
+  return {
+    best: raw.best ? scrubEmptyRefs(raw.best) : raw.best,
+    practical: raw.practical ? scrubEmptyRefs(raw.practical) : raw.practical,
+    drift: raw.drift ? scrubEmptyRefs(raw.drift) : raw.drift,
+    floor: raw.floor ? scrubEmptyRefs(raw.floor) : raw.floor,
+  };
 }
 
 const PATTERN_ICON: Record<PersonalPattern['kind'], { mark: string; cls: string; label: string }> = {
@@ -154,10 +165,11 @@ export function ConfirmSection({ confirm, slim = false }: { confirm: { claimId: 
 
 /** doc 71: the server's plain lines where a card's options cannot be honoured yet */
 export function OptionNotes({ card }: { card: SelfV3CardView }) {
-  if (!card.optionNotes?.length) return null;
+  const notes = (card.optionNotes ?? []).map((n) => scrubEmptyRefs(n)).filter(Boolean);
+  if (!notes.length) return null;
   return (
     <p className="text-xs text-white/55" data-testid="card-option-note">
-      {card.optionNotes.join(' ')}
+      {notes.join(' ')}
     </p>
   );
 }

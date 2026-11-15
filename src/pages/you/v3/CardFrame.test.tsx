@@ -30,10 +30,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the card on the page', () => {
-  it('the reading takes the whole card: no right-hand rail', () => {
+  it('the reading takes the whole card: no right-hand rail and full card width for text', () => {
     mount();
     expect(screen.queryByTestId('self-v3-right')).toBeNull();
     expect(screen.getByTestId('period-strip-body')).toBeInTheDocument();
+    const col = screen.getByTestId('card-body').querySelector('.self-v3-column');
+    expect(col).not.toBeNull();
+    expect(col).toHaveClass('w-full', 'max-w-none');
+    expect(col).not.toHaveClass('max-w-[72ch]');
+    expect(col).not.toHaveClass('mx-auto');
   });
 
   it('starts short with a teaser; "full" starts expanded', () => {

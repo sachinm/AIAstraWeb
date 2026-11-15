@@ -46,7 +46,7 @@ export default function ShowMore({ lead, rest, expanded, onToggle, label, canExp
           aria-expanded={expanded}
           aria-controls={`more-${cardId}`}
           onClick={() => onToggle(!expanded)}
-          className="self-v3-btn mx-auto mt-2 flex max-w-full items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 text-[13px] font-semibold text-white/85 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+          className="self-v3-btn mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 text-[13px] font-semibold text-white/85 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
           data-testid="show-more-toggle"
         >
           <span className="truncate">{expanded ? V3_WORDS.showLess : label}</span>
