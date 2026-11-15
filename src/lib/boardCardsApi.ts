@@ -52,6 +52,7 @@ async function call(method: string, path: string, payload?: unknown): Promise<Re
   return fetch(ledgerApiUrl(path), {
     method,
     headers,
+    credentials: 'include',
     ...(body !== undefined ? { body } : {}),
   });
 }

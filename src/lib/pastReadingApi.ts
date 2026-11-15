@@ -157,9 +157,10 @@ export interface RatePredictionInput {
   whyMissedOrWorkedNote?: string;
 }
 
-function getToken(): string {
+function getToken(): string | null {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (!token) throw new LedgerApiError(401);
+  const hasCookie = typeof document !== 'undefined' && document.cookie.includes('aastra_csrf');
+  if (!token && !hasCookie) throw new LedgerApiError(401);
   return token;
 }
 
@@ -181,6 +182,7 @@ async function request<T>(method: string, path: string, payload?: unknown): Prom
   const res = await fetch(ledgerApiUrl(path), {
     method,
     headers,
+    credentials: 'include',
     ...(body !== undefined ? { body } : {}),
   });
   if (!res.ok) {

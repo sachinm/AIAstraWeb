@@ -140,6 +140,7 @@ export async function runGraphQL<T = unknown>(
       method: 'POST',
       headers,
       body,
+      credentials: 'include',
       ...(useClientTimeout ? { signal: controller.signal } : {}),
       ...(options?.keepalive ? { keepalive: true } : {}),
     });

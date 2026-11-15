@@ -120,9 +120,10 @@ export function ledgerApiUrl(path: string): string {
   return path;
 }
 
-function getToken(): string {
+function getToken(): string | null {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (!token) throw new LedgerApiError(401);
+  const hasCookie = typeof document !== 'undefined' && document.cookie.includes('aastra_csrf');
+  if (!token && !hasCookie) throw new LedgerApiError(401);
   return token;
 }
 
@@ -130,7 +131,12 @@ async function request<T>(method: string, path: string, payload?: unknown): Prom
   const token = getToken();
   const body = payload === undefined ? undefined : JSON.stringify(payload);
   const headers = await buildApiHeaders({ token, body, method });
-  const res = await fetch(ledgerApiUrl(path), { method, headers, ...(body !== undefined ? { body } : {}) });
+  const res = await fetch(ledgerApiUrl(path), {
+    method,
+    headers,
+    credentials: 'include',
+    ...(body !== undefined ? { body } : {}),
+  });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: unknown; field?: unknown };
     throw new LedgerApiError(

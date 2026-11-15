@@ -5,9 +5,14 @@ import App from './App.tsx';
 import { checkGraphQLStartupHealth } from './lib/graphql';
 import { installAuthPrewarm } from './Auth/prewarm';
 import { TURNSTILE_SITE_KEY } from './Auth/useTurnstile';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
+import { installGlobalErrorListeners } from './lib/errorTelemetry';
 import './i18n';
 import './index.css';
 import './theme-light.css';
+
+// Install global error listeners for uncaught JS errors, unhandled rejections, and CSP violations
+installGlobalErrorListeners();
 
 const GRAPHQL_STARTUP_CHECK_KEY = Symbol.for('adastra.graphql.startup-check-ran');
 
@@ -40,6 +45,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <AppWithStartupChecks />
+    <GlobalErrorBoundary>
+      <AppWithStartupChecks />
+    </GlobalErrorBoundary>
   </StrictMode>
 );

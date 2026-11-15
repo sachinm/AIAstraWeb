@@ -271,7 +271,7 @@ async function call(method: string, path: string, payload?: unknown): Promise<Re
   const body = payload === undefined ? undefined : JSON.stringify(payload);
   // buildApiHeaders sends X-Astra-Page (the page timing telemetry joins server timings to the page by it)
   const headers = await buildApiHeaders({ token, body, method });
-  return fetch(ledgerApiUrl(path), { method, headers, ...(body !== undefined ? { body } : {}) });
+  return fetch(ledgerApiUrl(path), { method, headers, credentials: 'include', ...(body !== undefined ? { body } : {}) });
 }
 
 function isBoard(j: unknown): j is SelfV2Response {

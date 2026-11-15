@@ -329,6 +329,7 @@ export async function flushClientErrors(options?: { preferBeacon?: boolean }): P
       headers,
       body,
       keepalive: true,
+      credentials: 'include',
     });
     if (pendingQueue.length > 0) scheduleFlush();
     return batch.length;

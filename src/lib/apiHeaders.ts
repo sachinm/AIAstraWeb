@@ -26,6 +26,12 @@ export type BuildApiHeadersOptions = {
   extra?: Record<string, string>;
 };
 
+export function getCsrfTokenFromCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)aastra_csrf=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export async function buildApiHeaders(
   options: BuildApiHeadersOptions = {}
 ): Promise<Record<string, string>> {
@@ -42,6 +48,13 @@ export async function buildApiHeaders(
     const bearer = `Bearer ${token}`;
     headers['Authorization'] = bearer;
     headers['X-Astra-Authorization'] = bearer;
+  }
+  // Attach X-CSRF-Token on mutating methods (POST, PUT, DELETE, PATCH)
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    const csrfToken = options.extra?.['X-CSRF-Token'] || getCsrfTokenFromCookie();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
   }
   const needsHash =
     options.body != null &&

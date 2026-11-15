@@ -346,7 +346,7 @@ async function call(method: string, path: string, payload?: unknown, extra?: { h
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const body = payload === undefined ? undefined : JSON.stringify(payload);
   const headers = await buildApiHeaders({ token, body, method, ...(extra?.headers ? { extra: extra.headers } : {}) });
-  return fetch(ledgerApiUrl(path), { method, headers, ...(body !== undefined ? { body } : {}), ...(extra?.signal ? { signal: extra.signal } : {}) });
+  return fetch(ledgerApiUrl(path), { method, headers, credentials: 'include', ...(body !== undefined ? { body } : {}), ...(extra?.signal ? { signal: extra.signal } : {}) });
 }
 
 /** the longest a 503's Retry-After is honoured (ms), and the wait when it names none */
