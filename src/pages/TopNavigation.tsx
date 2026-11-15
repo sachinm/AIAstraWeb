@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle, Clock, Menu } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import ProfileMenu from '../components/ProfileMenu';
+import NotificationBell from '../components/NotificationBell';
 import { boardsEnabled } from '../components/BoardTabBar';
 import { useLeftRail } from '../components/SideNav';
 import UsageRing from '../components/UsageRing';
@@ -74,6 +75,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
             )}
             <div data-chat-header-slot className="flex min-w-0 items-center" />
             <UsageRing />
+            {user && <NotificationBell />}
             <ProfileMenu user={user} onLogout={onLogout} onOpenWizard={() => setWizardOpen(true)} />
           </div>
 

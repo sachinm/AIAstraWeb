@@ -13,6 +13,7 @@ export const en = {
     other: 'Other {{count}}',
     renews: 'Renews {{date}}',
     upgrade: 'Upgrade',
+    zeroLeft: '0 questions left.',
   },
   menu: {
     open: 'Open profile menu',
@@ -130,5 +131,17 @@ export const en = {
     english: 'English',
     hindi: 'हिन्दी (Hindi)',
     hindiSoon: 'Hindi is coming soon. Until then, your readings and the app are in English.',
+  },
+  notifications: {
+    title: 'Notifications',
+    bellUnread: 'Notifications ({{count}} unread)',
+    bellEmpty: 'Notifications',
+    markAllRead: 'Mark all read',
+    loading: 'Loading notifications…',
+    empty: "You're all caught up.",
+    dismiss: 'Dismiss notification',
+    defaultSender: 'AI AdAstra',
+    important: 'Important',
+    viewAction: 'Open',
   },
 };
