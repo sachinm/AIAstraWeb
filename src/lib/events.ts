@@ -74,7 +74,7 @@ export async function flushEvents(): Promise<void> {
   try {
     const body = JSON.stringify({ session: sessionId(), events: batch });
     const headers = await buildApiHeaders({ token, body, method: 'POST' });
-    await fetch(ledgerApiUrl('/api/analytics/events'), { method: 'POST', headers, body, keepalive: true });
+    await fetch(ledgerApiUrl('/api/analytics/events'), { method: 'POST', headers, body, keepalive: true, credentials: 'include' });
   } catch {
     // analytics never breaks the page
   }

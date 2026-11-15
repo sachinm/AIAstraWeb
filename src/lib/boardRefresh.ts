@@ -24,7 +24,7 @@ export async function refreshBoard(board: RefreshBoard): Promise<RefreshResult> 
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     const headers = await buildApiHeaders({ token, body: undefined, method: 'POST' });
-    r = await fetch(ledgerApiUrl(`/api/boards/${board}/refresh`), { method: 'POST', headers });
+    r = await fetch(ledgerApiUrl(`/api/boards/${board}/refresh`), { method: 'POST', headers, credentials: 'include' });
   } catch {
     return { kind: 'error' };
   }

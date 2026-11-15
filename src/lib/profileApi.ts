@@ -13,7 +13,7 @@ const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token
 
 export async function fetchFacts(): Promise<ProfileFacts | null> {
   const headers = await buildApiHeaders({ token: token(), method: 'GET' });
-  const r = await fetch(ledgerApiUrl('/api/profile/facts'), { method: 'GET', headers });
+  const r = await fetch(ledgerApiUrl('/api/profile/facts'), { method: 'GET', headers, credentials: 'include' });
   return r.ok ? ((await r.json()) as ProfileFacts) : null;
 }
 
@@ -21,7 +21,7 @@ export async function fetchFacts(): Promise<ProfileFacts | null> {
 export async function saveFacts(facts: Record<string, string | null>): Promise<boolean> {
   const body = JSON.stringify({ facts });
   const headers = await buildApiHeaders({ token: token(), body, method: 'PUT' });
-  return (await fetch(ledgerApiUrl('/api/profile/facts'), { method: 'PUT', headers, body })).ok;
+  return (await fetch(ledgerApiUrl('/api/profile/facts'), { method: 'PUT', headers, body, credentials: 'include' })).ok;
 }
 
 export interface FaceBox {
@@ -36,7 +36,7 @@ export async function uploadSelfie(jpeg: Blob, face: FaceBox): Promise<{ ok: tru
   const bytes = new Uint8Array(await jpeg.arrayBuffer());
   const headers = await buildApiHeaders({ token: token(), body: bytes, method: 'POST', extra: { 'Content-Type': 'image/jpeg', 'x-face-box': JSON.stringify(face) } });
   headers['Content-Type'] = 'image/jpeg';
-  const r = await fetch(ledgerApiUrl('/api/profile/photo'), { method: 'POST', headers, body: bytes });
+  const r = await fetch(ledgerApiUrl('/api/profile/photo'), { method: 'POST', headers, body: bytes, credentials: 'include' });
   if (r.ok) return { ok: true };
   const j = (await r.json().catch(() => ({}))) as { message?: string };
   return { ok: false, message: j.message ?? 'That photo could not be saved.' };
@@ -47,7 +47,7 @@ export async function fetchSelfieUrl(): Promise<string | null> {
   const t = token();
   if (!t) return null;
   const headers = await buildApiHeaders({ token: t, method: 'GET' });
-  const r = await fetch(ledgerApiUrl('/api/profile/photo'), { method: 'GET', headers });
+  const r = await fetch(ledgerApiUrl('/api/profile/photo'), { method: 'GET', headers, credentials: 'include' });
   if (!r.ok) return null;
   const ct = r.headers?.get?.('content-type') ?? '';
   if (ct && !ct.toLowerCase().startsWith('image/')) return null;

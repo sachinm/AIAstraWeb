@@ -81,7 +81,7 @@ export function isExhausted(plan: PlanStatus | null): boolean {
 /** The catalog in the currency for this region, or for the detected country when none is given. Null on failure. */
 export async function fetchPlans(region?: Region | null): Promise<PlanCatalog | null> {
   try {
-    const res = await fetch(ledgerApiUrl(`/api/billing/plans${region ? `?region=${region}` : ''}`));
+    const res = await fetch(ledgerApiUrl(`/api/billing/plans${region ? `?region=${region}` : ''}`), { credentials: 'include' });
     if (!res.ok) return null;
     return (await res.json()) as PlanCatalog;
   } catch (e) {
@@ -95,7 +95,7 @@ export async function startCheckout(plan: PlanCode, interval: PlanInterval, regi
   const token = localStorage.getItem('token');
   const body = JSON.stringify({ plan, interval, ...(region ? { region } : {}) });
   const headers = await buildApiHeaders({ token, body, method: 'POST' });
-  const res = await fetch(ledgerApiUrl('/api/billing/checkout'), { method: 'POST', headers, body });
+  const res = await fetch(ledgerApiUrl('/api/billing/checkout'), { method: 'POST', headers, body, credentials: 'include' });
   if (!res.ok) throw new Error(`Checkout failed (${res.status})`);
   return (await res.json()) as CheckoutResult;
 }
