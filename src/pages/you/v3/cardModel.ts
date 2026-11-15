@@ -7,10 +7,12 @@
  * current one. The card's `standing` lines are the base that shows on every period; no period ever borrows another's
  * body.
  */
-import type { CardGroupBy, CardOptions } from '../../../lib/cardOptions';
+import type { CardGroupBy, CardOptions, CardTool } from '../../../lib/cardOptions';
 import type { LadderSteps } from '../../../lib/selfV2Api';
 import type { RailItem, SelfV3CardView, SpanReading, SpanTone } from '../../../lib/selfV3Api';
 import { spanToneShown, cardLadder } from './CardParts';
+import { formatDisplayDate, scrubEmptyRefs } from './textClean';
+import type { CardToolVetting } from './toolVetting';
 
 export interface PeriodView {
   index: number;
@@ -42,6 +44,8 @@ export interface FaceProps {
   onExpanded: (v: boolean) => void;
   /** evidence keys are shown only when the server marks the person a practitioner */
   showEvidence: boolean;
+  /** true when the Plan toolbar panel is already open above the face, avoiding duplicate inline PlanList rendering */
+  planToolOpen?: boolean;
 }
 
 /** what every tool is handed: the face's props, plus what only tools need */
@@ -52,6 +56,10 @@ export interface ToolProps extends FaceProps {
   builtOn: string | null;
   /** whether "Is this right?" is on for this board */
   confirmOn: boolean;
+  /** pre-vetted tool inventory and structured tool data for this card */
+  vetted?: CardToolVetting;
+  /** closes an open optional tool directly from its panel header */
+  onCloseTool?: (tool: CardTool) => void;
 }
 
 /** the span a rail bar opens on a v3 card: by id, else by position */
@@ -68,16 +76,45 @@ export function currentRail(rail: RailItem[]): number {
 }
 
 export function periodsOf(card: SelfV3CardView): PeriodView[] {
+  const rawLabels = card.rail.map((r) => scrubEmptyRefs(r.label ?? ''));
+  const labelCounts = new Map<string, number>();
+  for (const lbl of rawLabels) labelCounts.set(lbl, (labelCounts.get(lbl) ?? 0) + 1);
+
+  const rangeLabels = card.rail.map((r, i) => {
+    const base = rawLabels[i]!;
+    if ((labelCounts.get(base) ?? 0) <= 1) return base;
+    return `${formatDisplayDate(r.from)} → ${formatDisplayDate(r.to)}`;
+  });
+  const rangeCounts = new Map<string, number>();
+  for (const rl of rangeLabels) rangeCounts.set(rl, (rangeCounts.get(rl) ?? 0) + 1);
+
   return card.rail.map((item, index) => {
-    const span = card.v3 ? spanFor(card, index) : null;
+    const rawSpan = card.v3 ? spanFor(card, index) : null;
+    const span = rawSpan
+      ? {
+          ...rawSpan,
+          asks: scrubEmptyRefs(rawSpan.asks),
+          obstacle: scrubEmptyRefs(rawSpan.obstacle),
+          step: scrubEmptyRefs(rawSpan.step),
+        }
+      : null;
     const spanText = span ? [span.asks, span.obstacle].filter((s) => !!s?.trim()) : [];
-    const railText = (item.text ?? []).filter((s) => !!s?.trim());
+    const railText = (item.text ?? []).map((s) => scrubEmptyRefs(s)).filter((s) => !!s?.trim());
     const text = span ? (spanText.length ? spanText : null) : railText.length ? railText : null;
     const step = span?.step?.trim() ? span.step : null;
     const own = !!text || !!step;
+    const scrubbedNote = item.note ? scrubEmptyRefs(item.note) || null : null;
+    let resolvedLabel = rangeLabels[index]!;
+    if ((rangeCounts.get(resolvedLabel) ?? 0) > 1 && scrubbedNote) {
+      resolvedLabel = `${resolvedLabel} · ${scrubbedNote}`;
+    }
     return {
       index,
-      item,
+      item: {
+        ...item,
+        label: resolvedLabel,
+        note: scrubbedNote,
+      },
       span,
       text,
       step,
@@ -108,8 +145,8 @@ export function neighbour(periods: PeriodView[], from: number, d: -1 | 1): numbe
  * card filled from the v2 build with its one stored body, which then belongs to the current period only.
  */
 export function standingOf(card: SelfV3CardView): string[] {
-  if (Array.isArray(card.standing)) return card.standing.filter((s) => !!s?.trim());
-  return card.v3 ? [] : (card.v2?.card?.body ?? []);
+  const raw = Array.isArray(card.standing) ? card.standing : card.v3 ? [] : (card.v2?.card?.body ?? []);
+  return raw.map((s) => scrubEmptyRefs(s ?? '')).filter((s) => !!s.trim());
 }
 
 /** how many dated windows (other periods) have words of their own */

@@ -165,13 +165,27 @@ describe('Self board v3: the board', () => {
     expect(screen.queryByTestId('hero-strip')).toBeNull();
   });
 
-  it('two cards across at tablet landscape with the next one peeking; one on a phone', async () => {
+  it('two cards across at tablet landscape with the next one peeking; scales up on xwide and ultrawide screens', async () => {
     render(<SelfBoardV3 />);
     await screen.findByTestId('self-v3-chips');
     expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-per-view', '2');
     expect(screen.getByTestId('self-v3-carousel-track').style.gridAutoColumns).toContain('88px');
     expect(perViewFor('seasons', 'phone')).toBe(1);
+    expect(perViewFor('seasons', 'landscape')).toBe(2);
+    expect(perViewFor('seasons', 'wide')).toBe(2);
+    expect(perViewFor('seasons', 'xwide')).toBe(3);
+    expect(perViewFor('seasons', 'ultrawide')).toBe(4);
     expect(perViewFor('compact', 'landscape')).toBe(4);
+    expect(perViewFor('compact', 'xwide')).toBe(5);
+    expect(perViewFor('compact', 'ultrawide')).toBe(6);
+  });
+
+  it('shows four Seasons cards across on an ultrawide viewport (2560x1440)', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 2560, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 1440, configurable: true, writable: true });
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-per-view', '4');
   });
 
   it('a chip slides the carousel to its card, and the count follows', async () => {

@@ -203,7 +203,7 @@ async function call(method: string, path: string, payload?: unknown): Promise<Re
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const body = payload === undefined ? undefined : JSON.stringify(payload);
   const headers = await buildApiHeaders({ token, body, method });
-  return fetch(ledgerApiUrl(path), { method, headers, ...(body !== undefined ? { body } : {}) });
+  return fetch(ledgerApiUrl(path), { method, headers, credentials: 'include', ...(body !== undefined ? { body } : {}) });
 }
 
 export async function fetchSelfReading(): Promise<SelfReadingState> {

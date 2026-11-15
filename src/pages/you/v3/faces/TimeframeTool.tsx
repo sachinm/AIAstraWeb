@@ -1,12 +1,12 @@
 /**
- * By timeframe tool: the card's periods grouped by weeks, months, quarters, years or decades (date arithmetic on the
- * stored dates), shown as a swipe carousel (scroll-snap, one group per slide) or as an accordion. A touch screen always
- * gets the swipe; the accordion is for a mouse (cardModel.resolveGroupsAs).
+ * By timeframe tool: groups vetted written periods into chronologically honest calendar buckets (never offering "Weeks"
+ * on multi-month spans or single-bucket "Decades" on a one-year horizon, and never showing unwritten empty buckets).
+ * Shown as a swipe carousel on touch screens or when chosen, or as an accordion on a mouse.
  */
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { CARD_GROUP_BYS } from '../../../../lib/cardOptions';
 import { groupPeriods, resolveGroupsAs, type PeriodGroup, type ToolProps } from '../cardModel';
+import { vetCardTools } from '../toolVetting';
 import { GROUP_BY_WORD, SPAN_TONE_WORD, V3_WORDS } from '../words';
 import { body, eyebrow } from './parts';
 
@@ -17,7 +17,11 @@ function GroupText({ group, onSelect }: { group: PeriodGroup; onSelect: (i: numb
     <div className="space-y-3">
       {written.map((p) => (
         <div key={p.index} data-testid={`group-period-${p.index}`}>
-          <button type="button" onClick={() => onSelect(p.index)} className={`${eyebrow} self-v3-btn text-left hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60`}>
+          <button
+            type="button"
+            onClick={() => onSelect(p.index)}
+            className={`${eyebrow} self-v3-btn text-left hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60`}
+          >
             {p.item.label}
             {p.tone ? ` · ${SPAN_TONE_WORD[p.tone]}` : ''}
           </button>
@@ -92,26 +96,35 @@ function Accordion({ groups, onSelect, selected }: { groups: PeriodGroup[]; onSe
   );
 }
 
-export default function TimeframeTool({ periods, period, options, coarse, onGroupBy, onSelect }: ToolProps) {
+export default function TimeframeTool(props: ToolProps) {
+  const { card, periods, period, options, coarse, confirmOn, builtOn, onGroupBy, onSelect } = props;
+  const tf =
+    props.vetted?.timeframe ??
+    vetCardTools({ card, periods, options, confirmOn, builtOn, staleCopy: V3_WORDS.staleCardDates }).timeframe;
   const as = resolveGroupsAs(options.groupsAs, coarse);
-  const groups = groupPeriods(periods, options.groupBy);
+  const groups = groupPeriods(tf.writtenPeriods, tf.effectiveGroupBy);
+
   return (
-    <div className="space-y-2.5" data-testid="tool-timeframe-panel" data-groups-as={as}>
-      <div role="radiogroup" aria-label={V3_WORDS.groupBy} className="flex flex-wrap gap-1" data-testid="group-by">
-        {CARD_GROUP_BYS.map((g) => (
-          <button
-            key={g}
-            type="button"
-            role="radio"
-            aria-checked={options.groupBy === g}
-            onClick={() => onGroupBy(g)}
-            className={`self-v3-btn rounded-full px-3 text-[13px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 ${options.groupBy === g ? 'self-v3-on' : 'bg-white/5 text-white/70 hover:text-white'}`}
-            data-testid={`group-by-${g}`}
-          >
-            {GROUP_BY_WORD[g]}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-2.5" data-testid="tool-timeframe-panel" data-groups-as={as} data-effective-groupby={tf.effectiveGroupBy}>
+      {tf.validGroupBys.length > 1 && (
+        <div role="radiogroup" aria-label={V3_WORDS.groupBy} className="flex flex-wrap gap-1" data-testid="group-by">
+          {tf.validGroupBys.map((g) => (
+            <button
+              key={g}
+              type="button"
+              role="radio"
+              aria-checked={tf.effectiveGroupBy === g}
+              onClick={() => onGroupBy(g)}
+              className={`self-v3-btn rounded-full px-3 text-[13px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 ${
+                tf.effectiveGroupBy === g ? 'self-v3-on' : 'bg-white/5 text-white/70 hover:text-white'
+              }`}
+              data-testid={`group-by-${g}`}
+            >
+              {GROUP_BY_WORD[g]}
+            </button>
+          ))}
+        </div>
+      )}
       {!groups.length ? (
         <p className="text-sm text-white/60">{V3_WORDS.nothingYet}</p>
       ) : as === 'swipe' ? (

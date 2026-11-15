@@ -13,6 +13,7 @@
 import type { ReactNode } from 'react';
 import LoadingVeil from '../../../components/LoadingVeil';
 import type { CardIllustration, PersonalPattern, SelfV2Area } from '../../../lib/selfV2Api';
+import { scrubEmptyRefs } from '../v3/toolVetting';
 import { CERTAINTY_WORD, GROUP_LABEL, V2_WORDS, cardRange, rangeWords, spanWords } from './words';
 
 export const cardShell = 'glass flex h-full min-h-0 flex-col rounded-2xl p-4';
@@ -187,11 +188,13 @@ export default function AreaCard({ area, nextCheck, onDetails, focused = false, 
  */
 export function ChartDetails({ area, showEvidence = false }: { area: SelfV2Area; showEvidence?: boolean }) {
   const d = area.details;
-  const nothing = !d.headline && !(d.paragraphs && d.paragraphs.length) && !(showEvidence && d.evidence.length);
+  const headline = d.headline ? scrubEmptyRefs(d.headline) : '';
+  const paragraphs = (d.paragraphs ?? []).map((p) => scrubEmptyRefs(p)).filter(Boolean);
+  const nothing = !headline && !paragraphs.length && !(showEvidence && d.evidence.length);
   return (
-    <div className="space-y-2 text-sm text-white/80" data-testid="area-details">
-      {d.headline && <p className="font-semibold text-white">{d.headline}</p>}
-      {(d.paragraphs ?? []).map((p, i) => (
+    <div className="space-y-2.5 text-[15px] leading-relaxed text-white/80" data-testid="area-details">
+      {headline && <p className="font-semibold text-white">{headline}</p>}
+      {paragraphs.map((p, i) => (
         <p key={i}>{p}</p>
       ))}
       {d.certainty && <p className="text-xs text-white/55">{CERTAINTY_WORD[d.certainty]}</p>}

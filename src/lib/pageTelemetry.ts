@@ -101,6 +101,7 @@ export async function flushPageTimings(): Promise<number> {
       headers,
       body,
       keepalive: true,
+      credentials: 'include',
     });
     return batch.length;
   } catch {
@@ -231,6 +232,7 @@ export async function streamDashboardSections(
   const res = await fetch(url, {
     method: 'GET',
     headers,
+    credentials: 'include',
     ...(signal ? { signal } : {}),
   });
 

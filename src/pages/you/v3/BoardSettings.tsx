@@ -15,6 +15,10 @@ export interface BoardSettingsProps {
   /** how many cards keep settings of their own */
   ownCount: number;
   onApplyAll: () => void;
+  /** optional per-tool count of shown ready cards where each tool passes vetting */
+  toolSupport?: Partial<Record<CardTool, number>>;
+  /** total ready cards evaluated for `toolSupport` */
+  cardCount?: number;
   phone?: boolean;
   disabled?: boolean;
 }
@@ -53,7 +57,16 @@ function Switch({ label, on, onToggle, testId }: { label: string; on: boolean; o
   );
 }
 
-export default function BoardSettings({ value, onChange, ownCount, onApplyAll, phone = false, disabled = false }: BoardSettingsProps) {
+export default function BoardSettings({
+  value,
+  onChange,
+  ownCount,
+  onApplyAll,
+  toolSupport,
+  cardCount,
+  phone = false,
+  disabled = false,
+}: BoardSettingsProps) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -68,6 +81,9 @@ export default function BoardSettings({ value, onChange, ownCount, onApplyAll, p
     };
   }, [open, phone]);
   const toggleTool = (t: CardTool) => onChange({ tools: CARD_TOOLS.filter((x) => (x === t ? !value.tools.includes(t) : value.tools.includes(x))) });
+  const visibleTools = toolSupport
+    ? CARD_TOOLS.filter((t) => (toolSupport[t] ?? 0) > 0 || value.tools.includes(t))
+    : CARD_TOOLS;
   const panel = (
     <div
       role="dialog"
@@ -82,15 +98,31 @@ export default function BoardSettings({ value, onChange, ownCount, onApplyAll, p
       <div className="grid gap-3">
         <p className="text-sm text-white/65">{V3_WORDS.settingsLead}</p>
         <Choice label={V3_WORDS.readAs} value={value.face} options={CARD_FACES} words={FACE_WORD} onPick={(face) => onChange({ face })} testId="bs-face" />
-        <Row label={V3_WORDS.openTools}>
-          <div role="group" aria-label={V3_WORDS.openTools} className="flex flex-wrap gap-1" data-testid="bs-tools">
-            {CARD_TOOLS.map((t) => (
-              <button key={t} type="button" aria-pressed={value.tools.includes(t)} onClick={() => toggleTool(t)} className={`${chip} ${value.tools.includes(t) ? 'self-v3-on' : 'bg-white/5 text-white/70 hover:text-white'}`} data-testid={`bs-tool-${t}`}>
-                {TOOL_WORD[t]}
-              </button>
-            ))}
-          </div>
-        </Row>
+        {visibleTools.length > 0 && (
+          <Row label={V3_WORDS.openTools}>
+            <p className="text-xs text-white/55">{V3_WORDS.openToolsHint}</p>
+            <div role="group" aria-label={V3_WORDS.openTools} className="flex flex-wrap gap-1" data-testid="bs-tools">
+              {visibleTools.map((t) => {
+                const supported = toolSupport ? (toolSupport[t] ?? 0) : null;
+                const showRatio = supported !== null && typeof cardCount === 'number' && cardCount > 0 && supported < cardCount;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={value.tools.includes(t)}
+                    onClick={() => toggleTool(t)}
+                    className={`${chip} ${value.tools.includes(t) ? 'self-v3-on' : 'bg-white/5 text-white/70 hover:text-white'}`}
+                    data-testid={`bs-tool-${t}`}
+                    data-supported-cards={supported ?? undefined}
+                  >
+                    <span>{TOOL_WORD[t]}</span>
+                    {showRatio && <span className="ml-1 text-[11px] font-normal opacity-65">{`${supported}/${cardCount}`}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </Row>
+        )}
         <Choice label={V3_WORDS.groupBy} value={value.groupBy} options={CARD_GROUP_BYS} words={GROUP_BY_WORD} onPick={(groupBy) => onChange({ groupBy })} testId="bs-groupby" />
         <Choice label={V3_WORDS.groupsAs} value={value.groupsAs} options={['swipe', 'accordion'] as const} words={GROUPS_AS_WORD} onPick={(groupsAs) => onChange({ groupsAs })} testId="bs-groupsas" />
         <Choice label={V3_WORDS.startCards} value={value.start} options={['short', 'full'] as const} words={START_WORD} onPick={(start) => onChange({ start })} testId="bs-start" />
@@ -106,11 +138,9 @@ export default function BoardSettings({ value, onChange, ownCount, onApplyAll, p
             {V3_WORDS.applyAll}
           </button>
         </div>
-        {phone && (
-          <button type="button" onClick={() => setOpen(false)} className="self-v3-btn w-full rounded-full px-4 text-sm font-semibold text-purple-300" data-testid="bs-close">
-            {V3_WORDS.done}
-          </button>
-        )}
+        <button type="button" onClick={() => setOpen(false)} className="self-v3-btn w-full rounded-full px-4 text-sm font-semibold text-purple-300 hover:bg-white/5" data-testid="bs-close">
+          {V3_WORDS.done}
+        </button>
       </div>
     </div>
   );

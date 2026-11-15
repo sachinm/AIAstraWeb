@@ -7,9 +7,9 @@ import ShowMore from '../ShowMore';
 import { V3_WORDS } from '../words';
 import { BlockView, PeriodHeading, PlanList, WindowsList } from './parts';
 
-export default function ReadFace({ card, period, periods, standing, options, expanded, onExpanded, onSelect }: FaceProps) {
+export default function ReadFace({ card, period, periods, standing, options, expanded, onExpanded, onSelect, planToolOpen = false }: FaceProps) {
   const blocks = readBlocks(period, standing);
-  const steps = planSteps(card, options);
+  const steps = planToolOpen ? [] : planSteps(card, options);
   const windows = otherWindows(periods, period?.index ?? -1);
   const counts = hiddenCounts(period, standing, periods, steps.length);
   const canExpand = counts.paragraphs + counts.windows + counts.steps > 0;

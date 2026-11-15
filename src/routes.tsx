@@ -1,29 +1,11 @@
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
-import LandingPage from './LandingPage';
 import PublicFrame from './components/PublicFrame';
 import SkyLayout from './components/SkyLayout';
-import SignIn from './Auth/SignIn';
-import SignUp from './Auth/SignUp';
-import BirthDetails from './Auth/BirthDetails';
 import ProfileGate from './Auth/ProfileGate';
-import Dashboard from './pages/Dashboard';
 import TopNavigation from './pages/TopNavigation';
-import ProfileSection from './pages/profile/ProfileSection';
 import ProfileLayout from './pages/profile/ProfileLayout';
-import ProfilePlan from './pages/profile/ProfilePlan';
 import GaPageViews from './components/GaPageViews';
-import ProfileLocale from './pages/profile/ProfileLocale';
-import ProfileLegal from './pages/profile/ProfileLegal';
-import ProfileTimeline from './pages/profile/ProfileTimeline';
-import ChatSection from './pages/chat-interface/ChatSection';
-import LuckyTimesPage from './pages/lucky/LuckyTimesPage';
-import WorkPage from './pages/work/WorkPage';
-import LovePage from './pages/love/LovePage';
-import YouPage from './pages/you/YouPage';
-import WelcomeWizard from './pages/welcome/WelcomeWizard';
-
-import PricingPage from './pages/pricing/PricingPage';
-import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
 import SeoHead from './components/SeoHead';
 import { PageTimingTracker } from './lib/pageTelemetry';
 import {
@@ -32,6 +14,46 @@ import {
   SessionLoadingScreen,
 } from './Auth/RouteGuards';
 import { User } from './App';
+
+// Build-time SSR prerendered public & auth routes remain eager so renderToString emits complete static HTML
+import LandingPage from './LandingPage';
+import SignIn from './Auth/SignIn';
+import SignUp from './Auth/SignUp';
+import PricingPage from './pages/pricing/PricingPage';
+import { PrivacyPage, RefundsPage, TermsPage } from './pages/legal/LegalPages';
+
+// Lazy-loaded authenticated page components for route-level code splitting
+const BirthDetails = lazy(() => import('./Auth/BirthDetails'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ProfileSection = lazy(() => import('./pages/profile/ProfileSection'));
+const ProfilePlan = lazy(() => import('./pages/profile/ProfilePlan'));
+const ProfileLocale = lazy(() => import('./pages/profile/ProfileLocale'));
+const ProfileLegal = lazy(() => import('./pages/profile/ProfileLegal'));
+const ProfileTimeline = lazy(() => import('./pages/profile/ProfileTimeline'));
+const ChatSection = lazy(() => import('./pages/chat-interface/ChatSection'));
+const LuckyTimesPage = lazy(() => import('./pages/lucky/LuckyTimesPage'));
+const WorkPage = lazy(() => import('./pages/work/WorkPage'));
+const LovePage = lazy(() => import('./pages/love/LovePage'));
+const YouPage = lazy(() => import('./pages/you/YouPage'));
+const WelcomeWizard = lazy(() => import('./pages/welcome/WelcomeWizard'));
+
+/** Accessible loading fallback for lazy-loaded route boundaries */
+export function RouteLoadingFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="min-h-[50vh] flex items-center justify-center p-8"
+      data-testid="route-loading-fallback"
+    >
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-slate-400 font-medium">Loading...</span>
+        <span className="sr-only">Loading page content</span>
+      </div>
+    </div>
+  );
+}
 
 interface AppRoutesProps {
   user: User | null;
@@ -58,7 +80,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
     <SeoHead />
     <GaPageViews />
     <PageTimingTracker />
-    <Routes>
+    <Suspense fallback={<RouteLoadingFallback />}>
+      <Routes>
       {/* one sky across these three: it keeps playing as the visitor moves between them */}
       <Route element={<SkyLayout />}>
         <Route
@@ -182,7 +205,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           )
         }
       />
-    </Routes>
+      </Routes>
+    </Suspense>
     </>
   );
 };

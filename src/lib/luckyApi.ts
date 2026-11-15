@@ -107,16 +107,22 @@ export interface LuckyRange {
   now: NowState | null;
 }
 
-function token(): string {
+function token(): string | null {
   const t = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (!t) throw new LuckyApiError(401);
+  const hasCookie = typeof document !== 'undefined' && document.cookie.includes('aastra_csrf');
+  if (!t && !hasCookie) throw new LuckyApiError(401);
   return t;
 }
 
 async function request<T>(method: string, path: string, payload?: unknown): Promise<T> {
   const body = payload === undefined ? undefined : JSON.stringify(payload);
   const headers = await buildApiHeaders({ token: token(), body, method });
-  const res = await fetch(ledgerApiUrl(path), { method, headers, ...(body !== undefined ? { body } : {}) });
+  const res = await fetch(ledgerApiUrl(path), {
+    method,
+    headers,
+    credentials: 'include',
+    ...(body !== undefined ? { body } : {}),
+  });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: unknown };
     throw new LuckyApiError(res.status, typeof j.error === 'string' ? j.error : undefined);
