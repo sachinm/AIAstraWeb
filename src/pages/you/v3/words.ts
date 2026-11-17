@@ -3,14 +3,15 @@
  * Plain words only: no chart term, clock count or engine name on a card face. The v2 words (header, clock sheet, fresh
  * reading, build progress) are reused from ../v2/words.
  */
-import type { CardFace, CardGroupBy, CardGroupsAs, CardStart, CardTool } from '../../../lib/cardOptions';
-import type { SelfSectionId, SelfTemplateId, SpanMode, SpanTone } from '../../../lib/selfV3Api';
+import type { CardFace } from '../../../lib/cardOptions';
+import type { CardVoice, SelfSectionId, SelfTemplateId, SpanTone } from '../../../lib/selfV3Api';
+import type { ShownFace } from './faces/FaceBody';
 
 export const V3_WORDS = {
   pickerTitle: 'Your cards',
   pickerLead: 'Choose what you want to see about yourself. Eight to start. You can change them any time.',
   suggested: 'Suggested for you',
-  addSuggested: 'Add the suggested eight',
+  addSuggested: 'Add the suggested cards',
   moreThanEight: 'Eight is comfortable. More is fine.',
   needThree: (n: number) => `Pick at least three cards (${n} chosen).`,
   chosenCount: (n: number) => `${n} chosen`,
@@ -26,52 +27,36 @@ export const V3_WORDS = {
   ofCount: (i: number, n: number) => `${i} of ${n}`,
   template: 'Layout',
   yourYear: 'Your year',
-  // the card toolbar, the faces and the tools (card-faces plan)
+  allShown: 'All cards are shown',
+  // the card header, the faces and the periods (doc 75)
   faces: 'How this card reads',
-  tools: 'Tools',
   ownSettings: 'This card has its own settings',
-  chartDetails: 'Chart details',
+  why: 'Why',
   periods: 'Periods',
   prevPeriod: 'Previous period',
   nextPeriod: 'Next period',
-  periodN: (i: number, n: number) => `Period ${i} of ${n}`,
-  noPeriodWords: 'Readings for each period come with your next reading.',
-  standing: 'True whatever the date',
-  thisStretch: 'This stretch',
-  otherWindows: 'Other dated windows',
+  passed: 'passed',
+  keyDates: 'Key dates',
   whatToDo: 'What to do',
-  showLess: 'Show less',
-  checkThis: 'Check this',
-  builtOn: (when: string) => `Built ${when}`,
-  noGroupText: 'Nothing written for these dates yet.',
-  groupBy: 'Group by',
-  groupN: (i: number, n: number) => `Group ${i} of ${n}`,
-  nothingYet: 'Nothing more for this card yet.',
+  doThis: 'Do',
+  avoid: 'Avoid',
+  datesPassed: 'Some dates here have passed. Refresh to update.',
+  refresh: 'Refresh',
+  locked: (plan: string) => `Part of ${plan}`,
   // the board's card settings (gear)
   cardSettings: 'Card settings',
-  settingsLead: 'How every card reads by default. A card changed on its own keeps its choice.',
-  readAs: 'Read as',
-  openTools: 'Open tools',
-  groupsAs: 'Show groups as',
-  startCards: 'Start cards',
+  settingsLead: 'How every card opens. A card changed on its own keeps its choice.',
+  readAs: 'Open cards as',
+  voice: 'Voice',
   showConfirm: 'Show “Is this right?”',
-  turnAnimation: 'Turn animation',
-  applyAll: 'Apply to all cards',
-  ownCount: (n: number) => (n === 1 ? '1 card has its own settings.' : `${n} cards have their own settings.`),
-  allFollow: 'Every card follows these settings.',
-  clockInfo: 'About this reading',
   isThisRight: 'Is this right?',
   noted: 'Noted. This sharpens your next reading.',
   saveFailed: 'That did not save. Try again.',
-  checkedOn: (agree: number, of: number) => `Checked on ${agree} of ${of} clocks`,
+  sessionEnded: 'Your session ended. Sign in again to keep your changes.',
+  signInAgain: 'Sign in again',
   sensitive: 'From your chart. Not medical advice.',
-  asks: 'What it asks',
-  obstacle: 'The likely trap',
   step: 'One step',
   pattern: 'Your pattern',
-  ladder: 'The ladder',
-  noPattern: 'No pattern stands out for this card yet.',
-  noLadder: 'No steps for this card yet.',
   noText: 'Nothing more for this stretch yet.',
   pendingCard: 'Being read for you now.',
   cardFailed: 'The full reading did not finish for this card. It will be read again with your next reading.',
@@ -82,26 +67,11 @@ export const V3_WORDS = {
   cardNotThrough: 'This one did not come through',
   tryAgain: 'Try again',
   notReadYet: 'Not read yet',
-  stageClocks: 'Reading five clocks of your chart',
-  stageLedger: 'Checking where they agree',
+  stageClocks: 'Reading your chart',
+  stageLedger: 'Putting your reading together',
   stageCards: (done: number, total: number) => `Writing your cards · ${done} of ${total}`,
   chartPreparing: 'Your chart is still being prepared. Back in a few minutes.',
-  clocksAgree: (agree: number, of: number) => `${agree} of ${of} clocks agree`,
-  clocksSplit: 'The clocks are split here',
   addFive: 'Add at least five cards to start your reading.',
-  clocksTitle: (label: string) => `The clocks for ${label}`,
-  clockAgrees: 'Agrees',
-  clockDiffers: 'Differs',
-  // faces and tools
-  more: 'More',
-  less: 'Less',
-  moreForStretch: 'More on this stretch',
-  researchTitle: 'Behind this card',
-  period: 'Period',
-  tone: 'Tone',
-  timeframeTitle: 'By timeframe',
-  boardSettingsClose: 'Close card settings',
-  seeDetails: 'Chart details ›',
 } as const;
 
 export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'>, string> = {
@@ -120,13 +90,17 @@ export const SPAN_TONE_DOT: Record<SpanTone | 'none', string> = {
   none: 'bg-white/35',
 };
 
-export const FACE_WORD: Record<CardFace, string> = { read: 'Read', light: 'Light', breakdown: 'Breakdown', research: 'Research' };
-export const TOOL_WORD: Record<CardTool, string> = { table: 'Table', calendar: 'Calendar', dates: 'Dates', timeframe: 'By timeframe', plan: 'Plan', info: 'Info' };
-export const GROUP_BY_WORD: Record<CardGroupBy, string> = { weeks: 'Weeks', months: 'Months', quarters: 'Quarters', years: 'Years', decades: 'Decades' };
-export const GROUPS_AS_WORD: Record<CardGroupsAs, string> = { swipe: 'Swipe', accordion: 'Accordion' };
-export const START_WORD: Record<CardStart, string> = { short: 'Short', full: 'Full' };
+export const FACE_WORD: Record<ShownFace, string> = { read: 'Read', short: 'Short' };
+/** what each shown face is stored as (Short rides on the stored `light` the server already accepts) */
+export const FACE_WIRE: Record<ShownFace, CardFace> = { read: 'read', short: 'light' };
+export const VOICE_WORD: Record<CardVoice, string> = { gentle: 'Gentle', direct: 'Direct' };
 
-export const SPAN_MODE_WORD: Record<SpanMode, string> = { get_through: 'Get through', build: 'Build' };
+/** "Is this right?": the three answers and what each is stored as */
+export const CONFIRM_ANSWERS: ReadonlyArray<{ value: 'yes' | 'no' | 'skip'; label: string }> = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'Not really' },
+  { value: 'skip', label: 'Not sure' },
+];
 
 export const SECTION_WORD: Record<SelfSectionId, string> = {
   line: 'In a line',

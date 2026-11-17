@@ -1,42 +1,11 @@
 /**
- * The state one card keeps while it is on screen: the period it shows, whether its Read face is expanded, and whether
- * the pointer is a finger. The period and the expansion are remembered for the session so a reload or a swipe away
- * and back lands in the same place (`sessionStorage`, ids and numbers only).
+ * The state one card keeps while it is on screen: the period it shows. It is remembered for the session so a reload or
+ * a swipe away and back lands in the same place (`sessionStorage`, ids and numbers only).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CardOptions } from '../../../lib/cardOptions';
 import { getActivePeriod, setActivePeriod } from '../../../lib/selfV3Cache';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
-import { openPeriod, periodsOf, standingOf, type PeriodView } from './cardModel';
-
-const COARSE = '(pointer: coarse)';
-
-function coarseNow(): boolean {
-  try {
-    return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(COARSE).matches;
-  } catch {
-    return false;
-  }
-}
-
-/** true on a touch screen; follows the media query as it changes */
-export function useCoarsePointer(): boolean {
-  const [coarse, setCoarse] = useState(coarseNow);
-  useEffect(() => {
-    let mq: MediaQueryList | null = null;
-    try {
-      mq = typeof window.matchMedia === 'function' ? window.matchMedia(COARSE) : null;
-    } catch {
-      mq = null;
-    }
-    if (!mq) return;
-    const on = () => setCoarse(!!mq?.matches);
-    on();
-    mq.addEventListener?.('change', on);
-    return () => mq?.removeEventListener?.('change', on);
-  }, []);
-  return coarse;
-}
+import { chipPeriods, openPeriod, periodsOf, standingOf, todayIso, type PeriodView } from './cardModel';
 
 /** touch handlers: a clear sideways swipe calls `onNext` (finger moves left) or `onPrev` (finger moves right) */
 export function swipeHandlers(onPrev: () => void, onNext: () => void) {
@@ -59,59 +28,37 @@ export function swipeHandlers(onPrev: () => void, onNext: () => void) {
   };
 }
 
-const moreKey = (cardId: string, index: number) => `astra.selfv3.more.${cardId}.${index}`;
-
-function readMore(cardId: string, index: number): boolean | null {
-  try {
-    const v = window.sessionStorage.getItem(moreKey(cardId, index));
-    return v === '1' ? true : v === '0' ? false : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeMore(cardId: string, index: number, on: boolean): void {
-  try {
-    window.sessionStorage.setItem(moreKey(cardId, index), on ? '1' : '0');
-  } catch {
-    /* a private window keeps nothing; the card still works */
-  }
-}
-
 export interface CardView {
   periods: PeriodView[];
+  /** the periods shown as chips (none for a card with one period of its own) */
+  chips: PeriodView[];
   standing: string[];
-  selected: number;
+  selected: number | null;
   period: PeriodView | null;
   select: (i: number) => void;
-  expanded: boolean;
-  setExpanded: (v: boolean) => void;
 }
 
-export function useCardView(card: SelfV3CardView, options: Pick<CardOptions, 'start'>): CardView {
-  const periods = useMemo(() => periodsOf(card), [card]);
-  const standing = useMemo(() => standingOf(card), [card]);
-  const [selected, setSelected] = useState(() => openPeriod(card, periods, getActivePeriod(card.id)));
+export function useCardView(card: SelfV3CardView, voice: 'gentle' | 'direct' = 'gentle'): CardView {
+  const today = todayIso();
+  const periods = useMemo(() => periodsOf(card, today), [card, today]);
+  const chips = useMemo(() => chipPeriods(periods), [periods]);
+  const standing = useMemo(() => standingOf(card, voice), [card, voice]);
+  const [selected, setSelected] = useState<number | null>(() => openPeriod(periods, getActivePeriod(card.id)));
   // a card read again can lose the period on screen; fall back to where it would open
   useEffect(() => {
-    if (!periods[selected]?.selectable) setSelected(openPeriod(card, periods, null));
-  }, [card, periods, selected]);
+    if (selected === null || !periods.some((p) => p.index === selected && p.own)) {
+      const next = openPeriod(periods, null);
+      if (next !== selected) setSelected(next);
+    }
+  }, [periods, selected]);
   const select = useCallback(
     (i: number) => {
-      if (!periods[i]?.selectable) return;
+      if (!chips.some((p) => p.index === i)) return;
       setSelected(i);
       setActivePeriod(card.id, i);
     },
-    [card.id, periods],
+    [card.id, chips],
   );
-  const [more, setMore] = useState<Record<number, boolean>>({});
-  const expanded = more[selected] ?? readMore(card.id, selected) ?? options.start === 'full';
-  const setExpanded = useCallback(
-    (v: boolean) => {
-      setMore((m) => ({ ...m, [selected]: v }));
-      writeMore(card.id, selected, v);
-    },
-    [card.id, selected],
-  );
-  return { periods, standing, selected, period: periods[selected] ?? null, select, expanded, setExpanded };
+  const period = periods.find((p) => p.index === selected) ?? null;
+  return { periods, chips, standing, selected, period, select };
 }

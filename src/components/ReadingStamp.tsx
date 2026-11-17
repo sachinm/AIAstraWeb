@@ -7,6 +7,7 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { longDate } from '../lib/careerApi';
 import { refreshBoard, type RefreshBoard } from '../lib/boardRefresh';
+import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../lib/aiStatus';
 
 type Ask = 'idle' | 'working' | 'no_questions' | 'failed';
 
@@ -26,6 +27,7 @@ export function ReadingStamp({
   onRefreshed?: () => void;
 }) {
   const [ask, setAsk] = useState<Ask>('idle');
+  const aiDown = useAiUnavailable();
   if (!madeAt) return null;
   const made = longDate(madeAt.slice(0, 10));
   const until = validUntil ? longDate(validUntil) : null;
@@ -64,7 +66,7 @@ export function ReadingStamp({
       );
     else if (refreshDue)
       control = (
-        <button type="button" onClick={() => void run()} className={`${chip} border-purple-400/50 bg-purple-500/15 font-medium text-purple-200 hover:bg-purple-500/25`} data-testid="refresh-button">
+        <button type="button" disabled={aiDown} title={aiDown ? AI_UNAVAILABLE_MESSAGE : undefined} onClick={() => void run()} className={`${chip} border-purple-400/50 bg-purple-500/15 font-medium text-purple-200 hover:bg-purple-500/25 disabled:cursor-not-allowed disabled:opacity-40`} data-testid="refresh-button">
           {ask === 'failed' ? 'That did not work. Try again' : 'Get a fresh reading · uses 1 question'}
         </button>
       );

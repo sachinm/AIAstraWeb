@@ -35,7 +35,6 @@ import {
   cardReadPending,
   fetchSelfV3State,
   readSelfV3Card,
-  saveSelfV3Layout,
   type BoardReadingView,
   type SelfBoardLayout,
   type SelfBoardLayoutView,
@@ -44,7 +43,6 @@ import {
   type SelfV3CardView,
   type SelfV3Response,
   type SelfV3State,
-  type SpanReading,
 } from '../../../lib/selfV3Api';
 import { ChartDetails, cardShell } from '../v2/AreaCard';
 import { useLoadCardPhotos } from '../../../components/boardCards/cardPhotos';
@@ -56,12 +54,16 @@ import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, b
 import Sheet from '../v2/Sheet';
 import { V2_WORDS } from '../v2/words';
 import CardChips from './CardChips';
-import { SpanClocks, type CardReading } from './CardParts';
+import type { CardReading } from './CardParts';
+import type { CardAllowed, CardProps } from './CardFrame';
+import type { PeriodView } from './cardModel';
 import CompactCard from './CompactCard';
 import { optionsFor, type CardOptions } from '../../../lib/cardOptions';
 import BoardSettings from './BoardSettings';
-import { boardNow, cardNow, hasOwnOptions, ownCount } from './boardOptions';
-import { useOptionSaves } from './useOptionSaves';
+import { boardNow, cardNow, hasOwnOptions } from './boardOptions';
+import { NOT_SUGGESTED, cardAccess, cardTitle, featureOn, featureState } from './features';
+import { useLayoutSaves } from './useLayoutSaves';
+import type { SaveProblem } from './layoutSaver';
 import Picker from './Picker';
 import SeasonsCard from './SeasonsCard';
 import { LAYOUT_ERROR_WORD, TEMPLATE_WORD, V3_WORDS } from './words';
@@ -275,16 +277,16 @@ export default function SelfBoardV3() {
 // The board
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** Chart details reuses the v2 sheet body, which reads only `details`. */
+/** Why reuses the v2 Chart details sheet body, which reads only `details`. */
 function detailsArea(card: SelfV3CardView): SelfV2Area {
   return {
     id: 'diagnosis',
     group: 'you',
-    title: card.title,
+    title: cardTitle(card),
     status: card.status,
     card: card.v2?.card ?? null,
     floor: [],
-    details: { ...(card.v2?.details ?? { evidence: [] }), certainty: card.v2?.details.certainty as SelfV2Area['details']['certainty'] },
+    details: { ...(card.v2?.details ?? { evidence: [] }), certainty: card.v2?.details?.certainty as SelfV2Area['details']['certainty'] },
   };
 }
 
@@ -294,8 +296,10 @@ function keptOptions(all: SelfBoardLayout['options'], cards: readonly string[]):
   return Object.keys(kept).length ? { options: kept } : {};
 }
 
-function plainLayout(l: SelfBoardLayoutView): SelfBoardLayout {
-  return { template: l.template, cards: l.cards, sections: l.sections, ...keptOptions(l.options, l.cards) };
+/** where the sign-in page is, with the way back to this board */
+export function signInHref(): string {
+  const back = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/dashboard/you';
+  return `/signin?next=${encodeURIComponent(back)}`;
 }
 
 function Board({
@@ -322,18 +326,35 @@ function Board({
   const mode = useBoardMode();
   const { plan, setPlan, refreshPlan } = usePlan();
   const [layout, setLayout] = useState<SelfBoardLayoutView>(board.layout);
-  // a board read again (poll, rebuild) carries the stored layout; take it unless a save is on its way
-  const saving = useRef(0);
-  useEffect(() => {
-    if (!saving.current) setLayout(board.layout);
-  }, [board.layout]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  // every layout write goes through one queue: per-card PATCHes with the version, 409 reapplied, 401 refreshed
+  const saves = useLayoutSaves({
+    initial: board.layout,
+    onLayout: setLayout,
+    onProblem: (p: SaveProblem) => {
+      if (p === 'session') {
+        setSessionEnded(true);
+        setSaveError(V3_WORDS.sessionEnded);
+      } else setSaveError(LAYOUT_ERROR_WORD[p] ?? V3_WORDS.saveFailed);
+    },
+    onSaved: () => {
+      setSessionEnded(false);
+      setSaveError(null);
+    },
+    onQueued: () => onReload(),
+  });
+  // a board read again (poll, rebuild) carries the stored layout; taken unless a change of ours is outstanding
+  useEffect(() => {
+    saves.serverLayout(board.layout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.layout]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerBusy, setPickerBusy] = useState(false);
   const [editing, setEditing] = useState<SelfCardId[] | null>(null);
   // a reload lands on the card the person was reading
   const [index, setIndex] = useState(() => Math.max(0, board.layout.cards.findIndex((id) => id === getActiveCard())));
-  const [details, setDetails] = useState<{ card: SelfV3CardView; span: SpanReading | null; label: string | null } | null>(null);
+  const [details, setDetails] = useState<{ card: SelfV3CardView; period: PeriodView | null } | null>(null);
   const [clockOpen, setClockOpen] = useState(false);
   const [wizard, setWizard] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
@@ -344,36 +365,50 @@ function Board({
     if (freshFailed) void refreshPlan();
   }, [freshFailed, refreshPlan]);
 
-  const byId = useMemo(() => new Map(board.cards.map((c) => [c.id, c])), [board.cards]);
-  const titles = useMemo(() => Object.fromEntries(board.cards.map((c) => [c.id, c.title])) as Partial<Record<SelfCardId, string>>, [board.cards]);
+  // the cards the server allows (doc 75): `off` cards are not drawn at all, `locked` ones show a lock
+  const offered = useMemo(() => board.cards.filter((c) => cardAccess(board, c.id) !== 'off'), [board]);
+  const byId = useMemo(() => new Map(offered.map((c) => [c.id, c])), [offered]);
+  const titles = useMemo(() => Object.fromEntries(offered.map((c) => [c.id, cardTitle(c)])) as Partial<Record<SelfCardId, string>>, [offered]);
   const order = editing ?? layout.cards;
   const shown = useMemo(() => order.map((id) => byId.get(id)).filter((c): c is SelfV3CardView => !!c), [order, byId]);
-  const template: SelfTemplateId = SELF_TEMPLATES_LIVE.includes(layout.template) ? layout.template : DEFAULT_TEMPLATE;
+  const shownIds = useMemo(() => shown.map((c) => c.id), [shown]);
+  // an edit moves only the cards on screen; ones the plan hides keep their place in the saved deck, at its end
+  const editOrder = (next: SelfCardId[]) => setEditing([...next, ...order.filter((id) => !byId.has(id))]);
+  const compactOn = featureOn(board, 'feature.compact');
+  const live = compactOn ? SELF_TEMPLATES_LIVE : SELF_TEMPLATES_LIVE.filter((t) => t === DEFAULT_TEMPLATE);
+  const template: SelfTemplateId = live.includes(layout.template) ? layout.template : DEFAULT_TEMPLATE;
   const perView = perViewFor(template, mode);
   const active = shown[Math.min(index, shown.length - 1)] ?? null;
-  const suggested = useMemo(() => board.cards.filter((c) => c.suggested && c.available).slice(0, SUGGESTED_COUNT).map((c) => c.id), [board.cards]);
+  const suggested = useMemo(() => offered.filter((c) => c.suggested && c.available && !NOT_SUGGESTED.has(c.id)).slice(0, SUGGESTED_COUNT).map((c) => c.id), [offered]);
+  const canAdd = offered.some((c) => c.available && !order.includes(c.id));
+  const pickerCards = useMemo(() => offered.map((c) => ({ ...c, title: cardTitle(c), suggested: c.suggested && !NOT_SUGGESTED.has(c.id) })), [offered]);
+  const allowed: CardAllowed = {
+    short: featureOn(board, 'feature.face.short'),
+    periods: featureOn(board, 'feature.periods'),
+    keyDates: featureOn(board, 'feature.key_dates'),
+    why: featureOn(board, 'feature.why_panel'),
+    confirm: featureOn(board, 'feature.confirm'),
+  };
+  const voiceOn = featureOn(board, 'feature.voice') && offered.some((c) => !!c.voices?.direct);
 
-  /** save a layout: shown at once, the server's answer kept; a refusal puts the last saved layout back */
+  /** save the deck (template, cards, sections): shown at once, sent at once through the queue */
   const save = useCallback(
-    async (next: SelfBoardLayout): Promise<boolean> => {
-      const before = layout;
+    (next: SelfBoardLayout): Promise<boolean> => {
       setSaveError(null);
-      setLayout({ ...before, ...next });
-      saving.current += 1;
-      const r = await saveSelfV3Layout(next);
-      saving.current -= 1;
-      if (r.ok) {
-        setLayout(r.layout);
-        // cards were queued for reading: read the board again so their states show and the polling starts
-        if (r.queued.length) onReload();
-        return true;
-      }
-      setLayout(before);
-      setSaveError(LAYOUT_ERROR_WORD[r.error] ?? V3_WORDS.saveFailed);
-      return false;
+      return saves.saveDeck({ template: next.template, cards: next.cards, sections: next.sections });
     },
-    [layout, onReload],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
+
+  // after "Sign in again" in another tab, coming back sends what is waiting
+  useEffect(() => {
+    if (!sessionEnded) return;
+    const back = () => saves.retry();
+    window.addEventListener('focus', back);
+    return () => window.removeEventListener('focus', back);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionEnded]);
 
   // doc 70 Phase 3: the per-card reading, and Try again (queue the card, then read the board again)
   const readingOn = !!board.reading?.enabled;
@@ -403,16 +438,15 @@ function Board({
   );
   const selectId = (id: SelfCardId) => select(Math.max(0, shown.findIndex((c) => c.id === id)));
 
-  // card and board options: shown at once, one save 400 ms after the last change, rolled back when the server refuses
-  const optionSaves = useOptionSaves({ layout, setLayout, saving, onError: () => setSaveError(V3_WORDS.saveFailed) });
   const optionsOf = (c: SelfV3CardView) => cardNow(layout, c.id);
   const boardSettings = boardNow(layout);
   const confirmOn = boardSettings.confirm !== false;
   const motionOn = boardSettings.motion !== false;
+  const voice = voiceOn ? (boardSettings.voice ?? 'gentle') : 'gentle';
   const setTemplate = (t: SelfTemplateId) => {
     if (t === template) return;
     track('chip_select', SURFACE, `template_${t}`);
-    void save({ ...plainLayout(layout), template: t });
+    void save({ template: t, cards: layout.cards, sections: layout.sections });
   };
 
   const pickerDone = async (cards: SelfCardId[]) => {
@@ -491,9 +525,9 @@ function Board({
   const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
 
   const showPicker = !layout.chosen || pickerOpen;
-  const templateSwitch = (
+  const templateSwitch = live.length > 1 && (
     <div role="radiogroup" aria-label={V3_WORDS.template} className="flex shrink-0 rounded-full border border-white/10 bg-white/5 p-0.5" data-testid="template-switch">
-      {(SELF_TEMPLATES_LIVE as Array<'compact' | 'seasons'>).map((t) => (
+      {(live as Array<'compact' | 'seasons'>).map((t) => (
         <button
           key={t}
           type="button"
@@ -509,12 +543,12 @@ function Board({
       ))}
     </div>
   );
-  const editButton = (
+  // while editing, Done (in the chips row) is the only way out: the Edit button is hidden
+  const editButton = !editing && (
     <button
       type="button"
-      onClick={() => setEditing(editing ? null : layout.cards.slice())}
+      onClick={() => setEditing(layout.cards.slice())}
       disabled={showPicker}
-      aria-pressed={!!editing}
       className="min-h-[40px] shrink-0 rounded-full border border-white/15 px-4 text-[13px] font-semibold text-white/85 hover:bg-white/5 disabled:opacity-40"
       data-testid="self-v3-edit"
     >
@@ -527,22 +561,25 @@ function Board({
   const buildVeil = !rebuild && !freshBuilding && !!progress && (board.status !== 'ok' || shown.some((c) => c.status === 'pending'));
   const veiled = !!rebuild || freshBuilding || buildVeil;
 
-  const slideLabel = (i: number) => `${i + 1} of ${shown.length}: ${shown[i]?.title ?? ''}`;
+  const slideLabel = (i: number) => `${i + 1} of ${shown.length}: ${shown[i] ? cardTitle(shown[i]) : ''}`;
   const renderSlide = (i: number) => {
     const c = shown[i]!;
-    const props = {
+    const lock = featureState(board, `card.self.${c.id}`);
+    const props: CardProps = {
       card: c,
       options: optionsOf(c),
       hasOwn: hasOwnOptions(layout, c.id),
       confirmOn,
       motion: motionOn,
-      builtOn: board.builtAt ? board.builtAt.slice(0, 10) : null,
-      showEvidence: board.profile?.role === 'practitioner',
+      voice,
+      allowed,
+      lockedPlan: cardAccess(board, c.id) === 'locked' && !lock.on && lock.locked ? lock.minPlan : null,
       onOptions: (patch: Partial<CardOptions>) => {
         track('chip_select', SURFACE, `option_${Object.keys(patch).join('_')}`);
-        optionSaves.changeCard(c.id, patch);
+        saves.changeCard(c.id, patch);
       },
-      onDetails: (card: SelfV3CardView, span?: SpanReading | null, label?: string | null) => setDetails({ card, span: span ?? null, label: label ?? null }),
+      onWhy: (card: SelfV3CardView, period: PeriodView | null) => setDetails({ card, period }),
+      onRefresh: onReload,
       focused: perView > 1 && i === index,
       veil: !(veiled && progress),
       reading: cardReading,
@@ -551,6 +588,7 @@ function Board({
   };
   const carousel = (
     <Carousel
+      key={template}
       count={shown.length}
       index={index}
       onIndexChange={select}
@@ -574,7 +612,7 @@ function Board({
   const deck = showPicker ? (
     <Picker
       key={layout.chosen ? 'again' : 'first'}
-      cards={board.cards}
+      cards={pickerCards}
       initial={layout.chosen ? layout.cards : []}
       busy={pickerBusy}
       error={saveError}
@@ -619,12 +657,10 @@ function Board({
           {templateSwitch}
           <BoardSettings
             value={boardSettings}
-            onChange={(patch) => optionSaves.changeBoard(patch)}
-            ownCount={ownCount(layout)}
-            onApplyAll={() => {
-              track('chip_select', SURFACE, 'options_apply_all');
-              optionSaves.applyToAll();
-            }}
+            onChange={(patch) => saves.changeBoard(patch)}
+            shortOn={allowed.short}
+            voiceOn={voiceOn}
+            confirmOn={allowed.confirm}
             phone={mode === 'phone'}
             disabled={showPicker}
           />
@@ -633,7 +669,7 @@ function Board({
       {!showPicker && (
         <div className="min-w-0 xl:order-2 xl:flex-1" data-testid="self-v3-chips-slot">
         <CardChips
-          cards={order}
+          cards={shownIds}
           titles={titles}
           activeId={active?.id ?? null}
           index={index}
@@ -644,10 +680,18 @@ function Board({
             setPickerOpen(true);
           }}
           editing={!!editing}
-          onEditOrder={setEditing}
+          onEditOrder={editOrder}
           onReset={() => setEditing(suggested.slice())}
           onEditDone={() => void editDone()}
           error={saveError}
+          canAdd={canAdd}
+          action={
+            sessionEnded ? (
+              <a href={signInHref()} target="_blank" rel="noopener" className="font-semibold text-purple-200 underline underline-offset-4" data-testid="self-sign-in-again">
+                {V3_WORDS.signInAgain}
+              </a>
+            ) : null
+          }
         />
         </div>
       )}
@@ -658,9 +702,8 @@ function Board({
       {!showPicker && mode === 'phone' && <CarouselDots index={index} count={shown.length} onIndexChange={select} label={slideLabel} testId="self-v3-carousel" />}
 
       {details && (
-        <Sheet title={`${details.card.title} · ${V2_WORDS.chartDetails}`} onClose={() => setDetails(null)} testId="details-sheet">
-          <ChartDetails area={detailsArea(details.card)} showEvidence={board.profile?.role === 'practitioner'} />
-          <SpanClocks span={details.span} label={details.label} />
+        <Sheet title={`${cardTitle(details.card)} · ${V3_WORDS.why}`} onClose={() => setDetails(null)} testId="details-sheet">
+          <ChartDetails area={detailsArea(details.card)} showEvidence={false} />
         </Sheet>
       )}
       {clockOpen && (

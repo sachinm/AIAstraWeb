@@ -9,7 +9,7 @@
 }
 
 /* the art band runs edge to edge at the top of the card */
-.self-v3-card > .self-v3-banner {
+.self-v3-card .self-v3-banner {
   border-radius: 0;
 }
 
@@ -26,68 +26,20 @@
   .self-v3-pill {
     min-height: 44px;
   }
-  .self-v3-toolbar button[data-testid^='tool-'],
-  .self-v3-toolbar button[data-testid='toolbar-details'] {
+  .self-v3-card [data-testid='card-header-icons'] button {
     width: 44px;
     height: 44px;
   }
-  .self-v3-dot {
-    width: 32px;
-    height: 32px;
-  }
-}
-
-/* the toolbar is one row from a card 640px wide and up; narrower, it may take a second row */
-.self-v3-toolbar {
-  flex-wrap: nowrap;
-}
-@container (max-width: 639px) {
-  .self-v3-toolbar {
-    flex-wrap: wrap;
-  }
-}
-
-/* Show more: the lead block shows four lines, with a fade where the clamp cuts */
-.self-v3-clamp {
-  position: relative;
-}
-.self-v3-clamp > * {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  overflow: hidden;
-}
-.self-v3-clamp[data-cut='true']::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 2.4em;
-  pointer-events: none;
-  background: linear-gradient(to bottom, rgb(14 22 80 / 0), rgb(14 22 80 / 0.92));
 }
 
 /* the period strip scrolls sideways and hides its bar */
-.self-v3-strip::-webkit-scrollbar,
-.self-v3-swipe::-webkit-scrollbar {
+.self-v3-strip::-webkit-scrollbar {
   display: none;
 }
 
-/* the calendar: three months on a narrow card, twelve on a wide one */
-.self-v3-months {
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-}
-@container (max-width: 719px) {
-  .self-v3-months > .self-v3-month:nth-child(n + 4) {
-    display: none;
-  }
-}
-
-/* Breakdown: two columns of blocks once the card is 900px wide */
-@container (min-width: 900px) {
-  .self-v3-blocks {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* the reading keeps at least 200px of height however short the window (doc 75 release gate) */
+.self-v3-scroll {
+  min-height: min(200px, 40vh);
 }
 
 /* wide screens: tighter padding, a slimmer footer, taller reading */

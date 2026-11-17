@@ -136,15 +136,16 @@ describe('CardChips with art', () => {
 
   it('shows a thumb before each label, tints the active chip, and keeps the labels, roles and test ids', () => {
     const onSelect = vi.fn();
-    render(<CardChips {...props} cards={[...props.cards]} onSelect={onSelect} editing={false} />);
-    const tabs = within(screen.getByTestId('self-v3-chips')).getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['This year', 'Body & energy', 'How you think']);
+    render(<CardChips {...props} cards={[...props.cards]} onSelect={onSelect} editing={false} canAdd />);
+    const chips = ['year', 'body', 'mind'].map((id) => screen.getByTestId(`self-v3-chip-${id}`));
+    expect(chips.map((t) => t.textContent)).toEqual(['This year', 'Body & energy', 'How you think']);
+    for (const c of chips) expect(c.tagName).toBe('BUTTON');
     for (const id of ['year', 'body', 'mind']) {
       const chip = screen.getByTestId(`self-v3-chip-${id}`);
       expect(chip.firstElementChild).toBe(within(chip).getByTestId(`card-thumb-${id}`));
     }
     const active = screen.getByTestId('self-v3-chip-body');
-    expect(active).toHaveAttribute('aria-selected', 'true');
+    expect(active).toHaveAttribute('aria-current', 'true');
     expect(active.className).toContain('card-grp-body');
     expect(active.className).toContain('card-chip-on');
     expect(screen.getByTestId('self-v3-chip-mind').className).not.toContain('card-chip-on');

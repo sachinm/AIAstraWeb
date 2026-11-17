@@ -1,19 +1,16 @@
-/** The face on screen: one of four, chosen by the card's options. */
+/** The face on screen: Read (default) or Short. Faces stored by older builds (Light, Breakdown, Research) read as Read or Short. */
+import type { CardFace } from '../../../../lib/cardOptions';
 import type { FaceProps } from '../cardModel';
-import BreakdownFace from './BreakdownFace';
-import LightFace from './LightFace';
 import ReadFace from './ReadFace';
-import ResearchFace from './ResearchFace';
+import ShortFace from './ShortFace';
 
-export default function FaceBody(props: FaceProps) {
-  switch (props.options.face) {
-    case 'light':
-      return <LightFace {...props} />;
-    case 'breakdown':
-      return <BreakdownFace {...props} />;
-    case 'research':
-      return <ResearchFace {...props} />;
-    default:
-      return <ReadFace {...props} />;
-  }
+export type ShownFace = 'read' | 'short';
+
+/** the stored face as one of the two shown; Short only when the server allows it */
+export function shownFace(face: CardFace | string | undefined, shortOn = true): ShownFace {
+  return shortOn && (face === 'light' || face === 'short') ? 'short' : 'read';
+}
+
+export default function FaceBody({ face, ...props }: FaceProps & { face: ShownFace }) {
+  return face === 'short' ? <ShortFace {...props} /> : <ReadFace {...props} />;
 }

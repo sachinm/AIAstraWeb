@@ -44,6 +44,8 @@ export interface BoardOptions extends CardOptions {
   confirm: boolean;
   /** animate card and period changes (default true) */
   motion: boolean;
+  /** doc 75: the voice cards are written in, offered only when the server writes both (absent: gentle) */
+  voice?: 'gentle' | 'direct';
 }
 
 /** per card id, only the keys the person changed */

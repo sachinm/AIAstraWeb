@@ -38,6 +38,8 @@ export function startFor(index: number, count: number, perView: number): number 
 }
 
 const IGNORE_SCROLL_MS = 450;
+/** a user scroll counts once it has been still this long */
+export const SETTLE_MS = 120;
 
 export default function Carousel({ count, index, onIndexChange, perView, label, renderSlide, slideLabel, peek = true, gap = 14, peekPx = 0, className = '', testId = 'carousel' }: CarouselProps) {
   const track = useRef<HTMLDivElement | null>(null);
@@ -54,26 +56,47 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
     return a?.offsetWidth ? a.offsetWidth + gap : 0;
   }, [gap]);
 
-  // the focus moved (chip, arrow, key, dot): bring its card on screen
+  // the focus moved (chip, arrow, key, dot): bring its card on screen; on mount (a view switch) jump there without motion
+  const live = useRef({ start, count, onIndexChange });
+  live.current = { start, count, onIndexChange };
+  const mounted = useRef(false);
+  const target = useRef<number | null>(null);
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   useLayoutEffect(() => {
     const t = track.current;
     const s = step();
+    const first = !mounted.current;
+    mounted.current = true;
     if (!t || !s) return;
     const left = start * s;
     if (Math.abs(t.scrollLeft - left) < 2) return;
     programmatic.current = Date.now();
-    if (typeof t.scrollTo === 'function') t.scrollTo({ left, behavior: 'smooth' });
+    target.current = left;
+    if (typeof t.scrollTo === 'function') t.scrollTo({ left, behavior: first ? 'auto' : 'smooth' });
     else t.scrollLeft = left;
   }, [start, step, across]);
+  useEffect(() => () => void (settle.current && clearTimeout(settle.current)), []);
 
-  // a swipe or a trackpad scroll moved the track: the first card on screen takes the focus
+  // a swipe or a trackpad scroll moved the track: once it settles, the first card on screen takes the focus. A scroll
+  // we started is ignored until it reaches its target (or runs past IGNORE_SCROLL_MS * 3), so the chips never lag.
   const onScroll = () => {
-    if (Date.now() - programmatic.current < IGNORE_SCROLL_MS) return;
     const t = track.current;
-    const s = step();
-    if (!t || !s) return;
-    const first = Math.round(t.scrollLeft / s);
-    if (first !== start) onIndexChange(Math.max(0, Math.min(count - 1, first)));
+    if (!t) return;
+    if (target.current !== null) {
+      const arrived = Math.abs(t.scrollLeft - target.current) < 2;
+      if (!arrived && Date.now() - programmatic.current < IGNORE_SCROLL_MS * 3) return;
+      target.current = null;
+      return;
+    }
+    if (Date.now() - programmatic.current < IGNORE_SCROLL_MS) return;
+    if (settle.current) clearTimeout(settle.current);
+    settle.current = setTimeout(() => {
+      settle.current = null;
+      const s = step();
+      if (!s || target.current !== null) return;
+      const first = Math.round(t.scrollLeft / s);
+      if (first !== live.current.start) live.current.onIndexChange(Math.max(0, Math.min(live.current.count - 1, first)));
+    }, SETTLE_MS);
   };
 
   const move = (d: number) => onIndexChange(Math.max(0, Math.min(count - 1, index + d)));

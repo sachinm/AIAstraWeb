@@ -55,6 +55,7 @@ export function withBoardChange(l: Pick<L, 'boardOptions' | 'boardDefaults'>, pa
   const out: Partial<BoardOptions> = diffFromDefaults(merged, d);
   if (merged.confirm !== undefined && merged.confirm !== d.confirm) out.confirm = merged.confirm;
   if (merged.motion !== undefined && merged.motion !== d.motion) out.motion = merged.motion;
+  if (merged.voice !== undefined && merged.voice !== (d.voice ?? 'gentle')) out.voice = merged.voice;
   return out;
 }
 
