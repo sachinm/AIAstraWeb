@@ -5,142 +5,228 @@ import { cardNow } from './boardOptions';
 import { selfV3Fixture } from './selfV3.fixture';
 import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import type { CardOptions } from '../../../lib/cardOptions';
+import type { RailItem, SelfV3CardView } from '../../../lib/selfV3Api';
+import type { CardProps } from './CardFrame';
 
 const fx = selfV3Fixture();
-const card = fx.cards.find((c) => c.id === 'body')!;
+const body = fx.cards.find((c) => c.id === 'body')!;
 
-function mount(opts: Partial<CardOptions> = {}, extra: Partial<React.ComponentProps<typeof SeasonsCard>> = {}) {
+function mount(card: SelfV3CardView = body, opts: Partial<CardOptions> = {}, extra: Partial<CardProps> = {}) {
   const onOptions = vi.fn();
-  const onDetails = vi.fn();
-  render(<SeasonsCard card={card} options={{ ...cardNow(fx.layout, 'body'), ...opts }} onOptions={onOptions} onDetails={onDetails} {...extra} />);
-  return { onOptions, onDetails };
+  const onWhy = vi.fn();
+  const r = render(<SeasonsCard card={card} options={{ ...cardNow(fx.layout, card.id), ...opts }} onOptions={onOptions} onWhy={onWhy} {...extra} />);
+  return { onOptions, onWhy, ...r };
 }
 
-function pointer(coarse: boolean) {
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn((q: string) => ({ matches: coarse && q.includes('pointer: coarse'), media: q, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} })),
-  );
-}
+const rail = (over: Partial<RailItem>[]): RailItem[] =>
+  over.map((o, i) => ({ from: '2026-01-01', to: '2026-02-01', label: '', tone: null, note: null, current: false, span: null, text: [`Text ${i}.`], ...o }));
 
 beforeEach(() => {
   clearSelfV3Cached();
   sessionStorage.clear();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-13T12:00:00'));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
-describe('the card on the page', () => {
-  it('the reading takes the whole card: no right-hand rail and full card width for text', () => {
+describe('the header', () => {
+  it('carries the card name large in the art with a one-line subtitle; no small caps label', () => {
     mount();
-    expect(screen.queryByTestId('self-v3-right')).toBeNull();
-    expect(screen.getByTestId('period-strip-body')).toBeInTheDocument();
-    const col = screen.getByTestId('card-body').querySelector('.self-v3-column');
-    expect(col).not.toBeNull();
-    expect(col).toHaveClass('w-full', 'max-w-none');
-    expect(col).not.toHaveClass('max-w-[72ch]');
-    expect(col).not.toHaveClass('mx-auto');
+    const head = screen.getByTestId('card-header');
+    expect(within(head).getByTestId('card-title')).toHaveTextContent('Body & energy');
+    expect(within(head).getByTestId('card-title').className).not.toMatch(/uppercase/);
+    expect(within(head).getByTestId('card-subtitle')).toHaveTextContent('How to pace yourself');
   });
 
-  it('starts short with a teaser; "full" starts expanded', () => {
-    mount({ start: 'short' });
-    expect(screen.getByTestId('show-more-toggle')).toHaveTextContent('Show more: 2 more paragraphs, 2 dated windows and 4 steps to take');
-    expect(screen.queryByTestId('stretch-step')).toBeNull();
+  it('uses the server subtitle when sent', () => {
+    mount({ ...body, subtitle: 'Your energy, month by month' });
+    expect(screen.getByTestId('card-subtitle')).toHaveTextContent('Your energy, month by month');
   });
 
-  it('start "full" opens with everything shown', () => {
-    mount({ start: 'full' });
-    expect(screen.getByTestId('show-more-toggle')).toHaveTextContent('Show less');
-    expect(screen.getByTestId('stretch-step')).toBeInTheDocument();
-    expect(screen.getByTestId('section-windows')).toBeInTheDocument();
+  it.each([
+    ['What bothers you', 'What’s weighing on you'],
+    ['Gifts & knots', 'Your strengths and sticking points'],
+    ['In short', 'Your life right now'],
+    ['Chapters', 'Your life phases: before, now, next'],
+    ['This year', 'Your year'],
+  ])('renames "%s" to "%s" until the server sends the new name', (old, now) => {
+    mount({ ...body, title: old });
+    expect(screen.getByTestId('card-title')).toHaveTextContent(now);
   });
 
-  it('Show more reveals the rest, Show less folds it, and the choice is remembered for the session', () => {
+  it('puts Why in the header and opens it for the period on screen', () => {
+    const { onWhy } = mount();
+    fireEvent.click(within(screen.getByTestId('card-header')).getByTestId('card-why'));
+    expect(onWhy).toHaveBeenCalledWith(body, expect.objectContaining({ current: true }));
+  });
+
+  it('hides Why when the server has it off', () => {
+    mount(body, {}, { allowed: { short: true, periods: true, keyDates: true, why: false, confirm: true } });
+    expect(screen.queryByTestId('card-why')).toBeNull();
+  });
+});
+
+describe('two faces only', () => {
+  it('offers Read and Short and no tools', () => {
     mount();
-    fireEvent.click(screen.getByTestId('show-more-toggle'));
-    expect(screen.getByTestId('stretch-step')).toBeInTheDocument();
-    expect(sessionStorage.getItem('astra.selfv3.more.body.0')).toBe('1');
-    fireEvent.click(screen.getByTestId('show-more-toggle'));
-    expect(screen.queryByTestId('stretch-step')).toBeNull();
-  });
-
-  it('every face keeps the card title, the Chart details link and Is this right? (on)', () => {
-    for (const face of ['read', 'light', 'breakdown', 'research'] as const) {
-      const { unmount } = render(<SeasonsCard card={card} options={{ ...cardNow(fx.layout, 'body'), face }} confirmOn onOptions={() => {}} onDetails={() => {}} />);
-      expect(screen.getByTestId('card-details-open')).toBeInTheDocument();
-      expect(screen.getByTestId('toolbar-details')).toBeInTheDocument();
-      expect(screen.getByTestId('section-confirm')).toBeInTheDocument();
-      unmount();
+    expect(screen.getByTestId('face-read')).toBeInTheDocument();
+    expect(screen.getByTestId('face-short')).toBeInTheDocument();
+    for (const gone of ['face-light', 'face-breakdown', 'face-research', 'tool-table', 'tool-calendar', 'tool-dates', 'tool-timeframe', 'tool-plan', 'tool-info']) {
+      expect(screen.queryByTestId(gone)).toBeNull();
     }
+    expect(screen.getAllByRole('radio')).toHaveLength(2);
+  });
+
+  it('Short is stored as the face the server already accepts, for this card only', () => {
+    const { onOptions } = mount();
+    fireEvent.click(screen.getByTestId('face-short'));
+    expect(onOptions).toHaveBeenCalledWith({ face: 'light' });
+  });
+
+  it('a face from an older build reads as Read (breakdown, research) or Short (light)', () => {
+    const { unmount } = mount(body, { face: 'research' });
+    expect(screen.getByTestId('face-body-read')).toBeInTheDocument();
+    unmount();
+    mount(body, { face: 'light' });
+    expect(screen.getByTestId('face-body-short')).toBeInTheDocument();
+  });
+
+  it('Read shows the text, one pattern line and What to do: one step and one thing to avoid', () => {
+    mount();
+    expect(screen.getByTestId('stretch-text')).toHaveTextContent('guard your evenings');
+    expect(screen.getByTestId('section-pattern')).toHaveTextContent('You push through tiredness');
+    expect(screen.getByTestId('todo-best')).toHaveTextContent('stop and write tomorrow’s first task');
+    expect(screen.getByTestId('todo-avoid')).toHaveTextContent('working late');
+    expect(screen.queryByText('Drift')).toBeNull();
+    expect(screen.queryByText('Floor')).toBeNull();
+  });
+
+  it('Short is one sentence and the one step', () => {
+    mount(body, { face: 'light' });
+    expect(screen.getByTestId('short-sentence')).toHaveTextContent('This stretch asks you to guard your evenings and keep the body warm.');
+    expect(screen.getByTestId('short-step')).toBeInTheDocument();
+    expect(screen.queryByTestId('section-pattern')).toBeNull();
+  });
+
+  it('Read only, with no switch, when Short is off', () => {
+    mount(body, { face: 'light' }, { allowed: { short: false, periods: true, keyDates: true, why: true, confirm: true } });
+    expect(screen.queryByTestId('face-switch')).toBeNull();
+    expect(screen.getByTestId('face-body-read')).toBeInTheDocument();
+  });
+});
+
+describe('named, ordered periods', () => {
+  it('labels each chip with a name and dates', () => {
+    mount();
+    expect(screen.getByTestId('period-0')).toHaveTextContent('Heavy stretch · to 5 Dec 2026');
+    expect(screen.getByTestId('period-2')).toHaveTextContent('Lighter stretch · from 1 Mar 2027');
+  });
+
+  it('picking a chip swaps the headline and the text', () => {
+    mount();
+    const before = screen.getByTestId('card-line').textContent;
+    fireEvent.click(screen.getByTestId('period-1'));
+    expect(screen.getByTestId('card-line').textContent).not.toBe(before);
+    expect(screen.getByTestId('card-line')).toHaveTextContent('Energy comes back in waves');
+    expect(screen.getByTestId('stretch-text')).toHaveTextContent('Energy comes back in waves');
+  });
+
+  it('a server headline for the period wins', () => {
+    mount({ ...body, rail: body.rail.map((r, i) => (i === 2 ? { ...r, headline: 'A season to build strength.', name: 'Next: build' } : r)) });
+    fireEvent.click(screen.getByTestId('period-2'));
+    expect(screen.getByTestId('card-line')).toHaveTextContent('A season to build strength.');
+    expect(screen.getByTestId('period-2')).toHaveTextContent('Next: build · from 1 Mar 2027');
+  });
+
+  it('orders by start, merges periods ending the same day, greys the past and offers only periods with text', () => {
+    const card: SelfV3CardView = {
+      ...body,
+      v3: null,
+      rail: rail([
+        { from: '2027-01-01', to: '2028-02-16', name: 'Next: new phase' },
+        { from: '2026-05-01', to: '2027-01-01', name: 'Venus stretch', current: true },
+        { from: '2026-10-01', to: '2027-01-01', name: 'Short stretch', text: null },
+        { from: '2025-01-01', to: '2026-05-01', name: 'Behind you' },
+        { from: '2028-02-16', to: '2037-02-15', name: 'Long arc', text: null },
+      ]),
+    };
+    mount(card);
+    const chips = within(screen.getByRole('tablist')).getAllByRole('tab');
+    expect(chips.map((c) => c.textContent)).toEqual(['Behind you · 1 Jan 2025 – 1 May 2026passed', 'Venus stretch · to 1 Jan 2027', 'Next: new phase · from 1 Jan 2027']);
+    expect(chips[0]).toHaveAttribute('data-past', 'true');
+    expect(chips[1]).toHaveAttribute('aria-selected', 'true');
+    expect(chips[1]).toHaveAttribute('aria-controls', 'card-body-body');
+    expect(screen.getByTestId('card-body')).toHaveAttribute('role', 'tabpanel');
+  });
+
+  it('a card with one period of its own shows no chips', () => {
+    mount({ ...body, v3: null, rail: rail([{ from: '2026-01-01', to: '2027-01-01', current: true }, { from: '2027-01-01', to: '2028-01-01', text: null }]) });
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.getByTestId('stretch-text')).toHaveTextContent('Text 0.');
+  });
+
+  it('no chips when the server has periods off', () => {
+    mount(body, {}, { allowed: { short: true, periods: false, keyDates: true, why: true, confirm: true } });
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+});
+
+describe('key dates, confirm, stale guard, scroll and lock', () => {
+  it('lists key dates in plain words with the passed ones marked', () => {
+    mount({ ...body, keyDates: [{ date: '2026-12-05', label: 'a heavy pressure lifts' }, { date: '2026-11-11', label: 'the sharpest mental stress clears' }] });
+    const items = within(screen.getByTestId('key-dates')).getAllByTestId('key-date');
+    expect(items[0]).toHaveTextContent('11 Nov: the sharpest mental stress clears(passed)');
+    expect(items[0]).toHaveAttribute('data-passed', 'true');
+    expect(items[1]).toHaveTextContent('5 Dec: a heavy pressure lifts');
+    expect(screen.queryByText(/calendar/i)).toBeNull();
+  });
+
+  it('no Key dates section when the card has none', () => {
+    mount();
+    expect(screen.queryByTestId('key-dates')).toBeNull();
+  });
+
+  it('"Is this right?" answers Yes / Not really / Not sure and sends yes / no / skip', async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetch);
+    mount(body, {}, { confirmOn: true });
+    expect(screen.getByTestId('confirm-yes')).toHaveTextContent('Yes');
+    expect(screen.getByTestId('confirm-no')).toHaveTextContent('Not really');
+    expect(screen.getByTestId('confirm-skip')).toHaveTextContent('Not sure');
+    fireEvent.click(screen.getByTestId('confirm-skip'));
+    await screen.findByTestId('section-confirm-done');
+    const sent = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(sent).toEqual({ claimId: 'body.c1', answer: 'skip' });
   });
 
   it('"Is this right?" follows the board setting', () => {
-    mount({}, { confirmOn: false });
+    mount(body, {}, { confirmOn: false });
     expect(screen.queryByTestId('section-confirm')).toBeNull();
-    expect(screen.getByTestId('card-details-open')).toBeInTheDocument();
   });
 
-  it('Chart details opens for the period on screen', () => {
-    const { onDetails } = mount();
-    fireEvent.click(screen.getByTestId('card-details-open'));
-    expect(onDetails).toHaveBeenCalledWith(card, expect.objectContaining({ span: 's1' }), expect.stringContaining('now'));
+  it('shows the stale-dates note with Refresh when the server flags passed dates', () => {
+    const onRefresh = vi.fn();
+    mount({ ...body, datesPassed: true }, {}, { onRefresh });
+    expect(screen.getByTestId('card-dates-passed')).toHaveTextContent('Some dates here have passed. Refresh to update.');
+    fireEvent.click(screen.getByTestId('card-refresh'));
+    expect(onRefresh).toHaveBeenCalled();
   });
 
-  it('turning a face on asks the board to save it for this card only', () => {
-    const { onOptions } = mount();
-    fireEvent.click(screen.getByTestId('face-breakdown'));
-    expect(onOptions).toHaveBeenCalledWith({ face: 'breakdown' });
-    fireEvent.click(screen.getByTestId('tool-plan'));
-    expect(onOptions).toHaveBeenLastCalledWith({ tools: ['plan'] });
+  it('keeps the headline outside the scrolling body', () => {
+    mount();
+    const scroll = screen.getByTestId('card-body');
+    expect(scroll.className).toMatch(/overflow-y-auto/);
+    expect(scroll).not.toContainElement(screen.getByTestId('card-line'));
   });
 
-  it('the Breakdown face shows the sections by name, each with its own words', () => {
-    mount({ face: 'breakdown' });
-    expect(screen.getByTestId('block-asks')).toHaveTextContent('guard your evenings');
-    expect(screen.getByTestId('block-trap')).toHaveTextContent('working late');
-  });
-
-  it('the Light face is a sentence and one step', () => {
-    mount({ face: 'light' });
-    expect(screen.getByTestId('light-sentence')).toHaveTextContent('This stretch asks you to guard your evenings and keep the body warm.');
-  });
-});
-
-describe('By timeframe: swipe or accordion by the pointer', () => {
-  const grouped = { tools: ['timeframe'] as CardOptions['tools'], groupsAs: 'accordion' as const, groupBy: 'years' as const };
-
-  it('a mouse gets the accordion when that is the choice', () => {
-    pointer(false);
-    mount(grouped);
-    const panel = screen.getByTestId('tool-timeframe-panel');
-    expect(panel).toHaveAttribute('data-groups-as', 'accordion');
-    expect(within(panel).getByTestId('timeframe-accordion')).toBeInTheDocument();
-    expect(within(panel).queryByTestId('timeframe-swipe')).toBeNull();
-  });
-
-  it('a finger always swipes, even when the board says accordion', () => {
-    pointer(true);
-    mount(grouped);
-    const panel = screen.getByTestId('tool-timeframe-panel');
-    expect(panel).toHaveAttribute('data-groups-as', 'swipe');
-    expect(within(panel).getByTestId('timeframe-swipe')).toBeInTheDocument();
-    expect(within(panel).queryByTestId('timeframe-accordion')).toBeNull();
-  });
-
-  it('swipe is the default for everyone', () => {
-    pointer(false);
-    mount({ tools: ['timeframe'], groupsAs: 'swipe' });
-    expect(screen.getByTestId('timeframe-swipe')).toBeInTheDocument();
-  });
-
-  it('the accordion opens and closes by tap; grouping follows the choice', () => {
-    pointer(false);
-    const { onOptions } = mount(grouped);
-    const first = screen.getByTestId('group-2026');
-    const head = within(first).getAllByRole('button')[0]!;
-    expect(head).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(head);
-    expect(head).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(screen.getByTestId('group-by-months'));
-    expect(onOptions).toHaveBeenCalledWith({ groupBy: 'months' });
+  it('a locked card shows a lock and "Part of Plus" and none of its content', () => {
+    mount(body, {}, { lockedPlan: 'plus' });
+    expect(screen.getByTestId('card-locked')).toHaveTextContent('Part of Plus');
+    expect(screen.queryByTestId('card-line')).toBeNull();
+    expect(screen.queryByTestId('stretch-text')).toBeNull();
+    expect(screen.queryByTestId('card-why')).toBeNull();
   });
 });

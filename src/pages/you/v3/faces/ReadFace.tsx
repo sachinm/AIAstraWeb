@@ -1,48 +1,53 @@
 /**
- * The Read face (default): the period on screen, its own words, its one step and the card's standing lines, clamped to
- * about four lines with a button that says what is waiting. Folded away: the other dated windows and the plan.
+ * The Read face (default, doc 75): the picked period's own words, then the card's standing lines, "Your pattern" in one
+ * line, and "What to do": the one best step and the one thing to avoid. The card body scrolls; nothing is clamped.
  */
-import { hiddenCounts, otherWindows, planSteps, readBlocks, showMoreLabel, type FaceProps } from '../cardModel';
-import ShowMore from '../ShowMore';
+import { patternLine, whatToDo, type FaceProps } from '../cardModel';
 import { V3_WORDS } from '../words';
-import { BlockView, PeriodHeading, PlanList, WindowsList } from './parts';
+import { body, label } from './parts';
 
-export default function ReadFace({ card, period, periods, standing, options, expanded, onExpanded, onSelect, planToolOpen = false }: FaceProps) {
-  const blocks = readBlocks(period, standing);
-  const steps = planToolOpen ? [] : planSteps(card, options);
-  const windows = otherWindows(periods, period?.index ?? -1);
-  const counts = hiddenCounts(period, standing, periods, steps.length);
-  const canExpand = counts.paragraphs + counts.windows + counts.steps > 0;
-  if (!blocks.length && !windows.length && !steps.length)
+export default function ReadFace({ card, period, standing }: FaceProps) {
+  const paragraphs = [...(period?.text ?? []), ...standing];
+  const pattern = patternLine(card);
+  const todo = whatToDo(card, period);
+  if (!paragraphs.length && !pattern && !todo.best && !todo.avoid)
     return (
-      <div className="space-y-3" data-testid="face-body-read">
-        <PeriodHeading period={period} />
-        <p className="text-center text-[15px] text-white/60">{V3_WORDS.noText}</p>
-      </div>
+      <p className="text-center text-[15px] text-white/60" data-testid="face-body-read">
+        {V3_WORDS.noText}
+      </p>
     );
-  const [lead, ...others] = blocks;
   return (
-    <div className="space-y-3" data-testid="face-body-read">
-      <PeriodHeading period={period} />
-      <div key={period?.index ?? -1} className="self-v3-fade">
-        <ShowMore
-          cardId={card.id}
-          expanded={expanded}
-          onToggle={onExpanded}
-          canExpand={canExpand}
-          label={showMoreLabel(counts)}
-          lead={lead ? <BlockView block={lead} lead /> : <span />}
-          rest={
-            <>
-              {others.map((b, i) => (
-                <BlockView key={i} block={b} />
-              ))}
-              <WindowsList windows={windows} onSelect={onSelect} />
-              <PlanList steps={steps} />
-            </>
-          }
-        />
-      </div>
+    <div key={period?.index ?? -1} className="self-v3-fade space-y-3" data-testid="face-body-read">
+      {paragraphs.map((t, i) => (
+        <p key={i} className={body} data-testid={i < (period?.text?.length ?? 0) ? 'stretch-text' : 'card-standing'}>
+          {t}
+        </p>
+      ))}
+      {pattern && (
+        <section data-testid="section-pattern">
+          <h4 className={label}>{V3_WORDS.pattern}</h4>
+          <p className="mt-0.5 text-[15px] text-white/85">{pattern}</p>
+        </section>
+      )}
+      {(todo.best || todo.avoid) && (
+        <section data-testid="section-todo">
+          <h4 className={label}>{V3_WORDS.whatToDo}</h4>
+          <ul className="mt-1.5 grid gap-1.5">
+            {todo.best && (
+              <li className="grid grid-cols-[72px_1fr] gap-2.5 rounded-xl bg-white/5 px-3 py-2 text-[15px]" data-testid="todo-best">
+                <b className="self-center text-[13px] font-bold text-emerald-300">{V3_WORDS.doThis}</b>
+                <span className="text-white/85">{todo.best}</span>
+              </li>
+            )}
+            {todo.avoid && (
+              <li className="grid grid-cols-[72px_1fr] gap-2.5 rounded-xl bg-white/5 px-3 py-2 text-[15px]" data-testid="todo-avoid">
+                <b className="self-center text-[13px] font-bold text-amber-300">{V3_WORDS.avoid}</b>
+                <span className="text-white/85">{todo.avoid}</span>
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

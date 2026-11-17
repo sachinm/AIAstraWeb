@@ -6,7 +6,7 @@
  * move-right buttons (keyboard and screen readers); × removes a card but never below three; "Reset to suggested" puts
  * the suggested cards back; Done saves the order through PUT layout.
  */
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { CarouselArrows } from '../../../components/carousel/Carousel';
 import { MIN_CARDS, type SelfCardId } from '../../../lib/selfV3Api';
@@ -19,7 +19,7 @@ const onCls = 'border-transparent bg-teal-500/15 font-semibold text-teal-200';
 /** the active chip in its card's category colours (board-cards.css `.card-chip-on`, set by `card-grp-<group>`) */
 const onTintCls = 'card-chip-on font-semibold';
 const offCls = 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10';
-const smallBtn = 'inline-flex h-7 w-7 items-center justify-center rounded-full text-white/70 hover:bg-white/10 disabled:opacity-30 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60';
+const smallBtn = 'inline-flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 disabled:opacity-30 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60';
 
 /** move `id` to sit where `over` sits */
 export function moveTo(order: SelfCardId[], id: SelfCardId, over: SelfCardId): SelfCardId[] {
@@ -55,6 +55,8 @@ export default function CardChips({
   onEditDone,
   saving = false,
   error = null,
+  canAdd = true,
+  action = null,
 }: {
   cards: SelfCardId[];
   titles: Partial<Record<SelfCardId, string>>;
@@ -69,6 +71,10 @@ export default function CardChips({
   onEditDone: () => void;
   saving?: boolean;
   error?: string | null;
+  /** false when every offered card is already on the board: "All cards are shown" instead of `+` */
+  canAdd?: boolean;
+  /** a button beside the error (Sign in again) */
+  action?: ReactNode;
 }) {
   const dragging = useRef<SelfCardId | null>(null);
   const [dragId, setDragId] = useState<SelfCardId | null>(null);
@@ -102,7 +108,7 @@ export default function CardChips({
     <div className="flex min-w-0 flex-col gap-1.5" data-testid="self-v3-chips-row">
       <div className="flex min-w-0 items-center gap-3">
         <div
-          role={editing ? 'list' : 'tablist'}
+          role={editing ? 'list' : 'group'}
           aria-label="Your cards"
           className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0.5 [scrollbar-width:none]"
           data-testid="self-v3-chips"
@@ -137,8 +143,7 @@ export default function CardChips({
               <button
                 key={id}
                 type="button"
-                role="tab"
-                aria-selected={id === activeId}
+                aria-current={id === activeId ? 'true' : undefined}
                 onClick={() => onSelect(id)}
                 className={`${chipCls} gap-2 pl-2 ${cardGroupClass(id)} ${id === activeId ? (cardGroupClass(id) ? onTintCls : onCls) : offCls}`}
                 data-testid={`self-v3-chip-${id}`}
@@ -148,10 +153,15 @@ export default function CardChips({
               </button>
             ),
           )}
-          {!editing && (
+          {!editing && canAdd && (
             <button type="button" onClick={onAdd} aria-label={V3_WORDS.addCard} className={`${chipCls} ${offCls} px-2.5`} data-testid="self-v3-chip-add">
               <Plus className="h-4 w-4" aria-hidden="true" />
             </button>
+          )}
+          {!canAdd && (
+            <span className="shrink-0 whitespace-nowrap px-1 text-[13px] text-white/55" data-testid="chips-all-shown">
+              {V3_WORDS.allShown}
+            </span>
           )}
         </div>
         {editing ? (
@@ -174,8 +184,9 @@ export default function CardChips({
       </div>
       {editing && <p className="text-xs text-white/55">{V3_WORDS.editHint}</p>}
       {error && (
-        <p role="alert" className="text-sm text-rose-300" data-testid="chips-error">
+        <p role="alert" className="flex flex-wrap items-center gap-x-3 text-sm text-rose-300" data-testid="chips-error">
           {error}
+          {action}
         </p>
       )}
     </div>

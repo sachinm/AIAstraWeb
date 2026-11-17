@@ -52,6 +52,19 @@ const UsageRing: React.FC = () => {
   const { limit } = plan;
   const shown = Math.min(used, limit);
   const left = Math.max(0, limit - used);
+  // used up: the ring gives way to a plain way forward
+  if (left === 0) {
+    return (
+      <Link
+        to="/pricing"
+        data-test-id="usage-zero-upgrade"
+        className="inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 text-xs font-medium text-red-200 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500 sm:min-h-0 sm:py-1.5"
+      >
+        <span>{t('usage.zeroLeft')}</span>
+        <span className="text-purple-300 underline">{t('usage.upgrade')}</span>
+      </Link>
+    );
+  }
   const tone = left === 0 ? 'red' : left === 1 ? 'amber' : 'purple';
   const stroke = { red: 'stroke-red-500', amber: 'stroke-amber-400', purple: 'stroke-purple-500' }[tone];
   const text = { red: 'text-red-200', amber: 'text-amber-200', purple: 'text-gray-200' }[tone];
