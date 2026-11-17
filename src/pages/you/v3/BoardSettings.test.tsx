@@ -56,35 +56,40 @@ describe('BoardSettings', () => {
     expect(screen.queryByTestId('board-settings-panel')).toBeNull();
   });
 
-  it('hides board-wide tools that pass vetting on zero cards (unless active) and displays partial card-support counts', () => {
-    const onChange = vi.fn();
-    const { rerender } = render(
-      <BoardSettings
-        value={COLD_BOARD_DEFAULTS}
-        ownCount={0}
-        toolSupport={{ table: 2, calendar: 2, dates: 2, timeframe: 2, plan: 7, info: 0 }}
-        cardCount={8}
-        onChange={onChange}
-        onApplyAll={() => {}}
-      />,
+  it('respects shortOn and confirmOn switches and renders nothing when all settings are off', () => {
+    const { rerender, container } = render(
+      <BoardSettings value={COLD_BOARD_DEFAULTS} onChange={() => {}} shortOn={false} voiceOn={false} confirmOn />,
     );
     fireEvent.click(screen.getByTestId('board-settings-open'));
-    expect(screen.queryByTestId('bs-tool-info')).toBeNull();
-    expect(screen.getByTestId('bs-tool-table')).toHaveTextContent('Table2/8');
-    expect(screen.getByTestId('bs-tool-plan')).toHaveTextContent('Plan7/8');
+    expect(screen.queryByTestId('bs-face')).toBeNull();
+    expect(screen.queryByTestId('bs-voice')).toBeNull();
+    expect(screen.getByTestId('bs-confirm')).toBeInTheDocument();
 
-    // If a zero-card tool was previously toggled on in value.tools, keep it visible so the user can turn it off
-    rerender(
-      <BoardSettings
-        value={{ ...COLD_BOARD_DEFAULTS, tools: ['info'] }}
-        ownCount={0}
-        toolSupport={{ table: 2, calendar: 2, dates: 2, timeframe: 2, plan: 7, info: 0 }}
-        cardCount={8}
-        onChange={onChange}
-        onApplyAll={() => {}}
-      />,
+    rerender(<BoardSettings value={COLD_BOARD_DEFAULTS} onChange={() => {}} shortOn voiceOn={false} confirmOn={false} />);
+    expect(screen.getByTestId('bs-face')).toBeInTheDocument();
+    expect(screen.queryByTestId('bs-confirm')).toBeNull();
+
+    rerender(<BoardSettings value={COLD_BOARD_DEFAULTS} onChange={() => {}} shortOn={false} voiceOn={false} confirmOn={false} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('reflects stored light face as Short, supports phone Done button, and honours disabled', () => {
+    const { rerender } = render(
+      <BoardSettings value={{ ...COLD_BOARD_DEFAULTS, face: 'light', voice: 'direct' }} onChange={() => {}} voiceOn phone />,
     );
-    expect(screen.getByTestId('bs-tool-info')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('board-settings-open'));
+    expect(screen.getByRole('radiogroup', { name: 'Open cards as' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Voice' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Show “Is this right?”' })).toBeChecked();
+    expect(screen.getByTestId('bs-face-short')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('bs-face-read')).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('bs-voice-direct')).toHaveAttribute('aria-checked', 'true');
+
+    fireEvent.click(screen.getByTestId('bs-close'));
+    expect(screen.queryByTestId('board-settings-panel')).toBeNull();
+
+    rerender(<BoardSettings value={COLD_BOARD_DEFAULTS} onChange={() => {}} disabled />);
+    expect(screen.getByTestId('board-settings-open')).toBeDisabled();
   });
 });
 

@@ -15,7 +15,7 @@ import type { SelfV3CardView, SpanMode, SpanTone } from '../../../lib/selfV3Api'
 import { cardPatterns } from './CardParts';
 import { firstSentence, groupPeriods, planSteps, type PeriodView } from './cardModel';
 import { formatDisplayDate, scrubEmptyRefs } from './textClean';
-import { SPAN_MODE_WORD, SPAN_TONE_WORD, V3_WORDS } from './words';
+import { SPAN_MODE_WORD, SPAN_TONE_WORD } from './words';
 
 export { formatDisplayDate, scrubEmptyRefs };
 
@@ -140,12 +140,12 @@ export function coveringPeriodForDay(periods: readonly PeriodView[], day: string
   const pool = leafHits.length ? leafHits : hits;
   if (pool.length === 1) return pool[0]!.p;
 
-  // On a handoff boundary where one stretch ends on `day` and another starts on `day`, prefer the incoming selectable stretch
-  const incoming = pool.find((x) => x.from === day && x.from < x.to && x.p.selectable);
+  // On a handoff boundary where one stretch ends on `day` and another starts on `day`, prefer the incoming own-prose stretch
+  const incoming = pool.find((x) => x.from === day && x.from < x.to && x.p.own);
   if (incoming) return incoming.p;
 
   pool.sort((a, b) => {
-    if (a.p.selectable !== b.p.selectable) return a.p.selectable ? -1 : 1;
+    if (a.p.own !== b.p.own) return a.p.own ? -1 : 1;
     if ((a.p.tone !== null) !== (b.p.tone !== null)) return a.p.tone !== null ? -1 : 1;
     if (a.days !== b.days) return a.days - b.days;
     return a.p.index - b.p.index;
@@ -418,7 +418,7 @@ function vetCalendar(
         displayDate: formatDisplayDate(from),
         summary,
         tone: p.tone,
-        periodIndex: p.selectable ? p.index : null,
+        periodIndex: p.own ? p.index : null,
       });
     }
     if (to && to >= windowStart && to <= windowEnd && !byDay.has(to)) {
@@ -427,7 +427,7 @@ function vetCalendar(
         displayDate: formatDisplayDate(to),
         summary: `${toneName} ends`,
         tone: p.tone,
-        periodIndex: p.selectable ? p.index : null,
+        periodIndex: p.own ? p.index : null,
       });
     }
   }
@@ -529,7 +529,7 @@ function vetDates(
         modeWord,
         agreementLabel: ag,
         activeStart,
-        periodIndex: p.selectable ? p.index : null,
+        periodIndex: p.own ? p.index : null,
       });
     }
 
@@ -548,7 +548,7 @@ function vetDates(
         modeWord: null,
         agreementLabel: null,
         activeStart: false,
-        periodIndex: p.selectable ? p.index : null,
+        periodIndex: p.own ? p.index : null,
       });
     }
   }
@@ -561,7 +561,7 @@ function vetDates(
       id: `m-${until}-pattern`,
       date: until,
       displayDate: formatDisplayDate(until),
-      title: keyDateLabels.get(until) ?? V3_WORDS.patternEases,
+      title: keyDateLabels.get(until) ?? 'Pattern eases',
       detail: firstSentence(pt.text) || null,
       tone: null,
       modeWord: null,
@@ -587,7 +587,7 @@ function vetDates(
       status = 'next';
       const delta = daysBetweenSigned(today, item.date);
       if (delta !== null && delta >= 1 && delta <= 90) {
-        relativeLabel = V3_WORDS.inDays(delta);
+        relativeLabel = delta === 1 ? 'In 1 day' : `In ${delta}d`;
       }
     } else {
       status = 'upcoming';
