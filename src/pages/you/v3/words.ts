@@ -4,7 +4,7 @@
  * reading, build progress) are reused from ../v2/words.
  */
 import type { CardFace } from '../../../lib/cardOptions';
-import type { CardVoice, SelfSectionId, SelfTemplateId, SpanTone } from '../../../lib/selfV3Api';
+import type { CardVoice, SelfSectionId, SelfTemplateId, SpanMode, SpanTone } from '../../../lib/selfV3Api';
 import type { ShownFace } from './faces/FaceBody';
 
 export const V3_WORDS = {
@@ -81,6 +81,7 @@ export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'
 
 /** doc 68 §4.7: the tone is always written, never colour alone */
 export const SPAN_TONE_WORD: Record<SpanTone, string> = { heavy: 'Heavy', mixed: 'Mixed', light: 'Light' };
+export const SPAN_MODE_WORD: Record<SpanMode, string> = { get_through: 'Get through', build: 'Build' };
 
 /** the dot beside a rail bar: warm for heavy, amber for mixed, cool for light; neutral when the bar has no tone */
 export const SPAN_TONE_DOT: Record<SpanTone | 'none', string> = {

@@ -6,6 +6,7 @@
  * its own is kept); a period is offered as a chip only when it has words of its own; a card with one such period shows
  * no chips. Picking a chip changes the headline and the text. Past periods are greyed.
  */
+import type { CardGroupBy, CardOptions } from '../../../lib/cardOptions';
 import type { LadderSteps } from '../../../lib/selfV2Api';
 import type { KeyDate, RailItem, SelfV3CardView, SpanReading, SpanTone } from '../../../lib/selfV3Api';
 import { cardHeadline, cardLadder, cardPatterns, spanToneShown } from './CardParts';
@@ -195,4 +196,59 @@ export function keyDatesOf(card: SelfV3CardView, today: string = todayIso()): Ar
 
 export function firstSentence(text: string): string {
   return firstSentenceOf(text);
+}
+
+const STEPS: Array<keyof LadderSteps> = ['best', 'practical', 'drift', 'floor'];
+
+/** the plan's steps, in order, when the card has a ladder and the options keep the plan */
+export function planSteps(card: SelfV3CardView, options: Pick<CardOptions, 'plan'>): Array<{ key: keyof LadderSteps; text: string }> {
+  if (options.plan === 'without') return [];
+  const ladder = cardLadder(card);
+  return ladder ? STEPS.filter((k) => ladder[k]?.trim()).map((key) => ({ key, text: ladder[key]! })) : [];
+}
+
+function parts(iso: string): { y: number; m: number; d: number } {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return { y: y ?? 1970, m: (m ?? 1) - 1, d: d ?? 1 };
+}
+
+function dayLabel(iso: string): string {
+  const p = parts(iso);
+  return `${p.d} ${MONTHS[p.m]} ${p.y}`;
+}
+
+export function bucketOf(iso: string, by: CardGroupBy): { key: string; label: string } {
+  const p = parts(iso);
+  if (by === 'years') return { key: String(p.y), label: String(p.y) };
+  if (by === 'decades') {
+    const dec = Math.floor(p.y / 10) * 10;
+    return { key: String(dec), label: `${dec}s` };
+  }
+  if (by === 'months') return { key: `${p.y}-${p.m}`, label: `${MONTHS[p.m]} ${p.y}` };
+  if (by === 'quarters') {
+    const q = Math.floor(p.m / 3);
+    return { key: `${p.y}-q${q}`, label: `${MONTHS[q * 3]} to ${MONTHS[q * 3 + 2]} ${p.y}` };
+  }
+  const t = Date.UTC(p.y, p.m, p.d);
+  const dow = (new Date(t).getUTCDay() + 6) % 7;
+  const monday = new Date(t - dow * 86_400_000).toISOString().slice(0, 10);
+  return { key: monday, label: `Week of ${dayLabel(monday)}` };
+}
+
+export interface PeriodGroup {
+  key: string;
+  label: string;
+  periods: PeriodView[];
+}
+
+/** the periods grouped by the timeframe each starts in, in date order */
+export function groupPeriods(periods: PeriodView[], by: CardGroupBy): PeriodGroup[] {
+  const out: PeriodGroup[] = [];
+  for (const p of [...periods].sort((a, b) => a.item.from.localeCompare(b.item.from))) {
+    const b = bucketOf(p.item.from, by);
+    const g = out.find((x) => x.key === b.key);
+    if (g) g.periods.push(p);
+    else out.push({ ...b, periods: [p] });
+  }
+  return out;
 }
