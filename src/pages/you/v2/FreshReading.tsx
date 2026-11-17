@@ -20,6 +20,7 @@ import { refreshBoard, type RefreshResult } from '../../../lib/boardRefresh';
 import type { SelfV2BuildView, SelfV2Refresh } from '../../../lib/selfV2Api';
 import Sheet from './Sheet';
 import { BUILD_WORDS, V2_WORDS, freshCostLine, freshSheetBody } from './words';
+import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../../../lib/aiStatus';
 
 const W = V2_WORDS.fresh;
 const PLAN_PAGE = '/pricing';
@@ -96,6 +97,7 @@ export function FreshControl({
   onAsk: () => void;
   compact?: boolean;
 }) {
+  const aiDown = useAiUnavailable();
   if (!refresh || (!refresh.madeAt && !refresh.due && !building)) return null;
   const btn = `inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold ${compact ? 'max-w-[11.5rem]' : 'max-w-[15rem]'}`;
   const line = 'mt-0.5 truncate text-[11px] leading-4 text-white/55';
@@ -116,7 +118,7 @@ export function FreshControl({
     );
   } else if (buildFailed) {
     control = refresh.due ? (
-      <button type="button" onClick={onAsk} className={`${btn} bg-teal-400 text-[#06051a] shadow-[0_0_0_1px_rgba(45,212,191,0.4)] hover:bg-teal-300`} data-testid="fresh-button" data-state="build_failed">
+      <button type="button" onClick={onAsk} disabled={aiDown} title={aiDown ? AI_UNAVAILABLE_MESSAGE : undefined} className={`${btn} bg-teal-400 text-[#06051a] shadow-[0_0_0_1px_rgba(45,212,191,0.4)] hover:bg-teal-300 disabled:cursor-not-allowed disabled:opacity-40`} data-testid="fresh-button" data-state="build_failed">
         <span className="truncate">{W.tryAgain}</span>
       </button>
     ) : null;
@@ -130,7 +132,7 @@ export function FreshControl({
     );
   } else if (refresh.due) {
     control = (
-      <button type="button" onClick={onAsk} className={`${btn} bg-teal-400 text-[#06051a] shadow-[0_0_0_1px_rgba(45,212,191,0.4)] hover:bg-teal-300`} data-testid="fresh-button" data-state="due">
+      <button type="button" onClick={onAsk} disabled={aiDown} title={aiDown ? AI_UNAVAILABLE_MESSAGE : undefined} className={`${btn} bg-teal-400 text-[#06051a] shadow-[0_0_0_1px_rgba(45,212,191,0.4)] hover:bg-teal-300 disabled:cursor-not-allowed disabled:opacity-40`} data-testid="fresh-button" data-state="due">
         <span className="truncate">{failed ? W.failed : W.get}</span>
       </button>
     );

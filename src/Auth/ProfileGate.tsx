@@ -4,6 +4,7 @@ import { fetchMe, fetchPlanState, type Me } from './api';
 import type { PlanStatus } from '../lib/billing';
 import { onUsage } from '../lib/planUsage';
 import { SessionLoadingScreen } from './RouteGuards';
+import AiUnavailableModal from '../components/AiUnavailableModal';
 
 const MeContext = createContext<{ me: Me | null; refresh: () => Promise<void> }>({
   me: null,
@@ -101,6 +102,7 @@ export function ProfileGate() {
     <MeContext.Provider value={{ me, refresh }}>
       <PlanContext.Provider value={{ plan, setPlan, refreshPlan }}>
         <Outlet />
+        <AiUnavailableModal />
       </PlanContext.Provider>
     </MeContext.Provider>
   );

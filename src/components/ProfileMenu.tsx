@@ -97,7 +97,13 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ user, onLogout, onOpenWizard 
           {planName && !plan?.exempt && (
             <div className="border-b border-white/10 px-3 py-2 text-sm" data-test-id="profile-menu-plan">
               <p className="font-medium text-purple-300">{planName}</p>
-              {left && <p className="text-gray-400">{left}</p>}
+              {plan?.remaining === 0 ? (
+                <button type="button" role="menuitem" data-test-id="profile-menu-zero-upgrade" className="text-left text-red-200 hover:text-white focus:outline-none" onClick={() => go('/pricing')}>
+                  {t('usage.zeroLeft')} <span className="text-purple-300 underline">{t('usage.upgrade')}</span>
+                </button>
+              ) : (
+                left && <p className="text-gray-400">{left}</p>
+              )}
             </div>
           )}
           <div className="pt-1">

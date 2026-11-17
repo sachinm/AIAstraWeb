@@ -7,6 +7,7 @@ import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
 import type { PlanStatus } from './billing';
 import { announceUsage } from './planUsage';
+import { announceAiUnavailable } from './aiStatus';
 
 export type RefreshBoard = 'self' | 'love' | 'work';
 
@@ -35,6 +36,7 @@ export async function refreshBoard(board: RefreshBoard): Promise<RefreshResult> 
     return { kind: r.status === 200 ? 'made' : 'building', usage: j?.usage ?? null };
   }
   if (r.status === 402) return { kind: 'no_questions', usage: j?.usage ?? null };
+  if (r.status === 503 && j?.code === 'ai_unavailable') announceAiUnavailable();
   if (r.status === 409 && j?.code === 'not_due') return { kind: 'not_due', validUntil: j.valid_until ?? null };
   return { kind: 'error' };
 }

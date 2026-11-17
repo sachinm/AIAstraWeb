@@ -1,6 +1,7 @@
 // UserData – GraphQL for most APIs; chat may use REST SSE when VITE_CHAT_STREAM is enabled.
 import { runGraphQL, getUserId } from '../lib/graphql';
 import { buildApiHeaders } from '../lib/apiHeaders';
+import { announceAiUnavailable } from '../lib/aiStatus';
 import { QuotaExhaustedError, type PlanStatus } from '../lib/billing';
 import type { ReadingStreamEvent } from './chat-interface/readingProgress';
 
@@ -93,6 +94,7 @@ async function consumeChatAskSse(
         if (ev.usage) onEvent?.({ type: 'usage', usage: ev.usage as PlanStatus });
       } else if (ev.type === 'error') {
         if (ev.code === 'quota_exhausted') throw new QuotaExhaustedError((ev.usage as PlanStatus | undefined) ?? null, ev.message);
+        if (ev.code === 'ai_unavailable') announceAiUnavailable();
         throw new Error(ev.message || 'Stream error');
       } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'next') {
         // reading-engine progress; older servers never send these

@@ -102,6 +102,8 @@ export interface SelfBoardLayoutView extends SelfBoardLayout {
   updatedAt: string | null;
   /** the server's env-driven defaults; the client holds COLD_BOARD_DEFAULTS only until these arrive (absent from older servers) */
   boardDefaults?: BoardOptions;
+  /** doc 75: bumped on every stored change; a PATCH carrying an older one is answered 409 (absent from older servers) */
+  version?: number;
 }
 
 /** PUT /api/self/v3/layout body; without `options` / `boardOptions` the server keeps what is stored */
@@ -144,6 +146,9 @@ export interface SpanReading {
   obstacle: string;
   /** one if-then sentence */
   step: string;
+  /** doc 75: the span's own headline, and the one thing to avoid (absent from older servers) */
+  headline?: string | null;
+  avoid?: string | null;
   /** false when fewer than READING_CLOCKS_MIN clocks hold the frame span's tone: the page shows no tone word */
   held?: boolean;
   /** doc 70 §4.2: how many clocks hold the span's tone, of how many read ("4 of 5 clocks agree") */
@@ -193,6 +198,39 @@ export interface RailItem {
   span: string | null;
   /** the period's own words for the Read face, paragraph by paragraph; null when none is written (absent from older servers) */
   text?: string[] | null;
+  /** doc 75: the period's plain name ("Heavy stretch", "Next: new phase"); absent from older servers */
+  name?: string | null;
+  /** doc 75: the period's own headline, shown when its chip is picked; absent from older servers */
+  headline?: string | null;
+  /** doc 75: the one thing to avoid in this period; absent from older servers */
+  avoid?: string | null;
+}
+
+/** doc 75: a dated turning point named in the card's own text, in plain words */
+export interface KeyDate {
+  date: IsoDate;
+  label: string;
+  tone?: SpanTone | null;
+}
+
+/** doc 75: a card or feature the person's plan does not cover arrives with no content */
+export interface LockedFeature {
+  key: string;
+  minPlan: string;
+}
+
+/** doc 75: the switchable cards and in-card features the server allows for this person */
+export interface BoardFeatures {
+  /** the keys on for this person (`card.self.body`, `feature.face.short`, `feature.card_chat`, ...) */
+  allowed: string[];
+  /** premium keys the plan does not cover: shown with a lock and no content */
+  locked?: LockedFeature[];
+}
+
+/** doc 75: a card's text in the other voice, when the server writes both */
+export interface CardVoiceText {
+  line?: string | null;
+  standing?: string[] | null;
 }
 
 /** doc 75: a named, vetted period window sent by the server when a window has its own prose */
@@ -254,6 +292,14 @@ export interface SelfV3CardView {
   staleDates?: IsoDate[];
   features?: Record<string, CardFeatureGrant>;
   rail: RailItem[];
+  /** doc 75: one plain line under the name saying what the card answers; absent from older servers */
+  subtitle?: string | null;
+  /** doc 75: the card's dated turning points; absent when it has none */
+  keyDates?: KeyDate[] | null;
+  /** doc 75: true when a sentence on the card names a date that has passed (rewritten on the next build) */
+  datesPassed?: boolean;
+  /** doc 75: the card's text in each voice, when the server writes both */
+  voices?: Partial<Record<CardVoice, CardVoiceText>> | null;
   /** Phase B content; null while the card is filled from the v2 build */
   v3: SelfV3CardContent | null;
   /** Phase A content: the stored v2 card and its Chart details (engine names redacted) */
@@ -279,7 +325,12 @@ export interface SelfV3Response {
   cards: SelfV3CardView[];
   /** doc 70 §4.2: the board's reading progress; null when nothing is known yet */
   reading: BoardReadingView | null;
+  /** doc 75: what this person may see; absent from older servers (the page then keeps the foundation set) */
+  features?: BoardFeatures | null;
 }
+
+/** doc 75: the two voices a card can be written in */
+export type CardVoice = 'gentle' | 'direct';
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Doc 70 Phase 3: a reading per card (§4.2, §4.4)
@@ -565,6 +616,84 @@ export function saveLayoutOptimistic(args: {
     boardOptions,
   });
   return { optimistic, done };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Doc 75: one small PATCH per change, carrying the layout version
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * One change to the stored layout. A card's patch carries that card's whole own map (replace, so a retry is harmless);
+ * the board's carries its whole board-wide map; the deck carries the template, the card order and the sections.
+ *
+ * PATCH /api/self/v3/layout/cards/:id { version, options }       -> 200 SelfBoardLayoutView
+ * PATCH /api/self/v3/layout/board     { version, boardOptions }  -> 200 SelfBoardLayoutView
+ * PATCH /api/self/v3/layout/deck      { version, template, cards, sections } -> 200 SelfBoardLayoutSaved
+ *   409 { error: 'stale_layout' } another save landed first: read the layout again and reapply
+ *   401 the session ended; 404/405 the route is not live on this server (the page falls back to PUT)
+ */
+export type LayoutPatch =
+  | { kind: 'card'; id: SelfCardId; options: Partial<CardOptions> }
+  | { kind: 'board'; boardOptions: Partial<BoardOptions> }
+  | { kind: 'deck'; template: SelfTemplateId; cards: SelfCardId[]; sections: SelfBoardLayout['sections'] };
+
+export type LayoutPatchError = LayoutError | 'conflict' | 'unauthorized' | 'unsupported' | 'failed';
+export type LayoutPatchResult = { ok: true; layout: SelfBoardLayoutView; queued: SelfCardId[] } | { ok: false; error: LayoutPatchError };
+
+function patchRoute(p: LayoutPatch): { path: string; body: Record<string, unknown> } {
+  if (p.kind === 'card') return { path: `/api/self/v3/layout/cards/${encodeURIComponent(p.id)}`, body: { options: p.options } };
+  if (p.kind === 'board') return { path: '/api/self/v3/layout/board', body: { boardOptions: p.boardOptions } };
+  return { path: '/api/self/v3/layout/deck', body: { template: p.template, cards: p.cards, sections: p.sections } };
+}
+
+function layoutAnswer(r: Response, j: unknown): LayoutPatchResult {
+  if (r.ok && isLayoutView(j)) {
+    const { reading, ...layout } = j as SelfBoardLayoutSaved;
+    const held = getSelfV3Cached();
+    if (held) setSelfV3Cached({ ...held.data, layout }, null);
+    return { ok: true, layout, queued: Array.isArray(reading?.queued) ? reading.queued : [] };
+  }
+  if (r.status === 401) return { ok: false, error: 'unauthorized' };
+  if (r.status === 409) return { ok: false, error: 'conflict' };
+  if (r.status === 404 || r.status === 405) return { ok: false, error: 'unsupported' };
+  const code = (j as { error?: string } | null)?.error;
+  if (r.status === 400 && code && LAYOUT_ERRORS.has(code as LayoutError)) return { ok: false, error: code as LayoutError };
+  return { ok: false, error: 'failed' };
+}
+
+export async function patchSelfV3Layout(patch: LayoutPatch, version: number | undefined): Promise<LayoutPatchResult> {
+  const { path, body } = patchRoute(patch);
+  let r: Response;
+  try {
+    r = await call('PATCH', path, version === undefined ? body : { version, ...body });
+  } catch {
+    return { ok: false, error: 'failed' };
+  }
+  return layoutAnswer(r, await r.json().catch(() => null));
+}
+
+/** PUT the whole layout (older servers without the PATCH routes); the caller builds it from the latest saved copy. */
+export async function putSelfV3LayoutResult(body: SelfV3LayoutBody & { version?: number }): Promise<LayoutPatchResult> {
+  let r: Response;
+  try {
+    r = await call('PUT', '/api/self/v3/layout', body);
+  } catch {
+    return { ok: false, error: 'failed' };
+  }
+  const res = layoutAnswer(r, await r.json().catch(() => null));
+  return !res.ok && res.error === 'unsupported' ? { ok: false, error: 'failed' } : res;
+}
+
+/** GET the board again for its stored layout (after a 409) */
+export async function fetchSelfV3Layout(): Promise<SelfBoardLayoutView | null> {
+  try {
+    const r = await call('GET', '/api/self/v3');
+    if (!r.ok) return null;
+    const j = (await r.json().catch(() => null)) as unknown;
+    return isV3Board(j) ? j.layout : null;
+  } catch {
+    return null;
+  }
 }
 
 /** A card's "Is this right?"; true on 204. */

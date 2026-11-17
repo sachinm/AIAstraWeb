@@ -70,8 +70,11 @@ describe('UsageRing', () => {
 
     withPlan(free(5));
     rerender(<MemoryRouter><UsageRing /></MemoryRouter>);
-    expect(ring()).toHaveAttribute('data-tone', 'red');
-    expect(document.querySelector('[data-test-id="usage-ring-left"]')).toHaveTextContent('0');
+    // used up: the ring is replaced by "0 questions left. Upgrade", linking to pricing
+    expect(ring()).not.toBeInTheDocument();
+    const zero = document.querySelector('[data-test-id="usage-zero-upgrade"]');
+    expect(zero).toHaveTextContent('0 questions left.Upgrade');
+    expect(zero).toHaveAttribute('href', '/pricing');
   });
 
   it('opens on focus with the renewal date and an upgrade for Free, and closes on Escape', async () => {

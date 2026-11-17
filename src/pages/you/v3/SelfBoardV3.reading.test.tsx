@@ -111,8 +111,8 @@ describe('Self board v3, doc 70: per-card states', () => {
 describe('Self board v3, doc 70: the board reading line', () => {
   it('words for each stage, the chart being prepared, and nothing for idle or done', () => {
     const r = selfV3Reading().reading!;
-    expect(readingLine({ ...r, stage: 'clocks' })).toBe('Reading five clocks of your chart');
-    expect(readingLine({ ...r, stage: 'ledger' })).toBe('Checking where they agree');
+    expect(readingLine({ ...r, stage: 'clocks' })).toBe('Reading your chart');
+    expect(readingLine({ ...r, stage: 'ledger' })).toBe('Putting your reading together');
     expect(readingLine({ ...r, stage: 'cards', done: 3, total: 6 })).toBe('Writing your cards · 3 of 6');
     expect(readingLine({ ...r, stage: 'clocks', preparing: true })).toBe('Your chart is still being prepared. Back in a few minutes.');
     expect(readingLine({ ...r, stage: 'idle' })).toBeNull();
@@ -139,40 +139,23 @@ describe('Self board v3, doc 70: the board reading line', () => {
   });
 });
 
-describe('Self board v3, doc 70: clock agreement', () => {
-  it('each span carries "N of M clocks agree"; a split span says so and shows no tone word', async () => {
+describe('Self board v3, doc 75: no method on screen', () => {
+  it('no card says how many clocks agree, on any period, and a split period shows no tone name', async () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-body');
-    expect(within(c).getByTestId('span-agreement')).toHaveTextContent('4 of 5 clocks agree');
-    expect(within(c).queryByTestId('period-tone-1')).toBeNull();
-    expect(within(c).getByTestId('period-tone-0')).toHaveTextContent('Heavy');
+    expect(c).not.toHaveTextContent(/clocks? agree|clocks are split|Checked on/);
     fireEvent.click(within(c).getByTestId('period-1'));
-    expect(within(c).getByTestId('span-agreement')).toHaveTextContent('The clocks are split here');
-    expect(within(c).getByTestId('span-agreement')).not.toHaveTextContent(/Heavy|Mixed|Light/);
+    expect(c).not.toHaveTextContent(/clocks? agree|clocks are split/);
+    expect(within(c).getByTestId('period-1')).not.toHaveTextContent(/stretch ·/);
   });
 
-  it('Chart details lists the clocks for the selected span, each tone and whether it agrees', async () => {
-    v3Body = () => {
-      const b = selfV3Reading();
-      b.layout.sections = { body: ['line', 'year', 'stretch', 'details'] };
-      return b;
-    };
+  it('Why lists no clocks and no agreement', async () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-body');
-    fireEvent.click(within(c).getByTestId('period-2'));
-    fireEvent.click(within(c).getByTestId('card-details-open'));
-    const list = await screen.findByTestId('details-clocks');
-    expect(list).toHaveTextContent('The clocks for 1 Mar 2027 → 4 Oct 2027');
-    const main = within(list).getByTestId('details-clock-main');
-    expect(main).toHaveTextContent('Main');
-    expect(main).toHaveTextContent('Light');
-    expect(main).toHaveAttribute('data-agrees', 'true');
-    expect(within(main).getByTestId('details-clock-mark')).toHaveTextContent('Agrees');
-    const sign = within(list).getByTestId('details-clock-narayana');
-    expect(sign).toHaveTextContent('Sign periods');
-    expect(sign).toHaveTextContent('Mixed');
-    expect(within(sign).getByTestId('details-clock-mark')).toHaveTextContent('Differs');
-    expect(within(list).getAllByRole('listitem')).toHaveLength(5);
+    fireEvent.click(within(c).getByTestId('card-why'));
+    const sheet = await screen.findByTestId('details-sheet');
+    expect(screen.queryByTestId('details-clocks')).toBeNull();
+    expect(sheet).not.toHaveTextContent(/Agrees|Differs|clocks/);
   });
 });
 

@@ -26,6 +26,7 @@ import { trackChatQuestionSent } from '../../lib/analytics';
 import { createTokenDeltaFlusher } from './tokenFlusher';
 import { useMe, usePlan, useRefreshMe } from '../../Auth/ProfileGate';
 import { isExhausted, QuotaExhaustedError } from '../../lib/billing';
+import { useAiUnavailable } from '../../lib/aiStatus';
 import UpgradeCard from '../../components/UpgradeCard';
 import ChartProgress from '../../components/ChartProgress';
 import LoadingVeil from '../../components/LoadingVeil';
@@ -703,7 +704,8 @@ const ChatSection: React.FC<ChatSectionProps> = ({ user: _user, activeChatId, ca
 
   const chatListDisabled = isTyping || !!streamingMessageId || historyLoading || !chatCreationDone;
   const mainBusy = historyLoading || !chatCreationDone;
-  const inputDisabled = isTyping || mainBusy;
+  const aiDown = useAiUnavailable();
+  const inputDisabled = isTyping || mainBusy || aiDown;
 
   if (kundliReady === null || kundliReady === false) {
     return (

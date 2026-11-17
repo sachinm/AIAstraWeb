@@ -14,15 +14,19 @@ import ChatSection from '../pages/chat-interface/ChatSection';
 import type { User } from '../App';
 import { CATEGORY_FOCUS, CATEGORY_LABELS, CATEGORY_PLACEHOLDER } from '../pages/chat-interface/categories';
 import { track } from '../lib/events';
+import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../lib/aiStatus';
 
 export const AskButton = forwardRef<HTMLButtonElement, { category: string; onOpen: () => void; expanded?: boolean }>(function AskButton(
   { category, onOpen, expanded },
   ref,
 ) {
+  const aiDown = useAiUnavailable();
   return (
     <button
       ref={ref}
       type="button"
+      disabled={aiDown}
+      title={aiDown ? AI_UNAVAILABLE_MESSAGE : undefined}
       onClick={() => {
         track('chip_select', category, 'ask_open');
         onOpen();
@@ -30,7 +34,7 @@ export const AskButton = forwardRef<HTMLButtonElement, { category: string; onOpe
       aria-label={`Ask about ${CATEGORY_LABELS[category] ?? category}`}
       aria-haspopup="dialog"
       aria-expanded={expanded}
-      className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+      className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
       data-testid="ask-button"
     >
       <MessageCircle className="h-5 w-5" aria-hidden="true" />
