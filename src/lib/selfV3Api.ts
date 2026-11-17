@@ -211,6 +211,7 @@ export interface KeyDate {
   date: IsoDate;
   label: string;
   tone?: SpanTone | null;
+  passed?: boolean;
 }
 
 /** doc 75: a card or feature the person's plan does not cover arrives with no content */
@@ -249,12 +250,7 @@ export interface CardPeriodView {
 }
 
 /** doc 75: a turning-point date derived from stored engine windows */
-export interface KeyDateView {
-  date: IsoDate;
-  label: string;
-  tone?: SpanTone | null;
-  passed: boolean;
-}
+export type KeyDateView = KeyDate;
 
 /** doc 75 §4.2: feature usability per card */
 export interface CardFeatureGrant {
@@ -267,7 +263,6 @@ export interface SelfV3CardView {
   id: SelfCardId;
   group: SelfCardGroup;
   title: string;
-  subtitle?: string;
   description: string;
   suggested: boolean;
   sensitive: boolean;
@@ -285,9 +280,8 @@ export interface SelfV3CardView {
   optionNotes?: string[];
   /** what stands for the person on this card regardless of period, plain lines (absent from older servers) */
   standing?: string[];
-  /** doc 75 optional server-computed periods, key dates, freshness and feature grants */
+  /** doc 75 optional server-computed periods, freshness and feature grants */
   periods?: CardPeriodView[];
-  keyDates?: KeyDateView[];
   stale?: boolean;
   staleDates?: IsoDate[];
   features?: Record<string, CardFeatureGrant>;
