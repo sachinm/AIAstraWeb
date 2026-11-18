@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
+  clearActivityStamp,
   decodeJwtExpMs,
   isJwtExpired,
   isSessionIdleExpired,
@@ -20,21 +21,41 @@ describe('sessionIdle', () => {
 
   it('detects expired idle session when lastActivity is older than idle ms', () => {
     const idleMs = getSessionIdleMs();
-    sessionStorage.setItem(
-      'lastActivityAt',
-      String(Date.now() - idleMs - 1000)
-    );
+    localStorage.setItem('lastActivityAt', String(Date.now() - idleMs - 1000));
     expect(isSessionIdleExpired()).toBe(true);
   });
 
-  it('does not expire when activity was recent', () => {
+  it('does not expire when activity was recent, and stores the stamp in localStorage (survives a tab reload)', () => {
     touchActivity();
+    expect(isSessionIdleExpired()).toBe(false);
+    expect(localStorage.getItem('lastActivityAt')).not.toBeNull();
+  });
+
+  // 2026-11-18: Chrome on a phone reloads a background tab with an empty sessionStorage; a valid token must survive it
+  it('a missing stamp with a stored token is not idle (reloaded or new tab after an app switch)', () => {
+    localStorage.setItem('token', 'x');
     expect(isSessionIdleExpired()).toBe(false);
   });
 
-  it('treats missing lastActivity with stored auth as expired', () => {
+  it('a reload after a short app switch keeps the session: the stamp is read back from localStorage', () => {
     localStorage.setItem('token', 'x');
+    localStorage.setItem('lastActivityAt', String(Date.now() - 2 * 60_000));
+    sessionStorage.clear(); // what the tab reload left behind
+    expect(isSessionIdleExpired()).toBe(false);
+  });
+
+  it('still reads an older sessionStorage stamp written by the previous build', () => {
+    const idleMs = getSessionIdleMs();
+    sessionStorage.setItem('lastActivityAt', String(Date.now() - idleMs - 1000));
     expect(isSessionIdleExpired()).toBe(true);
+  });
+
+  it('clearActivityStamp removes the stamp from both stores', () => {
+    localStorage.setItem('lastActivityAt', '1');
+    sessionStorage.setItem('lastActivityAt', '1');
+    clearActivityStamp();
+    expect(localStorage.getItem('lastActivityAt')).toBeNull();
+    expect(sessionStorage.getItem('lastActivityAt')).toBeNull();
   });
 
   it('decodes JWT exp and detects expiry', () => {

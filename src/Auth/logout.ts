@@ -8,6 +8,7 @@ import { requestServerLogout } from './api';
 import { clearSignupDraft } from './signupDraft';
 import {
   broadcastLogoutToOtherTabs,
+  clearActivityStamp,
   stopIdleSessionWatcher,
 } from './sessionIdle';
 
@@ -57,7 +58,7 @@ export function clearClientSession(): void {
   clearAuth();
   localStorage.removeItem('astroUser');
   localStorage.removeItem('isAuthenticated');
-  sessionStorage.removeItem('lastActivityAt');
+  clearActivityStamp();
   stopIdleSessionWatcher();
 }
 

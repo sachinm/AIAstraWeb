@@ -1,3 +1,12 @@
+/**
+ * Idle sign-out. The last-activity time lives in `localStorage` (2026-11-18): on a phone, Chrome unloads a background
+ * tab and reloads it when the person comes back, and a new tab starts with an empty `sessionStorage`. The old
+ * `sessionStorage` stamp was therefore missing on return, which read as "idle" and signed a person with a valid token
+ * out after a short app switch. Now:
+ * - the stamp is shared by every tab and survives a tab reload or discard;
+ * - a missing stamp with a valid token is a fresh session (the token's own expiry stays the hard limit);
+ * - no meta-refresh redirect: a page whose timers were frozen in the background is checked on return instead.
+ */
 const LAST_ACTIVITY_KEY = 'lastActivityAt';
 export const LOGOUT_BROADCAST_KEY = 'sessionLogoutAt';
 const META_REFRESH_ID = 'session-idle-meta-refresh';
@@ -45,23 +54,54 @@ export function isJwtExpired(token: string | null): boolean {
   return Date.now() >= expMs;
 }
 
+/** Storage can throw (private mode, blocked site data); a failed read or write never signs anyone out. */
+function readStamp(): string | null {
+  try {
+    return localStorage.getItem(LAST_ACTIVITY_KEY) ?? sessionStorage.getItem(LAST_ACTIVITY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStamp(ms: number): void {
+  try {
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(ms));
+  } catch {
+    /* storage unavailable: the in-memory timer still runs */
+  }
+}
+
+/** Clears the stamp (sign-out): both stores, so an old `sessionStorage` stamp cannot linger. */
+export function clearActivityStamp(): void {
+  try {
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
+    sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+}
+
+/** a scroll fires many events: the stamp is written at most every few seconds (the idle window is minutes) */
+const STAMP_EVERY_MS = 5_000;
+let lastWrite = 0;
+
 export function touchActivity(): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
-  updateMetaRefresh();
+  const now = Date.now();
+  if (now - lastWrite >= STAMP_EVERY_MS || !readStamp()) {
+    writeStamp(now);
+    lastWrite = now;
+  }
   resetIdleTimer();
 }
 
 export function isSessionIdleExpired(): boolean {
   if (typeof window === 'undefined') return false;
-  const raw = sessionStorage.getItem(LAST_ACTIVITY_KEY);
-  if (!raw) {
-    const hasAuth =
-      localStorage.getItem('token') || localStorage.getItem('astroUser');
-    return Boolean(hasAuth);
-  }
+  const raw = readStamp();
+  // no stamp (a reloaded or new tab, or storage blocked): not idle; the token's expiry is the limit
+  if (!raw) return false;
   const last = Number(raw);
-  if (!Number.isFinite(last)) return true;
+  if (!Number.isFinite(last)) return false;
   return Date.now() - last > SESSION_IDLE_MS;
 }
 
@@ -72,22 +112,7 @@ function resetIdleTimer(): void {
   }, SESSION_IDLE_MS);
 }
 
-function updateMetaRefresh(): void {
-  if (typeof document === 'undefined') return;
-  const raw = sessionStorage.getItem(LAST_ACTIVITY_KEY);
-  if (!raw) return;
-  const deadline = Number(raw) + SESSION_IDLE_MS;
-  const seconds = Math.max(1, Math.ceil((deadline - Date.now()) / 1000));
-  let meta = document.getElementById(META_REFRESH_ID) as HTMLMetaElement | null;
-  if (!meta) {
-    meta = document.createElement('meta');
-    meta.id = META_REFRESH_ID;
-    meta.httpEquiv = 'refresh';
-    document.head.appendChild(meta);
-  }
-  meta.content = `${seconds};url=/signin?reason=idle`;
-}
-
+/** Removes the meta-refresh tag an older build added (it redirected to sign-in on a timer, unchecked). */
 export function removeMetaRefresh(): void {
   if (typeof document === 'undefined') return;
   document.getElementById(META_REFRESH_ID)?.remove();
@@ -99,8 +124,8 @@ function onActivity(): void {
 
 function onStorage(e: StorageEvent): void {
   if (e.key === LAST_ACTIVITY_KEY && e.newValue) {
+    // another tab was active: this tab's idle clock restarts too
     resetIdleTimer();
-    updateMetaRefresh();
   }
   if (e.key === LOGOUT_BROADCAST_KEY && e.newValue) {
     const hasSession =
@@ -116,12 +141,19 @@ function onStorage(e: StorageEvent): void {
 function onVisibilityOrShow(): void {
   if (document.visibilityState === 'hidden') return;
   if (isSessionIdleExpired()) onIdleCallback?.();
+  else touchActivity();
 }
 
 export function startIdleSessionWatcher(onIdle: () => void): void {
   if (typeof window === 'undefined') return;
   stopIdleSessionWatcher();
   onIdleCallback = onIdle;
+  removeMetaRefresh();
+  // check before stamping: a tab coming back after the idle window still signs out
+  if (isSessionIdleExpired()) {
+    onIdle();
+    return;
+  }
   touchActivity();
   for (const ev of ACTIVITY_EVENTS) {
     window.addEventListener(ev, onActivity, { passive: true });
