@@ -10,8 +10,11 @@
  *     call degrades silently to memory only; nothing here throws to a caller.
  *  3. Session: the active card and each card's selected period in sessionStorage, so a reload lands where the person was.
  *     sessionStorage is wiped by sign-out already (Auth/logout.ts clearAppStorage).
+ *
+ * Every layer is kept per board (Self, Love, Work; docs/dashboards/10 W1). `board` defaults to 'self', whose keys are
+ * unchanged, so a Self copy stored before boards existed still reads.
  */
-import type { SelfV3Response } from './selfV3Api';
+import type { BoardId, SelfV3Response } from './selfV3Api';
 
 /** a disk record older than this is not used */
 export const SELF_V3_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -24,24 +27,28 @@ export interface SelfV3CacheEntry {
 export interface SelfV3Scope {
   userId: string;
   kundliId: string | null;
+  /** which board's copy; absent: Self */
+  board?: BoardId;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Memory
 // ---------------------------------------------------------------------------------------------------------------------
 
-let memory: SelfV3CacheEntry | null = null;
+const memory = new Map<BoardId, SelfV3CacheEntry>();
 
-export function getSelfV3Cached(): SelfV3CacheEntry | null {
-  return memory;
+export function getSelfV3Cached(board: BoardId = 'self'): SelfV3CacheEntry | null {
+  return memory.get(board) ?? null;
 }
 
-export function setSelfV3Cached(data: SelfV3Response, etag: string | null): void {
-  memory = { data, etag };
+export function setSelfV3Cached(data: SelfV3Response, etag: string | null, board: BoardId = 'self'): void {
+  memory.set(board, { data, etag });
 }
 
-export function clearSelfV3Cached(): void {
-  memory = null;
+/** forget one board in memory, or every board when none is named */
+export function clearSelfV3Cached(board?: BoardId): void {
+  if (board) memory.delete(board);
+  else memory.clear();
 }
 
 /**
@@ -188,8 +195,21 @@ async function getKey(b: PersistBackend, s: SubtleCrypto, create: boolean): Prom
   return stored && typeof stored === 'object' && 'type' in (stored as object) ? (stored as CryptoKey) : key;
 }
 
-function recordId(scope: SelfV3Scope): string {
+/** the person and chart part of a record id */
+function scopeId(scope: SelfV3Scope): string {
   return `${scope.userId}|${scope.kundliId ?? '-'}`;
+}
+
+/** Self keeps its old record id; Love and Work prefix theirs (`love:<user>|<chart>`) */
+function recordId(scope: SelfV3Scope): string {
+  const board = scope.board ?? 'self';
+  return board === 'self' ? scopeId(scope) : `${board}:${scopeId(scope)}`;
+}
+
+/** the person and chart a stored record id belongs to */
+function scopeOfRecord(id: string): string {
+  const m = /^(love|work):(.*)$/.exec(id);
+  return m ? m[2]! : id;
 }
 
 interface DiskRecord {
@@ -223,7 +243,7 @@ export async function readSelfV3Persisted(scope: SelfV3Scope): Promise<SelfV3Cac
   }
 }
 
-/** Encrypt and store the board; any record of another person or chart goes. Silent when there is no disk. */
+/** Encrypt and store the board; any record of another person or chart goes (other boards of this one stay). Silent when there is no disk. */
 export async function writeSelfV3Persisted(scope: SelfV3Scope, data: SelfV3Response, etag: string | null): Promise<void> {
   try {
     const b = backend();
@@ -237,7 +257,8 @@ export async function writeSelfV3Persisted(scope: SelfV3Scope, data: SelfV3Respo
     blob.set(iv, 0);
     blob.set(ct, IV_BYTES);
     const id = recordId(scope);
-    for (const other of await b.keys(BOARD_STORE)) if (other !== id) await b.del(BOARD_STORE, other);
+    const mine = scopeId(scope);
+    for (const other of await b.keys(BOARD_STORE)) if (other !== id && scopeOfRecord(other) !== mine) await b.del(BOARD_STORE, other);
     await b.put(BOARD_STORE, id, { at: Date.now(), blob: blob.buffer } satisfies DiskRecord);
   } catch {
     /* memory only */
@@ -267,6 +288,10 @@ export function setPersistBackendForTests(next: PersistBackend | null | undefine
 const ACTIVE_CARD_KEY = 'aa.selfv3.card';
 const PERIOD_KEY_PREFIX = 'aa.selfv3.period.';
 
+/** Self keeps its old keys; Love and Work add the board (`aa.selfv3.card.love`) */
+const activeKey = (board: BoardId) => (board === 'self' ? ACTIVE_CARD_KEY : `${ACTIVE_CARD_KEY}.${board}`);
+const periodKey = (cardId: string, board: BoardId) => (board === 'self' ? PERIOD_KEY_PREFIX + cardId : `${PERIOD_KEY_PREFIX}${board}.${cardId}`);
+
 function session(): Storage | null {
   try {
     return typeof sessionStorage === 'undefined' ? null : sessionStorage;
@@ -275,25 +300,25 @@ function session(): Storage | null {
   }
 }
 
-export function getActiveCard(): string | null {
+export function getActiveCard(board: BoardId = 'self'): string | null {
   try {
-    return session()?.getItem(ACTIVE_CARD_KEY) || null;
+    return session()?.getItem(activeKey(board)) || null;
   } catch {
     return null;
   }
 }
 
-export function setActiveCard(id: string): void {
+export function setActiveCard(id: string, board: BoardId = 'self'): void {
   try {
-    session()?.setItem(ACTIVE_CARD_KEY, id);
+    session()?.setItem(activeKey(board), id);
   } catch {
     /* storage unavailable */
   }
 }
 
-export function getActivePeriod(cardId: string): number | null {
+export function getActivePeriod(cardId: string, board: BoardId = 'self'): number | null {
   try {
-    const raw = session()?.getItem(PERIOD_KEY_PREFIX + cardId);
+    const raw = session()?.getItem(periodKey(cardId, board));
     if (raw == null) return null;
     const n = Number(raw);
     return Number.isInteger(n) && n >= 0 ? n : null;
@@ -302,9 +327,9 @@ export function getActivePeriod(cardId: string): number | null {
   }
 }
 
-export function setActivePeriod(cardId: string, index: number): void {
+export function setActivePeriod(cardId: string, index: number, board: BoardId = 'self'): void {
   try {
-    if (Number.isInteger(index) && index >= 0) session()?.setItem(PERIOD_KEY_PREFIX + cardId, String(index));
+    if (Number.isInteger(index) && index >= 0) session()?.setItem(periodKey(cardId, board), String(index));
   } catch {
     /* storage unavailable */
   }

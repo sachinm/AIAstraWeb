@@ -1,7 +1,8 @@
 /** The plain line for a card that is not ready, or null when it is. With the per-card reading on, the card's own state. */
 import type { ReactNode } from 'react';
+import { selfGroupOf } from '../../../components/boardCards/cardArtRegistry';
 import LoadingVeil from '../../../components/LoadingVeil';
-import type { SelfV3CardView } from '../../../lib/selfV3Api';
+import { cardReadPending, type SelfV3CardView } from '../../../lib/selfV3Api';
 import { V2_WORDS } from '../v2/words';
 import { ReadStateBody, cardHeadline, showsReadState, type CardReading } from './CardParts';
 import { V3_WORDS } from './words';
@@ -16,7 +17,17 @@ function hasCardContent(card: SelfV3CardView): boolean {
 }
 
 export function notReadyBody(card: SelfV3CardView, veil: boolean, reading?: CardReading): ReactNode {
-  if (reading && showsReadState(card, reading)) return <ReadStateBody card={card} reading={reading} />;
+  // a card the server does not offer yet (Love and Work: "Coming soon") says so and nothing else
+  if (card.available === false)
+    return (
+      <p className="mt-3 text-[15px] text-white/75" data-testid="card-coming-soon">
+        {card.unavailableReason || V3_WORDS.comingSoon}
+      </p>
+    );
+  // a Love or Work card queued or being read again keeps the text it already has on screen (server docs/dashboards/10:
+  // on the first open of the day a card with a stored reading can be queued while its text is served). Self unchanged.
+  const keepsText = selfGroupOf(card.id) === null && cardReadPending(card.state) && hasCardContent(card);
+  if (reading && showsReadState(card, reading) && !keepsText) return <ReadStateBody card={card} reading={reading} />;
   if (card.status === 'pending') {
     return (
       <div className="relative mt-3 min-h-[120px] flex-1 overflow-hidden rounded-xl" data-testid="card-pending">

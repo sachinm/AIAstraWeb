@@ -226,12 +226,14 @@ describe('You board', () => {
     fireEvent.click(within(err).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByTestId('tone-card')).toBeInTheDocument();
   });
-  it('renders Master-Detail findings inspector, Focus/Timeframe dropdowns, Your questions tab, and top-right technique badges', async () => {
+  it('renders Master-Detail findings inspector, Focus/Timeframe dropdowns, Your questions tab, and no technique ids', async () => {
     render(<YouPage />);
     await screen.findByTestId('tone-card');
     fireEvent.click(screen.getByRole('tab', { name: 'Now' }));
-    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('self.focus');
-    expect(screen.getAllByTestId('panel-technique-badge').length).toBeGreaterThanOrEqual(4);
+    // server docs/dashboards/10 W6: no technique badge and no internal id on the page
+    expect(screen.queryByTestId('question-technique-badge')).toBeNull();
+    expect(screen.queryAllByTestId('panel-technique-badge')).toHaveLength(0);
+    expect(document.body.textContent).not.toMatch(/\b(work|love|self)\.[a-z_]+\b/);
     expect(screen.getByTestId('board-focus-dropdown')).toBeInTheDocument();
     expect(screen.getByTestId('board-timeframe-dropdown')).toBeInTheDocument();
 

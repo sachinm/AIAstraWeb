@@ -115,6 +115,16 @@ export const GROUP_ART: Record<string, { theme: ArtTheme; blurb: string; glyph: 
     blurb: 'What to build and what you might start',
     glyph: TrendingUp,
   },
+  // Love v3 lenses (server docs/dashboards/10 §4.5): each lens draws in an existing theme
+  dating: { theme: 'meeting', blurb: 'Meeting someone, and what it takes', glyph: MessageCircleHeart },
+  marriage: { theme: 'bond', blurb: 'How the two of you are, through the year', glyph: InfinityIcon },
+  friends: { theme: 'circle', blurb: 'The friends and circles around you', glyph: Users },
+  allies: { theme: 'standing', blurb: 'The people you work beside', glyph: HandHeart },
+  // Work v3 lenses
+  career_start: { theme: 'growth', blurb: 'Starting out and finding your footing', glyph: Rocket },
+  primary_job: { theme: 'standing', blurb: 'Where you stand in your job', glyph: Briefcase },
+  hobby: { theme: 'mind', blurb: 'Your craft and the things you make', glyph: Sparkles },
+  business: { theme: 'money', blurb: 'Your own venture, its clients and its money', glyph: Coins },
 };
 
 export const CARD_GLYPH: Record<string, LucideIcon> = {
@@ -213,6 +223,26 @@ export const SELF_CARD_GROUP: Record<string, string> = {
 /** the picker group of a Self card id, or null when the id is not a Self card */
 export function selfGroupOf(id: string): string | null {
   return Object.prototype.hasOwnProperty.call(SELF_CARD_GROUP, id) ? SELF_CARD_GROUP[id]! : null;
+}
+
+/** Love and Work v3 card ids carry their lens in the prefix (server docs/dashboards/10 §4.1 item 5) */
+const LENS_PREFIX: ReadonlyArray<[string, string]> = [
+  ['dating_', 'dating'],
+  ['marriage_', 'marriage'],
+  ['friends_', 'friends'],
+  ['allies_', 'allies'],
+  ['start_', 'career_start'],
+  ['job_', 'primary_job'],
+  ['craft_', 'hobby'],
+  ['biz_', 'business'],
+];
+
+/** the art group of any board's card id: a Self group, a Love/Work lens, or null for an unknown id */
+export function boardGroupOf(id: string): string | null {
+  const self = selfGroupOf(id);
+  if (self) return self;
+  for (const [prefix, lens] of LENS_PREFIX) if (id.startsWith(prefix) && id.length > prefix.length) return lens;
+  return null;
 }
 
 export function themeOf(group: string): ArtTheme {

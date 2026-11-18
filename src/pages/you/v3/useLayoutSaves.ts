@@ -5,7 +5,7 @@
 import { useEffect, useRef } from 'react';
 import type { BoardOptions, CardOptions } from '../../../lib/cardOptions';
 import { refreshSession } from '../../../lib/sessionRefresh';
-import { fetchSelfV3Layout, patchSelfV3Layout, putSelfV3LayoutResult, type SelfBoardLayoutView, type SelfCardId } from '../../../lib/selfV3Api';
+import { fetchSelfV3Layout, patchSelfV3Layout, putSelfV3LayoutResult, type BoardId, type SelfBoardLayoutView, type SelfCardId } from '../../../lib/selfV3Api';
 import { withBoardChange, withCardChange } from './boardOptions';
 import { LayoutSaver, type Deck, type SaveProblem, type SaverDeps } from './layoutSaver';
 
@@ -20,6 +20,8 @@ export interface LayoutSaves {
 
 export function useLayoutSaves(args: {
   initial: SelfBoardLayoutView;
+  /** whose layout (Self by default); Love and Work save through their own routes */
+  board?: BoardId;
   onLayout: (l: SelfBoardLayoutView) => void;
   onProblem: (p: SaveProblem) => void;
   onSaved?: () => void;
@@ -30,10 +32,11 @@ export function useLayoutSaves(args: {
   cb.current = args;
   const saver = useRef<LayoutSaver | null>(null);
   if (!saver.current) {
+    const board = args.board ?? 'self';
     saver.current = new LayoutSaver(args.initial, {
-      patch: args.deps?.patch ?? patchSelfV3Layout,
-      put: args.deps?.put ?? putSelfV3LayoutResult,
-      refetch: args.deps?.refetch ?? fetchSelfV3Layout,
+      patch: args.deps?.patch ?? ((p, v) => patchSelfV3Layout(p, v, board)),
+      put: args.deps?.put ?? ((b) => putSelfV3LayoutResult(b, board)),
+      refetch: args.deps?.refetch ?? (() => fetchSelfV3Layout(board)),
       refresh: args.deps?.refresh ?? refreshSession,
       ...(args.deps?.delay !== undefined ? { delay: args.deps.delay } : {}),
       onLayout: (l) => cb.current.onLayout(l),

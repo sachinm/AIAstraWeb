@@ -4,6 +4,7 @@ import path from 'node:path';
 import { newState, signIn, stubApi } from './stubApi';
 import { LOVE_BOARD, WORK_MAP } from './boardFixtures';
 import { selfV3Fixture, selfV3Unchosen } from '../src/pages/you/v3/selfV3.fixture';
+import { boardV3Fixture } from '../src/pages/board/v3/boardV3.fixture';
 
 /**
  * The designed card picker and card options (server docs/reading-engine/71). Stubbed API, no real data. Screens saved
@@ -73,6 +74,8 @@ async function stubBoards(page: Page) {
     self = { ...full, layout: { ...full.layout, ...body, chosen: true } };
     return json(r, self.layout);
   });
+  // Love and Work v3 off (server docs/dashboards/10): the legacy boards below; the v3 test overrides this
+  await page.route('**/api/board/*/v3', (r) => json(r, { error: 'board_v3_off' }, 404));
   await page.route('**/api/board/*/v3/catalogue', (r) => json(r, r.request().url().includes('/love/') ? LOVE_CAT : WORK_CAT));
   await page.route('**/api/board/*/v3/layout', (r) => {
     const b = r.request().url().includes('/love/') ? 'love' : 'work';
@@ -167,3 +170,33 @@ for (const theme of ['dark', 'light'] as const) {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 }
+
+// server docs/dashboards/10 W7: the Love board on v3, with its lenses (stubbed, no real data)
+test('Love v3: lens switcher, cards by lens, no internal ids', async ({ page }, info) => {
+  const dir = path.join(ROOT, info.project.name);
+  mkdirSync(dir, { recursive: true });
+  await stubApi(page, newState({ used: 3 }));
+  await stubBoards(page);
+  let love = boardV3Fixture('love');
+  await page.route('**/api/board/love/v3', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(love) }));
+  await page.route('**/api/board/love/v3/layout', (r) => {
+    const p = r.request().postDataJSON().patch ?? {};
+    love = { ...love, layout: { ...love.layout, cards: p.cards ?? love.layout.cards, boardOptions: p.boardOptions ?? {}, version: (love.layout.version ?? 0) + 1 } };
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...love.layout, reading: { queued: [] } }) });
+  });
+  await signIn(page);
+  await page.goto('/dashboard/love');
+  await expect(page.getByTestId('self-v3-chips')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('self-v3-chip-dating_pulse')).toBeVisible();
+  await page.screenshot({ path: path.join(dir, '40-love-v3-dating.png') });
+  if (info.project.name === 'phone') {
+    await page.getByTestId('self-phone-title').click();
+    await page.getByTestId('lens-option-marriage').click();
+  } else await page.getByTestId('lens-marriage').click();
+  await expect(page.getByTestId('self-v3-chip-marriage_pulse')).toBeVisible();
+  await expect(page.getByTestId('self-v3-chip-dating_pulse')).toBeHidden();
+  await page.screenshot({ path: path.join(dir, '41-love-v3-marriage.png') });
+  const text = (await page.locator('body').textContent())!;
+  expect(text).not.toMatch(/\b(work|love|self)\.[a-z_]+\b/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+});

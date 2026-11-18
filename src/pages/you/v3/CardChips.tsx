@@ -57,7 +57,14 @@ export default function CardChips({
   error = null,
   canAdd = true,
   action = null,
+  minCards = MIN_CARDS,
+  editHint = V3_WORDS.editHint,
+  label = 'Your cards',
 }: {
+  /** the fewest chips edit mode keeps (Self three; Love and Work one per lens) */
+  minCards?: number;
+  editHint?: string;
+  label?: string;
   cards: SelfCardId[];
   titles: Partial<Record<SelfCardId, string>>;
   activeId: SelfCardId | null;
@@ -103,13 +110,13 @@ export default function CardChips({
     setDragId(null);
   };
 
-  const canRemove = cards.length > MIN_CARDS;
+  const canRemove = cards.length > minCards;
   return (
     <div className="flex min-w-0 flex-col gap-1.5" data-testid="self-v3-chips-row">
       <div className="flex min-w-0 items-center gap-3">
         <div
           role={editing ? 'list' : 'group'}
-          aria-label="Your cards"
+          aria-label={label}
           className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0.5 [scrollbar-width:none]"
           data-testid="self-v3-chips"
           data-editing={editing ? 'true' : 'false'}
@@ -182,7 +189,7 @@ export default function CardChips({
           </div>
         )}
       </div>
-      {editing && <p className="text-xs text-white/55">{V3_WORDS.editHint}</p>}
+      {editing && <p className="text-xs text-white/55">{editHint}</p>}
       {error && (
         <p role="alert" className="flex flex-wrap items-center gap-x-3 text-sm text-rose-300" data-testid="chips-error">
           {error}
