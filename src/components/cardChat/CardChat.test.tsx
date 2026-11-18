@@ -1,0 +1,296 @@
+/**
+ * The card's Chat view (server docs/reading-engine/85): the preamble comes from the open response, the input sits at the
+ * card's foot, a send carries the card, a turnId and the thread's chatId, Try again reuses the turnId, the mic dictates
+ * into the box (and is disabled where the browser has no speech recognition), the clarifier's chips show inside the card,
+ * and a 402 keeps the question in the box.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import CardChat from './CardChat';
+import { createCardChatStore, type CardChatStore } from './cardChatStore';
+import type { CardChatRef } from '../../lib/cardChatApi';
+
+type Call = { method: string; url: string; body?: Record<string, unknown> };
+let calls: Call[];
+let askReplies: Array<() => Response>;
+let openBody: unknown;
+
+const sse = (events: unknown[]) => new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(''), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+const answered = (text: string, chatId = 'c-1') => () => sse([{ type: 'card', title: 'Body & energy', periodLabel: 'Heavy stretch' }, { type: 'token', delta: text }, { type: 'done', answer: text, chatId }]);
+
+const REF: CardChatRef = { board: 'self', cardId: 'body', from: '2026-11-01', to: '2027-06-03' };
+
+beforeEach(() => {
+  localStorage.setItem('token', 't');
+  calls = [];
+  askReplies = [];
+  openBody = {
+    card: { board: 'self', id: 'body', title: 'Body & energy' },
+    period: { from: '2026-11-01', to: '2027-06-03', label: 'Heavy stretch · to 3 Jun 2027' },
+    preamble: { headline: 'Pace yourself this winter.', lines: ['Rest comes first until March.', 'Short walks help most.'], keyDates: [] },
+    cost: { uses: 1, remaining: 7 },
+    thread: { chatId: 'c-1', messages: [{ question: 'Will my energy come back?', answer: 'Slowly, from March.', at: '2026-11-17T10:00:00Z', periodLabel: 'Heavy stretch' }] },
+  };
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init: RequestInit = {}) => {
+      const method = (init.method ?? 'GET').toUpperCase();
+      const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
+      const u = String(url);
+      calls.push({ method, url: u, body });
+      if (u.includes('/api/cards/') && method === 'GET') return new Response(JSON.stringify(openBody), { status: 200 });
+      if (u.endsWith('/api/chat/ask-stream')) return (askReplies.shift() ?? answered('An answer.'))();
+      if (u.endsWith('/api/chat/answer')) return new Response(JSON.stringify({ type: 'ready', runId: 'run-1' }), { status: 200 });
+      if (u.endsWith('/api/chat/confirm-stream')) return answered('After the question, the reading.')();
+      return new Response(null, { status: 404 });
+    }),
+  );
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  localStorage.clear();
+  delete (window as unknown as Record<string, unknown>).SpeechRecognition;
+  delete (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
+});
+
+function mount(store: CardChatStore = createCardChatStore(), onBack = vi.fn()) {
+  const r = render(<CardChat store={store} chatRef={REF} periodLabel="Heavy stretch · to 3 Jun 2027" onBack={onBack} />);
+  return { store, onBack, ...r };
+}
+
+const asks = () => calls.filter((c) => c.url.endsWith('/api/chat/ask-stream'));
+const type = (text: string) => fireEvent.change(screen.getByTestId('card-chat-textarea'), { target: { value: text } });
+
+describe('opening', () => {
+  it('asks the server for the card and its period, and draws the preamble from the response', async () => {
+    mount();
+    expect(await screen.findByTestId('card-chat-headline')).toHaveTextContent('Pace yourself this winter.');
+    const open = calls.find((c) => c.url.includes('/api/cards/'))!;
+    expect(open.url).toBe('/api/cards/self/body/chat?from=2026-11-01&to=2027-06-03');
+    expect(screen.getByTestId('card-chat-preamble')).toHaveTextContent('Rest comes first until March.');
+    // collapsed to the first line; More shows the rest
+    expect(screen.getByTestId('card-chat-preamble')).not.toHaveTextContent('Short walks help most.');
+    fireEvent.click(screen.getByTestId('card-chat-more'));
+    expect(screen.getByTestId('card-chat-preamble')).toHaveTextContent('Short walks help most.');
+    // the stored thread
+    expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('Will my energy come back?');
+    expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('Slowly, from March.');
+  });
+
+  it('accepts a plain-string preamble and a cost line the server writes', async () => {
+    openBody = { preamble: 'One line.\nAnother line.', period: null, costLine: 'Uses 1 of your 3 questions', thread: { chatId: null, messages: [] } };
+    mount();
+    expect(await screen.findByTestId('card-chat-headline')).toHaveTextContent('One line.');
+    expect(screen.getByTestId('card-chat-cost')).toHaveTextContent('Uses 1 of your 3 questions');
+  });
+
+  it('a card the server will not chat about says so in plain words', async () => {
+    (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(async () => new Response(JSON.stringify({ error: 'card_not_on_board' }), { status: 404 }));
+    mount();
+    const failed = await screen.findByTestId('card-chat-open-failed');
+    expect(failed).toHaveTextContent('Chat is not available for this card.');
+    expect(failed.textContent).not.toMatch(/card_not_on_board/);
+    expect(screen.getByTestId('card-chat-textarea')).toBeDisabled();
+  });
+
+  it('shows the cost line before sending', async () => {
+    mount();
+    expect(await screen.findByTestId('card-chat-cost')).toHaveTextContent('Uses 1 of your 7 questions');
+  });
+
+  it('a failed open says so in the card, never the server code, and Retry opens again', async () => {
+    let n = 0;
+    (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (url: string, init: RequestInit = {}) => {
+      calls.push({ method: (init.method ?? 'GET').toUpperCase(), url: String(url) });
+      n += 1;
+      return n === 1 ? new Response(JSON.stringify({ error: 'resolver_exploded' }), { status: 500 }) : new Response(JSON.stringify(openBody), { status: 200 });
+    });
+    mount();
+    const failed = await screen.findByTestId('card-chat-open-failed');
+    expect(failed).toHaveTextContent('This chat did not open.');
+    expect(failed.textContent).not.toMatch(/resolver_exploded|500|body/);
+    fireEvent.click(screen.getByTestId('card-chat-reopen'));
+    expect(await screen.findByTestId('card-chat-headline')).toBeInTheDocument();
+  });
+});
+
+describe('the input', () => {
+  it('is anchored at the card bottom: the thread scrolls above it and the bar is the last part of the chat', async () => {
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    const chat = screen.getByTestId('card-chat');
+    const bar = screen.getByTestId('card-chat-input-bar');
+    expect(chat.lastElementChild).toBe(bar);
+    expect(bar).toHaveAttribute('data-anchor', 'card-bottom');
+    expect(bar.className).toMatch(/shrink-0/);
+    const thread = screen.getByTestId('card-chat-thread');
+    expect(thread.className).toMatch(/overflow-y-auto/);
+    expect(thread.className).toMatch(/flex-1/);
+    expect(within(bar).getByTestId('card-chat-textarea')).toBeInTheDocument();
+    expect(within(bar).getByTestId('card-chat-mic')).toBeInTheDocument();
+    expect(within(bar).getByTestId('card-chat-send')).toBeInTheDocument();
+  });
+
+  it('a send posts the card, a turnId and the thread chatId, and the answer streams into the card', async () => {
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('When does it lift?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('An answer.'));
+    expect(asks()).toHaveLength(1);
+    const body = asks()[0]!.body!;
+    expect(body).toMatchObject({ question: 'When does it lift?', chatId: 'c-1', card: { board: 'self', cardId: 'body', from: '2026-11-01', to: '2027-06-03' } });
+    expect(body.turnId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(body).not.toHaveProperty('focus');
+    expect(screen.getByTestId('card-chat-textarea')).toHaveValue('');
+  });
+
+  it('Enter sends, Shift+Enter does not', async () => {
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('One?');
+    fireEvent.keyDown(screen.getByTestId('card-chat-textarea'), { key: 'Enter', shiftKey: true });
+    expect(asks()).toHaveLength(0);
+    await act(async () => {
+      fireEvent.keyDown(screen.getByTestId('card-chat-textarea'), { key: 'Enter' });
+    });
+    await waitFor(() => expect(asks()).toHaveLength(1));
+  });
+
+  it('Try again reuses the turnId; a new question gets a new one', async () => {
+    askReplies = [() => new Response(null, { status: 500 }), answered('Now it went.'), answered('Second answer.')];
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('When does it lift?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    const failed = await screen.findByTestId('card-chat-turn-failed');
+    expect(failed).toHaveTextContent('That did not go through.');
+    expect(failed.textContent).not.toMatch(/500|failed \(/);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-try-again'));
+    });
+    await waitFor(() => expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('Now it went.'));
+    expect(asks()).toHaveLength(2);
+    expect(asks()[1]!.body!.turnId).toBe(asks()[0]!.body!.turnId);
+    expect(asks()[1]!.body!.question).toBe('When does it lift?');
+    type('And after that?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(asks()).toHaveLength(3));
+    expect(asks()[2]!.body!.turnId).not.toBe(asks()[0]!.body!.turnId);
+  });
+
+  it('a 402 keeps the question in the box and shows the plan line', async () => {
+    askReplies = [() => new Response(JSON.stringify({ error: 'quota_exhausted', usage: { remaining: 0, exempt: false } }), { status: 402 })];
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('Will it lift?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    expect(await screen.findByTestId('card-chat-quota')).toBeInTheDocument();
+    expect(screen.getByTestId('card-chat-textarea')).toHaveValue('Will it lift?');
+    expect(screen.queryAllByTestId('card-chat-question').map((q) => q.textContent)).not.toContain('You: Will it lift?');
+  });
+
+  it('the clarifier asks inside the card; its answer leads to the reading through confirm', async () => {
+    askReplies = [
+      () =>
+        sse([
+          { type: 'card', title: 'Body & energy' },
+          { type: 'clarify', runId: 'run-1', question: 'Which part of your health?', chips: [{ label: 'Sleep', value: 'sleep' }], allowFreeText: false },
+          { type: 'done', status: 'clarifying', runId: 'run-1' },
+        ]),
+    ];
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('Health?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    const clarify = await screen.findByTestId('card-chat-clarify');
+    expect(clarify).toHaveTextContent('Which part of your health?');
+    await act(async () => {
+      fireEvent.click(clarify.querySelector('[data-test-id="clarify-chip"]')!);
+    });
+    await waitFor(() => expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('After the question, the reading.'));
+    const confirm = calls.find((c) => c.url.endsWith('/api/chat/confirm-stream'))!;
+    expect(confirm.body).toMatchObject({ runId: 'run-1' });
+  });
+
+  it('Esc goes back to the card', async () => {
+    const { onBack } = mount();
+    await screen.findByTestId('card-chat-headline');
+    fireEvent.keyDown(screen.getByTestId('card-chat-textarea'), { key: 'Escape' });
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the mic', () => {
+  it('is disabled with a short reason where the browser has no speech recognition', async () => {
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    const mic = screen.getByTestId('card-chat-mic');
+    expect(mic).toBeDisabled();
+    expect(mic).toHaveAttribute('aria-label', 'Microphone unavailable');
+    expect(mic.getAttribute('title')).toMatch(/does not work in this browser/);
+    expect(screen.getByTestId('card-chat-mic-reason')).toHaveTextContent('Microphone unavailable');
+  });
+
+  it('dictates into the box after what was typed, and nothing is sent until Send', async () => {
+    const made: Array<{ onresult?: (e: unknown) => void; start: () => void }> = [];
+    class FakeRecognition {
+      continuous = false;
+      interimResults = false;
+      lang = '';
+      maxAlternatives = 1;
+      onresult?: (e: unknown) => void;
+      onend?: () => void;
+      onerror?: () => void;
+      constructor() {
+        made.push(this);
+      }
+      start() {}
+      stop() {}
+      abort() {}
+    }
+    (window as unknown as Record<string, unknown>).SpeechRecognition = FakeRecognition;
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('About sleep:');
+    const mic = screen.getByTestId('card-chat-mic');
+    expect(mic).not.toBeDisabled();
+    fireEvent.click(mic);
+    expect(await screen.findByTestId('card-chat-listening')).toHaveTextContent('Listening');
+    act(() => {
+      made[made.length - 1]!.onresult!({ results: [[{ transcript: 'when will it get better' }]] });
+    });
+    expect(screen.getByTestId('card-chat-textarea')).toHaveValue('About sleep: when will it get better');
+    expect(asks()).toHaveLength(0);
+  });
+});
+
+describe('the store keeps the thread', () => {
+  it('a second mount (back to Read, then Chat again) shows the turns without a new open', async () => {
+    const store = createCardChatStore();
+    const first = mount(store);
+    await screen.findByTestId('card-chat-headline');
+    type('Kept?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('An answer.'));
+    first.unmount();
+    const opens = calls.filter((c) => c.url.includes('/api/cards/')).length;
+    mount(store);
+    expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('Kept?');
+    expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('An answer.');
+    expect(calls.filter((c) => c.url.includes('/api/cards/'))).toHaveLength(opens);
+  });
+});

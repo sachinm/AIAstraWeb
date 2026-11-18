@@ -4,6 +4,7 @@ import { buildApiHeaders } from '../lib/apiHeaders';
 import { announceAiUnavailable } from '../lib/aiStatus';
 import { QuotaExhaustedError, type PlanStatus } from '../lib/billing';
 import type { ReadingStreamEvent } from './chat-interface/readingProgress';
+import type { CardChatWire } from '../lib/cardChatApi';
 
 /**
  * Server `ask` runs LLM; short client timeouts abort while the server may still succeed.
@@ -96,8 +97,8 @@ async function consumeChatAskSse(
         if (ev.code === 'quota_exhausted') throw new QuotaExhaustedError((ev.usage as PlanStatus | undefined) ?? null, ev.message);
         if (ev.code === 'ai_unavailable') announceAiUnavailable();
         throw new Error(ev.message || 'Stream error');
-      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'next') {
-        // reading-engine progress; older servers never send these
+      } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'next' || ev.type === 'card') {
+        // reading-engine progress (and the card chat's opening `card` event); older servers never send these
         onEvent?.(ev as ReadingStreamEvent);
       }
     }
@@ -170,6 +171,10 @@ export const sendChatMessageStream = async (
     focus?: { subject: string; parts: string[] };
     /** Where the question is asked (prashna chart); omitted means the server uses the birth place. */
     location?: QuestionLocationFields | null;
+    /** A question about one card (server docs/reading-engine/85): the card and its period; never sent with `focus`. */
+    card?: CardChatWire;
+    /** The card chat's send id: a retry of the same send reuses it, so it is charged once. */
+    turnId?: string;
   }
 ): Promise<StreamResult> => {
   return postChatSse(
@@ -178,7 +183,9 @@ export const sendChatMessageStream = async (
       question,
       chatId: chatId ?? null,
       ...(options?.clarify ? { clarify: true } : {}),
-      ...(options?.focus ? { focus: options.focus.subject, parts: options.focus.parts } : {}),
+      ...(options?.focus && !options?.card ? { focus: options.focus.subject, parts: options.focus.parts } : {}),
+      ...(options?.card ? { card: options.card } : {}),
+      ...(options?.turnId ? { turnId: options.turnId } : {}),
       ...locationFields(options?.location),
     },
     onDelta,
