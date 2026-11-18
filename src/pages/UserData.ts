@@ -198,8 +198,8 @@ export const sendChatMessageStream = async (
       question,
       // a card question sends its thread's chatId only when it has one (server docs/reading-engine/85)
       ...(options?.card && !chatId ? {} : { chatId: chatId ?? null }),
-      // card questions are answered directly: the clarifier never runs on them
-      ...(options?.clarify && !options?.card ? { clarify: true } : {}),
+      // a card's first question goes through the clarifier, pre-filled from the card (server docs/reading-engine/85)
+      ...(options?.clarify ? { clarify: true } : {}),
       ...(options?.focus && !options?.card ? { focus: options.focus.subject, parts: options.focus.parts } : {}),
       ...(options?.card ? { card: options.card } : {}),
       ...(options?.turnId ? { turnId: options.turnId } : {}),

@@ -105,7 +105,8 @@ describe('personalization wizard', () => {
     await screen.findByTestId('step-dashboards');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Love' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Dating & romance' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Lucky times' }));
+    // Lucky times is ticked by default (Sachin, 2026-11-18): left as it is
+    expect(screen.getByRole('checkbox', { name: 'Lucky times' })).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
@@ -145,7 +146,7 @@ describe('personalization wizard', () => {
     expect(screen.queryByTestId('header-wizard-modal')).not.toBeInTheDocument();
   });
 
-  it('the dashboards step ticks Self, Love and Career by default, keeps one ticked, and the menus follow at once', async () => {
+  it('the dashboards step ticks Self, Love, Career and Lucky times by default, keeps one ticked, and the menus follow at once', async () => {
     render(
       <MemoryRouter>
         <WelcomeWizard onFinish={() => undefined} />
@@ -156,10 +157,11 @@ describe('personalization wizard', () => {
     await screen.findByTestId('step-dashboards');
     expect(screen.getByText('Which dashboards do you want to see?')).toBeInTheDocument();
     const ticked = () => screen.getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked).map((c) => c.closest('label')!.textContent);
-    expect(ticked()).toEqual(['Self', 'Love', 'Career']);
+    expect(ticked()).toEqual(['Self', 'Love', 'Career', 'Lucky times']);
     expect(screen.getAllByRole('checkbox')).toHaveLength(12);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Self' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Love' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Lucky times' }));
     expect(screen.getByRole('checkbox', { name: 'Career' })).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Career' }));
     expect(ticked()).toEqual(['Career']);

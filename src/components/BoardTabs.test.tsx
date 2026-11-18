@@ -19,12 +19,13 @@ describe('board tabs (server docs/reading-engine/45 §4, 54 §3)', () => {
     const you = screen.getByRole('link', { name: 'You' });
     expect(you).toHaveAttribute('href', '/dashboard/you');
     expect(screen.getByRole('link', { name: 'Love' })).toHaveAttribute('href', '/dashboard/love');
-    // Lucky times is not in the default portal list (server docs/dashboards/11)
-    expect(screen.queryByRole('link', { name: 'Happy Hour(s)' })).toBeNull();
-    act(() => setPortalDashboards(['self', 'love', 'work', 'lucky']));
+    // Lucky times is in the default portal list (server docs/dashboards/11; Sachin, 2026-11-18)
     const happy = screen.getByRole('link', { name: 'Happy Hour(s)' });
     expect(happy).toHaveAttribute('href', '/dashboard/lucky');
     expect(happy).toHaveClass('md:hidden');
+    // a person who unticks it loses the link
+    act(() => setPortalDashboards(['self', 'love', 'work']));
+    expect(screen.queryByRole('link', { name: 'Happy Hour(s)' })).toBeNull();
   });
   it('the side rail shows only the chosen dashboards; focused ones open their board on their lens', () => {
     setPortalDashboards(['love', 'dating', 'business']);

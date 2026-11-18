@@ -1,6 +1,7 @@
 /**
  * Which dashboards the person's portal shows (server docs/dashboards/11): the profile fact `portal.dashboards`, a
- * comma list of ids, chosen in the personalization wizard. Unanswered (or unreadable) means Self, Love and Career.
+ * comma list of ids, chosen in the personalization wizard. Unanswered (or unreadable) means Self, Love, Career and Lucky
+ * times (Sachin, 2026-11-18: Lucky times is ticked by default, so the Happy Hour(s) link shows until the person unticks it).
  * The side menu, the board tab bar and the header's Happy Hour(s) link read it through `usePortalDashboards`; a board
  * that is not chosen stays reachable by its URL, it is only left out of the menus.
  *
@@ -16,8 +17,8 @@ export const PORTAL_FACT = 'portal.dashboards';
 export const PORTAL_DASHBOARD_IDS = ['self', 'love', 'work', 'lucky', 'dating', 'marriage', 'friends', 'allies', 'career_start', 'primary_job', 'hobby', 'business'] as const;
 export type PortalDashboardId = (typeof PORTAL_DASHBOARD_IDS)[number];
 
-/** shown to a person who has not chosen */
-export const DEFAULT_PORTAL_DASHBOARDS: readonly PortalDashboardId[] = ['self', 'love', 'work'];
+/** shown to a person who has not chosen, and the wizard's default ticks */
+export const DEFAULT_PORTAL_DASHBOARDS: readonly PortalDashboardId[] = ['self', 'love', 'work', 'lucky'];
 
 export const PORTAL_DASHBOARD_LABELS: Record<PortalDashboardId, string> = {
   self: 'Self',

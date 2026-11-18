@@ -8,9 +8,14 @@
  *   a plain-string preamble and a top-level `costLine`, and drops anything it does not know.
  * - Send: `POST /api/chat/ask-stream` with `{question, card {board, cardId, from?, to?}, turnId, chatId?}`. `turnId` is
  *   one uuid per send; a retry of the same send reuses it (an answered one replays, `done.replay`), so it is charged
- *   once. No `clarify`: the server answers every card question directly. The SSE stream: `turn_init`, `card`, `start`,
- *   `usage`, `token`..., `done {chatId, answer, card, usage?}`; `error {code?, message, usage?}`; a declined topic is
- *   `info {reason:'declined'}`, a token and `done`.
+ *   once. The SSE stream: `turn_init`, `card`, `start`, `usage`, `token`..., `done {chatId, answer, card, usage?}`;
+ *   `error {code?, message, usage?}`; a declined topic is `info {reason:'declined'}`, a token and `done`.
+ * - Clarify (Sachin, 2026-11-18): the thread's first question also sends `clarify: true`. The server runs Clarify
+ *   pre-filled from the card (its area, the period on screen), so it asks only a missing fact: `turn_init`, `card`,
+ *   `clarify {type:'start'}`, `clarify {type:'clarify', runId, criterion, question, chips, allowFreeText}`, then `done
+ *   {status:'clarifying', runId}`; nothing is charged. `POST /api/chat/answer` gives the next `clarify` or `{type:'ready'}`,
+ *   and `POST /api/chat/confirm-stream {runId, chatId}` streams the answer as a send does (the server keeps the card and
+ *   the first send's turnId on the clarify run). Nothing to ask: the answer streams at once. Follow-ups never send it.
  * - Errors are mapped on the server's `error` / `code` string (`problemOf`), on the status only when there is none.
  *
  * The web never sends the card's text: the server reads the stored card again. Nothing here is shown to the person
