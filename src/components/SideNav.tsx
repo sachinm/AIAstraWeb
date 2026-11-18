@@ -171,10 +171,14 @@ export default function SideNav() {
               key={id}
               to={to}
               end
-              title={open ? undefined : label}
+              title={label}
               aria-label={label}
               data-testid={`side-nav-focused-${id}`}
-              onClick={() => track('tab_select', 'sidenav', id)}
+              onClick={() => {
+                track('tab_select', 'sidenav', id);
+                // on the same board only the search changes, which does not close the phone drawer by itself
+                setDrawer?.(false);
+              }}
               className={() => item({ isActive: focusedActive(to, pathname, search) })}
             >
               <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />

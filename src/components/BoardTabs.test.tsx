@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useEffect } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import BoardTabBar from './BoardTabBar';
-import SideNav, { SIDE_TABS, focusedActive } from './SideNav';
+import SideNav, { SIDE_TABS, SideNavProvider, focusedActive, useLeftRail } from './SideNav';
 import { resetPortalDashboards, setPortalDashboards } from '../lib/portalDashboards';
 
 afterEach(() => resetPortalDashboards());
@@ -40,7 +41,27 @@ describe('board tabs (server docs/reading-engine/45 §4, 54 §3)', () => {
     expect(screen.getByTestId('side-nav-focused-dating').className).toContain('bg-white/15');
     expect(screen.getByTestId('side-nav-focused-business').className).not.toContain('bg-white/15');
   });
-  it('a focused entry is active only on its own lens', () => {
+  it('a focused entry on the board already open closes the phone drawer', () => {
+    setPortalDashboards(['love', 'marriage']);
+    const OpenDrawer = () => {
+      const rail = useLeftRail();
+      useEffect(() => rail?.setDrawer(true), []); // eslint-disable-line react-hooks/exhaustive-deps
+      return null;
+    };
+    render(
+      <MemoryRouter initialEntries={['/dashboard/love']}>
+        <SideNavProvider>
+          <SideNav />
+          {/* after SideNav: its first-render "page changed" close runs first */}
+          <OpenDrawer />
+        </SideNavProvider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('side-nav')).toHaveAttribute('data-drawer', 'true');
+    fireEvent.click(screen.getByTestId('side-nav-focused-marriage'));
+    expect(screen.getByTestId('side-nav')).toHaveAttribute('data-drawer', 'false');
+  });
+    it('a focused entry is active only on its own lens', () => {
     expect(focusedActive('/dashboard/love?lens=dating', '/dashboard/love', '?lens=dating')).toBe(true);
     expect(focusedActive('/dashboard/love?lens=dating', '/dashboard/love', '?lens=marriage')).toBe(false);
     expect(focusedActive('/dashboard/love?lens=dating', '/dashboard/love', '')).toBe(false);
