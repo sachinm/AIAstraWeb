@@ -6,7 +6,7 @@
  * card itself, so this picker does not show them.
  */
 import BoardCardPicker from '../../../components/boardCards/BoardCardPicker';
-import { MIN_CARDS, MIN_READING_CARDS, SELF_CARD_GROUPS, SUGGESTED_COUNT, type SelfCardId, type SelfV3CardView } from '../../../lib/selfV3Api';
+import { MIN_CARDS, MIN_READING_CARDS, SELF_CARD_GROUPS, SUGGESTED_COUNT, type BoardId, type SelfCardId, type SelfV3CardView } from '../../../lib/selfV3Api';
 import { V3_WORDS } from './words';
 
 export default function Picker({
@@ -17,7 +17,20 @@ export default function Picker({
   onDone,
   onCancel,
   readingOn = false,
+  board = 'self',
+  groups = SELF_CARD_GROUPS,
+  title = V3_WORDS.pickerTitle,
+  lead = V3_WORDS.pickerLead,
+  minCards = MIN_CARDS,
+  minReadingCards = MIN_READING_CARDS,
 }: {
+  /** Love and Work (server docs/dashboards/10 W4): the board, its lenses as groups, its own words and minimums */
+  board?: BoardId;
+  groups?: ReadonlyArray<{ id: string; title: string }>;
+  title?: string;
+  lead?: string;
+  minCards?: number;
+  minReadingCards?: number;
   cards: SelfV3CardView[];
   /** the cards ticked when the picker opens: none on a first visit, the person's own from the `+` chip */
   initial: SelfCardId[];
@@ -30,24 +43,26 @@ export default function Picker({
   readingOn?: boolean;
 }) {
   const note = (picked: string[]) =>
-    picked.length < MIN_CARDS
-      ? V3_WORDS.needThree(picked.length)
-      : readingOn && picked.length < MIN_READING_CARDS
+    picked.length < minCards
+      ? minCards === MIN_CARDS
+        ? V3_WORDS.needThree(picked.length)
+        : V3_WORDS.needOne
+      : readingOn && picked.length < minReadingCards
         ? V3_WORDS.addFive
         : picked.length > SUGGESTED_COUNT
           ? V3_WORDS.moreThanEight
           : '';
   return (
     <BoardCardPicker
-      board="self"
-      title={V3_WORDS.pickerTitle}
-      lead={V3_WORDS.pickerLead}
-      groups={SELF_CARD_GROUPS}
+      board={board}
+      title={title}
+      lead={lead}
+      groups={groups}
       cards={cards}
       initial={initial}
       busy={busy}
       error={error}
-      minCards={MIN_CARDS}
+      minCards={minCards}
       suggestedCount={SUGGESTED_COUNT}
       addSuggestedLabel={V3_WORDS.addSuggested}
       note={note}

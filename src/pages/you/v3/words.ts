@@ -75,6 +75,10 @@ export const V3_WORDS = {
   stageCards: (done: number, total: number) => `Writing your cards · ${done} of ${total}`,
   chartPreparing: 'Your chart is still being prepared. Back in a few minutes.',
   addFive: 'Add at least five cards to start your reading.',
+  comingSoon: 'Coming soon',
+  needOne: 'Pick at least one card.',
+  boardPickerLead: 'Choose what you want to see. Your starters are ticked. You can change them any time.',
+  editHintOne: 'Drag a chip to move it, or use the arrows. Keep at least one.',
 } as const;
 
 export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'>, string> = {

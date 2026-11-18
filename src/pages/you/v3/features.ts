@@ -6,7 +6,7 @@
  * A server that does not send `features` yet gets the foundation set: every card it offers, Read and Short, periods,
  * key dates, "Is this right?" and Why; the card chat, voice and Compact stay off until the server lists them.
  */
-import type { SelfCardId, SelfV3CardView, SelfV3Response } from '../../../lib/selfV3Api';
+import type { BoardId, SelfCardId, SelfV3CardView, SelfV3Response } from '../../../lib/selfV3Api';
 
 export type FeatureKey =
   | 'feature.face.short'
@@ -23,7 +23,8 @@ const FOUNDATION: ReadonlySet<FeatureKey> = new Set<FeatureKey>(['feature.face.s
 
 export type FeatureState = { on: true } | { on: false; locked: false } | { on: false; locked: true; minPlan: string };
 
-export const cardKey = (id: SelfCardId | string) => `card.self.${id}`;
+/** a card's feature key: `card.self.body`, `card.love.dating_pulse`, `card.work.job_pulse` */
+export const cardKey = (id: SelfCardId | string, board: BoardId = 'self') => `card.${board}.${id}`;
 
 export function featureState(board: Pick<SelfV3Response, 'features'> | null | undefined, key: string): FeatureState {
   const f = board?.features;
@@ -39,11 +40,11 @@ export function featureState(board: Pick<SelfV3Response, 'features'> | null | un
 export const featureOn = (board: Pick<SelfV3Response, 'features'> | null | undefined, key: string): boolean => featureState(board, key).on;
 
 /** a card on the board: shown, shown locked ("Part of Plus"), or not shown at all */
-export function cardAccess(board: Pick<SelfV3Response, 'features'> | null | undefined, id: SelfCardId): 'on' | 'locked' | 'off' {
+export function cardAccess(board: Pick<SelfV3Response, 'features'> | null | undefined, id: SelfCardId, boardId: BoardId = 'self'): 'on' | 'locked' | 'off' {
   const f = board?.features;
   // a list that names no cards at all switches no card
   if (f && Array.isArray(f.allowed) && !f.allowed.some((k) => k.startsWith('card.')) && !f.locked?.some((l) => l.key.startsWith('card.'))) return 'on';
-  const s = featureState(board, cardKey(id));
+  const s = featureState(board, cardKey(id, boardId));
   return s.on ? 'on' : s.locked ? 'locked' : 'off';
 }
 

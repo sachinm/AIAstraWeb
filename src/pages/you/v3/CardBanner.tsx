@@ -9,17 +9,17 @@
  */
 import type { CSSProperties } from 'react';
 import CardArt from '../../../components/boardCards/CardArt';
-import { selfGroupOf } from '../../../components/boardCards/cardArtRegistry';
+import { boardGroupOf, themeOf } from '../../../components/boardCards/cardArtRegistry';
 
-/** the card's picker group (its colour family), or null for an id that is not a Self card */
+/** the card's picker group or lens (its colour family), or null for an id no board knows */
 export function cardGroupOf(cardId: string): string | null {
-  return selfGroupOf(cardId);
+  return boardGroupOf(cardId);
 }
 
-/** `card-grp-<group>`: sets the card's --art-* colours on an element (a chip, a card), or '' for an unknown id */
+/** `card-grp-<theme>`: sets the card's --art-* colours on an element (a chip, a card), or '' for an unknown id */
 export function cardGroupClass(cardId: string): string {
-  const g = selfGroupOf(cardId);
-  return g ? `card-grp-${g}` : '';
+  const g = boardGroupOf(cardId);
+  return g ? `card-grp-${themeOf(g)}` : '';
 }
 
 /**
@@ -40,7 +40,7 @@ export function CardBanner({
   medallion = true,
 }: {
   cardId: string;
-  board?: 'self';
+  board?: 'self' | 'love' | 'work';
   /** px; omit for the responsive default (72, or 56 on a short window) */
   height?: number;
   /** the board-wide "turn animation" setting; false stops the backdrop drift */
@@ -49,7 +49,7 @@ export function CardBanner({
   /** the glyph medallion at the left (default on); the card's title can sit beside it on `.card-banner-ink` */
   medallion?: boolean;
 }) {
-  const group = selfGroupOf(cardId);
+  const group = boardGroupOf(cardId);
   if (!group) return null;
   const style: CSSProperties | undefined = height ? { height } : undefined;
   return (
@@ -69,7 +69,7 @@ export function CardBanner({
 
 /** A small square of the card's art for the chips row (default 28 px). */
 export function CardThumb({ cardId, size = 28 }: { cardId: string; size?: number }) {
-  const group = selfGroupOf(cardId);
+  const group = boardGroupOf(cardId);
   if (!group) return null;
   return (
     <CardArt

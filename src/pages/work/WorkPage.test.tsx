@@ -121,10 +121,13 @@ describe('Work board', () => {
     render(<WorkPage />);
     expect(await screen.findByText('The Work board is coming soon.')).toBeInTheDocument();
   });
-  it('renders 3-decade Work evolution, Vocation Blueprint with 4 career choices, technique badges, and Master-Detail questions inspector', async () => {
+  it('renders 3-decade Work evolution, Vocation Blueprint with 4 career choices, no technique ids, and Master-Detail questions inspector', async () => {
     render(<WorkPage />);
     await screen.findByTestId('tone-card');
-    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('work.status');
+    // server docs/dashboards/10 W6: no technique badge and no internal id on the page
+    expect(screen.queryByTestId('question-technique-badge')).toBeNull();
+    expect(screen.queryAllByTestId('panel-technique-badge')).toHaveLength(0);
+    expect(screen.getByTestId('work-page').textContent).not.toMatch(/\b(work|love|self)\.[a-z_]+\b/);
     expect(screen.getByTestId('work-character-arc')).toHaveTextContent('Your Standing Today');
     expect(screen.getByTestId('work-personality-vocation')).toHaveTextContent('Best-Fit Choices of Work & Vocation Domains');
     expect(screen.getByTestId('vocation-choice-0')).toBeInTheDocument();
