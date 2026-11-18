@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import BoardV3 from './BoardV3';
 import { boardV3Fixture } from './boardV3.fixture';
 import { selfV3Fixture } from '../../you/v3/selfV3.fixture';
@@ -114,6 +115,52 @@ describe('Love and Work lenses', () => {
     expect(put.body).toMatchObject({ version: '3', patch: { cards: ['dating_pulse', 'dating_meeting_timing', 'marriage_pulse'], boardOptions: { lens: 'marriage' } } });
     expect(put.body).not.toHaveProperty('template');
     expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
+
+  it('a link with ?lens= opens that lens, saves it as the board\'s lens and leaves the URL (server docs/dashboards/11)', async () => {
+    let search = '';
+    const Where = () => {
+      search = useLocation().search;
+      return null;
+    };
+    render(
+      <MemoryRouter initialEntries={['/dashboard/love?lens=marriage']}>
+        <BoardV3 board="love" />
+        <Where />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('self-v3-chips');
+    await waitFor(() => expect(screen.getByTestId('lens-marriage')).toHaveAttribute('aria-selected', 'true'));
+    expect(chipIds()).toEqual(['marriage_pulse']);
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true), { timeout: 2000 });
+    expect(calls.find((c) => c.method === 'PUT')!.body).toMatchObject({ patch: { boardOptions: { lens: 'marriage' } } });
+    await waitFor(() => expect(search).toBe(''));
+    // the board's own switcher is not fought by the link afterwards
+    fireEvent.click(screen.getByTestId('lens-dating'));
+    expect(screen.getByTestId('lens-dating')).toHaveAttribute('aria-selected', 'true');
+    // that switch's own save lands here, not in the next test
+    await waitFor(
+      () => expect(calls.some((c) => c.method === 'PUT' && (c.body?.patch as { boardOptions?: { lens?: string } })?.boardOptions?.lens === 'dating')).toBe(true),
+      { timeout: 2000 },
+    );
+  });
+
+  it('an unknown ?lens= is ignored and dropped', async () => {
+    let search = '';
+    const Where = () => {
+      search = useLocation().search;
+      return null;
+    };
+    render(
+      <MemoryRouter initialEntries={['/dashboard/love?lens=horoscope']}>
+        <BoardV3 board="love" />
+        <Where />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('self-v3-chips');
+    await waitFor(() => expect(search).toBe(''));
+    expect(screen.getByTestId('lens-dating')).toHaveAttribute('aria-selected', 'true');
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
   });
 
   it('switching to an empty lens opens the picker with its starters ticked; Done saves deck and lens in one PUT', async () => {

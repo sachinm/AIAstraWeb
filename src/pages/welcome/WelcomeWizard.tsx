@@ -1,28 +1,36 @@
 /**
- * The personalization wizard (server docs/reading-engine/52 §3): after birth details, six short steps the person can
- * skip or step back through at any time, one or two questions each, every one with "I'd rather not say" and a top-right
- * technique badge naming which board technique asks it and why. The answers land in person_facts.
+ * The personalization wizard (server docs/reading-engine/52 §3): after birth details, seven short steps the person can
+ * skip or step back through at any time, one or two questions each, every one with "I'd rather not say". The last step
+ * picks the dashboards the portal shows (server docs/dashboards/11). The answers land in person_facts. No internal id
+ * (a fact key, a technique name) is ever shown.
  */
 import { useEffect, useState } from 'react';
 import { fetchFacts, saveFacts } from '../../lib/profileApi';
 import { track } from '../../lib/events';
+import {
+  PORTAL_DASHBOARD_IDS,
+  PORTAL_DASHBOARD_LABELS,
+  PORTAL_FACT,
+  isFocusedDashboard,
+  parsePortalDashboards,
+  portalFactValue,
+  setPortalDashboards,
+  type PortalDashboardId,
+} from '../../lib/portalDashboards';
 import SelfieStep from './SelfieStep';
 
 type Opt = { key: string; label: string };
-type Question = { fact: string; text: string; techniqueBadge: string; options: Opt[]; multi?: number };
+type Question = { fact: string; text: string; options: Opt[]; multi?: number };
 type Step = { id: string; title: string; questions: Question[] };
 
 const DECLINE = '__declined__';
 
-export const QUESTION_TECHNIQUE_BADGES: Record<string, string> = {
-  'wizard.selfie': 'companion.wizard · Profile Identity',
-  'place.current': 'lucky.day_tables · self.activation · Local Sky & Timing',
-  'work.status': 'work.present_tone · work.horizons · 10th/6th Bhava Career Context',
-  'work.level': 'work.present_tone · work.horizons · Role & Scope Calibration',
-  'love.status': 'love.activation · love.promise · 7th Bhava & Navamsa Context',
-  'family.children': 'self.promise · love.promise · 5th/4th Bhava Family Context',
-  'self.focus': 'self.activation · self.promise · Focus Priority Weighting',
-};
+/** the dashboards step's groups: the three boards, the focused dashboards, Lucky times */
+export const DASHBOARD_GROUPS: Array<{ title: string; ids: PortalDashboardId[] }> = [
+  { title: 'Boards', ids: ['self', 'love', 'work'] },
+  { title: 'Focused dashboards', ids: PORTAL_DASHBOARD_IDS.filter(isFocusedDashboard) },
+  { title: 'Timing', ids: ['lucky'] },
+];
 
 export const STEPS: Step[] = [
   { id: 'selfie', title: 'A photo of you', questions: [] },
@@ -33,7 +41,6 @@ export const STEPS: Step[] = [
       {
         fact: 'place.current',
         text: 'Where do you live now?',
-        techniqueBadge: QUESTION_TECHNIQUE_BADGES['place.current']!,
         options: [{ key: 'use_location', label: 'Use my location' }],
       },
     ],
@@ -45,7 +52,6 @@ export const STEPS: Step[] = [
       {
         fact: 'work.status',
         text: 'Do you have a job right now?',
-        techniqueBadge: QUESTION_TECHNIQUE_BADGES['work.status']!,
         options: [
           { key: 'yes', label: 'Yes' },
           { key: 'between_jobs', label: 'Between jobs' },
@@ -57,7 +63,6 @@ export const STEPS: Step[] = [
       {
         fact: 'work.level',
         text: 'What best describes your work?',
-        techniqueBadge: QUESTION_TECHNIQUE_BADGES['work.level']!,
         options: [
           { key: 'hourly', label: 'Hourly or shift work' },
           { key: 'employee', label: 'Employee' },
@@ -78,7 +83,6 @@ export const STEPS: Step[] = [
       {
         fact: 'love.status',
         text: 'Right now are you…',
-        techniqueBadge: QUESTION_TECHNIQUE_BADGES['love.status']!,
         options: [
           { key: 'single', label: 'Single' },
           { key: 'dating', label: 'Dating' },
@@ -97,7 +101,6 @@ export const STEPS: Step[] = [
       {
         fact: 'family.children',
         text: 'Children?',
-        techniqueBadge: QUESTION_TECHNIQUE_BADGES['family.children']!,
         options: [
           { key: 'none', label: 'None' },
           { key: 'expecting', label: 'Expecting' },
@@ -114,7 +117,6 @@ export const STEPS: Step[] = [
       {
         fact: 'self.focus',
         text: 'What matters most to you now? Pick up to three.',
-        techniqueBadge: QUESTION_TECHNIQUE_BADGES['self.focus']!,
         multi: 3,
         options: ['career', 'money', 'love', 'family', 'home', 'learning', 'travel', 'health', 'creativity', 'spirituality'].map((k) => ({
           key: k,
@@ -123,6 +125,7 @@ export const STEPS: Step[] = [
       },
     ],
   },
+  { id: 'dashboards', title: 'Your dashboards', questions: [] },
 ];
 
 const chip = 'min-h-[44px] rounded-xl border px-3.5 py-2 text-left text-sm transition-colors';
@@ -171,6 +174,11 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
       facts[q.fact] = a === DECLINE ? null : a;
     }
     if (step.id === 'place' && city.trim() && answers['place.current'] === undefined) facts['place.current'] = city.trim();
+    if (step.id === 'dashboards') {
+      facts[PORTAL_FACT] = portalFactValue(dashboards);
+      // the menus change at once
+      setPortalDashboards(dashboards);
+    }
     if (Object.keys(facts).length) void saveFacts(facts).catch(() => false);
     track('question_answer', 'welcome', step.id, { answered: Object.keys(facts).length });
     if (i + 1 >= STEPS.length) setI(STEPS.length);
@@ -189,6 +197,15 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
       const nextList = has ? cur.filter((k) => k !== key) : cur.length < q.multi ? [...cur, key] : cur;
       return { ...a, [q.fact]: nextList.join(',') };
     });
+  };
+
+  // the dashboards step: what is ticked (Self, Love and Career until the person chooses); one always stays ticked
+  const dashboards = parsePortalDashboards(answers[PORTAL_FACT]);
+  const toggleDashboard = (id: PortalDashboardId) => {
+    const has = dashboards.includes(id);
+    if (has && dashboards.length <= 1) return;
+    const nextList = has ? dashboards.filter((d) => d !== id) : [...dashboards, id];
+    setAnswers((a) => ({ ...a, [PORTAL_FACT]: portalFactValue(nextList) }));
   };
 
   const useLocation = () => {
@@ -258,15 +275,7 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
                   data-testid={`question-panel-${q.fact}`}
                 >
                   <fieldset>
-                    <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-                      <legend className="font-medium text-white/90">{q.text}</legend>
-                      <span
-                        data-testid="question-technique-badge"
-                        className="inline-flex shrink-0 items-center rounded-full border border-purple-400/30 bg-purple-500/15 px-2.5 py-0.5 text-[11px] font-medium text-purple-200"
-                      >
-                        {q.techniqueBadge}
-                      </span>
-                    </div>
+                    <legend className="mb-3 font-medium text-white/90">{q.text}</legend>
                     {step.id === 'place' && (
                       <input
                         type="text"
@@ -305,6 +314,40 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
                 </div>
               ))}
             </div>
+            {step.id === 'dashboards' && (
+              <fieldset data-testid="dashboards-choice" className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <legend className="mb-1 font-medium text-white/90">Which dashboards do you want to see?</legend>
+                <p className="mb-3 text-sm text-white/60">{dashboards.length <= 1 ? 'Keep at least one.' : 'You can change this any time here.'}</p>
+                <div className="space-y-3">
+                  {DASHBOARD_GROUPS.map((g) => (
+                    <div key={g.title}>
+                      <p className="mb-1.5 text-xs uppercase tracking-wide text-white/50">{g.title}</p>
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {g.ids.map((id) => {
+                          const ticked = dashboards.includes(id);
+                          const last = ticked && dashboards.length <= 1;
+                          return (
+                            <label
+                              key={id}
+                              className={`${chip} flex items-center gap-3 ${last ? 'cursor-not-allowed' : 'cursor-pointer'} ${ticked ? 'border-purple-400 bg-white/15 text-white' : 'border-white/15 bg-white/5 text-white/85 hover:bg-white/10'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={ticked}
+                                disabled={last}
+                                onChange={() => toggleDashboard(id)}
+                                className="h-4 w-4 shrink-0 accent-purple-500"
+                              />
+                              <span>{PORTAL_DASHBOARD_LABELS[id]}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+            )}
           </div>
         )}
 

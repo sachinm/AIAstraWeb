@@ -18,6 +18,8 @@ vi.mock('./SelfieStep', () => ({
 
 import WelcomeWizard from './WelcomeWizard';
 import TopNavigation from '../TopNavigation';
+import SideNav from '../../components/SideNav';
+import { resetPortalDashboards } from '../../lib/portalDashboards';
 
 let saved: Array<Record<string, string | null>>;
 beforeEach(() => {
@@ -34,7 +36,11 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
+  resetPortalDashboards();
 });
+
+/** an internal fact or technique id shown as text (`work.status`, `companion.wizard`, `lucky.day_tables`) */
+const INTERNAL_ID = /\b(work|love|self|family|place|wizard|companion|lucky|portal)\.[a-z_]+\b/;
 
 describe('face gate (docs/reading-engine/52 §4)', () => {
   const good = { x: 0.3, y: 0.25, w: 0.4, h: 0.5, score: 0.95 };
@@ -73,7 +79,7 @@ describe('personalization wizard', () => {
   it('walks every step, stores answers and "rather not say", and finishes', async () => {
     const onFinish = vi.fn();
     render(<WelcomeWizard onFinish={onFinish} />);
-    expect(screen.getByText('Step 1 of 6')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 7')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'stub-photo' }));
 
     fireEvent.change(await screen.findByLabelText('City, country'), { target: { value: 'Pune, India' } });
@@ -94,6 +100,12 @@ describe('personalization wizard', () => {
     await screen.findByTestId('step-focus');
     for (const k of ['Career', 'Love', 'Travel', 'Health']) fireEvent.click(screen.getByRole('button', { name: k }));
     expect(screen.getByRole('button', { name: 'Health' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await screen.findByTestId('step-dashboards');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Love' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Dating & romance' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Lucky times' }));
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
@@ -103,6 +115,7 @@ describe('personalization wizard', () => {
       { 'work.status': 'between_jobs', 'work.level': null },
       { 'love.status': 'married' },
       { 'self.focus': 'career,love,travel' },
+      { 'portal.dashboards': 'self,work,lucky,dating' },
       { 'wizard.done': expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
     ]);
   });
@@ -132,14 +145,69 @@ describe('personalization wizard', () => {
     expect(screen.queryByTestId('header-wizard-modal')).not.toBeInTheDocument();
   });
 
-  it('supports stepping backward with ← Back, renders 2-column grid on multi-question steps, and displays technique badges', async () => {
+  it('the dashboards step ticks Self, Love and Career by default, keeps one ticked, and the menus follow at once', async () => {
+    render(
+      <MemoryRouter>
+        <WelcomeWizard onFinish={() => undefined} />
+        <SideNav />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('wizard-step-dot-6'));
+    await screen.findByTestId('step-dashboards');
+    expect(screen.getByText('Which dashboards do you want to see?')).toBeInTheDocument();
+    const ticked = () => screen.getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked).map((c) => c.closest('label')!.textContent);
+    expect(ticked()).toEqual(['Self', 'Love', 'Career']);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(12);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Self' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Love' }));
+    expect(screen.getByRole('checkbox', { name: 'Career' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Career' }));
+    expect(ticked()).toEqual(['Career']);
+    expect(screen.getByText('Keep at least one.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Your job' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    await screen.findByTestId('step-done');
+    expect(saved).toEqual([{ 'portal.dashboards': 'work,primary_job' }]);
+    expect(screen.queryByRole('link', { name: 'You' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Work' })).toHaveAttribute('href', '/dashboard/work');
+    expect(screen.getByRole('link', { name: 'Your job' })).toHaveAttribute('href', '/dashboard/work?lens=primary_job');
+  });
+
+  it('shows the stored choice when reopened from the profile menu', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        if (url.endsWith('/api/profile/facts') && (init.method ?? 'GET') === 'GET')
+          return new Response(JSON.stringify({ facts: { 'portal.dashboards': { value: 'love,lucky,friends', source: 'tapped', confirmed_at: null } }, wizard: { done: null, skipped: null } }), { status: 200 });
+        return new Response(null, { status: 204 });
+      }),
+    );
+    render(<WelcomeWizard onFinish={() => undefined} inModal />);
+    fireEvent.click(screen.getByTestId('wizard-step-dot-6'));
+    await screen.findByTestId('step-dashboards');
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Friendships' })).toBeChecked());
+    expect(screen.getByRole('checkbox', { name: 'Love' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Lucky times' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Self' })).not.toBeChecked();
+  });
+
+  it('shows no internal id on any step', async () => {
+    render(<WelcomeWizard onFinish={() => undefined} />);
+    for (let i = 0; i < 7; i++) {
+      fireEvent.click(screen.getByTestId(`wizard-step-dot-${i}`));
+      await waitFor(() => expect(screen.getByText(`Step ${i + 1} of 7`)).toBeInTheDocument());
+      expect(screen.getByTestId('welcome-wizard').textContent).not.toMatch(INTERNAL_ID);
+      expect(screen.queryByTestId('question-technique-badge')).toBeNull();
+    }
+  });
+
+  it('supports stepping backward with ← Back and renders a 2-column grid on multi-question steps', async () => {
     const onFinish = vi.fn();
     render(<WelcomeWizard onFinish={onFinish} />);
     fireEvent.click(screen.getByRole('button', { name: 'stub-photo' }));
 
     // Step 2: Where you are
     expect(await screen.findByTestId('step-place')).toBeInTheDocument();
-    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('lucky.day_tables');
     fireEvent.click(screen.getByTestId('wizard-back'));
     expect(await screen.findByTestId('selfie-step')).toBeInTheDocument();
 
@@ -149,7 +217,6 @@ describe('personalization wizard', () => {
     await screen.findByTestId('step-work');
     const grid = screen.getByTestId('wizard-questions-grid');
     expect(grid.className).toContain('md:grid-cols-2');
-    expect(screen.getAllByTestId('question-technique-badge')).toHaveLength(2);
 
     // Step back from Step 3 to Step 2
     fireEvent.click(screen.getByTestId('wizard-back'));
@@ -178,6 +245,7 @@ describe('personalization wizard', () => {
     await waitFor(() => expect(takeBtn).not.toBeDisabled());
     expect(screen.getByTestId('selfie-hint')).not.toHaveTextContent('The camera is not available here');
     expect(screen.getByTestId('selfie-upload-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('question-technique-badge')).toHaveTextContent('companion.wizard');
+    expect(screen.queryByTestId('question-technique-badge')).toBeNull();
+    expect(screen.getByTestId('selfie-step').textContent).not.toMatch(INTERNAL_ID);
   });
 });

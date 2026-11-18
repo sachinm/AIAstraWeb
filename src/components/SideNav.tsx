@@ -7,16 +7,42 @@
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Briefcase, ChevronLeft, ChevronRight, Clock, Heart, User, X } from 'lucide-react';
+import { Briefcase, Building2, ChevronLeft, ChevronRight, Clock, Gem, Handshake, Heart, Palette, Sparkles, Sprout, Store, User, Users, X, type LucideIcon } from 'lucide-react';
 import { track } from '../lib/events';
+import { PORTAL_DASHBOARD_LABELS, isFocusedDashboard, portalHref, usePortalDashboards, type PortalDashboardId } from '../lib/portalDashboards';
 
-export const SIDE_TABS = [
-  { to: '/dashboard/you', label: 'You', icon: User },
-  { to: '/dashboard/love', label: 'Love', icon: Heart },
-  { to: '/dashboard/work', label: 'Work', icon: Briefcase },
+/** the three boards; each shows only when the person's portal list has it (server docs/dashboards/11) */
+export const SIDE_TABS: Array<{ id: PortalDashboardId; to: string; label: string; icon: LucideIcon }> = [
+  { id: 'self', to: '/dashboard/you', label: 'You', icon: User },
+  { id: 'love', to: '/dashboard/love', label: 'Love', icon: Heart },
+  { id: 'work', to: '/dashboard/work', label: 'Work', icon: Briefcase },
 ];
-/** in the header from 768 px; below that, in the drawer only */
-const DRAWER_EXTRA_TABS = [{ to: '/dashboard/lucky', label: 'Happy Hour(s)', icon: Clock }];
+/** in the header from 768 px; below that, in the drawer only; shown when the portal list has Lucky times */
+const DRAWER_EXTRA_TABS: Array<{ id: PortalDashboardId; to: string; label: string; icon: LucideIcon }> = [{ id: 'lucky', to: '/dashboard/lucky', label: 'Happy Hour(s)', icon: Clock }];
+
+/** the focused dashboards' icons (each opens the Love or Work board on its lens) */
+export const FOCUSED_ICONS: Partial<Record<PortalDashboardId, LucideIcon>> = {
+  dating: Sparkles,
+  marriage: Gem,
+  friends: Users,
+  allies: Handshake,
+  career_start: Sprout,
+  primary_job: Building2,
+  hobby: Palette,
+  business: Store,
+};
+
+/** the focused dashboards the person chose, as menu entries, in menu order */
+export function focusedEntries(list: readonly PortalDashboardId[]): Array<{ id: PortalDashboardId; to: string; label: string; icon: LucideIcon }> {
+  return list.filter(isFocusedDashboard).map((id) => ({ id, to: portalHref(id), label: PORTAL_DASHBOARD_LABELS[id], icon: FOCUSED_ICONS[id] ?? Sparkles }));
+}
+
+/** a focused entry is the open page when its board is open on its lens (from the link; NavLink matches the path only) */
+export function focusedActive(to: string, pathname: string, search: string): boolean {
+  const [path, query = ''] = to.split('?');
+  const want = new URLSearchParams(query).get('lens');
+  return pathname.replace(/\/+$/, '') === path && !!want && new URLSearchParams(search).get('lens') === want;
+}
 
 function remembered(key: string, fallback: boolean): boolean {
   try {
@@ -94,7 +120,11 @@ export default function SideNav() {
   // in the phone drawer the labels always show
   const open = drawer || (rail ? rail.open : localOpen);
   const setOpen = rail ? rail.setOpen : setLocalOpen;
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const portal = usePortalDashboards();
+  const mainTabs = SIDE_TABS.filter((t) => portal.includes(t.id));
+  const focused = focusedEntries(portal);
+  const extraTabs = DRAWER_EXTRA_TABS.filter((t) => portal.includes(t.id));
 
   // a move to another page closes the drawer
   useEffect(() => {
@@ -128,14 +158,34 @@ export default function SideNav() {
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        <nav className="shrink-0 space-y-1 p-1.5">
-          {SIDE_TABS.map(({ to, label, icon: Icon }) => (
+        {/* up to twelve entries: the list scrolls inside the rail, never the page */}
+        <nav className="min-h-0 space-y-1 overflow-y-auto p-1.5" data-testid="side-nav-boards">
+          {mainTabs.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} title={open ? undefined : label} aria-label={label} onClick={() => track('tab_select', 'sidenav', label.toLowerCase())} className={item}>
               <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
               {open && <span className="truncate">{label}</span>}
             </NavLink>
           ))}
-          {DRAWER_EXTRA_TABS.map(({ to, label, icon: Icon }) => (
+          {focused.map(({ id, to, label, icon: Icon }) => (
+            <NavLink
+              key={id}
+              to={to}
+              end
+              title={label}
+              aria-label={label}
+              data-testid={`side-nav-focused-${id}`}
+              onClick={() => {
+                track('tab_select', 'sidenav', id);
+                // on the same board only the search changes, which does not close the phone drawer by itself
+                setDrawer?.(false);
+              }}
+              className={() => item({ isActive: focusedActive(to, pathname, search) })}
+            >
+              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+              {open && <span className="truncate">{label}</span>}
+            </NavLink>
+          ))}
+          {extraTabs.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} aria-label={label} data-testid="drawer-happy-hours" onClick={() => track('tab_select', 'drawer', label.toLowerCase())} className={(s) => `${item(s)} md:hidden`}>
               <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
               <span className="truncate">{label}</span>
@@ -143,7 +193,7 @@ export default function SideNav() {
           ))}
         </nav>
         {/* the open page's own items (General Reading's conversations) */}
-        <div ref={rail?.setSlot} data-testid="side-nav-slot" className="flex min-h-0 flex-1 flex-col border-t border-white/10 empty:border-0" />
+        <div ref={rail?.setSlot} data-testid="side-nav-slot" className="flex min-h-0 flex-1 flex-col border-t border-white/10 empty:border-0 [&:not(:empty)]:min-h-[40%]" />
         <div className="max-md:hidden">
           <RailToggle side="left" open={open} onToggle={() => setOpen(!open)} label="sidebar" />
         </div>
