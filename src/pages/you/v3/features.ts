@@ -6,7 +6,7 @@
  * A server that does not send `features` yet gets the foundation set: every card it offers, Read and Short, periods,
  * key dates, "Is this right?" and Why; the card chat, voice and Compact stay off until the server lists them.
  */
-import type { BoardId, SelfCardId, SelfV3CardView, SelfV3Response } from '../../../lib/selfV3Api';
+import { normaliseBoardFeatures, normaliseCardGrant, type BoardId, type SelfCardId, type SelfV3CardView, type SelfV3Response } from '../../../lib/selfV3Api';
 
 export type FeatureKey =
   | 'feature.face.short'
@@ -27,7 +27,8 @@ export type FeatureState = { on: true } | { on: false; locked: false } | { on: f
 export const cardKey = (id: SelfCardId | string, board: BoardId = 'self') => `card.${board}.${id}`;
 
 export function featureState(board: Pick<SelfV3Response, 'features'> | null | undefined, key: string): FeatureState {
-  const f = board?.features;
+  // the list shape or the server's map (a board held from before the map was read is read the same way)
+  const f = normaliseBoardFeatures(board?.features);
   if (!f || !Array.isArray(f.allowed)) {
     if (key.startsWith('card.')) return { on: true };
     return FOUNDATION.has(key as FeatureKey) ? { on: true } : { on: false, locked: false };
@@ -37,11 +38,17 @@ export function featureState(board: Pick<SelfV3Response, 'features'> | null | un
   return lock ? { on: false, locked: true, minPlan: lock.minPlan } : { on: false, locked: false };
 }
 
+/** a card's own grant for a feature: true unless the card's grant locks it or says it is not usable */
+export function cardFeatureUsable(card: Pick<SelfV3CardView, 'features'>, key: string): boolean {
+  const g = normaliseCardGrant(card.features?.[key]);
+  return g ? g.usable && !g.locked : true;
+}
+
 export const featureOn = (board: Pick<SelfV3Response, 'features'> | null | undefined, key: string): boolean => featureState(board, key).on;
 
 /** a card on the board: shown, shown locked ("Part of Plus"), or not shown at all */
 export function cardAccess(board: Pick<SelfV3Response, 'features'> | null | undefined, id: SelfCardId, boardId: BoardId = 'self'): 'on' | 'locked' | 'off' {
-  const f = board?.features;
+  const f = normaliseBoardFeatures(board?.features);
   // a list that names no cards at all switches no card
   if (f && Array.isArray(f.allowed) && !f.allowed.some((k) => k.startsWith('card.')) && !f.locked?.some((l) => l.key.startsWith('card.'))) return 'on';
   const s = featureState(board, cardKey(id, boardId));

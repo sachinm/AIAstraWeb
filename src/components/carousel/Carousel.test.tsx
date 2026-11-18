@@ -4,13 +4,13 @@ import { useState } from 'react';
 import Carousel, { CarouselArrows, CarouselDots, startFor } from './Carousel';
 import Chips, { useSeenCounts } from './Chips';
 
-function Harness({ count = 6, perView = 3 }: { count?: number; perView?: number }) {
+function Harness({ count = 6, perView = 3, locked = false }: { count?: number; perView?: number; locked?: boolean }) {
   const [i, setI] = useState(0);
   return (
     <>
       <CarouselArrows index={i} count={count} onIndexChange={setI} />
       <CarouselDots index={i} count={count} onIndexChange={setI} />
-      <Carousel count={count} index={i} onIndexChange={setI} perView={perView} label="Cards" renderSlide={(n) => <button type="button">card {n}</button>} />
+      <Carousel count={count} index={i} onIndexChange={setI} perView={perView} label="Cards" locked={locked} renderSlide={(n) => <button type="button">card {n}</button>} />
     </>
   );
 }
@@ -73,6 +73,30 @@ describe('Carousel', () => {
     expect(slides.map((s) => s.getAttribute('data-peek'))).toEqual(['false', 'false', 'true', 'false', 'false', 'false']);
     act(() => within(slides[5]!).getByRole('button').focus());
     expect(screen.getByTestId('carousel')).toHaveAttribute('data-index', '5');
+  });
+
+  it('locked (a card in its Chat view) holds the track: no keys, no drag, no focus move, no sideways scroll', () => {
+    if (typeof window.PointerEvent === 'undefined') {
+      class PE extends MouseEvent {
+        pointerType: string;
+        constructor(type: string, init: MouseEventInit & { pointerType?: string } = {}) {
+          super(type, init);
+          this.pointerType = init.pointerType ?? 'mouse';
+        }
+      }
+      vi.stubGlobal('PointerEvent', PE);
+    }
+    render(<Harness locked />);
+    const region = screen.getByTestId('carousel');
+    const track = screen.getByTestId('carousel-track');
+    expect(region).toHaveAttribute('data-locked', 'true');
+    expect(track.style.overflowX).toBe('hidden');
+    fireEvent.keyDown(region, { key: 'ArrowRight' });
+    fireEvent.keyDown(region, { key: 'End' });
+    fireEvent.pointerDown(track, { pointerType: 'mouse', clientX: 300 });
+    fireEvent.pointerUp(track, { pointerType: 'mouse', clientX: 200 });
+    act(() => within(within(track).getAllByRole('group')[5]!).getByRole('button').focus());
+    expect(region).toHaveAttribute('data-index', '0');
   });
 
   it('the first card on screen never passes the end', () => {

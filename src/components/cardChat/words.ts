@@ -1,0 +1,47 @@
+/** Every word the card chat says that is not from the server (server docs/reading-engine/85 §4 UI/UX). No ids, no engine name. */
+import type { CardChatProblem } from '../../lib/cardChatApi';
+
+export const CARD_CHAT_WORDS = {
+  bubble: (title: string) => `Ask about ${title}`,
+  chat: 'Chat',
+  fromCard: 'From your card:',
+  keyDates: 'Key dates',
+  more: 'More',
+  less: 'Less',
+  opening: 'Opening this card’s chat…',
+  openFailed: 'This chat did not open.',
+  retry: 'Retry',
+  placeholder: 'Ask about this card…',
+  send: 'Send',
+  you: 'You',
+  reading: 'Reading your chart…',
+  stillReading: 'Still reading your chart…',
+  sendFailed: 'That did not go through.',
+  stopped: 'Stopped before the answer finished.',
+  tryAgain: 'Try again',
+  clarifyFailed: 'That did not go through. Answer again.',
+  quota: 'You have used your questions for now. Your question is still in the box.',
+  plans: 'See plans',
+  micStart: 'Speak your question',
+  micStop: 'Stop listening',
+  micListening: 'Listening…',
+  micUnavailable: 'Microphone unavailable',
+  micUnsupportedReason: 'Voice typing does not work in this browser. Type instead.',
+  micDenied: 'Microphone access denied; tap to try again',
+  empty: 'Ask anything about this card and the period on screen.',
+  question: 'Your question about this card',
+};
+
+export const PROBLEM_WORD: Record<CardChatProblem, string> = {
+  auth: 'Your session ended. Sign in again to ask.',
+  off: 'Chat is not available for this card.',
+  not_ready: 'This card is still being read. Try again in a moment.',
+  no_kundli: 'Add your birth details to ask about this card.',
+  period: 'This period is no longer on your card. Go back and pick one.',
+  quota: 'You have used your questions for now.',
+  busy: 'Your last question is still being answered. Try again in a moment.',
+  rate_limited: 'Too many questions at once. Wait a moment, then try again.',
+  spend_cap: 'This question was too large to answer in one go. Try a narrower one.',
+  timeout: 'That took too long. Try again.',
+  failed: 'That did not go through.',
+};

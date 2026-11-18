@@ -11,7 +11,7 @@
  */
 import { CARD_GROUP_BYS, CARD_TOOLS, type CardGroupBy, type CardOptions, type CardTool } from '../../../lib/cardOptions';
 import type { LadderSteps } from '../../../lib/selfV2Api';
-import type { SelfV3CardView, SpanMode, SpanTone } from '../../../lib/selfV3Api';
+import { normaliseCardGrant, type SelfV3CardView, type SpanMode, type SpanTone } from '../../../lib/selfV3Api';
 import { cardPatterns } from './CardParts';
 import { firstSentence, groupPeriods, planSteps, type PeriodView } from './cardModel';
 import { formatDisplayDate, scrubEmptyRefs } from './textClean';
@@ -113,8 +113,9 @@ export function resolveReferenceToday(periods: readonly PeriodView[], builtOn?: 
 }
 
 function featureUsable(card: SelfV3CardView, key: string): boolean {
-  const grant = card.features?.[key];
-  return grant ? Boolean(grant.usable && !grant.locked) : true;
+  // the card's grant in either server shape: `{usable, locked}` or the map's `{locked}`
+  const grant = normaliseCardGrant(card.features?.[key]);
+  return grant ? grant.usable && !grant.locked : true;
 }
 
 /**
