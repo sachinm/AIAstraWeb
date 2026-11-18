@@ -34,7 +34,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       // chat is held to the window: nav, sidebars and input stay put, and only the message list scrolls
       // the shell (Sachin, 2026-11-05): header on top, footer at the bottom, and between them the left sidebar, the
       // main area and an optional right sidebar, edge to edge; only the main area scrolls
-      className={`relative isolate flex flex-col text-white ${onChat || fixedBoard || boardsEnabled() ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
+      // `app-frame` (index.css) also locks html and body, so the page never scrolls or bounces under the shell on a phone
+      className={`relative isolate flex flex-col text-white ${onChat || fixedBoard || boardsEnabled() ? 'app-frame h-dvh overflow-hidden' : 'min-h-screen'}`}
     >
       {/* a royal dark-blue sky with shooting stars behind every signed-in page (Sachin, 2026-11-05) */}
       <NightSky className="-z-10" />
@@ -50,7 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       {/* Main Content */}
       <div className="flex min-h-0 flex-1">
         {boardsEnabled() && <SideNav />}
-        <main className={`flex min-h-0 min-w-0 flex-1 flex-col ${boardsEnabled() ? 'main-panel' : ''} ${fixedBoard ? 'overflow-hidden' : boardsEnabled() && !onChat ? 'overflow-y-auto' : ''}`}>
+        <main className={`flex min-h-0 min-w-0 flex-1 flex-col ${boardsEnabled() ? 'main-panel' : ''} ${fixedBoard ? 'overflow-hidden' : boardsEnabled() && !onChat ? 'overflow-y-auto overscroll-contain' : ''}`}>
           <Outlet />
         </main>
       </div>
