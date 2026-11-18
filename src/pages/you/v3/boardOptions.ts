@@ -56,6 +56,8 @@ export function withBoardChange(l: Pick<L, 'boardOptions' | 'boardDefaults'>, pa
   if (merged.confirm !== undefined && merged.confirm !== d.confirm) out.confirm = merged.confirm;
   if (merged.motion !== undefined && merged.motion !== d.motion) out.motion = merged.motion;
   if (merged.voice !== undefined && merged.voice !== (d.voice ?? 'gentle')) out.voice = merged.voice;
+  // Love and Work: the lens is the person's choice, never a default, so it always stays
+  if (merged.lens) out.lens = merged.lens;
   return out;
 }
 

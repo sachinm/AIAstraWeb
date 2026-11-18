@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getActivePeriod, setActivePeriod } from '../../../lib/selfV3Cache';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
+import { useBoardId } from './boardContext';
 import { chipPeriods, openPeriod, periodsOf, standingOf, todayIso, type PeriodView } from './cardModel';
 
 /** touch handlers: a clear sideways swipe calls `onNext` (finger moves left) or `onPrev` (finger moves right) */
@@ -43,7 +44,8 @@ export function useCardView(card: SelfV3CardView, voice: 'gentle' | 'direct' = '
   const periods = useMemo(() => periodsOf(card, today), [card, today]);
   const chips = useMemo(() => chipPeriods(periods), [periods]);
   const standing = useMemo(() => standingOf(card, voice), [card, voice]);
-  const [selected, setSelected] = useState<number | null>(() => openPeriod(periods, getActivePeriod(card.id)));
+  const board = useBoardId();
+  const [selected, setSelected] = useState<number | null>(() => openPeriod(periods, getActivePeriod(card.id, board)));
   // a card read again can lose the period on screen; fall back to where it would open
   useEffect(() => {
     if (selected === null || !periods.some((p) => p.index === selected && p.own)) {
@@ -55,9 +57,9 @@ export function useCardView(card: SelfV3CardView, voice: 'gentle' | 'direct' = '
     (i: number) => {
       if (!chips.some((p) => p.index === i)) return;
       setSelected(i);
-      setActivePeriod(card.id, i);
+      setActivePeriod(card.id, i, board);
     },
-    [card.id, chips],
+    [card.id, chips, board],
   );
   const period = periods.find((p) => p.index === selected) ?? null;
   return { periods, chips, standing, selected, period, select };

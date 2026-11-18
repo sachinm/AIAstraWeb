@@ -5,6 +5,8 @@
  * not fit their situation is not shown. Strain is named as distance or tension with a date, never as a verdict.
  */
 import AreaBoardView, { type AreaBoardConfig } from '../../components/AreaBoardView';
+import BoardV3 from '../board/v3/BoardV3';
+import { legacyRequested } from '../../lib/selfV3Api';
 import { longDate } from '../../lib/careerApi';
 import type { AreaBoard } from '../../lib/areaApi';
 
@@ -67,6 +69,13 @@ export const LOVE_CONFIG: AreaBoardConfig = {
   cardsBoard: 'love',
 };
 
-export default function LovePage() {
+/** the Love board before v3: the fallback when the server has Love v3 off, or with ?legacy=1 */
+export function LoveLegacyPage() {
   return <AreaBoardView cfg={LOVE_CONFIG} />;
+}
+
+/** server docs/dashboards/10 W5: the v3 board first, the legacy board when v3 is off */
+export default function LovePage() {
+  if (legacyRequested()) return <LoveLegacyPage />;
+  return <BoardV3 board="love" legacy={<LoveLegacyPage />} />;
 }

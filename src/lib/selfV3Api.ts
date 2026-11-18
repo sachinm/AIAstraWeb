@@ -12,6 +12,14 @@
  * POST /api/self/v3/cards/:id/read (doc 70 §4.2) -> 202 { state: 'queued' } | 409 already_reading | 429 spend_cap
  *                                | 400 unknown_card, card_not_offered | 404 no_kundli | 503 off
  * The clock switch stays PUT /api/self/v2/clock (selfV2Api.changeSelfV2Clock).
+ *
+ * Love and Work (server docs/dashboards/10 §4.3) use the same calls under /api/board/:board/v3, with these differences
+ * (all of them in `boardBase`, `isV3Board`, `boardLayoutBody` and `fetchSelfV3State` below, so they are easy to adjust):
+ * GET /api/board/:board/v3    -> 200 BoardV3Response (SelfV3Response + board, lenses, activeLens, defaultLens)
+ *                                | 404 { status: 'no_kundli' } | 404 { error: 'board_v3_off' } or any other 404,
+ *                                400 unknown_board, 503 { error: 'off' }: the page shows the legacy board
+ * PUT /api/board/:board/v3/layout { version, patch: { cards, options, boardOptions: { lens } } } (no PATCH routes)
+ * POST /api/board/:board/v3/confirm, POST /api/board/:board/v3/cards/:id/read: as Self
  */
 import { optionsFor, type BoardCardOptions, type BoardOptions, type CardOptions } from './cardOptions';
 import { buildApiHeaders } from './apiHeaders';
@@ -55,7 +63,71 @@ export type SelfCardIdLater =
   | 'practice'
   | 'saturn'
   | 'helps';
-export type SelfCardId = SelfCardIdV2 | SelfCardIdLater;
+/** the Self ids the server knows today */
+export type SelfCardKnownId = SelfCardIdV2 | SelfCardIdLater;
+/**
+ * Any board's card id (docs/dashboards/10 W1): Self ids, and Love/Work ids such as `dating_pulse` or `job_pulse`. Ids are
+ * unique across boards, so a card id alone names its card.
+ */
+export type SelfCardId = string;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Boards (docs/dashboards/10): Self, Love and Work share this client
+// ---------------------------------------------------------------------------------------------------------------------
+
+export type BoardId = 'self' | 'love' | 'work';
+export type AreaBoardId = Exclude<BoardId, 'self'>;
+export type LoveLensId = 'dating' | 'marriage' | 'friends' | 'allies';
+export type WorkLensId = 'career_start' | 'primary_job' | 'hobby' | 'business';
+export type BoardLensId = LoveLensId | WorkLensId;
+
+/** one lens of a Love or Work board, as the server sends it */
+export interface BoardLensView {
+  id: BoardLensId;
+  title: string;
+  /** the lens's starter cards for this person (status-routed by the server) */
+  suggested: SelfCardId[];
+}
+
+/** the lenses in their order, with the titles the page uses until the server's arrive */
+export const BOARD_LENSES: Record<AreaBoardId, ReadonlyArray<{ id: BoardLensId; title: string }>> = {
+  love: [
+    { id: 'dating', title: 'Dating' },
+    { id: 'marriage', title: 'Marriage' },
+    { id: 'friends', title: 'Friends' },
+    { id: 'allies', title: 'Allies at work' },
+  ],
+  work: [
+    { id: 'career_start', title: 'Starting out' },
+    { id: 'primary_job', title: 'Your job' },
+    { id: 'hobby', title: 'Craft & hobby' },
+    { id: 'business', title: 'Business' },
+  ],
+};
+
+/** where a board's v3 routes live */
+export function boardBase(board: BoardId = 'self'): string {
+  return board === 'self' ? '/api/self/v3' : `/api/board/${board}/v3`;
+}
+
+/** "Done" needs this many cards: three on Self, one on Love and Work (server CARDS_READ_MIN_AREA) */
+export function minCardsFor(board: BoardId = 'self'): number {
+  return board === 'self' ? MIN_CARDS : 1;
+}
+
+/** the fewest cards that start the per-card reading: five on Self, one on Love and Work */
+export function minReadingCardsFor(board: BoardId = 'self'): number {
+  return board === 'self' ? MIN_READING_CARDS : 1;
+}
+
+/** the legacy page asked for (`?legacy=1`): Love and Work render their old boards */
+export function legacyRequested(): boolean {
+  try {
+    return typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('legacy') === '1';
+  } catch {
+    return false;
+  }
+}
 
 export type SelfCardGroup = 'body' | 'mind' | 'character' | 'indian' | 'time';
 
@@ -102,7 +174,10 @@ export interface SelfBoardLayoutView extends SelfBoardLayout {
   updatedAt: string | null;
   /** the server's env-driven defaults; the client holds COLD_BOARD_DEFAULTS only until these arrive (absent from older servers) */
   boardDefaults?: BoardOptions;
-  /** doc 75: bumped on every stored change; a PATCH carrying an older one is answered 409 (absent from older servers) */
+  /**
+   * doc 75: bumped on every stored change; a PATCH carrying an older one is answered 409 (absent from older servers).
+   * Opaque to the page: it is sent back exactly as received (the server's Love/Work layout sends an ISO string).
+   */
   version?: number;
 }
 
@@ -261,7 +336,8 @@ export interface CardFeatureGrant {
 
 export interface SelfV3CardView {
   id: SelfCardId;
-  group: SelfCardGroup;
+  /** Self: the picker group; Love and Work: the card's lens */
+  group: SelfCardGroup | BoardLensId;
   title: string;
   description: string;
   suggested: boolean;
@@ -321,6 +397,21 @@ export interface SelfV3Response {
   reading: BoardReadingView | null;
   /** doc 75: what this person may see; absent from older servers (the page then keeps the foundation set) */
   features?: BoardFeatures | null;
+  /** Love and Work only (docs/dashboards/10 §4.3); absent on Self */
+  board?: BoardId;
+  lenses?: BoardLensView[];
+  /** the lens the person is on (`layout.boardOptions.lens`, else the default) */
+  activeLens?: BoardLensId | null;
+  /** the lens the server routes this person to from their stated facts */
+  defaultLens?: BoardLensId | null;
+}
+
+/** GET /api/board/:board/v3: the Self response field for field, plus the board and its lenses */
+export interface BoardV3Response extends SelfV3Response {
+  board: AreaBoardId;
+  lenses: BoardLensView[];
+  activeLens: BoardLensId | null;
+  defaultLens: BoardLensId | null;
 }
 
 /** doc 75: the two voices a card can be written in */
@@ -362,7 +453,7 @@ export type CardReadError = 'unknown_card' | 'card_not_offered' | 'already_readi
 /** GET /api/self/v3/catalogue: the picker without card bodies */
 export interface SelfV3CatalogueEntry {
   id: SelfCardId;
-  group: SelfCardGroup;
+  group: SelfCardGroup | BoardLensId;
   title: string;
   description: string;
   suggested: boolean;
@@ -461,31 +552,83 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-export function isV3Board(j: unknown): j is SelfV3Response {
+/** a v3 board body; Love and Work need no clock (it is unused there) */
+export function isV3Board(j: unknown, board: BoardId = 'self'): j is SelfV3Response {
   const b = j as Partial<SelfV3Response> | null;
-  return !!b && typeof b === 'object' && typeof b.status === 'string' && Array.isArray(b.cards) && !!b.layout && typeof b.layout === 'object' && !!b.clock;
+  if (!b || typeof b !== 'object' || typeof b.status !== 'string' || !Array.isArray(b.cards) || !b.layout || typeof b.layout !== 'object') return false;
+  return board === 'self' ? !!b.clock : Array.isArray(b.layout.cards);
 }
 
-function isLayoutView(j: unknown): j is SelfBoardLayoutView {
+/** a layout view; Love and Work need no template (it is unused there) */
+function isLayoutView(j: unknown, board: BoardId = 'self'): j is SelfBoardLayoutView {
   const l = j as Partial<SelfBoardLayoutView> | null;
-  return !!l && typeof l === 'object' && typeof l.template === 'string' && Array.isArray(l.cards);
+  return !!l && typeof l === 'object' && Array.isArray(l.cards) && (board !== 'self' || typeof l.template === 'string');
 }
+
+/** a layout from Love or Work, with the Self-only fields filled so the shared page code can read it */
+function withLayoutDefaults(l: SelfBoardLayoutView): SelfBoardLayoutView {
+  return { ...l, template: l.template ?? DEFAULT_TEMPLATE, sections: l.sections ?? {}, chosen: l.chosen ?? l.cards.length > 0, updatedAt: l.updatedAt ?? null };
+}
+
+/** a board body from Love or Work, with the Self-only fields filled */
+function withBoardDefaults(b: SelfV3Response, board: BoardId): SelfV3Response {
+  if (board === 'self') return b;
+  return { ...b, board, layout: withLayoutDefaults(b.layout), clock: b.clock ?? ({ system: '', label: '' } as SelfV2Clock) };
+}
+
+/** `next` as a key-merge patch over `prev`: keys `prev` has and `next` dropped are sent as null (the server deletes them) */
+function mergePatch(prev: Record<string, unknown> | undefined, next: Record<string, unknown> | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(next ?? {}) };
+  for (const k of Object.keys(prev ?? {})) if (!(k in out)) out[k] = null;
+  return out;
+}
+
+/**
+ * PUT …/layout body for a board (server commit a1cd8a0, docs/dashboards/10 §4.3). Self sends the whole layout as before. Love and Work send the versioned v3 shape the
+ * server dispatches on (`patch` present, server docs/dashboards/10 §4.3): `{ version, patch: { cards, options,
+ * boardOptions } }`. The server merges `options` and `boardOptions` key by key (null deletes), so what the person
+ * cleared since `prev` (the last layout the server sent) goes as null. Template and sections are Self-only and stay out.
+ */
+export function boardLayoutBody(board: BoardId, body: SelfV3LayoutBody & { version?: number | string }, prev?: SelfBoardLayout | null): unknown {
+  if (board === 'self') return body;
+  const { version, cards, options, boardOptions } = body;
+  const prevOptions = prev?.options ?? {};
+  const nextOptions = options ?? {};
+  const optionPatch: Record<string, unknown> = {};
+  for (const id of new Set([...Object.keys(prevOptions), ...Object.keys(nextOptions)])) {
+    if (!(id in nextOptions)) optionPatch[id] = null;
+    else optionPatch[id] = mergePatch(prevOptions[id] as Record<string, unknown> | undefined, nextOptions[id] as Record<string, unknown>);
+  }
+  return {
+    // the server's layout version is an opaque string ('' before the first save); it checks it and answers 409 when stale
+    version: version === undefined || version === null ? '' : String(version),
+    patch: {
+      cards,
+      ...(options || prev?.options ? { options: optionPatch } : {}),
+      ...(boardOptions || prev?.boardOptions ? { boardOptions: mergePatch(prev?.boardOptions as Record<string, unknown> | undefined, boardOptions as Record<string, unknown> | undefined) } : {}),
+    },
+  };
+}
+
+/** the errors a Love or Work GET answers when the page should show the legacy board instead */
+const LEGACY_ERRORS = new Set(['board_v3_off', 'unknown_board', 'off']);
 
 /**
  * GET /api/self/v3 with the cache in play: sends `If-None-Match` with the ETag selfV3Cache holds (the response is
  * no-store, so the browser keeps nothing itself), answers a 304 with the cached body, stores body and tag on a 200 `ok`
  * board, and retries once after Retry-After on a 503. Throws only an AbortError when `signal` aborts.
  */
-export async function fetchSelfV3State(opts?: { signal?: AbortSignal }): Promise<{ state: SelfV3State; notModified: boolean }> {
+export async function fetchSelfV3State(opts?: { signal?: AbortSignal; board?: BoardId }): Promise<{ state: SelfV3State; notModified: boolean }> {
   const signal = opts?.signal;
+  const board = opts?.board ?? 'self';
   let retried = false;
   let useTag = true;
   for (;;) {
-    const held = getSelfV3Cached();
+    const held = getSelfV3Cached(board);
     const tag = useTag ? held?.etag : null;
     let r: Response;
     try {
-      r = await call('GET', '/api/self/v3', undefined, { ...(tag ? { headers: { 'If-None-Match': tag } } : {}), ...(signal ? { signal } : {}) });
+      r = await call('GET', boardBase(board), undefined, { ...(tag ? { headers: { 'If-None-Match': tag } } : {}), ...(signal ? { signal } : {}) });
     } catch (e) {
       if (signal?.aborted || (e as { name?: string } | null)?.name === 'AbortError') throw abortError();
       return { state: { kind: 'error' }, notModified: false };
@@ -497,6 +640,11 @@ export async function fetchSelfV3State(opts?: { signal?: AbortSignal }): Promise
       useTag = false;
       continue;
     }
+    // Love and Work: the server has the board's v3 off, or cannot read cards: the legacy board stands in
+    if (board !== 'self' && r.status === 503) {
+      const off = (await r.json().catch(() => null)) as { error?: string } | null;
+      if (off?.error && LEGACY_ERRORS.has(off.error)) return { state: { kind: 'v2' }, notModified: false };
+    }
     if (r.status === 503 && !retried) {
       retried = true;
       await sleep(retryAfterMs(r), signal);
@@ -505,14 +653,16 @@ export async function fetchSelfV3State(opts?: { signal?: AbortSignal }): Promise
     if (TRANSIENT.has(r.status)) return { state: { kind: 'preparing' }, notModified: false };
     const j = (await r.json().catch(() => null)) as (Partial<SelfV3Response> & { error?: string }) | null;
     if (j?.status === ('no_kundli' as string) || j?.error === 'no_kundli') return { state: { kind: 'no_kundli' }, notModified: false };
-    // a 404 without a v3 body: the route is off on this server, the v2 board stands in
+    // a 404 without a v3 body: the route is off on this server; the v2 board (Self) or the legacy board (Love, Work) stands in
     if (r.status === 404) return { state: { kind: 'v2' }, notModified: false };
-    if (j?.status === 'preparing' && !isV3Board(j)) return { state: { kind: 'preparing' }, notModified: false };
+    if (board !== 'self' && r.status === 400 && j?.error && LEGACY_ERRORS.has(j.error)) return { state: { kind: 'v2' }, notModified: false };
+    if (j?.status === 'preparing' && !isV3Board(j, board)) return { state: { kind: 'preparing' }, notModified: false };
     if (!r.ok && r.status !== 202) return { state: { kind: 'error' }, notModified: false };
-    if (!isV3Board(j)) return { state: r.status === 202 ? { kind: 'preparing' } : { kind: 'error' }, notModified: false };
+    if (!isV3Board(j, board)) return { state: r.status === 202 ? { kind: 'preparing' } : { kind: 'error' }, notModified: false };
+    const body = withBoardDefaults(j, board);
     // only a finished board is held: a pending one must not be drawn as the next visit's first frame
-    if (r.status === 200 && j.status === 'ok') setSelfV3Cached(j, r.headers?.get('ETag') ?? null);
-    return { state: { kind: 'ok', board: j }, notModified: false };
+    if (r.status === 200 && body.status === 'ok') setSelfV3Cached(body, r.headers?.get('ETag') ?? null, board);
+    return { state: { kind: 'ok', board: body }, notModified: false };
   }
 }
 
@@ -529,7 +679,7 @@ export class SelfV3FetchError extends Error {
  * reference), so nothing needs to redraw. Rejects with SelfV3FetchError (`state`: preparing, no_kundli, v2, error) when
  * there is no board, and with an AbortError when `signal` aborts.
  */
-export async function fetchSelfV3(opts?: { signal?: AbortSignal }): Promise<{ data: SelfV3Response; notModified: boolean }> {
+export async function fetchSelfV3(opts?: { signal?: AbortSignal; board?: BoardId }): Promise<{ data: SelfV3Response; notModified: boolean }> {
   const { state, notModified } = await fetchSelfV3State(opts);
   if (state.kind === 'ok') return { data: state.board, notModified };
   throw new SelfV3FetchError(state);
@@ -548,21 +698,20 @@ export class SelfV3LayoutError extends Error {
  * layout (plus `reading.queued` when cards were queued). Rejects with SelfV3LayoutError so a caller can roll back. The
  * cached board takes the saved layout and drops its tag, so the next open draws the new layout and fetches in full.
  */
-export async function putSelfV3Layout(body: SelfV3LayoutBody): Promise<SelfBoardLayoutSaved> {
+export async function putSelfV3Layout(body: SelfV3LayoutBody, board: BoardId = 'self'): Promise<SelfBoardLayoutSaved> {
   let r: Response;
   try {
-    r = await call('PUT', '/api/self/v3/layout', body);
+    r = await call('PUT', `${boardBase(board)}/layout`, boardLayoutBody(board, body, getSelfV3Cached(board)?.data.layout));
   } catch {
     throw new SelfV3LayoutError('failed');
   }
   const j = (await r.json().catch(() => null)) as (SelfBoardLayoutSaved & { error?: string }) | null;
-  if (r.ok && isLayoutView(j)) {
-    const held = getSelfV3Cached();
-    if (held) {
-      const { reading: _reading, ...layoutView } = j;
-      setSelfV3Cached({ ...held.data, layout: layoutView }, null);
-    }
-    return j;
+  if (r.ok && isLayoutView(j, board)) {
+    const { reading, ...raw } = j;
+    const layoutView = board === 'self' ? raw : withLayoutDefaults(raw);
+    const held = getSelfV3Cached(board);
+    if (held) setSelfV3Cached({ ...held.data, layout: layoutView }, null, board);
+    return board === 'self' ? j : { ...layoutView, ...(reading ? { reading } : {}) };
   }
   if (r.status === 400 && j?.error && LAYOUT_ERRORS.has(j.error as LayoutError)) throw new SelfV3LayoutError(j.error as LayoutError);
   throw new SelfV3LayoutError('failed');
@@ -640,11 +789,12 @@ function patchRoute(p: LayoutPatch): { path: string; body: Record<string, unknow
   return { path: '/api/self/v3/layout/deck', body: { template: p.template, cards: p.cards, sections: p.sections } };
 }
 
-function layoutAnswer(r: Response, j: unknown): LayoutPatchResult {
-  if (r.ok && isLayoutView(j)) {
-    const { reading, ...layout } = j as SelfBoardLayoutSaved;
-    const held = getSelfV3Cached();
-    if (held) setSelfV3Cached({ ...held.data, layout }, null);
+function layoutAnswer(r: Response, j: unknown, board: BoardId = 'self'): LayoutPatchResult {
+  if (r.ok && isLayoutView(j, board)) {
+    const { reading, ...raw } = j as SelfBoardLayoutSaved;
+    const layout = board === 'self' ? raw : withLayoutDefaults(raw);
+    const held = getSelfV3Cached(board);
+    if (held) setSelfV3Cached({ ...held.data, layout }, null, board);
     return { ok: true, layout, queued: Array.isArray(reading?.queued) ? reading.queued : [] };
   }
   if (r.status === 401) return { ok: false, error: 'unauthorized' };
@@ -655,7 +805,9 @@ function layoutAnswer(r: Response, j: unknown): LayoutPatchResult {
   return { ok: false, error: 'failed' };
 }
 
-export async function patchSelfV3Layout(patch: LayoutPatch, version: number | undefined): Promise<LayoutPatchResult> {
+export async function patchSelfV3Layout(patch: LayoutPatch, version: number | undefined, board: BoardId = 'self'): Promise<LayoutPatchResult> {
+  // Love and Work have no PATCH routes yet (docs/dashboards/10 Phase C): the saver sends one PUT instead, with no 404 first
+  if (board !== 'self') return { ok: false, error: 'unsupported' };
   const { path, body } = patchRoute(patch);
   let r: Response;
   try {
@@ -667,33 +819,33 @@ export async function patchSelfV3Layout(patch: LayoutPatch, version: number | un
 }
 
 /** PUT the whole layout (older servers without the PATCH routes); the caller builds it from the latest saved copy. */
-export async function putSelfV3LayoutResult(body: SelfV3LayoutBody & { version?: number }): Promise<LayoutPatchResult> {
+export async function putSelfV3LayoutResult(body: SelfV3LayoutBody & { version?: number }, board: BoardId = 'self'): Promise<LayoutPatchResult> {
   let r: Response;
   try {
-    r = await call('PUT', '/api/self/v3/layout', body);
+    r = await call('PUT', `${boardBase(board)}/layout`, boardLayoutBody(board, body, getSelfV3Cached(board)?.data.layout));
   } catch {
     return { ok: false, error: 'failed' };
   }
-  const res = layoutAnswer(r, await r.json().catch(() => null));
+  const res = layoutAnswer(r, await r.json().catch(() => null), board);
   return !res.ok && res.error === 'unsupported' ? { ok: false, error: 'failed' } : res;
 }
 
 /** GET the board again for its stored layout (after a 409) */
-export async function fetchSelfV3Layout(): Promise<SelfBoardLayoutView | null> {
+export async function fetchSelfV3Layout(board: BoardId = 'self'): Promise<SelfBoardLayoutView | null> {
   try {
-    const r = await call('GET', '/api/self/v3');
+    const r = await call('GET', boardBase(board));
     if (!r.ok) return null;
     const j = (await r.json().catch(() => null)) as unknown;
-    return isV3Board(j) ? j.layout : null;
+    return isV3Board(j, board) ? withBoardDefaults(j, board).layout : null;
   } catch {
     return null;
   }
 }
 
 /** A card's "Is this right?"; true on 204. */
-export async function sendSelfV3Confirm(claimId: string, answer: SelfConfirmAnswer): Promise<boolean> {
+export async function sendSelfV3Confirm(claimId: string, answer: SelfConfirmAnswer, board: BoardId = 'self'): Promise<boolean> {
   try {
-    return (await call('POST', '/api/self/v3/confirm', { claimId, answer })).ok;
+    return (await call('POST', `${boardBase(board)}/confirm`, { claimId, answer })).ok;
   } catch {
     return false;
   }
@@ -702,10 +854,10 @@ export async function sendSelfV3Confirm(claimId: string, answer: SelfConfirmAnsw
 const CARD_READ_ERRORS = new Set<CardReadError>(['unknown_card', 'card_not_offered', 'already_reading', 'spend_cap', 'off', 'no_kundli']);
 
 /** Queue or retry one card's reading (doc 70 §4.2). 202 is `{ ok: true, state: 'queued' }`. */
-export async function readSelfV3Card(id: SelfCardId): Promise<CardReadResult> {
+export async function readSelfV3Card(id: SelfCardId, board: BoardId = 'self'): Promise<CardReadResult> {
   let r: Response;
   try {
-    r = await call('POST', `/api/self/v3/cards/${encodeURIComponent(id)}/read`);
+    r = await call('POST', `${boardBase(board)}/cards/${encodeURIComponent(id)}/read`);
   } catch {
     return { ok: false, status: 0, error: 'failed' };
   }

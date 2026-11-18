@@ -25,11 +25,11 @@ import { allowedSubareas, optionsForSubarea } from '../../lib/boardCardsApi';
 import type { CardOptions } from '../../lib/cardOptions';
 import LoadingVeil from '../../components/LoadingVeil';
 import { ReadingStamp } from '../../components/ReadingStamp';
+import BoardV3 from '../board/v3/BoardV3';
+import { legacyRequested } from '../../lib/selfV3Api';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
-const techBadgeClass =
-  'inline-flex items-center gap-1 rounded-full border border-purple-400/30 bg-purple-500/15 px-2.5 py-0.5 font-mono text-[11px] font-medium text-purple-200';
 const SURFACE = 'work';
 type Page = 'now' | 'back' | 'ahead' | 'worries';
 
@@ -108,7 +108,14 @@ const WORK_OPTIONS: Array<{ key: WorkStatus; label: string }> = [
   { key: 'studying', label: 'Studying' },
 ];
 
+/** server docs/dashboards/10 W5: the v3 board first, the legacy board when v3 is off or with ?legacy=1 */
 export default function WorkPage() {
+  if (legacyRequested()) return <WorkLegacyPage />;
+  return <BoardV3 board="work" legacy={<WorkLegacyPage />} />;
+}
+
+/** the Work board before v3 */
+export function WorkLegacyPage() {
   const [state, setState] = useState<CareerState | null>(() => getCachedCareer());
   const [page, setPage] = useState<Page>('now');
   const [why, setWhy] = useState(false);
@@ -162,9 +169,6 @@ export default function WorkPage() {
         <div className={`${panel} mb-4`} data-testid="work-question">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">Do you have a job right now?</div>
-            <span className={techBadgeClass} data-testid="question-technique-badge">
-              work.status · Companion Fact
-            </span>
           </div>
           <div className="flex flex-wrap gap-2">
             {WORK_OPTIONS.map((o) => (
@@ -182,9 +186,6 @@ export default function WorkPage() {
             <span aria-hidden>{TONE_ICON[map.present.tone]}</span>
             {TONE_WORD[map.present.tone]}
           </div>
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            work.present_tone · Present Tone
-          </span>
         </div>
         <h2 className="text-2xl font-semibold leading-snug">{headline(map)}</h2>
         {CONFIDENCE_LINE[map.present.confidence] && <p className="mt-2 text-sm text-white/60">{CONFIDENCE_LINE[map.present.confidence]}</p>}
@@ -271,18 +272,12 @@ function NowPage({ map }: { map: CareerMap }) {
         <div className={panel} data-testid="security-card">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-white/50">Job security</div>
-            <span className={techBadgeClass} data-testid="panel-technique-badge">
-              work.security · Stability Check
-            </span>
           </div>
           <div className="mt-1 text-lg font-semibold">{SECURITY_WORDS[map.present.security]}</div>
         </div>
         <div className={panel}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-white/50">Next opening</div>
-            <span className={techBadgeClass} data-testid="panel-technique-badge">
-              work.subareas · Next Opening
-            </span>
           </div>
           <div className="mt-1 text-lg font-semibold">{next ? `${SUBAREA_WORDS[next.subarea] ?? 'An opening'}, from ${longDate(next.from)}` : 'Nothing large in the next two years'}</div>
         </div>
@@ -293,9 +288,6 @@ function NowPage({ map }: { map: CareerMap }) {
           <div className="text-xs uppercase tracking-wide text-purple-300">
             Work & Ambition Evolution (Past 10 Years → Your Standing Today → Next 10 Years)
           </div>
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            work.character_arc · 3-Decade Ambition Evolution
-          </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
           {arc?.headline ?? 'How your work identity, accountability, and professional authority evolve across three chapters'}
@@ -346,9 +338,6 @@ function NowPage({ map }: { map: CareerMap }) {
           <div className="text-xs uppercase tracking-wide text-pink-300">
             Your Work Style & Choice of Vocation (10th Bhava · Dasamsa D10 · Amatyakaraka AmK · Rajya Pada A10)
           </div>
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            work.personality_vocation · Vocation Blueprint
-          </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
           {voc?.headline ?? 'Methodical systems thinking paired with calm, accountable authority'}
@@ -406,9 +395,6 @@ function BackPage({ map, checks, onAnswered }: { map: CareerMap; checks: Record<
           <div key={b.month} className={`${panel} w-[85%] shrink-0 snap-start sm:w-[48%] lg:w-[32%] 2xl:w-[24%]`} data-testid={`back-${b.month}`}>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs uppercase tracking-wide text-white/50">{monthName(b.month)}</div>
-              <span className={techBadgeClass} data-testid="panel-technique-badge">
-                work.back · Past Window Check
-              </span>
             </div>
             <div className="mt-1 font-medium">Around then, {b.label}.</div>
             {checks[b.month] ? (
@@ -449,11 +435,6 @@ function AheadPage({ map }: { map: CareerMap }) {
         ))}
       </div>
       <div className={panel} data-testid={`rung-${rung}`}>
-        <div className="mb-2 flex items-center justify-end">
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            work.horizons · Horizon Window
-          </span>
-        </div>
         {h.quiet ? (
           <div className="text-white/80">Nothing large is moving.</div>
         ) : (
@@ -538,9 +519,6 @@ function WorriesPage({
             </button>
           ))}
         </div>
-        <span className={techBadgeClass} data-testid="panel-technique-badge">
-          work.subareas · Multi-Clock Topic Windows
-        </span>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-12">
@@ -569,9 +547,6 @@ function WorriesPage({
                   <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-purple-200">
                     {SUBAREA_WORDS[w.subarea] ?? w.subarea}
                   </span>
-                  <span className={techBadgeClass} data-testid="panel-technique-badge">
-                    work.subareas · {w.subarea}
-                  </span>
                 </div>
                 <div className="font-medium">{longDate(w.from)} – {longDate(w.to)}</div>
                 <div className="text-sm text-white/70">
@@ -599,9 +574,6 @@ function WorriesPage({
                   {longDate(activeWin.from)} – {longDate(activeWin.to)}
                 </h3>
               </div>
-              <span className={techBadgeClass} data-testid="panel-technique-badge">
-                work.subareas · work.d10_check
-              </span>
             </div>
 
             <div className="mb-3 inline-flex items-center gap-2 rounded-xl border border-purple-400/25 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-100" data-testid="finding-detail-dates">

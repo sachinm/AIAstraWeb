@@ -31,8 +31,6 @@ import { ReadingStamp } from './ReadingStamp';
 
 const panel = 'glass glass-lift rounded-2xl p-4 sm:p-5';
 const chip = 'inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm';
-const techBadgeClass =
-  'inline-flex items-center gap-1 rounded-full border border-purple-400/30 bg-purple-500/15 px-2.5 py-0.5 font-mono text-[11px] font-medium text-purple-200';
 type Page = 'now' | 'holds' | 'presses' | 'ahead' | 'back' | 'questions';
 export type TimeframeFilter = 'all' | 'active_now' | 'next_6m' | 'next_12m' | 'next_3y' | 'natal';
 
@@ -476,9 +474,6 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
         <div className={`${panel} mb-4`} data-testid="board-question">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{cfg.question.text}</div>
-            <span className={techBadgeClass} data-testid="question-technique-badge">
-              {cfg.question.key} · Companion Fact Selector
-            </span>
           </div>
           <p className="mb-3 text-xs text-white/60">
             Why we ask: highlights the sub-area and timing windows most relevant to your life right now.
@@ -499,9 +494,6 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
             <span aria-hidden>{TONE_ICON[board.tone.tone]}</span>
             {TONE_WORD[board.tone.tone]}
           </div>
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            {cfg.area}.activation · Present Tone Consensus
-          </span>
         </div>
         <h2 className="text-2xl font-semibold leading-snug">{cfg.headline(board, focus)}</h2>
         {CONFIDENCE_LINE[board.tone.confidence] && <p className="mt-2 text-sm text-white/60">{CONFIDENCE_LINE[board.tone.confidence]}</p>}
@@ -610,7 +602,6 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
         <FindingsMasterDetail
           testId="holds"
           empty="Nothing stands out yet."
-          techniqueBadge={`${cfg.area}.promise · ${cfg.area}.protection`}
           items={buildEnrichedFindings(board, cfg, 'support')}
           focusFilter={focusFilter}
           timeframeFilter={timeframeFilter}
@@ -623,7 +614,6 @@ export default function AreaBoardView({ cfg }: { cfg: AreaBoardConfig }) {
         <FindingsMasterDetail
           testId="presses"
           empty="Nothing is pressing on this now."
-          techniqueBadge={`${cfg.area}.affliction · ${cfg.area}.activation`}
           items={buildEnrichedFindings(board, cfg, 'pressure')}
           focusFilter={focusFilter}
           timeframeFilter={timeframeFilter}
@@ -686,9 +676,6 @@ function NowPage({
         <div className={panel} data-testid="year-card">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-white/50">This year</div>
-            <span className={techBadgeClass} data-testid="panel-technique-badge">
-              {cfg.area}.annual · Annual Solar Return
-            </span>
           </div>
           <div className="mt-1 text-lg font-semibold">{board.year ? board.year.note : "This year's chart is not ready yet."}</div>
           {board.year && (
@@ -700,9 +687,6 @@ function NowPage({
         <div className={panel} data-testid="lead-card">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-white/50">{lead ? cfg.subareas[lead.subarea] ?? 'Next' : 'Next'}</div>
-            <span className={techBadgeClass} data-testid="panel-technique-badge">
-              {cfg.area}.activation · Lead Timing Window
-            </span>
           </div>
           <div className="mt-1 text-lg font-semibold">{lead ? `${lead.label}, ${longDate(lead.from)} – ${longDate(lead.to)}` : cfg.emptyAhead}</div>
           {lead && (
@@ -717,9 +701,6 @@ function NowPage({
         <section className={panel} data-testid="self-character-arc">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-purple-300">Character Evolution (Last 10 Years → Now → Next 10 Years)</div>
-            <span className={techBadgeClass} data-testid="panel-technique-badge">
-              self.character_arc · 3-Decade Character Evolution
-            </span>
           </div>
           <h3 className="mt-1 text-lg font-semibold text-white">{board.characterArc.headline}</h3>
           <div className="mt-3 grid gap-3 lg:grid-cols-3">
@@ -742,9 +723,6 @@ function NowPage({
         <section className={panel} data-testid="self-personality-joy">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs uppercase tracking-wide text-pink-300">Your Personality & What Makes You Feel Good</div>
-            <span className={techBadgeClass} data-testid="panel-technique-badge">
-              self.personality_joy · Mind, Wit & Joy Synthesis
-            </span>
           </div>
           <h3 className="mt-1 text-lg font-semibold text-white">{board.personalityAndJoy.headline}</h3>
           <p className="mt-1.5 text-sm leading-relaxed text-white/80">{board.personalityAndJoy.personalitySummary}</p>
@@ -785,14 +763,10 @@ function NowPage({
             <div className="text-xs font-semibold uppercase tracking-wide text-purple-200">
               Astrology Oracle Findings & Time-Period Charter
             </div>
-            <span className={techBadgeClass} data-testid="panel-technique-badge">
-              {cfg.area}.promise · {cfg.area}.activation
-            </span>
           </div>
           <FindingsMasterDetail
             testId="now-findings"
             empty="Nothing stands out for this filter."
-            techniqueBadge={`${cfg.area}.promise · ${cfg.area}.activation`}
             items={allFindings}
             focusFilter={focusFilter}
             timeframeFilter={timeframeFilter}
@@ -819,9 +793,6 @@ function LoveVedicDeepDive({ board, lead }: { board: AreaBoard; lead: AreaWindow
           <div className="text-xs uppercase tracking-wide text-purple-300">
             Love & Relationship Evolution (Last 10 Years → How You Show Up in Love Now → Next 10 Years)
           </div>
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            love.character_arc · love.relationship_arc
-          </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
           {arc?.headline ?? 'How your approach to intimacy, commitment, and mutual devotion matures across three chapters'}
@@ -876,9 +847,6 @@ function LoveVedicDeepDive({ board, lead }: { board: AreaBoard; lead: AreaWindow
           <div className="text-xs uppercase tracking-wide text-pink-300">
             Your Love Personality & Partner Blueprint (Darakaraka DK · Upapada UL · Navamsa 7th Bhava · Shukra)
           </div>
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            love.personality_partner · love.partner_chemistry
-          </span>
         </div>
         <h3 className="mt-1 text-lg font-semibold text-white">
           {chem?.headline ?? 'Deep loyalty and emotional candor paired with warm, observant devotion'}
@@ -926,7 +894,6 @@ function FindingsMasterDetail({
   items,
   empty,
   testId,
-  techniqueBadge,
   focusFilter,
   timeframeFilter,
   asOf,
@@ -936,7 +903,6 @@ function FindingsMasterDetail({
   items: EnrichedFindingItem[];
   empty: string;
   testId: string;
-  techniqueBadge: string;
   focusFilter: string;
   timeframeFilter: TimeframeFilter;
   asOf: string;
@@ -964,9 +930,6 @@ function FindingsMasterDetail({
     return (
       <div className={panel} data-testid={testId}>
         <div className="mb-2 flex items-center justify-end">
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            {techniqueBadge}
-          </span>
         </div>
         {empty}
       </div>
@@ -1009,9 +972,6 @@ function FindingsMasterDetail({
                   <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-purple-200">
                     {item.subCategoryLabel}
                   </span>
-                  <span className={techBadgeClass} data-testid="panel-technique-badge">
-                    {item.techniqueId}
-                  </span>
                 </div>
                 <div className="font-medium text-white">{item.headline}</div>
                 {item.subText && <div className="mt-1 text-sm text-white/65">{item.subText}</div>}
@@ -1028,9 +988,6 @@ function FindingsMasterDetail({
             <span className="text-xs font-semibold uppercase tracking-wide text-purple-300">{selected.subCategoryLabel}</span>
             <h3 className="mt-0.5 text-xl font-semibold text-white">{selected.headline}</h3>
           </div>
-          <span className={techBadgeClass} data-testid="panel-technique-badge">
-            {selected.techniqueId}
-          </span>
         </div>
 
         <div className="mb-3 inline-flex items-center gap-2 rounded-xl border border-purple-400/25 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-100" data-testid="finding-detail-dates">
@@ -1093,9 +1050,6 @@ function SubareaPanel({ id, windows, cfg }: { id: string; windows: AreaWindow[];
     <div className={panel} data-testid={`ahead-${id}`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs uppercase tracking-wide text-white/50">{cfg.subareas[id] ?? id}</div>
-        <span className={techBadgeClass} data-testid="panel-technique-badge">
-          {cfg.area}.activation · {id}
-        </span>
       </div>
       <ul className="space-y-3">
         {windows.map((w, i) => (
@@ -1180,7 +1134,6 @@ function AheadPage({
       <FindingsMasterDetail
         testId="ahead-master-detail"
         empty={cfg.emptyAhead}
-        techniqueBadge={`${cfg.area}.activation`}
         items={windowItems}
         focusFilter={focusFilter !== 'all' ? focusFilter : sel}
         timeframeFilter={timeframeFilter}
@@ -1207,9 +1160,6 @@ function BackPage({ board, checks, cfg, onAnswered }: { board: AreaBoard; checks
           <div key={b.month} className={`${panel} w-[85%] shrink-0 snap-start sm:w-[48%] lg:w-[32%] 2xl:w-[24%]`} data-testid={`back-${b.month}`}>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs uppercase tracking-wide text-white/50">{monthName(b.month)}</div>
-              <span className={techBadgeClass} data-testid="panel-technique-badge">
-                {cfg.area}.calibration · Past Window Check
-              </span>
             </div>
             <div className="mt-1 font-medium">Around then, {b.label}.</div>
             {checks[b.month] ? (
@@ -1233,20 +1183,20 @@ function BackPage({ board, checks, cfg, onAnswered }: { board: AreaBoard; checks
   );
 }
 
-const LOVE_QUESTION_TOPICS: Array<{ id: string; label: string; subareas: string[]; bhavaRef: string }> = [
-  { id: 'meet', label: 'Meeting someone', subareas: ['meet', 'romance', 'friends'], bhavaRef: '7th & 5th Bhava · Darakaraka & Upapada Opening' },
-  { id: 'commitment', label: 'Commitment & marriage', subareas: ['commitment', 'health'], bhavaRef: '7th Bhava Covenant · Upapada (UL) & Navamsa Alignment' },
-  { id: 'closeness', label: 'Deepening closeness', subareas: ['romance', 'health', 'commitment'], bhavaRef: '5th & 8th Bhava · Shukra & Chandra Bonding' },
-  { id: 'repair', label: 'Repairing tension', subareas: ['reconcile', 'strain', 'delay'], bhavaRef: '7th Bhava & Guru Protective Drishti Resolution' },
-  { id: 'home_family', label: 'Home & family bond', subareas: ['family_accept', 'health', 'friends'], bhavaRef: '2nd & 4th Bhava · Shared Sanctuary & Family Harmony' },
+const LOVE_QUESTION_TOPICS: Array<{ id: string; label: string; subareas: string[] }> = [
+  { id: 'meet', label: 'Meeting someone', subareas: ['meet', 'romance', 'friends'] },
+  { id: 'commitment', label: 'Commitment & marriage', subareas: ['commitment', 'health'] },
+  { id: 'closeness', label: 'Deepening closeness', subareas: ['romance', 'health', 'commitment'] },
+  { id: 'repair', label: 'Repairing tension', subareas: ['reconcile', 'strain', 'delay'] },
+  { id: 'home_family', label: 'Home & family bond', subareas: ['family_accept', 'health', 'friends'] },
 ];
 
-const YOU_QUESTION_TOPICS: Array<{ id: string; label: string; subareas: string[]; bhavaRef: string }> = [
-  { id: 'fresh_chapter', label: 'Fresh life chapter', subareas: ['turning_point', 'identity', 'empowerment'], bhavaRef: '1st & 9th Bhava · Atmakaraka & Main Period Shift' },
-  { id: 'home_relocation', label: 'Home & relocation', subareas: ['mind', 'turning_point'], bhavaRef: '4th & 12th Bhava · Sanctuary & Place Transition' },
-  { id: 'wealth_security', label: 'Wealth & security', subareas: ['empowerment', 'reputation'], bhavaRef: '2nd & 11th Bhava · Resource & Stability Foundation' },
-  { id: 'learning_mastery', label: 'Learning & mastery', subareas: ['growth', 'purpose'], bhavaRef: '5th & 9th Bhava · Budha & Guru Discernment' },
-  { id: 'energy_peace', label: 'Energy & inner peace', subareas: ['mind', 'confidence', 'identity'], bhavaRef: '1st & 4th Bhava · Chandra & Surya Vitality' },
+const YOU_QUESTION_TOPICS: Array<{ id: string; label: string; subareas: string[] }> = [
+  { id: 'fresh_chapter', label: 'Fresh life chapter', subareas: ['turning_point', 'identity', 'empowerment'] },
+  { id: 'home_relocation', label: 'Home & relocation', subareas: ['mind', 'turning_point'] },
+  { id: 'wealth_security', label: 'Wealth & security', subareas: ['empowerment', 'reputation'] },
+  { id: 'learning_mastery', label: 'Learning & mastery', subareas: ['growth', 'purpose'] },
+  { id: 'energy_peace', label: 'Energy & inner peace', subareas: ['mind', 'confidence', 'identity'] },
 ];
 
 function QuestionsPage({
@@ -1293,11 +1243,10 @@ function QuestionsPage({
           dateLabel,
           side: w.side,
           reading: `${w.label} for ${currentTopic.label.toLowerCase()} (${dateLabel}). ${agreeCount} of ${totalClocks} independent Vedic timing clocks align across this window (${clockNames.join(', ')}), making it a clear period to ${w.side === 'support' ? 'move forward with confidence and concrete commitments' : 'move with patience, clear boundaries, and unhurried dialogue'}.`,
-          natalPromise: `${currentTopic.bhavaRef}: ${board.supports[0]?.text ?? 'Supported by your natal Rasi and Navamsa foundation.'}`,
+          natalPromise: board.supports[0]?.text ?? '',
           periodCharter: `Time-Period Charter (${dateLabel}): ${agreeCount} of ${totalClocks} Vedic timing clocks align (${clockNames.join(' + ')}).`,
           aspectsAndPlacements: [
             `Timing Clocks Aligned (${agreeCount} of ${totalClocks}): ${clockNames.join(' · ')}`,
-            `Classical Bhava Focus: ${currentTopic.bhavaRef}`,
             ...(board.supports[0]?.evidence ?? []).map((ev) => formatEvidenceToken(ev, cfg.area)),
           ],
           techniqueId: `${cfg.area}.activation · ${currentTopic.id}`,
@@ -1327,15 +1276,11 @@ function QuestionsPage({
             </button>
           ))}
         </div>
-        <span className={techBadgeClass} data-testid="panel-technique-badge">
-          {cfg.area}.activation · Multi-Clock Topic Windows
-        </span>
       </div>
 
       <FindingsMasterDetail
         testId="questions-master-detail"
         empty={cfg.emptyAhead}
-        techniqueBadge={`${cfg.area}.activation · ${currentTopic.id}`}
         items={items}
         focusFilter="all"
         timeframeFilter={timeframeFilter}

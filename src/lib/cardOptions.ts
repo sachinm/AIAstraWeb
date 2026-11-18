@@ -46,6 +46,8 @@ export interface BoardOptions extends CardOptions {
   motion: boolean;
   /** doc 75: the voice cards are written in, offered only when the server writes both (absent: gentle) */
   voice?: 'gentle' | 'direct';
+  /** Love and Work (docs/dashboards/10 §4.4): the lens the person is on; absent on Self */
+  lens?: string;
 }
 
 /** per card id, only the keys the person changed */

@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import { Link, useInRouterContext } from 'react-router-dom';
 import type { PlanStatus } from '../../../lib/billing';
-import { refreshBoard, type RefreshResult } from '../../../lib/boardRefresh';
+import { refreshBoard, type RefreshBoard, type RefreshResult } from '../../../lib/boardRefresh';
 import type { SelfV2BuildView, SelfV2Refresh } from '../../../lib/selfV2Api';
 import Sheet from './Sheet';
 import { BUILD_WORDS, V2_WORDS, freshCostLine, freshSheetBody } from './words';
@@ -39,14 +39,14 @@ function UpgradeLink() {
   );
 }
 
-export function FreshSheet({ plan, onClose, onDone }: { plan: PlanStatus | null | undefined; onClose: () => void; onDone: (r: RefreshResult) => void }) {
+export function FreshSheet({ plan, onClose, onDone, board = 'self' }: { plan: PlanStatus | null | undefined; onClose: () => void; onDone: (r: RefreshResult) => void; board?: RefreshBoard }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const confirm = async () => {
     if (busy) return;
     setBusy(true);
     setError(false);
-    const r = await refreshBoard('self');
+    const r = await refreshBoard(board);
     setBusy(false);
     if (r.kind === 'error') setError(true);
     else onDone(r);

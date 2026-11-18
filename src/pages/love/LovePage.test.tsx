@@ -119,7 +119,9 @@ describe('Love board', () => {
     await screen.findByTestId('tone-card');
     expect(screen.getByTestId('love-relationship-arc')).toHaveTextContent('How You Show Up in Love Now');
     expect(screen.getByTestId('love-partner-chemistry')).toHaveTextContent('Your Love Personality & Partner Blueprint');
-    expect(screen.getAllByTestId('panel-technique-badge').length).toBeGreaterThanOrEqual(4);
+    // server docs/dashboards/10 W6: no technique badge and no internal id on the page
+    expect(screen.queryAllByTestId('panel-technique-badge')).toHaveLength(0);
+    expect(screen.getByTestId('love-page').textContent).not.toMatch(/\b(work|love|self)\.[a-z_]+\b/);
 
     fireEvent.click(screen.getByRole('tab', { name: 'What holds it up' }));
     expect(screen.getByTestId('findings-list-view')).toBeInTheDocument();

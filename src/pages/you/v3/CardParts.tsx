@@ -6,6 +6,7 @@ import { useState } from 'react';
 import type { LadderSteps, PersonalPattern } from '../../../lib/selfV2Api';
 import { cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
 import { CONFIRM_ANSWERS, V3_WORDS } from './words';
+import { useBoardId } from './boardContext';
 
 /** the card's headline: the v3 line, else the stored v2 headline */
 export function cardHeadline(card: SelfV3CardView): string | null {
@@ -26,9 +27,10 @@ export function cardLadder(card: SelfV3CardView): LadderSteps | null {
 /** "Is this right?": Yes / Not really / Not sure, one tap; the answer replaces the question with one line. */
 export function ConfirmSection({ confirm }: { confirm: { claimId: string; text: string } }) {
   const [state, setState] = useState<'ask' | 'busy' | 'done' | 'failed'>('ask');
+  const board = useBoardId();
   const answer = async (a: 'yes' | 'no' | 'skip') => {
     setState('busy');
-    setState((await sendSelfV3Confirm(confirm.claimId, a)) ? 'done' : 'failed');
+    setState((await sendSelfV3Confirm(confirm.claimId, a, board)) ? 'done' : 'failed');
   };
   if (state === 'done')
     return (
