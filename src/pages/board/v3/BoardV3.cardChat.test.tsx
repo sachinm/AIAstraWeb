@@ -22,13 +22,23 @@ const FOUNDATION = ['feature.face.short', 'feature.periods', 'feature.key_dates'
 type Call = { method: string; url: string; body?: Record<string, unknown> };
 let calls: Call[];
 let granted: boolean;
+/** the grants as the server f09ad68 sends them (a map) or the older list */
+let shape: 'map' | 'list';
+/** card ids whose own grant locks card chat */
+let cardLocked: string[];
 
 const json = (b: unknown) => JSON.stringify(b);
 const sse = (events: unknown[]) => new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(''), { status: 200 });
 
 function boardBody(board: BoardId) {
   const b = board === 'self' ? selfV3Fixture() : boardV3Fixture(board);
-  return { ...b, features: { allowed: [...FOUNDATION, ...(granted ? ['feature.card_chat'] : [])], locked: [] } };
+  const keys = [...FOUNDATION, ...(granted ? ['feature.card_chat'] : [])];
+  const features =
+    shape === 'map'
+      ? { ...Object.fromEntries(keys.map((k) => [k, { locked: false }])), 'feature.compact': { locked: true, minPlan: 'plus' } }
+      : { allowed: keys, locked: [] };
+  const cards = b.cards.map((c) => (cardLocked.includes(c.id) ? { ...c, features: { 'feature.card_chat': { locked: true, minPlan: 'plus' } } } : c));
+  return { ...b, cards, features } as unknown as typeof b;
 }
 
 let board: BoardId;
@@ -43,6 +53,8 @@ beforeEach(() => {
   Object.defineProperty(window, 'innerHeight', { value: 820, configurable: true, writable: true });
   calls = [];
   granted = true;
+  shape = 'map';
+  cardLocked = [];
   board = 'self';
   vi.stubGlobal(
     'fetch',
@@ -89,6 +101,20 @@ describe('the bubble', () => {
     expect(bubble).toHaveAttribute('aria-label', 'Ask about Body & energy');
     expect(within(cardEl('mind')).getByTestId('card-chat-bubble')).toBeInTheDocument();
     expect(within(cardEl('body')).getByTestId('face-chat')).toBeInTheDocument();
+  });
+
+  it('reads the older list shape of grants too', async () => {
+    shape = 'list';
+    await mount('self');
+    expect(within(cardEl('body')).getByTestId('card-chat-bubble')).toBeInTheDocument();
+  });
+
+  it('a card whose own grant locks card chat shows no bubble', async () => {
+    cardLocked = ['mind'];
+    await mount('self');
+    expect(within(cardEl('body')).getByTestId('card-chat-bubble')).toBeInTheDocument();
+    expect(within(cardEl('mind')).queryByTestId('card-chat-bubble')).toBeNull();
+    expect(within(cardEl('mind')).queryByTestId('face-chat')).toBeNull();
   });
 });
 

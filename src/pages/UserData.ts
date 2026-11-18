@@ -56,6 +56,21 @@ function getChatAskStreamUrl(): string {
   return '/api/chat/ask-stream';
 }
 
+/**
+ * A chat stream that did not go through, with the server's HTTP status (0 for an SSE `error` event) and its `error` /
+ * `code` string when it sent one. The message is the one the chat page has always shown.
+ */
+export class ChatStreamError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+  constructor(status: number, code: string | null, message: string) {
+    super(message);
+    this.name = 'ChatStreamError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function consumeChatAskSse(
   response: Response,
   onToken: (delta: string) => void,
@@ -96,7 +111,7 @@ async function consumeChatAskSse(
       } else if (ev.type === 'error') {
         if (ev.code === 'quota_exhausted') throw new QuotaExhaustedError((ev.usage as PlanStatus | undefined) ?? null, ev.message);
         if (ev.code === 'ai_unavailable') announceAiUnavailable();
-        throw new Error(ev.message || 'Stream error');
+        throw new ChatStreamError(0, typeof ev.code === 'string' ? ev.code : null, ev.message || 'Stream error');
       } else if (ev.type === 'intent' || ev.type === 'stage' || ev.type === 'windows' || ev.type === 'info' || ev.type === 'clarify' || ev.type === 'propose' || ev.type === 'next' || ev.type === 'card') {
         // reading-engine progress (and the card chat's opening `card` event); older servers never send these
         onEvent?.(ev as ReadingStreamEvent);
@@ -181,8 +196,10 @@ export const sendChatMessageStream = async (
     getChatAskStreamUrl(),
     {
       question,
-      chatId: chatId ?? null,
-      ...(options?.clarify ? { clarify: true } : {}),
+      // a card question sends its thread's chatId only when it has one (server docs/reading-engine/85)
+      ...(options?.card && !chatId ? {} : { chatId: chatId ?? null }),
+      // card questions are answered directly: the clarifier never runs on them
+      ...(options?.clarify && !options?.card ? { clarify: true } : {}),
       ...(options?.focus && !options?.card ? { focus: options.focus.subject, parts: options.focus.parts } : {}),
       ...(options?.card ? { card: options.card } : {}),
       ...(options?.turnId ? { turnId: options.turnId } : {}),
@@ -286,11 +303,12 @@ async function postChatSse(
       const j = (await res.json().catch(() => ({}))) as { error?: string; usage?: PlanStatus };
       throw new QuotaExhaustedError(j.usage ?? null, j.error);
     }
-    if (res.status === 400 || res.status === 409) {
+    if (!res.ok) {
       const j = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(j.error || 'Bad request');
+      const code = typeof j.error === 'string' ? j.error : null;
+      if (res.status === 400 || res.status === 409) throw new ChatStreamError(res.status, code, j.error || 'Bad request');
+      throw new ChatStreamError(res.status, code, `Chat stream failed (${res.status})`);
     }
-    if (!res.ok) throw new Error(`Chat stream failed (${res.status})`);
     if (!res.body) throw new Error('Empty stream response');
 
     return await consumeChatAskSse(res, onDelta, options?.onEvent);

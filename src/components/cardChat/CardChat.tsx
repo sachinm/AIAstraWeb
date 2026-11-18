@@ -18,6 +18,7 @@ import { isNearBottom, shouldSendOnKey } from '../../pages/chat-interface/readin
 import { useSpeechRecognition } from '../../pages/chat-interface/useSpeechRecognition';
 import type { CardChatStore, CardChatTurn } from './cardChatStore';
 import { useCardChat } from './useCardChat';
+import { dayWords } from '../../pages/you/v3/cardModel';
 import { CARD_CHAT_WORDS as W, PROBLEM_WORD } from './words';
 
 export interface CardChatProps {
@@ -114,7 +115,7 @@ function Turn({ turn, busy, onRetry, onAnswer, onConfirm, onChange }: {
       ) : null}
       {(turn.status === 'failed' || turn.status === 'stopped') && (
         <p role="alert" className="flex flex-wrap items-center gap-x-2 text-[14px] text-amber-100" data-testid="card-chat-turn-failed">
-          {turn.status === 'stopped' ? W.stopped : W.sendFailed}
+          {turn.status === 'stopped' ? W.stopped : turn.problem && turn.problem !== 'failed' ? PROBLEM_WORD[turn.problem] : W.sendFailed}
           <button type="button" onClick={onRetry} disabled={busy} className="font-semibold underline underline-offset-4 disabled:opacity-50" data-testid="card-chat-try-again">
             {W.tryAgain}
           </button>
@@ -190,6 +191,7 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
   const keyboardUp = inset > 0;
   const lines = open?.preamble.lines.slice(0, 4) ?? [];
   const shownLines = more ? lines : lines.slice(0, 1);
+  const keyDates = open?.preamble.keyDates ?? [];
   const costLine = state.costLine !== undefined ? state.costLine : open ? (open.costLine ?? fallbackCostLine) : fallbackCostLine;
   const canType = state.phase === 'ready';
   const canSend = canType && !state.busy && !!state.draft.trim();
@@ -223,7 +225,19 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
                 {l}
               </p>
             ))}
-            {lines.length > 1 && (
+            {more && keyDates.length > 0 && (
+              <div className="mt-1" data-testid="card-chat-key-dates">
+                <p className="text-[12px] uppercase tracking-wide text-white/50">{W.keyDates}</p>
+                <ul className="grid gap-0.5">
+                  {keyDates.map((k) => (
+                    <li key={`${k.date}-${k.label}`} data-testid="card-chat-key-date">
+                      <b className="font-semibold">{dayWords(k.date)}:</b> {k.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {(lines.length > 1 || keyDates.length > 0) && (
               <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} className="mt-0.5 text-[13px] font-semibold text-teal-200 underline underline-offset-4" data-testid="card-chat-more">
                 {more ? W.less : W.more}
               </button>
@@ -256,7 +270,7 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
             </a>
           </p>
         )}
-        {state.problem && state.phase === 'ready' && state.problem !== 'failed' && state.problem !== 'quota' && (
+        {state.problem === 'auth' && state.phase === 'ready' && (
           <p role="status" className="mb-1.5 text-[13px] text-amber-100" data-testid="card-chat-problem">
             {PROBLEM_WORD[state.problem]}
           </p>

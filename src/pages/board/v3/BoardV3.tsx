@@ -82,7 +82,7 @@ import { costLineFor } from '../../../lib/cardChatApi';
 import { optionsFor, type CardOptions } from '../../../lib/cardOptions';
 import BoardSettings from '../../you/v3/BoardSettings';
 import { boardNow, cardNow, hasOwnOptions } from '../../you/v3/boardOptions';
-import { NOT_SUGGESTED, cardAccess, cardKey, cardTitle, featureOn, featureState } from '../../you/v3/features';
+import { NOT_SUGGESTED, cardAccess, cardFeatureUsable, cardKey, cardTitle, featureOn, featureState } from '../../you/v3/features';
 import { cardGroupOf } from '../../you/v3/CardBanner';
 import { useLayoutSaves } from '../../you/v3/useLayoutSaves';
 import type { SaveProblem } from '../../you/v3/layoutSaver';
@@ -802,7 +802,7 @@ function Board({
       focused: perView > 1 && i === index,
       veil: !(veiled && progress),
       reading: cardReading,
-      ...(chatOn && c.features?.['feature.card_chat']?.usable !== false
+      ...(chatOn && cardFeatureUsable(c, 'feature.card_chat')
         ? {
             chat: (card: SelfV3CardView) => (
               <CardChatBubble

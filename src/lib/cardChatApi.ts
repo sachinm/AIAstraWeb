@@ -2,12 +2,16 @@
  * Card chat (server docs/reading-engine/85): every request and response shape of the per-card chat lives here, so the
  * web lines up with the server in one place.
  *
- * - Open: `GET /api/cards/:board/:cardId/chat?from&to` → the card's own text (preamble), the period, the cost line and
- *   the card's thread. `normaliseOpen` accepts the brief's shape (`costLine` string, `preamble` string) and the plan's
- *   (`cost {uses, remaining}`, `preamble {headline, lines, keyDates}`), and drops anything it does not know.
- * - Send: `POST /api/chat/ask-stream` with today's body plus `card {board, cardId, from, to}`, `turnId` (one uuid per
- *   send; a retry of the same send reuses it, so it is charged once) and `chatId` (the card's thread). The SSE stream
- *   opens with `{type:'card', ...}` and then carries today's events. `cardAskFields` builds the extra fields.
+ * - Open: `GET /api/cards/:board/:cardId/chat?from&to` → `{card {board, id, title, subtitle}, period {from, to, label}
+ *   | null, preamble {headline, lines[], keyDates[{date, label}], confirm}, cost {uses, remaining, limit, line | null},
+ *   thread {chatId | null, messages[{question, answer, at, periodLabel}]}}` (server f09ad68). `normaliseOpen` also takes
+ *   a plain-string preamble and a top-level `costLine`, and drops anything it does not know.
+ * - Send: `POST /api/chat/ask-stream` with `{question, card {board, cardId, from?, to?}, turnId, chatId?}`. `turnId` is
+ *   one uuid per send; a retry of the same send reuses it (an answered one replays, `done.replay`), so it is charged
+ *   once. No `clarify`: the server answers every card question directly. The SSE stream: `turn_init`, `card`, `start`,
+ *   `usage`, `token`..., `done {chatId, answer, card, usage?}`; `error {code?, message, usage?}`; a declined topic is
+ *   `info {reason:'declined'}`, a token and `done`.
+ * - Errors are mapped on the server's `error` / `code` string (`problemOf`), on the status only when there is none.
  *
  * The web never sends the card's text: the server reads the stored card again. Nothing here is shown to the person
  * except through the view model below (no ids, no server error codes).
@@ -64,11 +68,11 @@ export function newTurnId(): string {
 
 /** the GET body as the server may send it (both shapes; every field optional) */
 export interface CardChatOpenWire {
-  card?: { board?: string; id?: string; cardId?: string; title?: string } | null;
+  card?: { board?: string; id?: string; cardId?: string; title?: string; subtitle?: string | null } | null;
   period?: { from?: string; to?: string; label?: string } | null;
-  preamble?: string | { headline?: string | null; lines?: unknown; keyDates?: unknown } | null;
+  preamble?: string | { headline?: string | null; lines?: unknown; keyDates?: unknown; confirm?: string | null } | null;
   costLine?: string | null;
-  cost?: { uses?: number; remaining?: number | null } | null;
+  cost?: { uses?: number; remaining?: number | null; limit?: number | null; line?: string | null } | null;
   thread?: {
     chatId?: string | null;
     messages?: Array<{ question?: unknown; answer?: unknown; at?: unknown; periodLabel?: unknown }> | null;
@@ -85,7 +89,14 @@ export interface CardChatTurnView {
 export interface CardChatOpen {
   title: string | null;
   periodLabel: string | null;
-  preamble: { headline: string | null; lines: string[] };
+  preamble: {
+    headline: string | null;
+    lines: string[];
+    /** the card's dated turning points (YYYY-MM-DD and its words) */
+    keyDates: Array<{ date: string; label: string }>;
+    /** the card's "Is this right?" claim, when the server sends one */
+    confirm: string | null;
+  };
   /** "Uses 1 of your 7 questions"; null for Unlimited or exempt accounts, or when the server cannot say */
   costLine: string | null;
   chatId: string | null;
@@ -104,6 +115,8 @@ export function normaliseOpen(w: CardChatOpenWire | null | undefined): CardChatO
   const p = w?.preamble;
   let headline: string | null = null;
   let lines: string[] = [];
+  let keyDates: Array<{ date: string; label: string }> = [];
+  let confirm: string | null = null;
   if (typeof p === 'string') {
     const parts = p.split(/\n+/).map((s) => s.trim()).filter(Boolean);
     headline = parts[0] ?? null;
@@ -111,15 +124,23 @@ export function normaliseOpen(w: CardChatOpenWire | null | undefined): CardChatO
   } else if (p && typeof p === 'object') {
     headline = str(p.headline);
     lines = Array.isArray(p.lines) ? p.lines.map(str).filter((s): s is string => !!s) : [];
+    keyDates = Array.isArray(p.keyDates)
+      ? (p.keyDates as Array<{ date?: unknown; label?: unknown } | null>)
+          .map((k) => ({ date: str(k?.date) ?? '', label: str(k?.label) ?? '' }))
+          .filter((k) => /^[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(k.date) && !!k.label)
+      : [];
+    confirm = str(p.confirm);
   }
-  const costLine = w && 'costLine' in w ? str(w.costLine) : w?.cost ? costLineFor(w.cost.uses ?? 1, w.cost.remaining) : null;
+  // the server's own line wins (null hides it: Unlimited or exempt); else one from the count left
+  const c = w?.cost;
+  const costLine = w && 'costLine' in w ? str(w.costLine) : c && 'line' in c ? str(c.line) : c ? costLineFor(c.uses ?? 1, c.remaining) : null;
   const thread = (w?.thread?.messages ?? [])
     .map((m) => ({ question: str(m?.question) ?? '', answer: typeof m?.answer === 'string' ? m.answer : '', periodLabel: str(m?.periodLabel) }))
     .filter((m) => m.question || m.answer);
   return {
     title: str(w?.card?.title),
     periodLabel: str(w?.period?.label),
-    preamble: { headline, lines },
+    preamble: { headline, lines, keyDates, confirm },
     costLine,
     chatId: str(w?.thread?.chatId),
     thread,
@@ -127,7 +148,7 @@ export function normaliseOpen(w: CardChatOpenWire | null | undefined): CardChatO
 }
 
 /** why an open or a send did not go through, in the web's own words (never the server's code) */
-export type CardChatProblem = 'auth' | 'off' | 'not_ready' | 'no_kundli' | 'quota' | 'failed';
+export type CardChatProblem = 'auth' | 'off' | 'not_ready' | 'no_kundli' | 'period' | 'quota' | 'busy' | 'rate_limited' | 'spend_cap' | 'timeout' | 'failed';
 
 export class CardChatError extends Error {
   readonly problem: CardChatProblem;
@@ -140,13 +161,38 @@ export class CardChatError extends Error {
   }
 }
 
-/** a server status and error code to the web's problem */
+/** the server's `error` (GET, ask-stream) or SSE `code` strings, by the web's problem */
+const PROBLEM_BY_CODE: Readonly<Record<string, CardChatProblem>> = {
+  quota_exhausted: 'quota',
+  no_kundli: 'no_kundli',
+  card_not_ready: 'not_ready',
+  chart_not_ready: 'not_ready',
+  unknown_card: 'off',
+  card_not_on_board: 'off',
+  unknown_board: 'off',
+  board_off: 'off',
+  feature_off: 'off',
+  locked: 'off',
+  bad_period: 'period',
+  turn_in_flight: 'busy',
+  rate_limited: 'rate_limited',
+  spend_cap: 'spend_cap',
+  timeout: 'timeout',
+  // a request the web built wrong: nothing the person can change
+  bad_card: 'failed',
+  bad_turn_id: 'failed',
+  card_with_focus: 'failed',
+};
+
+/** a server error to the web's problem: by its code first, by the status only when the code says nothing */
 export function problemOf(status: number, code?: string | null): CardChatProblem {
+  const byCode = code ? PROBLEM_BY_CODE[code] : undefined;
+  if (byCode) return byCode;
   if (status === 401) return 'auth';
-  if (status === 402 || code === 'quota_exhausted') return 'quota';
-  if (code === 'no_kundli') return 'no_kundli';
-  if (code === 'card_not_ready' || code === 'chart_not_ready') return 'not_ready';
-  if (status === 403 || code === 'feature_off' || code === 'locked' || code === 'card_not_on_board' || code === 'unknown_card') return 'off';
+  if (status === 402) return 'quota';
+  if (status === 403) return 'off';
+  if (status === 429) return 'rate_limited';
+  if (status === 503 || status === 504) return 'timeout';
   return 'failed';
 }
 

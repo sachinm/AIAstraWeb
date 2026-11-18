@@ -16,7 +16,16 @@ let askReplies: Array<() => Response>;
 let openBody: unknown;
 
 const sse = (events: unknown[]) => new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(''), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
-const answered = (text: string, chatId = 'c-1') => () => sse([{ type: 'card', title: 'Body & energy', periodLabel: 'Heavy stretch' }, { type: 'token', delta: text }, { type: 'done', answer: text, chatId }]);
+const answered = (text: string, chatId = 'c-1') => () =>
+  sse([
+    { type: 'turn_init', turnId: 'resume-1' },
+    { type: 'card', board: 'self', id: 'body', title: 'Body & energy', periodLabel: 'Heavy stretch', turnId: 'x' },
+    { type: 'start' },
+    { type: 'usage', usage: { remaining: 6, exempt: false } },
+    { type: 'token', delta: text },
+    { type: 'done', answer: text, chatId, card: { board: 'self', id: 'body' } },
+  ]);
+const refused = (status: number, error: string) => () => new Response(JSON.stringify({ error }), { status });
 
 const REF: CardChatRef = { board: 'self', cardId: 'body', from: '2026-11-01', to: '2027-06-03' };
 
@@ -27,8 +36,8 @@ beforeEach(() => {
   openBody = {
     card: { board: 'self', id: 'body', title: 'Body & energy' },
     period: { from: '2026-11-01', to: '2027-06-03', label: 'Heavy stretch · to 3 Jun 2027' },
-    preamble: { headline: 'Pace yourself this winter.', lines: ['Rest comes first until March.', 'Short walks help most.'], keyDates: [] },
-    cost: { uses: 1, remaining: 7 },
+    preamble: { headline: 'Pace yourself this winter.', lines: ['Rest comes first until March.', 'Short walks help most.'], keyDates: [{ date: '2027-03-01', label: 'Energy starts to return' }], confirm: null },
+    cost: { uses: 1, remaining: 7, limit: 10, line: 'Uses 1 of your 7 questions this month' },
     thread: { chatId: 'c-1', messages: [{ question: 'Will my energy come back?', answer: 'Slowly, from March.', at: '2026-11-17T10:00:00Z', periodLabel: 'Heavy stretch' }] },
   };
   vi.stubGlobal(
@@ -71,8 +80,10 @@ describe('opening', () => {
     expect(screen.getByTestId('card-chat-preamble')).toHaveTextContent('Rest comes first until March.');
     // collapsed to the first line; More shows the rest
     expect(screen.getByTestId('card-chat-preamble')).not.toHaveTextContent('Short walks help most.');
+    expect(screen.queryByTestId('card-chat-key-dates')).toBeNull();
     fireEvent.click(screen.getByTestId('card-chat-more'));
     expect(screen.getByTestId('card-chat-preamble')).toHaveTextContent('Short walks help most.');
+    expect(screen.getByTestId('card-chat-key-dates')).toHaveTextContent('1 Mar 2027: Energy starts to return');
     // the stored thread
     expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('Will my energy come back?');
     expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('Slowly, from March.');
@@ -96,7 +107,7 @@ describe('opening', () => {
 
   it('shows the cost line before sending', async () => {
     mount();
-    expect(await screen.findByTestId('card-chat-cost')).toHaveTextContent('Uses 1 of your 7 questions');
+    expect(await screen.findByTestId('card-chat-cost')).toHaveTextContent('Uses 1 of your 7 questions this month');
   });
 
   it('a failed open says so in the card, never the server code, and Retry opens again', async () => {
@@ -145,6 +156,10 @@ describe('the input', () => {
     expect(body).toMatchObject({ question: 'When does it lift?', chatId: 'c-1', card: { board: 'self', cardId: 'body', from: '2026-11-01', to: '2027-06-03' } });
     expect(body.turnId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(body).not.toHaveProperty('focus');
+    // the server answers every card question directly
+    expect(body).not.toHaveProperty('clarify');
+    // the usage after the answer updates the cost line
+    expect(screen.getByTestId('card-chat-cost')).toHaveTextContent('Uses 1 of your 6 questions');
     expect(screen.getByTestId('card-chat-textarea')).toHaveValue('');
   });
 
@@ -186,6 +201,50 @@ describe('the input', () => {
     expect(asks()[2]!.body!.turnId).not.toBe(asks()[0]!.body!.turnId);
   });
 
+  it('a card with no thread yet sends no chatId', async () => {
+    openBody = { ...(openBody as object), thread: { chatId: null, messages: [] } };
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('First question?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(asks()).toHaveLength(1));
+    expect(asks()[0]!.body).not.toHaveProperty('chatId');
+  });
+
+  it.each<[string, () => Response, string]>([
+    ['turn_in_flight (409)', refused(409, 'turn_in_flight'), 'Your last question is still being answered.'],
+    ['rate_limited (429)', refused(429, 'rate_limited'), 'Too many questions at once.'],
+    ['card_not_on_board (404)', refused(404, 'card_not_on_board'), 'Chat is not available for this card.'],
+    ['bad_period (400)', refused(400, 'bad_period'), 'This period is no longer on your card.'],
+    ['timeout (503)', refused(503, 'timeout'), 'That took too long.'],
+    ['an SSE spend_cap error', () => sse([{ type: 'card' }, { type: 'error', code: 'spend_cap', message: 'operation spend cap reached' }]), 'too large to answer in one go'],
+  ])('a send refused with %s says so in plain words, never the code', async (_n, reply, words) => {
+    askReplies = [reply];
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('Will it lift?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    const failed = await screen.findByTestId('card-chat-turn-failed');
+    expect(failed).toHaveTextContent(words);
+    expect(failed.textContent).not.toMatch(/turn_in_flight|rate_limited|card_not_on_board|bad_period|timeout|spend_cap|\(\d{3}\)/);
+    expect(screen.getByTestId('card-chat-try-again')).toBeInTheDocument();
+  });
+
+  it('a declined topic arrives as words in the card', async () => {
+    askReplies = [() => sse([{ type: 'card' }, { type: 'info', reason: 'declined' }, { type: 'token', delta: 'That is outside this card.' }, { type: 'done', answer: 'That is outside this card.', chatId: 'c-1' }])];
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('Lottery numbers?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('That is outside this card.'));
+  });
+
   it('a 402 keeps the question in the box and shows the plan line', async () => {
     askReplies = [() => new Response(JSON.stringify({ error: 'quota_exhausted', usage: { remaining: 0, exempt: false } }), { status: 402 })];
     mount();
@@ -199,7 +258,8 @@ describe('the input', () => {
     expect(screen.queryAllByTestId('card-chat-question').map((q) => q.textContent)).not.toContain('You: Will it lift?');
   });
 
-  it('the clarifier asks inside the card; its answer leads to the reading through confirm', async () => {
+  // dormant: the server answers card questions directly today; kept for a server that asks one question first
+  it('a clarifier question, if one comes, is asked inside the card and its answer leads to the reading', async () => {
     askReplies = [
       () =>
         sse([

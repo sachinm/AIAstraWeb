@@ -20,7 +20,7 @@ import {
   type CardChatRef,
 } from '../../lib/cardChatApi';
 import { QuotaExhaustedError, type PlanStatus } from '../../lib/billing';
-import { answerClarify, confirmClarifyStream, isClarifyEnabled, sendChatMessageStream } from '../../pages/UserData';
+import { answerClarify, ChatStreamError, confirmClarifyStream, sendChatMessageStream } from '../../pages/UserData';
 import type { ReadingStreamEvent } from '../../pages/chat-interface/readingProgress';
 import { browserTimeZone, LOCATION_CRITERION, toClarifyView, type ClarifyView } from '../../pages/chat-interface/readingUi';
 import { createTokenDeltaFlusher } from '../../pages/chat-interface/tokenFlusher';
@@ -43,6 +43,8 @@ export interface CardChatTurn {
   since?: number;
   /** the last answer to the clarifier did not go through; its question stays up to answer again */
   clarifyFailed?: boolean;
+  /** why a failed turn did not go through, in the web's own words */
+  problem?: CardChatProblem;
 }
 
 export interface CardChatState {
@@ -86,10 +88,9 @@ export interface CardChatStoreOptions {
 /** a thrown send error to the web's own problem word */
 function sendProblem(err: unknown): CardChatProblem {
   if (err instanceof CardChatError) return err.problem;
-  const msg = err instanceof Error ? err.message : '';
-  if (msg === 'Not authenticated') return 'auth';
-  const status = Number(/\((\d{3})\)/.exec(msg)?.[1] ?? 0);
-  return problemOf(status, msg);
+  if (err instanceof ChatStreamError) return problemOf(err.status, err.code);
+  if (err instanceof Error && err.message === 'Not authenticated') return 'auth';
+  return 'failed';
 }
 
 const isAbort = (err: unknown) => (err as { name?: string } | null)?.name === 'AbortError';
@@ -183,7 +184,7 @@ export class CardChatStore {
     const s = this.get(key);
     const t = s.turns.find((x) => x.key === turnKey);
     if (!t || s.busy || (t.status !== 'failed' && t.status !== 'stopped')) return;
-    this.patchTurn(key, turnKey, { status: 'streaming', answer: '', since: Date.now() });
+    this.patchTurn(key, turnKey, { status: 'streaming', answer: '', since: Date.now(), problem: undefined });
     if (t.runId) void this.confirm(ref, turnKey);
     else void this.ask(ref, turnKey);
   }
@@ -219,8 +220,13 @@ export class CardChatStore {
       this.set(key, (s) => ({ turns: s.turns.filter((x) => x.key !== turnKey), quota: true, draft: s.draft || t?.question || '' }));
       return;
     }
-    this.patchTurn(key, turnKey, { status: isAbort(err) ? 'stopped' : 'failed', clarify: undefined });
-    if (!isAbort(err)) this.set(key, { problem: sendProblem(err) });
+    if (isAbort(err)) {
+      this.patchTurn(key, turnKey, { status: 'stopped', clarify: undefined });
+      return;
+    }
+    const problem = sendProblem(err);
+    this.patchTurn(key, turnKey, { status: 'failed', clarify: undefined, problem });
+    if (problem === 'auth') this.set(key, { problem });
   }
 
   private onEvent(key: string, turnKey: string) {
@@ -240,7 +246,7 @@ export class CardChatStore {
     try {
       const r = await sendChatMessageStream(t.question, this.get(key).chatId, (d) => flusher.push(d), {
         signal: ctl.signal,
-        clarify: isClarifyEnabled(),
+        // no clarify: the server answers every card question directly
         card: toWireCard(ref),
         turnId: t.turnId ?? newTurnId(),
         onEvent: this.onEvent(key, turnKey),
