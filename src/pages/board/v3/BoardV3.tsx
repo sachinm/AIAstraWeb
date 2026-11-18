@@ -21,8 +21,12 @@
  * Doc 70 Phase 3 (a reading per card, when `reading.enabled`): each card shows its own state (a quiet skeleton while
  * queued or reading, Try again when it failed, "Not read yet" otherwise), the header carries the board's reading line,
  * and the page polls every 2 s while any card on the board is queued or reading.
+ *
+ * Love and Work open on `?lens=<id>` when the link carries one (a focused dashboard in the side menu, server
+ * docs/dashboards/11): the board switches to that lens and saves it as its lens, then the parameter leaves the URL.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useInRouterContext, useSearchParams } from 'react-router-dom';
 import { BoardIdContext } from '../../you/v3/boardContext';
 import { LensTabs, LensTitleButton, type LensOption } from './LensSwitcher';
 import { usePlan } from '../../../Auth/ProfileGate';
@@ -131,6 +135,31 @@ export function readingLine(reading: BoardReadingView | null | undefined): strin
   return null;
 }
 
+/**
+ * Reads `?lens=` (inside a router only) and hands it up; once the board has taken it, drops it from the URL so the
+ * lens switcher on the board is not fought by it and a reload opens the stored lens.
+ */
+function UrlLens({ onLens, taken, onDropped }: { onLens: (id: string | null) => void; taken: string | null; onDropped: () => void }) {
+  const [params, setParams] = useSearchParams();
+  const lens = params.get('lens');
+  useEffect(() => onLens(lens), [lens, onLens]);
+  useEffect(() => {
+    if (!taken) return;
+    onDropped();
+    if (lens !== taken) return;
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('lens');
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taken]);
+  return null;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // The page: loads, polls and falls back to the v2 board
 // ---------------------------------------------------------------------------------------------------------------------
@@ -149,6 +178,11 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
   const [fresh, setFresh] = useState<{ builtAt: string | null; from: SelfV3Response } | null>(null);
   const [freshFailed, setFreshFailed] = useState(false);
   const waitStart = useRef<number | null>(null);
+  // Love and Work: the lens the link asks for (`?lens=`), and the one the board has taken
+  const inRouter = useInRouterContext();
+  const [urlLens, setUrlLens] = useState<string | null>(null);
+  const [urlLensTaken, setUrlLensTaken] = useState<string | null>(null);
+  const dropUrlLens = useCallback(() => setUrlLensTaken(null), []);
 
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
@@ -293,9 +327,12 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
 
   return (
     <BoardIdContext.Provider value={boardId}>
+    {inRouter && boardId !== 'self' && <UrlLens onLens={setUrlLens} taken={urlLensTaken} onDropped={dropUrlLens} />}
     <Board
       boardId={boardId}
       board={board}
+      urlLens={urlLens}
+      onUrlLensTaken={setUrlLensTaken}
       rebuild={rebuilding ? rebuild : null}
       freshBuilding={freshBuilding}
       freshFailed={freshFailed}
@@ -349,9 +386,14 @@ function Board({
   onFreshStarted,
   onReload,
   onRetryBuild,
+  urlLens = null,
+  onUrlLensTaken,
 }: {
   boardId: BoardId;
   board: SelfV3Response;
+  /** Love and Work: the lens the link asks for (`?lens=`) */
+  urlLens?: string | null;
+  onUrlLensTaken?: (id: string) => void;
   rebuild: { system: string; label: string } | null;
   freshBuilding: boolean;
   freshFailed?: boolean;
@@ -532,6 +574,20 @@ function Board({
     setPickLens(id);
     setPickerOpen(true);
   };
+
+  // a link's lens (`?lens=`), taken once per value: switched to and saved exactly as a tap on its tab would be
+  const urlLensDone = useRef<string | null>(null);
+  useEffect(() => {
+    if (!urlLens) {
+      urlLensDone.current = null;
+      return;
+    }
+    if (isSelf || urlLensDone.current === urlLens) return;
+    urlLensDone.current = urlLens;
+    if (lenses.some((l) => l.id === urlLens)) pickLensNow(urlLens);
+    onUrlLensTaken?.(urlLens);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlLens, isSelf, lenses]);
 
   const pickerDone = async (cards: SelfCardId[]) => {
     setPickerBusy(true);

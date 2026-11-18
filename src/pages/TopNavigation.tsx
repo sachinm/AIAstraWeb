@@ -7,6 +7,7 @@ import { boardsEnabled } from '../components/BoardTabBar';
 import { useLeftRail } from '../components/SideNav';
 import UsageRing from '../components/UsageRing';
 import { track } from '../lib/events';
+import { usePortalDashboards } from '../lib/portalDashboards';
 import { PRODUCT_NAME, PRODUCT_TAGLINE, PRODUCT_TITLE } from '../lib/legal';
 import WelcomeWizard from './welcome/WelcomeWizard';
 
@@ -24,6 +25,8 @@ interface TopNavigationProps {
 const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMessage }) => {
   const [wizardOpen, setWizardOpen] = useState(false);
   const rail = useLeftRail();
+  // Happy Hour(s) shows when the person chose Lucky times for their portal (server docs/dashboards/11)
+  const portal = usePortalDashboards();
 
   return (
     <>
@@ -62,7 +65,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
             <div data-board-header-slot className="flex min-w-0 flex-1 items-center gap-1" />
 
             {/* below 768 px Happy Hour(s) lives in the menu drawer (SideNav) */}
-            {boardsEnabled() && (
+            {boardsEnabled() && portal.includes('lucky') && (
               <NavLink
                 to="/dashboard/lucky"
                 onClick={() => track('tab_select', 'header', 'happy hour(s)')}

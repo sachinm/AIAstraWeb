@@ -5,12 +5,15 @@
 import { NavLink } from 'react-router-dom';
 import { Briefcase, Heart, MessageCircle, Sun, User } from 'lucide-react';
 import { track } from '../lib/events';
+import { usePortalDashboards, type PortalDashboardId } from '../lib/portalDashboards';
 
-const TABS = [
+/** Today and Ask always; You, Love and Work only when the person's portal list has them (server docs/dashboards/11).
+ * The focused dashboards live in the side menu, not here: the bar keeps one row of large targets. */
+const TABS: Array<{ to: string; label: string; icon: typeof Sun; id?: PortalDashboardId }> = [
   { to: '/dashboard/today', label: 'Today', icon: Sun },
-  { to: '/dashboard/you', label: 'You', icon: User },
-  { to: '/dashboard/love', label: 'Love', icon: Heart },
-  { to: '/dashboard/work', label: 'Work', icon: Briefcase },
+  { id: 'self', to: '/dashboard/you', label: 'You', icon: User },
+  { id: 'love', to: '/dashboard/love', label: 'Love', icon: Heart },
+  { id: 'work', to: '/dashboard/work', label: 'Work', icon: Briefcase },
   { to: '/dashboard/chat', label: 'Ask', icon: MessageCircle },
 ];
 
@@ -19,10 +22,12 @@ export function boardsEnabled(): boolean {
 }
 
 export default function BoardTabBar() {
+  const portal = usePortalDashboards();
+  const tabs = TABS.filter((t) => !t.id || portal.includes(t.id));
   return (
     <nav aria-label="Boards" className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0b0a1f]/95 backdrop-blur-md" data-testid="board-tabbar">
       <ul className="mx-auto flex max-w-xl justify-between px-2">
-        {TABS.map(({ to, label, icon: Icon }) => (
+        {tabs.map(({ to, label, icon: Icon }) => (
           <li key={to} className="flex-1">
             <NavLink
               to={to}
