@@ -334,6 +334,61 @@ export interface CardFeatureGrant {
   minPlan: string | null;
 }
 
+/** the server's map entry for one key: on when not locked */
+export interface FeatureGrantMapEntry {
+  locked: boolean;
+  minPlan?: string | null;
+}
+/** the board's grants as the server's map: `{"feature.card_chat": {locked: false}, ...}` */
+export type BoardFeaturesMap = Record<string, FeatureGrantMapEntry>;
+
+type GrantWire = { locked?: unknown; minPlan?: unknown; usable?: unknown } | null | undefined;
+
+/**
+ * The board's grants in the one shape the page reads. The server sends either the list shape (`{allowed: [], locked:
+ * [{key, minPlan}]}`) or a map (`{"feature.card_chat": {locked: false}, "card.love.x": {locked: true, minPlan}}`): in the
+ * map a key with `locked: false` is on, a locked key is shown with its lock, and a key absent is off.
+ */
+export function normaliseBoardFeatures(f: unknown): BoardFeatures | null {
+  if (!f || typeof f !== 'object') return null;
+  const o = f as Record<string, unknown>;
+  if (Array.isArray(o.allowed)) return f as BoardFeatures;
+  const allowed: string[] = [];
+  const locked: LockedFeature[] = [];
+  for (const [key, raw] of Object.entries(o)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const g = raw as Exclude<GrantWire, null | undefined>;
+    if (g.locked === true) locked.push({ key, minPlan: typeof g.minPlan === 'string' ? g.minPlan : '' });
+    else if (g.usable !== false) allowed.push(key);
+  }
+  return { allowed, locked };
+}
+
+/** a card's own grant: `{usable, locked, minPlan}`, or the map's `{locked, minPlan?}` (usable when not locked) */
+export function normaliseCardGrant(g: unknown): CardFeatureGrant | null {
+  if (!g || typeof g !== 'object') return null;
+  const w = g as Exclude<GrantWire, null | undefined>;
+  const locked = w.locked === true;
+  return { usable: typeof w.usable === 'boolean' ? w.usable && !locked : !locked, locked, minPlan: typeof w.minPlan === 'string' ? w.minPlan : null };
+}
+
+function normaliseCardFeatures(f: unknown): Record<string, CardFeatureGrant> | undefined {
+  if (!f || typeof f !== 'object') return undefined;
+  const out: Record<string, CardFeatureGrant> = {};
+  for (const [k, g] of Object.entries(f as Record<string, unknown>)) {
+    const n = normaliseCardGrant(g);
+    if (n) out[k] = n;
+  }
+  return out;
+}
+
+/** a board's grants, and each card's, in the shapes the page reads (both server shapes accepted) */
+export function withFeatureShapes<T extends Pick<SelfV3Response, 'features' | 'cards'>>(b: T): T {
+  const features = normaliseBoardFeatures(b.features);
+  const cards = Array.isArray(b.cards) ? b.cards.map((c) => (c.features ? { ...c, features: normaliseCardFeatures(c.features) } : c)) : b.cards;
+  return { ...b, ...(b.features !== undefined ? { features } : {}), cards };
+}
+
 export interface SelfV3CardView {
   id: SelfCardId;
   /** Self: the picker group; Love and Work: the card's lens */
@@ -360,7 +415,8 @@ export interface SelfV3CardView {
   periods?: CardPeriodView[];
   stale?: boolean;
   staleDates?: IsoDate[];
-  features?: Record<string, CardFeatureGrant>;
+  /** the card's grants: `{usable, locked, minPlan}`, or the server's map entry `{locked, minPlan?}` (read through normaliseCardGrant) */
+  features?: Record<string, CardFeatureGrant | FeatureGrantMapEntry>;
   rail: RailItem[];
   /** doc 75: one plain line under the name saying what the card answers; absent from older servers */
   subtitle?: string | null;
@@ -396,7 +452,8 @@ export interface SelfV3Response {
   /** doc 70 §4.2: the board's reading progress; null when nothing is known yet */
   reading: BoardReadingView | null;
   /** doc 75: what this person may see; absent from older servers (the page then keeps the foundation set) */
-  features?: BoardFeatures | null;
+  /** the list shape or the server's map (read through normaliseBoardFeatures) */
+  features?: BoardFeatures | BoardFeaturesMap | null;
   /** Love and Work only (docs/dashboards/10 §4.3); absent on Self */
   board?: BoardId;
   lenses?: BoardLensView[];
@@ -571,7 +628,8 @@ function withLayoutDefaults(l: SelfBoardLayoutView): SelfBoardLayoutView {
 }
 
 /** a board body from Love or Work, with the Self-only fields filled */
-function withBoardDefaults(b: SelfV3Response, board: BoardId): SelfV3Response {
+function withBoardDefaults(raw: SelfV3Response, board: BoardId): SelfV3Response {
+  const b = withFeatureShapes(raw);
   if (board === 'self') return b;
   return { ...b, board, layout: withLayoutDefaults(b.layout), clock: b.clock ?? ({ system: '', label: '' } as SelfV2Clock) };
 }

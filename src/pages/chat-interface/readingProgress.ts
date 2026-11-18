@@ -58,7 +58,7 @@ export function nextPartsOf(ev: Record<string, unknown>): NextPart[] {
 export interface ReadingStreamEvent {
   /** with type `usage`: the question count after this request (not a reading stage) */
   usage?: PlanStatus;
-  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'next' | 'usage';
+  type: 'intent' | 'stage' | 'windows' | 'info' | 'clarify' | 'propose' | 'next' | 'usage' | 'card';
   [k: string]: unknown;
 }
 

@@ -6,8 +6,13 @@
  *
  * A card the person's plan does not cover shows a lock and "Part of Plus", never its content. Nothing here calls the
  * network: choices go up through `onOptions`, Why through `onWhy`, the chat bubble is drawn by the board.
+ *
+ * Card chat (server docs/reading-engine/85): with `chatFace`, the face switch offers Chat beside Read and Short. In the
+ * Chat face the card keeps its header and its height; the switch, the period on screen (fixed while chatting) and the
+ * board's chat view replace the headline, the body and the footer, so the chat's input is the card's foot. Read or
+ * Short closes it; the board keeps the conversation.
  */
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Info, Lock } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
@@ -17,7 +22,7 @@ import CardFooter from './CardFooter';
 import { SensitiveNote, type CardReading } from './CardParts';
 import CardToolbar from './CardToolbar';
 import { dayWords, headlineOf, keyDatesOf, neighbour, todayIso, type PeriodView } from './cardModel';
-import FaceBody, { shownFace } from './faces/FaceBody';
+import FaceBody, { shownFace, type ShownFace } from './faces/FaceBody';
 import { label } from './faces/parts';
 import { cardSubtitle, cardTitle, planWord } from './features';
 import { notReadyBody } from './notReady';
@@ -32,6 +37,14 @@ export interface CardAllowed {
   keyDates: boolean;
   why: boolean;
   confirm: boolean;
+}
+
+/** the Chat face a board gives a card: open or not, the way in and out, and the view itself */
+export interface CardChatFace {
+  open: boolean;
+  onOpen: (card: SelfV3CardView, period: PeriodView | null) => void;
+  onClose: () => void;
+  render: (card: SelfV3CardView, period: PeriodView | null) => ReactNode;
 }
 
 export const ALL_ALLOWED: CardAllowed = { short: true, periods: true, keyDates: true, why: true, confirm: true };
@@ -51,6 +64,8 @@ export interface CardProps {
   onWhy?: (card: SelfV3CardView, period: PeriodView | null) => void;
   /** the chat bubble for this card and the period on screen; absent while card chat is off */
   chat?: (card: SelfV3CardView, period: PeriodView | null) => ReactNode;
+  /** the card's Chat face (doc 85), drawn by the board; absent while card chat is off */
+  chatFace?: CardChatFace;
   onRefresh?: () => void;
   focused?: boolean;
   veil?: boolean;
@@ -95,6 +110,7 @@ export default function CardFrame({
   onOptions,
   onWhy,
   chat,
+  chatFace,
   onRefresh,
   focused = false,
   veil = true,
@@ -117,6 +133,28 @@ export default function CardFrame({
     () => allowed.periods && next !== null && view.select(next),
   );
   const ready = !lockedPlan && !notReady;
+  const chatting = ready && !!chatFace?.open;
+  // a card that stops being readable (a new build, a lock) leaves its Chat face; the board keeps the conversation
+  const chatOpenButNotReady = !ready && !!chatFace?.open;
+  const closeChatFace = chatFace?.onClose;
+  useEffect(() => {
+    if (chatOpenButNotReady) closeChatFace?.();
+  }, [chatOpenButNotReady, closeChatFace]);
+  /** a face picked on the switch: from Chat it closes the chat, and a face already stored is not saved again */
+  const pickFace = (f: ShownFace) => {
+    if (chatting) chatFace!.onClose();
+    if (!chatting || f !== face) onOptions({ face: FACE_WIRE[f] });
+  };
+  const toolbar = (allowed.short || !!chatFace) && (
+    <CardToolbar
+      cardId={card.id}
+      face={face}
+      onFace={pickFace}
+      hasOwn={hasOwn}
+      shortOn={allowed.short}
+      {...(chatFace ? { chat: { open: chatting, onOpen: () => chatFace.onOpen(card, period) } } : {})}
+    />
+  );
 
   const header = (
     <div className="relative shrink-0" data-testid="card-header">
@@ -155,9 +193,9 @@ export default function CardFrame({
 
   const body = (
     <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2">
-      {(allowed.short || chips.length > 1) && (
+      {(toolbar || chips.length > 1) && (
         <div className="flex min-w-0 shrink-0 flex-col gap-1.5">
-          {allowed.short && <CardToolbar cardId={card.id} face={face} onFace={(f) => onOptions({ face: FACE_WIRE[f] })} hasOwn={hasOwn} />}
+          {toolbar}
           <PeriodStrip cardId={card.id} periods={view.periods} chips={chips} selected={view.selected} onSelect={view.select} panelId={panelId} />
         </div>
       )}
@@ -192,6 +230,21 @@ export default function CardFrame({
     </div>
   );
 
+  // the Chat face: the switch, the period it is about, then the board's chat view down to the card's foot
+  const chatBody = chatting && (
+    <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2" data-testid="card-chat-face">
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
+        {toolbar}
+        {period?.label && (
+          <span className="min-w-0 truncate rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[13px] text-white/75" data-testid="card-chat-period">
+            {period.label}
+          </span>
+        )}
+      </div>
+      {chatFace!.render(card, period)}
+    </div>
+  );
+
   return (
     <article
       className={`glass self-v3-card self-v3-${variant} flex h-full min-h-0 flex-col rounded-2xl ${cardAccentClass(card.id)} ${focused ? 'ring-1 ring-teal-300/40' : ''}`}
@@ -199,15 +252,15 @@ export default function CardFrame({
       data-status={card.status}
       data-state={card.state}
       data-template={variant}
-      data-face={face}
+      data-face={chatting ? 'chat' : face}
       data-locked={lockedPlan ? 'true' : 'false'}
       aria-label={title}
     >
       {header}
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-2 xl:px-5">
         <SensitiveNote card={card} />
-        {locked || notReady || body}
-        {ready && <CardFooter card={card} confirmOn={confirmOn && allowed.confirm} />}
+        {locked || notReady || chatBody || body}
+        {ready && !chatting && <CardFooter card={card} confirmOn={confirmOn && allowed.confirm} />}
       </div>
     </article>
   );

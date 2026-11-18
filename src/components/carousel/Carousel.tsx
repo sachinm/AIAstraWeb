@@ -6,6 +6,10 @@
  * drag.
  *
  * Only the track scrolls, and only sideways; a card's own body is the one vertical scroll, inside the card.
+ *
+ * `locked` holds the track still (a card in its Chat view, server docs/reading-engine/85): no swipe, no drag, no arrow
+ * keys and no focus moves change the card. The caller can still move `index` (a chip tap), which it does after
+ * unlocking.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -30,6 +34,8 @@ export interface CarouselProps {
   peekPx?: number;
   className?: string;
   testId?: string;
+  /** hold the track still: swipe, drag, keys and focus do not move it */
+  locked?: boolean;
 }
 
 /** The first card on screen for a card in focus: the track cannot scroll past its end. */
@@ -41,7 +47,7 @@ const IGNORE_SCROLL_MS = 450;
 /** a user scroll counts once it has been still this long */
 export const SETTLE_MS = 120;
 
-export default function Carousel({ count, index, onIndexChange, perView, label, renderSlide, slideLabel, peek = true, gap = 14, peekPx = 0, className = '', testId = 'carousel' }: CarouselProps) {
+export default function Carousel({ count, index, onIndexChange, perView, label, renderSlide, slideLabel, peek = true, gap = 14, peekPx = 0, className = '', testId = 'carousel', locked = false }: CarouselProps) {
   const track = useRef<HTMLDivElement | null>(null);
   const programmatic = useRef(0);
   const drag = useRef<number | null>(null);
@@ -81,7 +87,7 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
   // we started is ignored until it reaches its target (or runs past IGNORE_SCROLL_MS * 3), so the chips never lag.
   const onScroll = () => {
     const t = track.current;
-    if (!t) return;
+    if (!t || locked) return;
     if (target.current !== null) {
       const arrived = Math.abs(t.scrollLeft - target.current) < 2;
       if (!arrived && Date.now() - programmatic.current < IGNORE_SCROLL_MS * 3) return;
@@ -101,6 +107,7 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
 
   const move = (d: number) => onIndexChange(Math.max(0, Math.min(count - 1, index + d)));
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (locked) return;
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (e.key === 'ArrowRight') {
@@ -119,7 +126,7 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
   };
   // a mouse has no swipe: a drag of more than 48 px moves one card (touch uses the track's own scroll-snap)
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    drag.current = e.pointerType === 'mouse' ? e.clientX : null;
+    drag.current = e.pointerType === 'mouse' && !locked ? e.clientX : null;
   };
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     if (drag.current === null) return;
@@ -137,7 +144,7 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
     gridAutoFlow: 'column',
     gridAutoColumns: `calc((100% - ${(across - 1) * gap + (peekPx > 0 && count > across ? peekPx + gap : 0)}px) / ${across})`,
     gap: `${gap}px`,
-    overflowX: 'auto',
+    overflowX: locked ? 'hidden' : 'auto',
     overflowY: 'hidden',
     scrollSnapType: 'x mandatory',
     overscrollBehaviorX: 'contain',
@@ -157,6 +164,7 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
       data-testid={testId}
       data-index={index}
       data-per-view={across}
+      data-locked={locked ? 'true' : 'false'}
     >
       <p className="sr-only" aria-live="polite" data-testid={`${testId}-status`}>
         {slideLabel ? slideLabel(index) : `${index + 1} of ${count}`}
@@ -177,7 +185,7 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
               data-peek={isPeek ? 'true' : 'false'}
               // a Tab into a card off screen brings that card into focus
               onFocus={() => {
-                if (!visible) onIndexChange(i);
+                if (!visible && !locked) onIndexChange(i);
               }}
               style={{ scrollSnapAlign: 'start', minHeight: 0, height: '100%', minWidth: 0 }}
               className={`transition-opacity duration-200 ${isPeek ? 'opacity-[0.55]' : 'opacity-100'}`}

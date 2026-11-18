@@ -24,6 +24,12 @@
  *
  * Love and Work open on `?lens=<id>` when the link carries one (a focused dashboard in the side menu, server
  * docs/dashboards/11): the board switches to that lens and saves it as its lens, then the parameter leaves the URL.
+ *
+ * Card chat (server docs/reading-engine/85), when the server grants `feature.card_chat`: each card carries a chat
+ * bubble, and its tap turns that card, in place, into its Chat face. One card is in Chat at a time; the carousel is held
+ * still while it is; Read or Short on the card, Esc, or the browser's Back return to the card with the conversation kept
+ * (the board's chat store holds every card's thread). A chip, a lens, the picker, Edit or a template change also close
+ * it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useInRouterContext, useSearchParams } from 'react-router-dom';
@@ -73,10 +79,14 @@ import type { CardReading } from '../../you/v3/CardParts';
 import type { CardAllowed, CardProps } from '../../you/v3/CardFrame';
 import type { PeriodView } from '../../you/v3/cardModel';
 import CompactCard from '../../you/v3/CompactCard';
+import CardChat from '../../../components/cardChat/CardChat';
+import CardChatBubble from '../../../components/cardChat/CardChatBubble';
+import { createCardChatStore } from '../../../components/cardChat/cardChatStore';
+import { costLineFor } from '../../../lib/cardChatApi';
 import { optionsFor, type CardOptions } from '../../../lib/cardOptions';
 import BoardSettings from '../../you/v3/BoardSettings';
 import { boardNow, cardNow, hasOwnOptions } from '../../you/v3/boardOptions';
-import { NOT_SUGGESTED, cardAccess, cardKey, cardTitle, featureOn, featureState } from '../../you/v3/features';
+import { NOT_SUGGESTED, cardAccess, cardFeatureUsable, cardKey, cardTitle, featureOn, featureState } from '../../you/v3/features';
 import { cardGroupOf } from '../../you/v3/CardBanner';
 import { useLayoutSaves } from '../../you/v3/useLayoutSaves';
 import type { SaveProblem } from '../../you/v3/layoutSaver';
@@ -110,6 +120,9 @@ export function perViewFor(template: SelfTemplateId, mode: BoardMode): number {
   if (template === 'compact') return mode === 'portrait' ? 2 : 4;
   return mode === 'portrait' ? 1 : 2;
 }
+
+/** the history entry the Chat face pushes, so Back closes it (the BoardAsk pattern) */
+const CARD_CHAT_KEY = '__cardChat';
 
 /** the next card left showing past the last full card */
 export const PEEK_PX = 40;
@@ -500,6 +513,58 @@ function Board({
   };
   const voiceOn = featureOn(board, 'feature.voice') && offered.some((c) => !!c.voices?.direct);
 
+  // card chat (doc 85): one store per board holds every card's thread; one card in its Chat face at a time
+  const chatOn = featureOn(board, 'feature.card_chat');
+  const setPlanNow = useRef(setPlan);
+  setPlanNow.current = setPlan;
+  const [chatStore] = useState(() => createCardChatStore({ onUsage: (u) => setPlanNow.current(u) }));
+  useEffect(() => () => chatStore.dispose(), [chatStore]);
+  const [chatCard, setChatCard] = useState<SelfCardId | null>(null);
+  const chatCardNow = useRef<SelfCardId | null>(null);
+  chatCardNow.current = chatCard;
+  const focusAfterChat = useRef<SelfCardId | null>(null);
+  // our own Back (dropping the entry we pushed) is not the person's Back
+  const poppingOwn = useRef(false);
+  const closeChat = useCallback((returnFocus = false) => {
+    const prev = chatCardNow.current;
+    if (prev && returnFocus) focusAfterChat.current = prev;
+    setChatCard(null);
+    const s: unknown = window.history.state;
+    if (s && typeof s === 'object' && CARD_CHAT_KEY in s) {
+      poppingOwn.current = true;
+      window.history.back();
+    }
+  }, []);
+  const openChat = useCallback((card: SelfV3CardView) => {
+    track('chip_select', SURFACE, 'card_chat');
+    const s: unknown = window.history.state;
+    if (!(s && typeof s === 'object' && CARD_CHAT_KEY in s)) window.history.pushState({ ...(s && typeof s === 'object' ? s : {}), [CARD_CHAT_KEY]: true }, '');
+    setChatCard(card.id);
+  }, [SURFACE]);
+  // Back (or anything else that pops the entry) closes the Chat face
+  useEffect(() => {
+    const onPop = () => {
+      if (poppingOwn.current) {
+        poppingOwn.current = false;
+        return;
+      }
+      const id = chatCardNow.current;
+      if (!id) return;
+      focusAfterChat.current = id;
+      setChatCard(null);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  // focus goes back to the card's bubble once its Chat face has gone
+  useEffect(() => {
+    const id = focusAfterChat.current;
+    if (chatCard || !id) return;
+    focusAfterChat.current = null;
+    document.querySelector<HTMLElement>(`[data-card-chat="${boardId}:${id}"]`)?.focus();
+  }, [chatCard, boardId]);
+  const chatFallbackCost = plan && !plan.exempt ? costLineFor(1, plan.remaining) : null;
+
   /** save the deck (template, cards, sections): shown at once, sent at once through the queue */
   const save = useCallback(
     (next: SelfBoardLayout): Promise<boolean> => {
@@ -536,6 +601,8 @@ function Board({
 
   const select = useCallback(
     (i: number) => {
+      // another card taken from the chips or arrows: the Chat face closes, its conversation kept
+      if (chatCard && shown[i]?.id !== chatCard) closeChat();
       setIndex(i);
       const c = shown[i];
       if (c) {
@@ -543,7 +610,7 @@ function Board({
         track('chip_select', SURFACE, c.id);
       }
     },
-    [shown, boardId, SURFACE],
+    [shown, boardId, SURFACE, chatCard, closeChat],
   );
   const selectId = (id: SelfCardId) => select(Math.max(0, shown.findIndex((c) => c.id === id)));
 
@@ -671,6 +738,11 @@ function Board({
   const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine);
 
   const showPicker = !layout.chosen || pickerOpen;
+  const lastTemplate = useRef(template);
+  useEffect(() => {
+    if (lastTemplate.current !== template && chatCard) closeChat();
+    lastTemplate.current = template;
+  }, [template, chatCard, closeChat]);
   // the template switch is Self's; Love and Work read in Seasons
   const templateSwitch = isSelf && live.length > 1 && (
     <div role="radiogroup" aria-label={V3_WORDS.template} className="flex shrink-0 rounded-full border border-white/10 bg-white/5 p-0.5" data-testid="template-switch">
@@ -707,6 +779,11 @@ function Board({
   const progress = veilProgress(board.build);
   const buildVeil = !rebuild && !freshBuilding && !!progress && (board.status !== 'ok' || shown.some((c) => c.status === 'pending'));
   const veiled = !!rebuild || freshBuilding || buildVeil;
+  // the card in its Chat face left the deck (a lens, the picker, Edit, a build veil or the feature went): close it
+  const chatGone = !!chatCard && (!chatOn || showPicker || !!editing || veiled || !shownIds.includes(chatCard));
+  useEffect(() => {
+    if (chatGone) closeChat();
+  }, [chatGone, closeChat]);
 
   const boardSettingsControl = (
     <BoardSettings
@@ -781,6 +858,32 @@ function Board({
       focused: perView > 1 && i === index,
       veil: !(veiled && progress),
       reading: cardReading,
+      ...(chatOn && cardFeatureUsable(c, 'feature.card_chat')
+        ? {
+            chat: (card: SelfV3CardView) => (
+              <CardChatBubble
+                title={cardTitle(card)}
+                open={chatCard === card.id}
+                onOpen={() => (chatCard === card.id ? closeChat(true) : openChat(card))}
+                cardKey={`${boardId}:${card.id}`}
+              />
+            ),
+            chatFace: {
+              open: chatCard === c.id,
+              onOpen: (card: SelfV3CardView) => openChat(card),
+              onClose: () => closeChat(true),
+              render: (card: SelfV3CardView, period: PeriodView | null) => (
+                <CardChat
+                  store={chatStore}
+                  chatRef={{ board: boardId, cardId: card.id, from: period?.item.from ?? null, to: period?.item.to ?? null }}
+                  periodLabel={period?.label ?? null}
+                  fallbackCostLine={chatFallbackCost}
+                  onBack={() => closeChat(true)}
+                />
+              ),
+            },
+          }
+        : {}),
     };
     return template === 'compact' ? <CompactCard key={c.id} {...props} /> : <SeasonsCard key={c.id} {...props} />;
   };
@@ -799,6 +902,7 @@ function Board({
       peekPx={template === 'seasons' ? PEEK_PX : 0}
       gap={template === 'seasons' ? SEASONS_GAP : 14}
       testId="self-v3-carousel"
+      locked={!!chatCard}
     />
   );
   const veil = (testId: string, note: string) => (
