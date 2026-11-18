@@ -41,6 +41,8 @@ export interface CardChatTurn {
   clarify?: ClarifyView;
   /** when the turn started waiting for its first words (ms) */
   since?: number;
+  /** the last answer to the clarifier did not go through; its question stays up to answer again */
+  clarifyFailed?: boolean;
 }
 
 export interface CardChatState {
@@ -266,6 +268,7 @@ export class CardChatStore {
     if (!t?.runId || this.get(key).busy) return;
     const tz = t.clarify?.type === 'clarify' && t.clarify.criterion === LOCATION_CRITERION ? browserTimeZone() : undefined;
     this.set(key, { busy: true });
+    this.patchTurn(key, turnKey, { clarifyFailed: false });
     let ready = false;
     try {
       const next = tz ? await answerClarify(t.runId, value, viaChip, { tz }) : await answerClarify(t.runId, value, viaChip);
@@ -274,9 +277,9 @@ export class CardChatStore {
         const view = toClarifyView(next as unknown as Record<string, unknown>);
         if (view) this.patchTurn(key, turnKey, { clarify: view, ...(view.type === 'declined' ? { status: 'done', answer: view.reply } : {}) });
       }
-    } catch (err) {
-      this.patchTurn(key, turnKey, { status: 'failed', clarify: undefined });
-      this.set(key, { problem: sendProblem(err) });
+    } catch {
+      // the clarifier's question stays up to be answered again (Try again would skip it)
+      this.patchTurn(key, turnKey, { clarifyFailed: true });
     } finally {
       this.set(key, { busy: false });
     }

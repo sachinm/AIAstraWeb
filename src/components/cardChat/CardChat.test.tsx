@@ -276,6 +276,61 @@ describe('the mic', () => {
   });
 });
 
+describe('the mic after Send', () => {
+  it('late words the browser delivers after Send do not refill the box', async () => {
+    const made: Array<{ onresult?: (e: unknown) => void }> = [];
+    class FakeRecognition {
+      continuous = false;
+      interimResults = false;
+      lang = '';
+      maxAlternatives = 1;
+      onresult?: (e: unknown) => void;
+      onend?: () => void;
+      onerror?: () => void;
+      constructor() {
+        made.push(this);
+      }
+      start() {}
+      stop() {}
+      abort() {}
+    }
+    (window as unknown as Record<string, unknown>).SpeechRecognition = FakeRecognition;
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    fireEvent.click(screen.getByTestId('card-chat-mic'));
+    act(() => made[made.length - 1]!.onresult!({ results: [[{ transcript: 'when will it lift' }]] }));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    act(() => made[made.length - 1]!.onresult!({ results: [[{ transcript: 'when will it lift' }]] }));
+    expect(screen.getByTestId('card-chat-textarea')).toHaveValue('');
+    await waitFor(() => expect(asks()).toHaveLength(1));
+  });
+});
+
+describe('the phone keyboard', () => {
+  it('lifts the input above it and the preamble gives way', async () => {
+    const listeners: Array<() => void> = [];
+    const vv = { height: 400, offsetTop: 0, addEventListener: (_: string, fn: () => void) => listeners.push(fn), removeEventListener: () => undefined };
+    vi.stubGlobal('visualViewport', vv);
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ bottom: 700, height: 500, top: 200, left: 0, right: 300, width: 300, x: 0, y: 200, toJSON: () => ({}) } as DOMRect);
+    try {
+      mount();
+      await screen.findByTestId('card-chat-headline');
+      act(() => listeners.forEach((fn) => fn()));
+      expect(screen.getByTestId('card-chat').style.paddingBottom).toBe('300px');
+      expect(screen.getByTestId('card-chat-preamble')).toHaveAttribute('data-keyboard', 'up');
+      expect(screen.getByTestId('card-chat-preamble').className).toMatch(/\bhidden\b/);
+      vv.height = 820;
+      act(() => listeners.forEach((fn) => fn()));
+      expect(screen.getByTestId('card-chat').style.paddingBottom).toBe('');
+      expect(screen.getByTestId('card-chat-preamble')).toHaveAttribute('data-keyboard', 'down');
+    } finally {
+      rect.mockRestore();
+    }
+  });
+});
+
 describe('the store keeps the thread', () => {
   it('a second mount (back to Read, then Chat again) shows the turns without a new open', async () => {
     const store = createCardChatStore();

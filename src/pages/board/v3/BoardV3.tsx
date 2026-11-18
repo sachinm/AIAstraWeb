@@ -682,11 +682,6 @@ function Board({
   const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine);
 
   const showPicker = !layout.chosen || pickerOpen;
-  // the card in its Chat face left the deck (a lens, the picker, Edit, a template or the feature went): close it
-  const chatGone = !!chatCard && (!chatOn || showPicker || !!editing || !shownIds.includes(chatCard));
-  useEffect(() => {
-    if (chatGone) closeChat();
-  }, [chatGone, closeChat]);
   const lastTemplate = useRef(template);
   useEffect(() => {
     if (lastTemplate.current !== template && chatCard) closeChat();
@@ -728,6 +723,11 @@ function Board({
   const progress = veilProgress(board.build);
   const buildVeil = !rebuild && !freshBuilding && !!progress && (board.status !== 'ok' || shown.some((c) => c.status === 'pending'));
   const veiled = !!rebuild || freshBuilding || buildVeil;
+  // the card in its Chat face left the deck (a lens, the picker, Edit, a build veil or the feature went): close it
+  const chatGone = !!chatCard && (!chatOn || showPicker || !!editing || veiled || !shownIds.includes(chatCard));
+  useEffect(() => {
+    if (chatGone) closeChat();
+  }, [chatGone, closeChat]);
 
   const boardSettingsControl = (
     <BoardSettings

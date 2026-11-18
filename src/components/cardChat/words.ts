@@ -18,6 +18,7 @@ export const CARD_CHAT_WORDS = {
   sendFailed: 'That did not go through.',
   stopped: 'Stopped before the answer finished.',
   tryAgain: 'Try again',
+  clarifyFailed: 'That did not go through. Answer again.',
   quota: 'You have used your questions for now. Your question is still in the box.',
   plans: 'See plans',
   micStart: 'Speak your question',

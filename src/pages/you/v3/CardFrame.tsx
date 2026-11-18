@@ -12,7 +12,7 @@
  * board's chat view replace the headline, the body and the footer, so the chat's input is the card's foot. Read or
  * Short closes it; the board keeps the conversation.
  */
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Info, Lock } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
@@ -134,6 +134,12 @@ export default function CardFrame({
   );
   const ready = !lockedPlan && !notReady;
   const chatting = ready && !!chatFace?.open;
+  // a card that stops being readable (a new build, a lock) leaves its Chat face; the board keeps the conversation
+  const chatOpenButNotReady = !ready && !!chatFace?.open;
+  const closeChatFace = chatFace?.onClose;
+  useEffect(() => {
+    if (chatOpenButNotReady) closeChatFace?.();
+  }, [chatOpenButNotReady, closeChatFace]);
   /** a face picked on the switch: from Chat it closes the chat, and a face already stored is not saved again */
   const pickFace = (f: ShownFace) => {
     if (chatting) chatFace!.onClose();

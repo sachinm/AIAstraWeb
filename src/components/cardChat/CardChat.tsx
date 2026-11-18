@@ -14,7 +14,7 @@ import remarkGfm from 'remark-gfm';
 import { Mic, Send, Square } from 'lucide-react';
 import type { CardChatRef } from '../../lib/cardChatApi';
 import ClarifyCard from '../../pages/chat-interface/ClarifyCard';
-import { shouldSendOnKey } from '../../pages/chat-interface/readingUi';
+import { isNearBottom, shouldSendOnKey } from '../../pages/chat-interface/readingUi';
 import { useSpeechRecognition } from '../../pages/chat-interface/useSpeechRecognition';
 import type { CardChatStore, CardChatTurn } from './cardChatStore';
 import { useCardChat } from './useCardChat';
@@ -30,6 +30,9 @@ export interface CardChatProps {
   /** Esc goes back to the card */
   onBack: () => void;
 }
+
+/** the input bar's height with its cost line: what stays on screen above the keyboard at the least */
+const INPUT_BAR_PX = 96;
 
 /** after this long with no words, the status line says it is still reading (doc 85 §4 Timings) */
 export const STILL_READING_MS = 10_000;
@@ -49,8 +52,8 @@ function useKeyboardInset(ref: RefObject<HTMLElement | null>): number {
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      // keep at least the input's own height on screen
-      setInset(Math.min(keyboardCover(r.bottom, vv), Math.max(0, r.height - 120)));
+      // keep at least the input bar's own height on screen (the preamble hides while the keyboard is up)
+      setInset(Math.min(keyboardCover(r.bottom, vv), Math.max(0, r.height - INPUT_BAR_PX)));
     };
     vv.addEventListener('resize', on);
     vv.addEventListener('scroll', on);
@@ -96,6 +99,11 @@ function Turn({ turn, busy, onRetry, onAnswer, onConfirm, onChange }: {
       {turn.clarify && turn.status === 'clarifying' ? (
         <div className={`${bubbleCls} self-start bg-white/5`} data-testid="card-chat-clarify">
           <ClarifyCard view={turn.clarify} busy={busy} onChip={(v) => onAnswer(v, true)} onText={(t) => onAnswer(t, false)} onConfirm={onConfirm} onChange={onChange} />
+          {turn.clarifyFailed && (
+            <p role="alert" className="mt-2 text-[14px] text-amber-100" data-testid="card-chat-clarify-failed">
+              {W.clarifyFailed}
+            </p>
+          )}
         </div>
       ) : turn.answer ? (
         <div className={`${bubbleCls} card-chat-answer self-start bg-white/5 text-white/90 [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_ul]:list-disc [&_ul]:pl-5`} data-testid="card-chat-answer" aria-live={turn.status === 'streaming' ? 'polite' : undefined}>
@@ -125,16 +133,26 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
   const inset = useKeyboardInset(root);
   const [more, setMore] = useState(false);
 
-  // the mic: the box holds what was typed before the mic opened, then this session's words (the transcript is cumulative)
+  // the mic: the box holds what was typed before the mic opened, then this session's words (the transcript is cumulative).
+  // Words are taken only while the person is dictating: a browser delivers the last words after stop(), and those
+  // must not refill the box after Send.
   const base = useRef('');
-  const onTranscript = useCallback((t: string) => setDraft(base.current ? `${base.current} ${t}` : t), [setDraft]);
+  const accepting = useRef(false);
+  const onTranscript = useCallback((t: string) => {
+    if (accepting.current) setDraft(base.current ? `${base.current} ${t}` : t);
+  }, [setDraft]);
   const mic = useSpeechRecognition({ onTranscript });
   const startMic = () => {
     base.current = state.draft.trim();
+    accepting.current = true;
     mic.startListening();
+  };
+  const stopMic = () => {
+    mic.stopListening();
   };
 
   const send = () => {
+    accepting.current = false;
     if (mic.isListening) mic.stopListening();
     chat.send(state.draft);
   };
@@ -147,15 +165,19 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
   const onRootKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'Escape') return;
     e.stopPropagation();
+    accepting.current = false;
     if (mic.isListening) mic.stopListening();
     else onBack();
   };
 
-  // the newest words stay in view
+  // the newest words stay in view: always for a new turn, and while streaming only when the person is at the bottom
   const last = state.turns[state.turns.length - 1];
+  const turnCount = useRef(0);
   useLayoutEffect(() => {
     const el = thread.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    const grew = state.turns.length !== turnCount.current;
+    turnCount.current = state.turns.length;
+    if (el && (grew || isNearBottom(el))) el.scrollTop = el.scrollHeight;
   }, [state.turns.length, last?.answer, last?.status]);
 
   // the box takes focus when the chat opens on a device with a keyboard of its own
@@ -164,6 +186,8 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
   }, []);
 
   const open = state.open;
+  // the keyboard is up: the preamble gives way first, so the input stays on screen above it
+  const keyboardUp = inset > 0;
   const lines = open?.preamble.lines.slice(0, 4) ?? [];
   const shownLines = more ? lines : lines.slice(0, 1);
   const costLine = state.costLine !== undefined ? state.costLine : open ? (open.costLine ?? fallbackCostLine) : fallbackCostLine;
@@ -180,7 +204,7 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
       data-testid="card-chat"
       data-phase={state.phase}
     >
-      <section className="shrink-0 rounded-xl bg-white/[0.06] px-3 py-2 text-[14px] text-white/75" data-testid="card-chat-preamble" aria-label={W.fromCard}>
+      <section className={`shrink-0 rounded-xl bg-white/[0.06] px-3 py-2 text-[14px] text-white/75 ${keyboardUp ? 'hidden' : ''}`} data-testid="card-chat-preamble" data-keyboard={keyboardUp ? 'up' : 'down'} aria-label={W.fromCard}>
         {state.phase === 'opening' || state.phase === 'idle' ? (
           <p className="h-4 w-2/3 animate-pulse rounded bg-white/10" role="status" aria-label={W.opening} data-testid="card-chat-opening" />
         ) : state.phase === 'error' ? (
@@ -251,7 +275,7 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
             data-testid="card-chat-textarea"
           />
           {mic.isListening ? (
-            <button type="button" onClick={mic.stopListening} aria-label={W.micStop} title={W.micStop} className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-500/90 text-white" data-testid="card-chat-mic" data-listening="true">
+            <button type="button" onClick={stopMic} aria-label={W.micStop} title={W.micStop} className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-500/90 text-white" data-testid="card-chat-mic" data-listening="true">
               <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-red-300/60" aria-hidden="true" />
               <Square className="h-4 w-4 fill-current" aria-hidden="true" />
             </button>
