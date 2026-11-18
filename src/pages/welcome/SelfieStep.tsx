@@ -144,17 +144,9 @@ export default function SelfieStep({ onDone, onSkip }: { onDone: () => void; onS
 
   return (
     <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-4" data-testid="selfie-step">
-      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="text-xl font-semibold">A photo of you</h2>
-          <p className="text-sm text-white/70">It becomes your profile picture.</p>
-        </div>
-        <span
-          data-testid="question-technique-badge"
-          className="inline-flex items-center rounded-full border border-purple-400/30 bg-purple-500/15 px-2.5 py-0.5 text-[11px] font-medium text-purple-200"
-        >
-          companion.wizard · Profile Identity
-        </span>
+      <div className="mb-2">
+        <h2 className="text-xl font-semibold">A photo of you</h2>
+        <p className="text-sm text-white/70">It becomes your profile picture.</p>
       </div>
       <div className="relative mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-full border-4 border-white/10 bg-black">
         <video

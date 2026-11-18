@@ -1,4 +1,5 @@
 import { clearAuth } from '../lib/graphql';
+import { resetPortalDashboards } from '../lib/portalDashboards';
 import { REGION_KEY } from '../lib/region';
 import { clearSelfV3Persisted } from '../lib/selfV3Cache';
 import { THEME_KEY } from '../lib/theme';
@@ -51,6 +52,7 @@ export function clearAppStorage(): void {
   }
   clearSignupDraft();
   forgetQuestionLocation();
+  resetPortalDashboards();
 }
 
 /** Auth keys only; used at start-up for a missing or expired session. Sign-out also runs clearAppStorage. */
