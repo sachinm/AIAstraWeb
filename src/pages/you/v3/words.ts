@@ -18,6 +18,9 @@ export const V3_WORDS = {
   done: 'Done',
   cancel: 'Cancel',
   edit: 'Edit',
+  // a phone's header (server docs/dashboards/09): the board's name and the sheet with the reading's details
+  boardTitle: 'You',
+  readingSheet: 'Your reading',
   addCard: 'Add a card',
   resetSuggested: 'Reset to suggested',
   removeCard: (title: string) => `Remove ${title}`,
