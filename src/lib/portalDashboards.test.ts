@@ -25,12 +25,14 @@ afterEach(() => {
 });
 
 describe('the portal list', () => {
-  it('defaults to Self, Love and Career when unanswered, declined or unreadable', () => {
-    expect(DEFAULT_PORTAL_DASHBOARDS).toEqual(['self', 'love', 'work']);
-    expect(portalDashboardsFrom(null)).toEqual(['self', 'love', 'work']);
-    expect(portalDashboardsFrom({})).toEqual(['self', 'love', 'work']);
-    expect(parsePortalDashboards('declined')).toEqual(['self', 'love', 'work']);
-    expect(parsePortalDashboards('horoscope, ,')).toEqual(['self', 'love', 'work']);
+  it('defaults to Self, Love, Career and Lucky times when unanswered, declined or unreadable', () => {
+    expect(DEFAULT_PORTAL_DASHBOARDS).toEqual(['self', 'love', 'work', 'lucky']);
+    expect(portalDashboardsFrom(null)).toEqual(['self', 'love', 'work', 'lucky']);
+    expect(portalDashboardsFrom({})).toEqual(['self', 'love', 'work', 'lucky']);
+    expect(parsePortalDashboards('declined')).toEqual(['self', 'love', 'work', 'lucky']);
+    expect(parsePortalDashboards('horoscope, ,')).toEqual(['self', 'love', 'work', 'lucky']);
+    // a person who chose without Lucky times keeps their choice
+    expect(parsePortalDashboards('self,love,work')).toEqual(['self', 'love', 'work']);
   });
   it('keeps known ids once each, in menu order', () => {
     expect(parsePortalDashboards('business, lucky,self,business,horoscope')).toEqual(['self', 'lucky', 'business']);
@@ -69,7 +71,7 @@ describe('the store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const a = renderHook(() => usePortalDashboards());
     const b = renderHook(() => usePortalDashboards());
-    expect(a.result.current).toEqual(['self', 'love', 'work']);
+    expect(a.result.current).toEqual(['self', 'love', 'work', 'lucky']);
     await waitFor(() => expect(a.result.current).toEqual(['love', 'lucky']));
     expect(b.result.current).toEqual(['love', 'lucky']);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -85,7 +87,7 @@ describe('the store', () => {
     localStorage.setItem('token', 't');
     const b = renderHook(() => usePortalDashboards());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(a.result.current).toEqual(['self', 'love', 'work']);
-    expect(b.result.current).toEqual(['self', 'love', 'work']);
+    expect(a.result.current).toEqual(['self', 'love', 'work', 'lucky']);
+    expect(b.result.current).toEqual(['self', 'love', 'work', 'lucky']);
   });
 });

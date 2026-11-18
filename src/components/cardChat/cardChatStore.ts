@@ -20,7 +20,7 @@ import {
   type CardChatRef,
 } from '../../lib/cardChatApi';
 import { QuotaExhaustedError, type PlanStatus } from '../../lib/billing';
-import { answerClarify, ChatStreamError, confirmClarifyStream, sendChatMessageStream } from '../../pages/UserData';
+import { answerClarify, ChatStreamError, confirmClarifyStream, isClarifyEnabled, sendChatMessageStream } from '../../pages/UserData';
 import type { ReadingStreamEvent } from '../../pages/chat-interface/readingProgress';
 import { browserTimeZone, LOCATION_CRITERION, toClarifyView, type ClarifyView } from '../../pages/chat-interface/readingUi';
 import { createTokenDeltaFlusher } from '../../pages/chat-interface/tokenFlusher';
@@ -241,12 +241,16 @@ export class CardChatStore {
     const key = chatKey(ref);
     const t = this.get(key).turns.find((x) => x.key === turnKey);
     if (!t) return;
+    // the thread's first question goes through the clarifier, pre-filled from the card (server docs/reading-engine/85);
+    // a follow-up (any answered turn before it, this visit's or the saved thread's) is answered directly
+    const s0 = this.get(key);
+    const first = !s0.turns.some((x) => x.key !== turnKey && x.status === 'done' && !!x.answer);
     const ctl = this.begin(key);
     const flusher = this.flusherFor(key, turnKey);
     try {
       const r = await sendChatMessageStream(t.question, this.get(key).chatId, (d) => flusher.push(d), {
         signal: ctl.signal,
-        // no clarify: the server answers every card question directly
+        ...(first && isClarifyEnabled() ? { clarify: true } : {}),
         card: toWireCard(ref),
         turnId: t.turnId ?? newTurnId(),
         onEvent: this.onEvent(key, turnKey),

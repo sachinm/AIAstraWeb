@@ -156,7 +156,7 @@ describe('the input', () => {
     expect(body).toMatchObject({ question: 'When does it lift?', chatId: 'c-1', card: { board: 'self', cardId: 'body', from: '2026-11-01', to: '2027-06-03' } });
     expect(body.turnId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(body).not.toHaveProperty('focus');
-    // the server answers every card question directly
+    // a follow-up (the thread already has an answered turn) skips the clarifier
     expect(body).not.toHaveProperty('clarify');
     // the usage after the answer updates the cost line
     expect(screen.getByTestId('card-chat-cost')).toHaveTextContent('Uses 1 of your 6 questions');
@@ -258,30 +258,95 @@ describe('the input', () => {
     expect(screen.queryAllByTestId('card-chat-question').map((q) => q.textContent)).not.toContain('You: Will it lift?');
   });
 
-  // dormant: the server answers card questions directly today; kept for a server that asks one question first
-  it('a clarifier question, if one comes, is asked inside the card and its answer leads to the reading', async () => {
-    askReplies = [
-      () =>
-        sse([
-          { type: 'card', title: 'Body & energy' },
-          { type: 'clarify', runId: 'run-1', question: 'Which part of your health?', chips: [{ label: 'Sleep', value: 'sleep' }], allowFreeText: false },
-          { type: 'done', status: 'clarifying', runId: 'run-1' },
-        ]),
-    ];
+  it("the thread's first question sends clarify; the follow-up does not", async () => {
+    openBody = { ...(openBody as object), thread: { chatId: null, messages: [] } };
     mount();
     await screen.findByTestId('card-chat-headline');
-    type('Health?');
+    type('First question?');
     await act(async () => {
       fireEvent.click(screen.getByTestId('card-chat-send'));
     });
-    const clarify = await screen.findByTestId('card-chat-clarify');
-    expect(clarify).toHaveTextContent('Which part of your health?');
+    await waitFor(() => expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('An answer.'));
+    expect(asks()[0]!.body).toMatchObject({ question: 'First question?', clarify: true, card: { board: 'self', cardId: 'body' } });
+    type('And then?');
     await act(async () => {
-      fireEvent.click(clarify.querySelector('[data-test-id="clarify-chip"]')!);
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(asks()).toHaveLength(2));
+    expect(asks()[1]!.body).not.toHaveProperty('clarify');
+    expect(asks()[1]!.body).toMatchObject({ chatId: 'c-1' });
+  });
+
+  it("the clarifier's question on a first question shows inside the card, then the answer streams into the same turn", async () => {
+    openBody = { ...(openBody as object), thread: { chatId: null, messages: [] } };
+    // the server's shape (cardChatRoutes.ts): card, clarify start, the clarify question, done "clarifying"; nothing charged
+    askReplies = [
+      () =>
+        new Response(
+          [
+            `id: 0
+event: turn_init
+data: ${JSON.stringify({ type: 'turn_init', turnId: 'tt', seq: 0 })}
+
+`,
+            `id: 1
+event: card
+data: ${JSON.stringify({ type: 'card', board: 'self', id: 'body', title: 'Body & energy', periodLabel: 'Heavy stretch', turnId: 'x', seq: 1 })}
+
+`,
+            `id: 2
+event: clarify
+data: ${JSON.stringify({ type: 'start', seq: 2 })}
+
+`,
+            `id: 3
+event: clarify
+data: ${JSON.stringify({ type: 'clarify', runId: 'run-1', criterion: 'sibling', question: 'Which brother do you mean?', chips: [{ label: 'Elder brother', value: 'elder_brother' }, { label: 'Younger brother', value: 'younger_brother' }], allowFreeText: true, turn: 1, understanding: 'You are asking about the year ahead.', seq: 3 })}
+
+`,
+            `id: 4
+event: turn_done
+data: ${JSON.stringify({ turnId: 'tt', seq: 4, type: 'done', status: 'clarifying', runId: 'run-1', ms: 12, card: { board: 'self', id: 'body' } })}
+
+`,
+          ].join(''),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    ];
+    mount();
+    await screen.findByTestId('card-chat-headline');
+    type('Will my brother stand by me?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    expect(asks()[0]!.body).toMatchObject({ clarify: true });
+    const clarify = await screen.findByTestId('card-chat-clarify');
+    expect(clarify).toHaveTextContent('Which brother do you mean?');
+    // inside the card's own thread, with the input still anchored at the card's foot
+    expect(screen.getByTestId('card-chat-thread')).toContainElement(clarify);
+    expect(screen.getByTestId('card-chat').lastElementChild).toBe(screen.getByTestId('card-chat-input-bar'));
+    const chips = clarify.querySelectorAll('[data-test-id="clarify-chip"]');
+    expect(Array.from(chips).map((c) => c.textContent)).toEqual(['Elder brother', 'Younger brother']);
+    await act(async () => {
+      fireEvent.click(chips[0]!);
     });
     await waitFor(() => expect(screen.getByTestId('card-chat-thread')).toHaveTextContent('After the question, the reading.'));
+    expect(screen.queryByTestId('card-chat-clarify')).toBeNull();
+    const answer = calls.find((c) => c.url.endsWith('/api/chat/answer'))!;
+    expect(answer.body).toMatchObject({ runId: 'run-1', value: 'elder_brother', viaChip: true });
+    // the server keeps the card (and the first send's turnId) on the clarify run: confirm carries the run only
     const confirm = calls.find((c) => c.url.endsWith('/api/chat/confirm-stream'))!;
     expect(confirm.body).toMatchObject({ runId: 'run-1' });
+    expect(confirm.body).not.toHaveProperty('card');
+    // one question in the thread, answered; the next one is a follow-up
+    expect(screen.queryAllByTestId('card-chat-question')).toHaveLength(1);
+    type('And my sister?');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(asks()).toHaveLength(2));
+    expect(asks()[1]!.body).not.toHaveProperty('clarify');
+    expect(asks()[1]!.body).toMatchObject({ chatId: 'c-1' });
   });
 
   it('Esc goes back to the card', async () => {
