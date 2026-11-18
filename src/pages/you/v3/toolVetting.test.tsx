@@ -219,7 +219,8 @@ describe('Doc 75 foundation card controls and vetting data models', () => {
     expect(screen.queryByTestId('tool-switch')).toBeNull();
     expect(screen.queryByTestId('tool-panels')).toBeNull();
     expect(screen.getByTestId('card-why')).toBeVisible();
-    expect(screen.getByRole('radiogroup', { name: 'How this card reads' })).toBeInTheDocument();
+    // docs/dashboards/12: the three bars replaced the face switch
+    expect(screen.getByRole('tablist', { name: 'Card views' })).toBeInTheDocument();
 
     for (const face of ['light', 'read'] as const) {
       rerender(<SeasonsCard card={card} options={{ ...opts, face }} onOptions={() => {}} onWhy={onWhy} />);

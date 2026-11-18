@@ -213,16 +213,16 @@ describe('Love and Work lenses', () => {
     expect(await screen.findByTestId('card-coming-soon')).toHaveTextContent('Coming soon');
   });
 
-  it('a phone puts "Love · Dating" in the header and switches lenses from its sheet', async () => {
+  it('a phone puts the card on screen in the header and switches lenses from the board sheet (docs/dashboards/12)', async () => {
     Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
     render(<BoardV3 board="love" />);
-    const title = await screen.findByTestId('self-phone-title');
-    expect(title).toHaveTextContent('Love · Dating');
+    await screen.findByTestId('phone-card-title');
+    expect(screen.getByTestId('phone-card-count')).toHaveTextContent('1/2');
+    expect(screen.queryByTestId('self-v3-chips')).toBeNull();
     expect(screen.queryByTestId('lens-tabs')).toBeNull();
-    fireEvent.click(title);
-    fireEvent.click(await screen.findByTestId('lens-option-marriage'));
-    expect(chipIds()).toEqual(['marriage_pulse']);
-    expect(screen.getByTestId('self-phone-title')).toHaveTextContent('Love · Marriage');
+    fireEvent.click(screen.getByTestId('self-phone-reading'));
+    fireEvent.click(within(await screen.findByTestId('lens-tabs')).getByTestId('lens-marriage'));
+    await waitFor(() => expect(screen.getByTestId('phone-card-count')).toHaveTextContent('1/1'));
   });
 
   it('"Is this right?" goes to the board\'s own route', async () => {

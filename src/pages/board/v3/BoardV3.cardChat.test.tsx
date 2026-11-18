@@ -84,7 +84,7 @@ const cardEl = (id: string) => screen.getByTestId(`v3-card-${id}`);
 async function mount(b: BoardId) {
   board = b;
   render(<BoardV3 board={b} legacy={<div data-testid="legacy">legacy</div>} />);
-  await screen.findByTestId('self-v3-chips');
+  await screen.findByTestId('self-v3-carousel');
 }
 
 describe('the bubble', () => {
@@ -92,7 +92,7 @@ describe('the bubble', () => {
     granted = false;
     await mount('self');
     expect(screen.queryAllByTestId('card-chat-bubble')).toHaveLength(0);
-    expect(within(cardEl('body')).queryByTestId('face-chat')).toBeNull();
+    expect(within(cardEl('body')).queryByTestId('card-chat')).toBeNull();
     cleanup();
     clearSelfV3Cached();
     granted = true;
@@ -100,7 +100,8 @@ describe('the bubble', () => {
     const bubble = within(cardEl('body')).getByTestId('card-chat-bubble');
     expect(bubble).toHaveAttribute('aria-label', 'Ask about Body & energy');
     expect(within(cardEl('mind')).getByTestId('card-chat-bubble')).toBeInTheDocument();
-    expect(within(cardEl('body')).getByTestId('face-chat')).toBeInTheDocument();
+    // docs/dashboards/12: every granted card carries the thin input at its foot, idle until the person starts
+    expect(within(cardEl('body')).getByTestId('card-chat')).toHaveAttribute('data-conversation', 'false');
   });
 
   it('reads the older list shape of grants too', async () => {
@@ -114,7 +115,7 @@ describe('the bubble', () => {
     await mount('self');
     expect(within(cardEl('body')).getByTestId('card-chat-bubble')).toBeInTheDocument();
     expect(within(cardEl('mind')).queryByTestId('card-chat-bubble')).toBeNull();
-    expect(within(cardEl('mind')).queryByTestId('face-chat')).toBeNull();
+    expect(within(cardEl('mind')).queryByTestId('card-chat')).toBeNull();
   });
 });
 
@@ -123,10 +124,10 @@ describe('the Chat face', () => {
     await mount('self');
     fireEvent.click(within(cardEl('body')).getByTestId('card-chat-bubble'));
     expect(cardEl('body')).toHaveAttribute('data-face', 'chat');
-    expect(within(cardEl('body')).getByTestId('face-chat')).toHaveAttribute('aria-checked', 'true');
+    expect(within(cardEl('body')).getByTestId('card-chat-back')).toHaveTextContent('Back to card');
     expect(within(cardEl('body')).queryByTestId('card-body')).toBeNull();
     expect(within(cardEl('body')).queryByTestId('confirm-yes')).toBeNull();
-    expect(within(cardEl('mind')).queryByTestId('card-chat')).toBeNull();
+    expect(within(cardEl('mind')).queryByTestId('card-chat-thread')).toBeNull();
     expect(cardEl('mind')).not.toHaveAttribute('data-face', 'chat');
     expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-locked', 'true');
     expect(screen.getByTestId('self-v3-carousel-track').style.overflowX).toBe('hidden');
@@ -154,9 +155,10 @@ describe('the Chat face', () => {
     expect(typeof ask.body!.turnId).toBe('string');
 
     const patches = calls.filter((c) => c.method === 'PATCH' || c.method === 'PUT').length;
-    fireEvent.click(within(cardEl('body')).getByTestId('face-read'));
+    fireEvent.click(within(cardEl('body')).getByTestId('card-chat-back'));
     expect(cardEl('body')).toHaveAttribute('data-face', 'read');
-    expect(within(cardEl('body')).queryByTestId('card-chat')).toBeNull();
+    expect(within(cardEl('body')).queryByTestId('card-chat-thread')).toBeNull();
+    expect(within(cardEl('body')).getByTestId('card-chat')).toHaveAttribute('data-conversation', 'false');
     expect(within(cardEl('body')).getByTestId('card-body')).toBeInTheDocument();
     expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-locked', 'false');
     // Chat is not a stored face: going back to the face already stored saves nothing
@@ -196,6 +198,53 @@ describe('the Chat face', () => {
     expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-locked', 'true');
     expect(cardEl('body').className).toMatch(/\bh-full\b/);
     expect(within(cardEl('body')).getByTestId('card-chat').className).toMatch(/min-h-0/);
+  });
+});
+
+describe('the input anchored on the card (docs/dashboards/12)', () => {
+  it('every card carries the thin input at its foot, and drawing the board opens no card chat', async () => {
+    await mount('self');
+    for (const id of ['body', 'mind']) {
+      const chat = within(cardEl(id)).getByTestId('card-chat');
+      expect(chat).toHaveAttribute('data-conversation', 'false');
+      // the input is the last thing on the card, under the body and "Is this right?"
+      const stage = within(cardEl(id)).getByTestId('card-stage');
+      expect(stage.lastElementChild).toBe(chat);
+      expect(within(chat).getByTestId('card-chat-mic')).toBeInTheDocument();
+      expect(within(chat).getByTestId('card-chat-send')).toBeInTheDocument();
+      expect(within(chat).queryByTestId('card-chat-cost')).toBeNull();
+    }
+    expect(calls.filter((c) => c.url.includes('/api/cards/'))).toHaveLength(0);
+  });
+
+  it('typing starts the conversation over the card, in the same box, with Back to card; Send waits for the cost line', async () => {
+    await mount('self');
+    const box = within(cardEl('body')).getByTestId('card-chat-textarea');
+    box.focus();
+    fireEvent.change(box, { target: { value: 'Why so tired?' } });
+    expect(cardEl('body')).toHaveAttribute('data-face', 'chat');
+    // the same textarea node: focus (and a phone's keyboard) stays
+    expect(within(cardEl('body')).getByTestId('card-chat-textarea')).toBe(box);
+    expect(document.activeElement).toBe(box);
+    expect(box).toHaveValue('Why so tired?');
+    expect(within(cardEl('body')).queryByTestId('card-body')).toBeNull();
+    expect(within(cardEl('body')).getByTestId('card-chat-back')).toBeInTheDocument();
+    expect(await within(cardEl('body')).findByTestId('card-chat-headline')).toHaveTextContent('What the card says now.');
+    expect(calls.filter((c) => c.url.includes('/api/cards/'))).toHaveLength(1);
+    // nothing was sent on its own while the card opened
+    expect(calls.some((c) => c.url.endsWith('/api/chat/ask-stream'))).toBe(false);
+    expect(within(cardEl('body')).getByTestId('card-chat-cost')).toHaveTextContent('Uses 1 of your 5 questions');
+    await act(async () => {
+      fireEvent.click(within(cardEl('body')).getByTestId('card-chat-send'));
+    });
+    await waitFor(() => expect(within(cardEl('body')).getByTestId('card-chat-thread')).toHaveTextContent('A card answer.'));
+    fireEvent.click(within(cardEl('body')).getByTestId('card-chat-back'));
+    expect(cardEl('body')).toHaveAttribute('data-face', 'read');
+    // starting again shows the kept thread; a bar goes back to the card on that view
+    fireEvent.change(box, { target: { value: 'x' } });
+    expect(await within(cardEl('body')).findByTestId('card-chat-thread')).toHaveTextContent('A card answer.');
+    fireEvent.click(within(cardEl('body')).getByTestId('card-view-calendar'));
+    expect(cardEl('body')).toHaveAttribute('data-face', 'calendar');
   });
 });
 

@@ -69,29 +69,84 @@ describe('the header', () => {
   });
 });
 
-describe('two faces only', () => {
-  it('offers Read and Short and no tools', () => {
+/** the period chips (the bars are a tablist too) */
+const periodTabs = () => screen.queryAllByRole('tablist').filter((el) => el.getAttribute('aria-label') === 'Periods');
+
+describe('three bars: Read · Analysis · Calendar (docs/dashboards/12)', () => {
+  it('three wide bars across the card top, Read on; no Short, no Chat face and no tools', () => {
     mount();
-    expect(screen.getByTestId('face-read')).toBeInTheDocument();
-    expect(screen.getByTestId('face-short')).toBeInTheDocument();
-    for (const gone of ['face-light', 'face-breakdown', 'face-research', 'tool-table', 'tool-calendar', 'tool-dates', 'tool-timeframe', 'tool-plan', 'tool-info']) {
+    const bars = screen.getByTestId('card-bars');
+    expect(within(bars).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Read', 'Analysis', 'Calendar']);
+    expect(screen.getByTestId('card-view-read')).toHaveAttribute('aria-selected', 'true');
+    for (const gone of ['face-short', 'face-chat', 'face-switch', 'face-light', 'tool-table', 'tool-calendar', 'tool-plan']) {
       expect(screen.queryByTestId(gone)).toBeNull();
     }
-    expect(screen.getAllByRole('radio')).toHaveLength(2);
+    expect(screen.getByTestId(`v3-card-${body.id}`)).toHaveAttribute('data-face', 'read');
   });
 
-  it('Short is stored as the face the server already accepts, for this card only', () => {
-    const { onOptions } = mount();
-    fireEvent.click(screen.getByTestId('face-short'));
-    expect(onOptions).toHaveBeenCalledWith({ face: 'light' });
-  });
-
-  it('a face from an older build reads as Read (breakdown, research) or Short (light)', () => {
+  it('a stored Short (light) or an older face reads as Read, whose top is the one step', () => {
     const { unmount } = mount(body, { face: 'research' });
     expect(screen.getByTestId('face-body-read')).toBeInTheDocument();
     unmount();
     mount(body, { face: 'light' });
-    expect(screen.getByTestId('face-body-short')).toBeInTheDocument();
+    expect(screen.getByTestId('face-body-read')).toBeInTheDocument();
+    expect(screen.queryByTestId('face-body-short')).toBeNull();
+    const read = screen.getByTestId('face-body-read');
+    const todo = within(read).getByTestId('section-todo');
+    const text = within(read).getByTestId('stretch-text');
+    // What to do comes before the period's text
+    expect(todo.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('Analysis shows why we think so, the agreeing and testing systems by plain name, and the ladder', () => {
+    const spans = (body.v3?.spans ?? []).map((s, i) =>
+      i === 0 ? { ...s, agreement: { agree: 2, of: 3 }, clocks: [{ system: 'vimshottari', label: 'Main clock', tone: 'heavy' as const, agrees: true }, { system: 'yogini', label: 'Second clock', tone: 'heavy' as const, agrees: true }, { system: 'chara', label: 'Sign clock', tone: 'light' as const, agrees: false }] } : s,
+    );
+    const card: SelfV3CardView = {
+      ...body,
+      v3: body.v3 ? { ...body.v3, spans, ladder: { best: 'Rest early.', practical: 'Short walks.', drift: 'Late nights.', floor: 'Sleep eight hours.' } } : body.v3,
+      v2: { ...(body.v2 ?? { card: null }), details: { headline: 'Why: a slow season.', paragraphs: ['The sixth house is pressed.'], evidence: ['ev.internal.key'] } } as SelfV3CardView['v2'],
+    };
+    mount(card, { plan: 'with' } as Partial<CardOptions>);
+    fireEvent.click(screen.getByTestId('card-view-analysis'));
+    expect(screen.getByTestId('card-view-analysis')).toHaveAttribute('aria-selected', 'true');
+    const view = screen.getByTestId('analysis-view');
+    expect(within(view).getByTestId('analysis-why')).toHaveTextContent('Why: a slow season.');
+    expect(view).not.toHaveTextContent('ev.internal.key');
+    expect(within(view).getByTestId('analysis-agreeing')).toHaveTextContent('Main clock');
+    expect(within(view).getByTestId('analysis-testing')).toHaveTextContent('Sign clock');
+    expect(view).not.toHaveTextContent('vimshottari');
+    expect(within(view).getByTestId('ladder-best')).toHaveTextContent('Rest early.');
+    expect(screen.queryByTestId('card-line')).toBeNull();
+  });
+
+  it('Calendar draws the key dates and windows on a month, with the list under it', () => {
+    mount({ ...body, keyDates: [{ date: '2026-11-20', label: 'a heavy pressure lifts' }, { date: '2027-01-04', label: 'a new phase' }] });
+    expect(screen.queryByTestId('calendar-view')).toBeNull();
+    fireEvent.click(screen.getByTestId('card-view-calendar'));
+    expect(screen.getByTestId('calendar-title')).toHaveTextContent('November 2026');
+    const marked = screen.getAllByTestId('calendar-day').filter((d) => d.getAttribute('data-key-date') === 'true');
+    expect(marked.map((d) => d.getAttribute('data-day'))).toEqual(['2026-11-20']);
+    expect(marked[0]).toHaveAttribute('aria-label', expect.stringContaining('a heavy pressure lifts'));
+    expect(screen.getByTestId('calendar-key-dates')).toHaveTextContent('4 Jan 2027: a new phase');
+    expect(screen.getAllByTestId('calendar-window').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByTestId('calendar-next'));
+    fireEvent.click(screen.getByTestId('calendar-next'));
+    expect(screen.getByTestId('calendar-title')).toHaveTextContent('January 2027');
+    expect(screen.getAllByTestId('calendar-day').find((d) => d.getAttribute('data-day') === '2027-01-04')).toHaveAttribute('data-key-date', 'true');
+  });
+
+  it('Calendar honours the switches: no key dates when they are off, a plain line when nothing is dated', () => {
+    mount({ ...body, rail: [], periods: [], keyDates: [{ date: '2026-11-20', label: 'x' }] }, {}, { allowed: { short: true, periods: true, keyDates: false, why: true, confirm: true } });
+    fireEvent.click(screen.getByTestId('card-view-calendar'));
+    expect(screen.getByTestId('calendar-empty')).toHaveTextContent('This card has no dates yet.');
+  });
+
+  it('the body scrolls inside the card and never hands the scroll to the page', () => {
+    mount();
+    const scroll = screen.getByTestId('card-body');
+    expect(scroll.className).toMatch(/overscroll-contain/);
+    expect(scroll.style.overscrollBehavior).toBe('contain');
   });
 
   it('Read shows the text, one pattern line and What to do: one step and one thing to avoid', () => {
@@ -102,13 +157,6 @@ describe('two faces only', () => {
     expect(screen.getByTestId('todo-avoid')).toHaveTextContent('working late');
     expect(screen.queryByText('Drift')).toBeNull();
     expect(screen.queryByText('Floor')).toBeNull();
-  });
-
-  it('Short is one sentence and the one step', () => {
-    mount(body, { face: 'light' });
-    expect(screen.getByTestId('short-sentence')).toHaveTextContent('This stretch asks you to guard your evenings and keep the body warm.');
-    expect(screen.getByTestId('short-step')).toBeInTheDocument();
-    expect(screen.queryByTestId('section-pattern')).toBeNull();
   });
 
   it('Read only, with no switch, when Short is off', () => {
@@ -154,7 +202,7 @@ describe('named, ordered periods', () => {
       ]),
     };
     mount(card);
-    const chips = within(screen.getByRole('tablist')).getAllByRole('tab');
+    const chips = within(periodTabs()[0]!).getAllByRole('tab');
     expect(chips.map((c) => c.textContent)).toEqual(['Behind you · 1 Jan 2025 – 1 May 2026passed', 'Venus stretch · to 1 Jan 2027', 'Next: new phase · from 1 Jan 2027']);
     expect(chips[0]).toHaveAttribute('data-past', 'true');
     expect(chips[1]).toHaveAttribute('aria-selected', 'true');
@@ -164,13 +212,13 @@ describe('named, ordered periods', () => {
 
   it('a card with one period of its own shows no chips', () => {
     mount({ ...body, v3: null, rail: rail([{ from: '2026-01-01', to: '2027-01-01', current: true }, { from: '2027-01-01', to: '2028-01-01', text: null }]) });
-    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(periodTabs()).toHaveLength(0);
     expect(screen.getByTestId('stretch-text')).toHaveTextContent('Text 0.');
   });
 
   it('no chips when the server has periods off', () => {
     mount(body, {}, { allowed: { short: true, periods: false, keyDates: true, why: true, confirm: true } });
-    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(periodTabs()).toHaveLength(0);
   });
 });
 
@@ -181,7 +229,7 @@ describe('key dates, confirm, stale guard, scroll and lock', () => {
     expect(items[0]).toHaveTextContent('11 Nov: the sharpest mental stress clears(passed)');
     expect(items[0]).toHaveAttribute('data-passed', 'true');
     expect(items[1]).toHaveTextContent('5 Dec: a heavy pressure lifts');
-    expect(screen.queryByText(/calendar/i)).toBeNull();
+    expect(screen.queryByTestId('calendar-view')).toBeNull();
   });
 
   it('no Key dates section when the card has none', () => {

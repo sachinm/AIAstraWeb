@@ -1,6 +1,7 @@
 /**
- * The Read face (default, doc 75): the picked period's own words, then the card's standing lines, "Your pattern" in one
- * line, and "What to do": the one best step and the one thing to avoid. The card body scrolls; nothing is clamped.
+ * The Read face (default, doc 75; server docs/dashboards/12): "What to do" first, the one best step and the one thing to
+ * avoid (the old Short face is now the top of Read), then the picked period's own words, the card's standing lines and
+ * "Your pattern" in one line. The card body scrolls; nothing is clamped.
  */
 import { patternLine, whatToDo, type FaceProps } from '../cardModel';
 import { V3_WORDS } from '../words';
@@ -18,17 +19,6 @@ export default function ReadFace({ card, period, standing }: FaceProps) {
     );
   return (
     <div key={period?.index ?? -1} className="self-v3-fade space-y-3" data-testid="face-body-read">
-      {paragraphs.map((t, i) => (
-        <p key={i} className={body} data-testid={i < (period?.text?.length ?? 0) ? 'stretch-text' : 'card-standing'}>
-          {t}
-        </p>
-      ))}
-      {pattern && (
-        <section data-testid="section-pattern">
-          <h4 className={label}>{V3_WORDS.pattern}</h4>
-          <p className="mt-0.5 text-[15px] text-white/85">{pattern}</p>
-        </section>
-      )}
       {(todo.best || todo.avoid) && (
         <section data-testid="section-todo">
           <h4 className={label}>{V3_WORDS.whatToDo}</h4>
@@ -46,6 +36,17 @@ export default function ReadFace({ card, period, standing }: FaceProps) {
               </li>
             )}
           </ul>
+        </section>
+      )}
+      {paragraphs.map((t, i) => (
+        <p key={i} className={body} data-testid={i < (period?.text?.length ?? 0) ? 'stretch-text' : 'card-standing'}>
+          {t}
+        </p>
+      ))}
+      {pattern && (
+        <section data-testid="section-pattern">
+          <h4 className={label}>{V3_WORDS.pattern}</h4>
+          <p className="mt-0.5 text-[15px] text-white/85">{pattern}</p>
         </section>
       )}
     </div>
