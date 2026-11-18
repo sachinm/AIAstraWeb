@@ -199,7 +199,7 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
     });
   };
 
-  // the dashboards step: what is ticked (Self, Love and Career until the person chooses); one always stays ticked
+  // the dashboards step: what is ticked (Self, Love, Career and Lucky times until the person chooses); one always stays ticked
   const dashboards = parsePortalDashboards(answers[PORTAL_FACT]);
   const toggleDashboard = (id: PortalDashboardId) => {
     const has = dashboards.includes(id);
