@@ -20,7 +20,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePlan } from '../../../Auth/ProfileGate';
-import Carousel, { CarouselDots } from '../../../components/carousel/Carousel';
+import { RefreshCw } from 'lucide-react';
+import BoardHeaderSlot from '../../../components/BoardHeaderSlot';
+import Carousel from '../../../components/carousel/Carousel';
 import LoadingVeil from '../../../components/LoadingVeil';
 import { longDate } from '../../../lib/careerApi';
 import { track } from '../../../lib/events';
@@ -356,6 +358,8 @@ function Board({
   const [index, setIndex] = useState(() => Math.max(0, board.layout.cards.findIndex((id) => id === getActiveCard())));
   const [details, setDetails] = useState<{ card: SelfV3CardView; period: PeriodView | null } | null>(null);
   const [clockOpen, setClockOpen] = useState(false);
+  // the phone's reading sheet (server docs/dashboards/09)
+  const [readingOpen, setReadingOpen] = useState(false);
   const [wizard, setWizard] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
   const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | null>(null);
@@ -523,6 +527,9 @@ function Board({
     />
   );
   const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
+  // a phone (server docs/dashboards/09): the board's title and controls live in the app header; the reading details
+  // (clock, status, fresh reading, build, Edit, template) open in one sheet, so the main area holds only the cards
+  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine);
 
   const showPicker = !layout.chosen || pickerOpen;
   const templateSwitch = live.length > 1 && (
@@ -560,6 +567,52 @@ function Board({
   const progress = veilProgress(board.build);
   const buildVeil = !rebuild && !freshBuilding && !!progress && (board.status !== 'ok' || shown.some((c) => c.status === 'pending'));
   const veiled = !!rebuild || freshBuilding || buildVeil;
+
+  const boardSettingsControl = (
+    <BoardSettings
+      value={boardSettings}
+      onChange={(patch) => saves.changeBoard(patch)}
+      shortOn={allowed.short}
+      voiceOn={voiceOn}
+      confirmOn={allowed.confirm}
+      phone={mode === 'phone'}
+      disabled={showPicker}
+    />
+  );
+  const phoneHead = mode === 'phone' && (
+    <BoardHeaderSlot>
+      <span className="min-w-0 truncate pl-1 text-base font-bold text-white" data-testid="self-phone-title">
+        {V3_WORDS.boardTitle}
+      </span>
+      <button
+        type="button"
+        onClick={() => setReadingOpen(true)}
+        aria-label={V3_WORDS.readingSheet}
+        className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
+        data-testid="self-phone-reading"
+      >
+        <RefreshCw className="h-[18px] w-[18px]" aria-hidden="true" />
+        {readingNeedsLook && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-teal-300" data-testid="self-phone-reading-dot" />}
+      </button>
+      {boardSettingsControl}
+    </BoardHeaderSlot>
+  );
+  const readingSheet = mode === 'phone' && readingOpen && (
+    <Sheet title={V3_WORDS.readingSheet} onClose={() => setReadingOpen(false)} testId="self-reading-sheet">
+      <div className="flex flex-col gap-3">
+        {clockLine}
+        {!showPicker && readingStatus}
+        {!veiled && lateLine}
+        {freshControl}
+        {buildStatus}
+        <div className="flex flex-wrap items-center gap-2">
+          {editButton && <span onClickCapture={() => setReadingOpen(false)}>{editButton}</span>}
+          {templateSwitch}
+        </div>
+      </div>
+    </Sheet>
+  );
+
 
   const slideLabel = (i: number) => `${i + 1} of ${shown.length}: ${shown[i] ? cardTitle(shown[i]) : ''}`;
   const renderSlide = (i: number) => {
@@ -632,40 +685,36 @@ function Board({
 
   return (
     <div
-      className={`grid h-full min-h-0 w-full flex-1 gap-3 overflow-hidden px-4 py-3 text-white sm:px-6 xl:gap-2 xl:py-2 ${!showPicker && mode === 'phone' ? 'grid-rows-[auto_minmax(0,1fr)_auto]' : 'grid-rows-[auto_minmax(0,1fr)]'}`}
+      // a phone: no head row and no dots (docs/dashboards/09): the chips row, then the deck at full height
+      className={`grid h-full min-h-0 w-full flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden text-white sm:px-6 xl:gap-2 xl:py-2 ${mode === 'phone' ? 'gap-2 px-3 pb-2 pt-2' : 'gap-3 px-4 py-3'}`}
       data-testid="self-v3-page"
       data-board-grid="true"
       data-mode={mode}
       data-template={template}
     >
       {/* from 1280 px the title, the chips and the controls share one row (the two groups become flex items around the chips) */}
+      {phoneHead}
+      {readingSheet}
       <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:flex-nowrap xl:items-center xl:gap-3" data-testid="self-v3-head">
+      {mode !== 'phone' && (
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 xl:contents" data-testid="self-board-row">
         <div className="flex min-w-0 items-center gap-4 xl:order-1 xl:shrink xl:basis-auto">
-          <SelfTitle onAddPhoto={() => setWizard(true)} small={mode === 'phone'} />
+          <SelfTitle onAddPhoto={() => setWizard(true)} small={false} />
           <div className="min-w-0">
             {clockLine}
             {!showPicker && readingStatus}
             {!veiled && lateLine}
           </div>
-          {mode !== 'phone' && freshControl}
+          {freshControl}
           {buildStatus}
         </div>
         <div className="flex shrink-0 items-center gap-2 xl:order-3">
-          {mode === 'phone' && freshControl}
           {editButton}
           {templateSwitch}
-          <BoardSettings
-            value={boardSettings}
-            onChange={(patch) => saves.changeBoard(patch)}
-            shortOn={allowed.short}
-            voiceOn={voiceOn}
-            confirmOn={allowed.confirm}
-            phone={mode === 'phone'}
-            disabled={showPicker}
-          />
+          {boardSettingsControl}
         </div>
       </div>
+      )}
       {!showPicker && (
         <div className="min-w-0 xl:order-2 xl:flex-1" data-testid="self-v3-chips-slot">
         <CardChips
@@ -699,7 +748,6 @@ function Board({
       <div className="relative min-h-0 min-w-0" data-testid="self-v3-deck">
         {deck}
       </div>
-      {!showPicker && mode === 'phone' && <CarouselDots index={index} count={shown.length} onIndexChange={select} label={slideLabel} testId="self-v3-carousel" />}
 
       {details && (
         <Sheet title={`${cardTitle(details.card)} · ${V3_WORDS.why}`} onClose={() => setDetails(null)} testId="details-sheet">

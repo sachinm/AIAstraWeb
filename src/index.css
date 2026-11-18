@@ -24,6 +24,22 @@ body:has(.public-frame) {
   overscroll-behavior: none;
 }
 
+/*
+ * The signed-in boards are held to the window the same way (Sachin, 2026-11-18): on a phone the body scrolled and
+ * rubber-banded under the shell, the header left the screen and a drag stretched the area under the footer. The
+ * page itself never scrolls; only the main area (and the inside of a card) does.
+ */
+.app-frame {
+  height: 100vh;
+  height: 100dvh;
+}
+html:has(.app-frame),
+body:has(.app-frame) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* The page background, drawn here so no third party controls how the app looks. */
 .app-sky {
   background-color: #0b0a1f;

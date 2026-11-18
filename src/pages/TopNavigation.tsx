@@ -58,7 +58,9 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
               </div>
             </Link>
 
-            <div className="min-w-0 flex-1" />
+            {/* the board's own title and controls on a phone (server docs/dashboards/09): a board portals them in here */}
+            <div data-board-header-slot className="flex min-w-0 flex-1 items-center gap-1" />
+
             {/* below 768 px Happy Hour(s) lives in the menu drawer (SideNav) */}
             {boardsEnabled() && (
               <NavLink
