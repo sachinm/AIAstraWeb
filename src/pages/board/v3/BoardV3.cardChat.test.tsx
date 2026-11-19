@@ -156,7 +156,7 @@ describe('the Chat face', () => {
 
     const patches = calls.filter((c) => c.method === 'PATCH' || c.method === 'PUT').length;
     fireEvent.click(within(cardEl('body')).getByTestId('card-chat-back'));
-    expect(cardEl('body')).toHaveAttribute('data-face', 'read');
+    expect(cardEl('body')).toHaveAttribute('data-face', 'outlook');
     expect(within(cardEl('body')).queryByTestId('card-chat-thread')).toBeNull();
     expect(within(cardEl('body')).getByTestId('card-chat')).toHaveAttribute('data-conversation', 'false');
     expect(within(cardEl('body')).getByTestId('card-body')).toBeInTheDocument();
@@ -239,7 +239,7 @@ describe('the input anchored on the card (docs/dashboards/12)', () => {
     });
     await waitFor(() => expect(within(cardEl('body')).getByTestId('card-chat-thread')).toHaveTextContent('A card answer.'));
     fireEvent.click(within(cardEl('body')).getByTestId('card-chat-back'));
-    expect(cardEl('body')).toHaveAttribute('data-face', 'read');
+    expect(cardEl('body')).toHaveAttribute('data-face', 'outlook');
     // starting again shows the kept thread; a bar goes back to the card on that view
     fireEvent.change(box, { target: { value: 'x' } });
     expect(await within(cardEl('body')).findByTestId('card-chat-thread')).toHaveTextContent('A card answer.');

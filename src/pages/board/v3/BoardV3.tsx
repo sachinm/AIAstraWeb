@@ -93,6 +93,7 @@ import { useLayoutSaves } from '../../you/v3/useLayoutSaves';
 import type { SaveProblem } from '../../you/v3/layoutSaver';
 import Picker from '../../you/v3/Picker';
 import SeasonsCard from '../../you/v3/SeasonsCard';
+import { deckPerView, useAcross, useDeckWidth } from '../../you/v3/useDeckWidth';
 import { LAYOUT_ERROR_WORD, TEMPLATE_WORD, V3_WORDS } from '../../you/v3/words';
 import '../../you/v3/selfBoardV3.css';
 
@@ -481,7 +482,10 @@ function Board({
   const compactOn = featureOn(board, 'feature.compact');
   const live = compactOn ? SELF_TEMPLATES_LIVE : SELF_TEMPLATES_LIVE.filter((t) => t === DEFAULT_TEMPLATE);
   const template: SelfTemplateId = live.includes(layout.template) ? layout.template : DEFAULT_TEMPLATE;
-  const perView = perViewFor(template, mode);
+  // tablet and desktop (server docs/dashboards/13 §4.3): Seasons cards across follows the deck's measured width
+  const [deckRef, deckWidth] = useDeckWidth<HTMLDivElement>();
+  const [across, setAcross] = useAcross();
+  const perView = deckPerView({ phone: mode === 'phone', seasons: template === 'seasons', across, width: deckWidth, fallback: perViewFor(template, mode) });
   const active = shown[Math.min(index, shown.length - 1)] ?? null;
   /** a lens's starter cards: the server's list for the person, else the cards it marks suggested */
   const lensSuggested = useCallback(
@@ -759,16 +763,24 @@ function Board({
       ))}
     </div>
   );
-  // while editing, Done (in the chips row) is the only way out: the Edit button is hidden
+  // while editing, Done (in the chips row) is the only way out: the Edit button is hidden. Tablet and desktop (server
+  // docs/dashboards/13 §4.3): "Cards" opens the card chooser with the board's cards ticked, in order
   const editButton = !editing && (
     <button
       type="button"
-      onClick={() => setEditing(layout.cards.slice())}
+      onClick={() => {
+        if (mode === 'phone') {
+          setEditing(layout.cards.slice());
+          return;
+        }
+        setSaveError(null);
+        setPickerOpen(true);
+      }}
       disabled={showPicker}
       className="min-h-[40px] shrink-0 rounded-full border border-white/15 px-4 text-[13px] font-semibold text-white/85 hover:bg-white/5 disabled:opacity-40"
       data-testid="self-v3-edit"
     >
-      {V3_WORDS.edit}
+      {mode === 'phone' ? V3_WORDS.edit : V3_WORDS.cards}
     </button>
   );
 
@@ -792,6 +804,9 @@ function Board({
       confirmOn={allowed.confirm}
       phone={mode === 'phone'}
       disabled={showPicker}
+      across={across}
+      // Compact keeps its own count; the choice is kept for when Seasons is back
+      onAcross={template === 'seasons' ? setAcross : undefined}
     />
   );
   const lensLabel = `${boardTitle}: what to read`;
@@ -922,6 +937,7 @@ function Board({
     const lock = featureState(board, cardKey(c.id, boardId));
     const props: CardProps = {
       card: c,
+      shape: mode === 'phone' ? 'phone' : 'board',
       options: optionsOf(c),
       hasOwn: hasOwnOptions(layout, c.id),
       confirmOn,
@@ -1012,6 +1028,8 @@ function Board({
       onDone={(cards) => void pickerDone(cards)}
       onCancel={layout.chosen ? () => { setPickerOpen(false); setPickLens(null); setSaveError(null); } : undefined}
       readingOn={readingOn}
+      // tablet and desktop: the chooser sets the order too, and offers "Reset to suggested"
+      {...(mode === 'phone' ? {} : { reorder: true, suggestedIds: suggested })}
       {...(isSelf
         ? {}
         : {
@@ -1141,7 +1159,7 @@ function Board({
         </div>
       )}
       </div>
-      <div className="relative min-h-0 min-w-0" data-testid="self-v3-deck" {...(phone && !showPicker ? pullHandlers : {})}>
+      <div ref={deckRef} className="relative min-h-0 min-w-0" data-testid="self-v3-deck" {...(phone && !showPicker ? pullHandlers : {})}>
         {deck}
       </div>
 

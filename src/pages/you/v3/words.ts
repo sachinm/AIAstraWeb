@@ -79,6 +79,35 @@ export const V3_WORDS = {
   needOne: 'Pick at least one card.',
   boardPickerLead: 'Choose what you want to see. Your starters are ticked. You can change them any time.',
   editHintOne: 'Drag a chip to move it, or use the arrows. Keep at least one.',
+  // tablet and desktop (server docs/dashboards/13): the Edit button opens the card chooser, and the gear's cards across
+  cards: 'Cards',
+  cardsAcross: 'Cards across',
+} as const;
+
+/** the gear's "Cards across" (tablet and desktop, docs/dashboards/13 §4.3): Auto follows the deck's width */
+export type AcrossChoice = 'auto' | '1' | '2' | '3' | '4';
+export const ACROSS_CHOICES: readonly AcrossChoice[] = ['auto', '1', '2', '3', '4'];
+export const ACROSS_WORD: Record<AcrossChoice, string> = { auto: 'Auto', '1': '1', '2': '2', '3': '3', '4': '4' };
+
+/**
+ * Outlook and Astrology Reading (server docs/dashboards/13 §4.3, §4.4). Outlook speaks plainly: no chart term. The
+ * counted Why line says how many timing systems read the stretch one way, from counts the server sent.
+ */
+export const OUTLOOK_WORDS = {
+  why: 'Why we think so',
+  seeAstrology: 'See the astrology reading',
+  /** "5 of 7 timing systems read this stretch as mixed" */
+  countedTone: (n: number, of: number, tone: string, own: boolean) => `${n} of ${of} timing systems read ${own ? 'this stretch' : 'this reading'} as ${tone}`,
+  /** a split stretch shows no tone word (doc 68 §4.7) */
+  countedSplit: (n: number, of: number, own: boolean) => `${n} of ${of} timing systems agree on ${own ? 'this stretch' : 'this reading'}`,
+  stretchBar: 'The stretch, start to end',
+  today: 'Today',
+  gift: 'The gift',
+  knot: 'The knot',
+  shows: 'What the chart shows',
+  clocks: 'Which clocks agree',
+  certainty: 'How sure',
+  nothing: 'Nothing more to show for this card yet.',
 } as const;
 
 export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'>, string> = {

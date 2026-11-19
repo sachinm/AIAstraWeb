@@ -4,12 +4,18 @@
  * A page that needs a right rail (the profile's pages) gets one the same shape. Both sit between the header and the
  * footer, edge to edge, minimize to icons, and keep the toggle on their inner border about 15 % above the footer.
  * The choice is remembered per device; phones start minimized.
+ *
+ * The boards part lists every dashboard the person chose, grouped (server docs/dashboards/13 §4.3): You; Love with its
+ * focused dashboards under it; Work with its; Happy Hour(s); then "Choose dashboards", which opens the chooser sheet.
+ * A focused dashboard is indented when the rail is open and an icon with a tooltip when it is minimized; if its board
+ * is not in the list it sits under the board's name as a plain label.
  */
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Briefcase, Building2, ChevronLeft, ChevronRight, Clock, Gem, Handshake, Heart, Palette, Sparkles, Sprout, Store, User, Users, X, type LucideIcon } from 'lucide-react';
+import { Briefcase, Building2, ChevronLeft, ChevronRight, Clock, Gem, Handshake, Heart, LayoutGrid, Palette, Sparkles, Sprout, Store, User, Users, X, type LucideIcon } from 'lucide-react';
 import { track } from '../lib/events';
-import { PORTAL_DASHBOARD_LABELS, isFocusedDashboard, portalHref, usePortalDashboards, type PortalDashboardId } from '../lib/portalDashboards';
+import { LENS_BOARD, PORTAL_DASHBOARD_LABELS, isFocusedDashboard, portalHref, usePortalDashboards, usePortalDashboardsReady, type PortalDashboardId } from '../lib/portalDashboards';
+import { CHOOSER_WORDS, DashboardChooserSheet } from './DashboardChooser';
 
 /** the three boards; each shows only when the person's portal list has it (server docs/dashboards/11) */
 export const SIDE_TABS: Array<{ id: PortalDashboardId; to: string; label: string; icon: LucideIcon }> = [
@@ -17,7 +23,7 @@ export const SIDE_TABS: Array<{ id: PortalDashboardId; to: string; label: string
   { id: 'love', to: '/dashboard/love', label: 'Love', icon: Heart },
   { id: 'work', to: '/dashboard/work', label: 'Work', icon: Briefcase },
 ];
-/** in the header from 768 px; below that, in the drawer only; shown when the portal list has Lucky times */
+/** shown when the portal list has Lucky times: in the rail and the drawer (the header keeps its own link from 768 px) */
 const DRAWER_EXTRA_TABS: Array<{ id: PortalDashboardId; to: string; label: string; icon: LucideIcon }> = [{ id: 'lucky', to: '/dashboard/lucky', label: 'Happy Hour(s)', icon: Clock }];
 
 /** the focused dashboards' icons (each opens the Love or Work board on its lens) */
@@ -31,6 +37,9 @@ export const FOCUSED_ICONS: Partial<Record<PortalDashboardId, LucideIcon>> = {
   hobby: Palette,
   business: Store,
 };
+
+/** names too long for the 160 px rail, as the rail writes them (they sit under Love or Work, which gives the rest) */
+const RAIL_SHORT: Partial<Record<PortalDashboardId, string>> = { dating: 'Dating', marriage: 'Marriage', allies: 'Allies' };
 
 /** the focused dashboards the person chose, as menu entries, in menu order */
 export function focusedEntries(list: readonly PortalDashboardId[]): Array<{ id: PortalDashboardId; to: string; label: string; icon: LucideIcon }> {
@@ -122,9 +131,14 @@ export default function SideNav() {
   const setOpen = rail ? rail.setOpen : setLocalOpen;
   const { pathname, search } = useLocation();
   const portal = usePortalDashboards();
-  const mainTabs = SIDE_TABS.filter((t) => portal.includes(t.id));
-  const focused = focusedEntries(portal);
+  // until the person's own list is read the rail lists the boards only, so a saved short list never flashes all twelve
+  const ready = usePortalDashboardsReady();
+  const focused = ready ? focusedEntries(portal) : [];
+  // You, Love and Work in that order, each with its focused dashboards; a board left out still names its group
+  const groups = SIDE_TABS.map((tab) => ({ tab, shown: portal.includes(tab.id), children: focused.filter((f) => LENS_BOARD[f.id] === tab.id) })).filter((g) => g.shown || g.children.length);
   const extraTabs = DRAWER_EXTRA_TABS.filter((t) => portal.includes(t.id));
+  const [choosing, setChoosing] = useState(false);
+  const chooseBtn = useRef<HTMLButtonElement>(null);
 
   // a move to another page closes the drawer
   useEffect(() => {
@@ -160,37 +174,67 @@ export default function SideNav() {
         </div>
         {/* up to twelve entries: the list scrolls inside the rail, never the page */}
         <nav className="min-h-0 space-y-1 overflow-y-auto p-1.5" data-testid="side-nav-boards">
-          {mainTabs.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} title={open ? undefined : label} aria-label={label} onClick={() => track('tab_select', 'sidenav', label.toLowerCase())} className={item}>
-              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-              {open && <span className="truncate">{label}</span>}
-            </NavLink>
-          ))}
-          {focused.map(({ id, to, label, icon: Icon }) => (
-            <NavLink
-              key={id}
-              to={to}
-              end
-              title={label}
-              aria-label={label}
-              data-testid={`side-nav-focused-${id}`}
-              onClick={() => {
-                track('tab_select', 'sidenav', id);
-                // on the same board only the search changes, which does not close the phone drawer by itself
-                setDrawer?.(false);
-              }}
-              className={() => item({ isActive: focusedActive(to, pathname, search) })}
-            >
-              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-              {open && <span className="truncate">{label}</span>}
-            </NavLink>
+          {groups.map(({ tab: { id: boardId, to, label, icon: Icon }, shown, children }) => (
+            <div key={boardId} role="group" aria-label={label} className="space-y-1" data-testid={`side-nav-group-${boardId}`}>
+              {shown ? (
+                <NavLink to={to} title={open ? undefined : label} aria-label={label} onClick={() => track('tab_select', 'sidenav', label.toLowerCase())} className={item}>
+                  <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  {open && <span className="truncate">{label}</span>}
+                </NavLink>
+              ) : open ? (
+                <p className="truncate px-2.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-white/45" data-testid={`side-nav-label-${boardId}`}>
+                  {label}
+                </p>
+              ) : (
+                <div className="mx-2 border-t border-white/10" aria-hidden="true" data-testid={`side-nav-label-${boardId}`} />
+              )}
+              {children.map(({ id, to: lensTo, label: lensLabel, icon: LensIcon }) => (
+                <NavLink
+                  key={id}
+                  to={lensTo}
+                  end
+                  title={lensLabel}
+                  aria-label={lensLabel}
+                  data-testid={`side-nav-focused-${id}`}
+                  onClick={() => {
+                    track('tab_select', 'sidenav', id);
+                    // on the same board only the search changes, which does not close the phone drawer by itself
+                    setDrawer?.(false);
+                  }}
+                  className={() => `${item({ isActive: focusedActive(lensTo, pathname, search) })} ${open ? 'ml-3 min-h-[36px] text-[13px]' : ''}`}
+                >
+                  <LensIcon className={`${open ? 'h-4 w-4' : 'h-5 w-5'} shrink-0`} aria-hidden="true" />
+                  {/* the rail is 160 px: a long name shows its short form here; the title and the label keep the full name */}
+                  {open && <span className="truncate">{(drawer ? undefined : RAIL_SHORT[id]) ?? lensLabel}</span>}
+                </NavLink>
+              ))}
+            </div>
           ))}
           {extraTabs.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} aria-label={label} data-testid="drawer-happy-hours" onClick={() => track('tab_select', 'drawer', label.toLowerCase())} className={(s) => `${item(s)} md:hidden`}>
+            <NavLink key={to} to={to} title={open ? undefined : label} aria-label={label} data-testid="drawer-happy-hours" onClick={() => track('tab_select', drawer ? 'drawer' : 'sidenav', label.toLowerCase())} className={item}>
               <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-              <span className="truncate">{label}</span>
+              {open && <span className="truncate">{label}</span>}
             </NavLink>
           ))}
+          <div className="mx-1 my-1.5 border-t border-white/10" aria-hidden="true" />
+          <button
+            ref={chooseBtn}
+            type="button"
+            onClick={() => {
+              track('tab_select', 'sidenav', 'choose_dashboards');
+              setChoosing(true);
+            }}
+            title={open ? undefined : CHOOSER_WORDS.title}
+            aria-label={CHOOSER_WORDS.title}
+            aria-haspopup="dialog"
+            aria-expanded={choosing}
+            data-testid="side-nav-choose"
+            className={`${item({ isActive: false })} w-full`}
+          >
+            <LayoutGrid className="h-5 w-5 shrink-0" aria-hidden="true" />
+            {/* the one label that would not fit the open rail: it wraps instead of cutting off */}
+            {open && <span className="text-left leading-tight">{CHOOSER_WORDS.title}</span>}
+          </button>
         </nav>
         {/* the open page's own items (General Reading's conversations) */}
         <div ref={rail?.setSlot} data-testid="side-nav-slot" className="flex min-h-0 flex-1 flex-col border-t border-white/10 empty:border-0 [&:not(:empty)]:min-h-[40%]" />
@@ -198,6 +242,15 @@ export default function SideNav() {
           <RailToggle side="left" open={open} onToggle={() => setOpen(!open)} label="sidebar" />
         </div>
       </aside>
+      {choosing && (
+        <DashboardChooserSheet
+          initial={portal}
+          onClose={() => {
+            setChoosing(false);
+            chooseBtn.current?.focus();
+          }}
+        />
+      )}
     </>
   );
 }

@@ -102,7 +102,7 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
           'work.status': 'yes',
           'self.focus': 'career',
           'love.status': 'partnered',
-          // the portal shows Lucky times (server docs/dashboards/11): Happy Hour(s) is in the header and the drawer
+          // a stored list of four (server docs/dashboards/11, 13): kept as is; Happy Hour(s) is in the header, the rail and the drawer
           'portal.dashboards': { value: 'self,love,work,lucky', source: 'tapped', confirmed_at: null },
         },
       });
