@@ -9,7 +9,7 @@ import type { BoardOptions } from '../../../lib/cardOptions';
 import type { CardVoice } from '../../../lib/selfV3Api';
 import { FACES } from './CardToolbar';
 import { shownFace, type ShownFace } from './faces/FaceBody';
-import { FACE_WIRE, FACE_WORD, VOICE_WORD, V3_WORDS } from './words';
+import { ACROSS_CHOICES, ACROSS_WORD, FACE_WIRE, FACE_WORD, VOICE_WORD, V3_WORDS, type AcrossChoice } from './words';
 
 export interface BoardSettingsProps {
   /** the board-wide settings in force (the server's defaults with the person's changes) */
@@ -23,6 +23,12 @@ export interface BoardSettingsProps {
   confirmOn?: boolean;
   phone?: boolean;
   disabled?: boolean;
+  /**
+   * Tablet and desktop (server docs/dashboards/13 §4.3): "Cards across: Auto · 1 · 2 · 3 · 4", kept per device by the
+   * board. Offered only with `onAcross` and never on a phone.
+   */
+  across?: AcrossChoice;
+  onAcross?: (v: AcrossChoice) => void;
 }
 
 const VOICES: readonly CardVoice[] = ['gentle', 'direct'];
@@ -53,7 +59,7 @@ function Switch({ label, on, onToggle, testId }: { label: string; on: boolean; o
   );
 }
 
-export default function BoardSettings({ value, onChange, shortOn = true, voiceOn = false, confirmOn = true, phone = false, disabled = false }: BoardSettingsProps) {
+export default function BoardSettings({ value, onChange, shortOn = true, voiceOn = false, confirmOn = true, phone = false, disabled = false, across = 'auto', onAcross }: BoardSettingsProps) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -67,7 +73,8 @@ export default function BoardSettings({ value, onChange, shortOn = true, voiceOn
       window.removeEventListener('mousedown', onDown);
     };
   }, [open, phone]);
-  const nothing = !shortOn && !voiceOn && !confirmOn;
+  const acrossOn = !phone && !!onAcross;
+  const nothing = !shortOn && !voiceOn && !confirmOn && !acrossOn;
   if (nothing) return null;
   const panel = (
     <div
@@ -86,6 +93,7 @@ export default function BoardSettings({ value, onChange, shortOn = true, voiceOn
           <Choice<ShownFace> label={V3_WORDS.readAs} value={shownFace(value.face)} options={FACES} words={FACE_WORD} onPick={(f) => onChange({ face: FACE_WIRE[f] })} testId="bs-face" />
         )}
         {voiceOn && <Choice<CardVoice> label={V3_WORDS.voice} value={value.voice ?? 'gentle'} options={VOICES} words={VOICE_WORD} onPick={(voice) => onChange({ voice })} testId="bs-voice" />}
+        {acrossOn && <Choice<AcrossChoice> label={V3_WORDS.cardsAcross} value={across} options={ACROSS_CHOICES} words={ACROSS_WORD} onPick={(v) => onAcross!(v)} testId="bs-across" />}
         {confirmOn && <Switch label={V3_WORDS.showConfirm} on={value.confirm} onToggle={() => onChange({ confirm: !value.confirm })} testId="bs-confirm" />}
         {phone && (
           <button type="button" onClick={() => setOpen(false)} className="self-v3-btn w-full rounded-full px-4 text-sm font-semibold text-purple-300" data-testid="bs-close">

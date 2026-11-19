@@ -1,7 +1,7 @@
 /**
  * Which dashboards the person's portal shows (server docs/dashboards/11): the profile fact `portal.dashboards`, a
- * comma list of ids, chosen in the personalization wizard. Unanswered (or unreadable) means Self, Love, Career and Lucky
- * times (Sachin, 2026-11-18: Lucky times is ticked by default, so the Happy Hour(s) link shows until the person unticks it).
+ * comma list of ids, chosen in the personalization wizard or the rail's "Choose dashboards". Unanswered (or unreadable)
+ * means all twelve (server docs/dashboards/13, decision 1, 2026-11-18); a stored list is kept exactly as it is.
  * The side menu, the board tab bar and the header's Happy Hour(s) link read it through `usePortalDashboards`; a board
  * that is not chosen stays reachable by its URL, it is only left out of the menus.
  *
@@ -17,8 +17,8 @@ export const PORTAL_FACT = 'portal.dashboards';
 export const PORTAL_DASHBOARD_IDS = ['self', 'love', 'work', 'lucky', 'dating', 'marriage', 'friends', 'allies', 'career_start', 'primary_job', 'hobby', 'business'] as const;
 export type PortalDashboardId = (typeof PORTAL_DASHBOARD_IDS)[number];
 
-/** shown to a person who has not chosen, and the wizard's default ticks */
-export const DEFAULT_PORTAL_DASHBOARDS: readonly PortalDashboardId[] = ['self', 'love', 'work', 'lucky'];
+/** shown to a person who has not chosen, and the wizard's default ticks: every dashboard */
+export const DEFAULT_PORTAL_DASHBOARDS: readonly PortalDashboardId[] = PORTAL_DASHBOARD_IDS;
 
 export const PORTAL_DASHBOARD_LABELS: Record<PortalDashboardId, string> = {
   self: 'Self',
@@ -83,6 +83,8 @@ let current: PortalDashboardId[] = [...DEFAULT_PORTAL_DASHBOARDS];
 /** whose list `current` is (the token it was read with); null = not read */
 let loadedFor: string | null = null;
 let loading: string | null = null;
+/** the token whose read has finished, well or badly (the rail waits for it before listing the focused dashboards) */
+let settledFor: string | null = null;
 const listeners = new Set<() => void>();
 
 const tokenNow = (): string | null => {
@@ -101,6 +103,7 @@ function emit() {
 export function setPortalDashboards(list: readonly PortalDashboardId[]): void {
   current = parsePortalDashboards(portalFactValue(list));
   loadedFor = tokenNow();
+  settledFor = loadedFor;
   // a read still in flight carries the old answer: it is dropped
   loading = null;
   emit();
@@ -110,6 +113,7 @@ export function setPortalDashboards(list: readonly PortalDashboardId[]): void {
 export function resetPortalDashboards(): void {
   current = [...DEFAULT_PORTAL_DASHBOARDS];
   loadedFor = null;
+  settledFor = null;
   loading = null;
   emit();
 }
@@ -123,16 +127,18 @@ export function loadPortalDashboards(): void {
     .then((res) => {
       if (loading !== t) return;
       loading = null;
-      if (!res) return;
+      settledFor = t;
+      if (!res) return emit();
       loadedFor = t;
       const next = portalDashboardsFrom(res.facts);
-      if (next.join(',') !== current.join(',')) {
-        current = next;
-        emit();
-      }
+      if (next.join(',') !== current.join(',')) current = next;
+      emit();
     })
     .catch(() => {
-      if (loading === t) loading = null;
+      if (loading !== t) return;
+      loading = null;
+      settledFor = t;
+      emit();
     });
 }
 
@@ -141,6 +147,15 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 const snapshot = () => current;
+
+/** true once the person's list has been read (or there is nobody signed in): until then the rail lists the boards only */
+const settled = () => {
+  const t = tokenNow();
+  return !t || settledFor === t;
+};
+export function usePortalDashboardsReady(): boolean {
+  return useSyncExternalStore(subscribe, settled, settled);
+}
 
 /** the dashboards the portal shows, in menu order */
 export function usePortalDashboards(): PortalDashboardId[] {

@@ -40,7 +40,7 @@ export function ConfirmSection({ confirm }: { confirm: { claimId: string; text: 
     );
   return (
     <section className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="section-confirm" aria-label={V3_WORDS.isThisRight}>
-      <p className="min-w-0 text-[15px] text-white/80">
+      <p className="min-w-0 text-[15px] text-white/80" title={confirm.text}>
         <b className="font-semibold text-white/90">{V3_WORDS.isThisRight}</b> <span className="text-white/70">{confirm.text}</span>
       </p>
       <span className="flex flex-wrap gap-1.5">

@@ -1,0 +1,239 @@
+/* RangeCalendar (server docs/dashboards/13 §4.3): span bar, months side by side, one unbroken band per window. */
+
+.rc-root {
+  --rc-heavy: rgb(251 113 133 / 0.3);
+  --rc-heavy-solid: rgb(251 113 133 / 0.75);
+  --rc-mixed: rgb(252 211 77 / 0.25);
+  --rc-mixed-solid: rgb(252 211 77 / 0.7);
+  --rc-light: rgb(94 234 212 / 0.25);
+  --rc-light-solid: rgb(94 234 212 / 0.7);
+  --rc-none: rgb(255 255 255 / 0.1);
+  --rc-none-solid: rgb(255 255 255 / 0.35);
+  --rc-track: rgb(255 255 255 / 0.06);
+  --rc-tick: rgb(255 255 255 / 0.25);
+  --rc-tick-text: rgb(255 255 255 / 0.55);
+  --rc-today: rgb(255 255 255 / 0.9);
+  --rc-today-ring: rgb(15 23 42 / 0.85);
+  --rc-key: rgb(153 246 228);
+  min-width: 0;
+}
+
+html.light .rc-root {
+  --rc-heavy: rgb(225 29 72 / 0.16);
+  --rc-heavy-solid: rgb(225 29 72 / 0.5);
+  --rc-mixed: rgb(217 119 6 / 0.18);
+  --rc-mixed-solid: rgb(217 119 6 / 0.5);
+  --rc-light: rgb(13 148 136 / 0.18);
+  --rc-light-solid: rgb(13 148 136 / 0.5);
+  --rc-none: rgb(15 23 42 / 0.07);
+  --rc-none-solid: rgb(15 23 42 / 0.25);
+  --rc-track: rgb(15 23 42 / 0.06);
+  --rc-tick: rgb(15 23 42 / 0.25);
+  --rc-tick-text: rgb(15 23 42 / 0.6);
+  --rc-today: rgb(15 23 42 / 0.85);
+  --rc-today-ring: rgb(255 255 255 / 0.95);
+  --rc-key: rgb(15 118 110);
+}
+
+/* tones: the band and the bar's segments share them */
+.rc-tone-heavy { background-color: var(--rc-heavy); }
+.rc-tone-mixed { background-color: var(--rc-mixed); }
+.rc-tone-light { background-color: var(--rc-light); }
+.rc-tone-none { background-color: var(--rc-none); }
+.rc-band-solid.rc-tone-heavy, .rc-bar-seg.rc-tone-heavy { background-color: var(--rc-heavy-solid); }
+.rc-band-solid.rc-tone-mixed, .rc-bar-seg.rc-tone-mixed { background-color: var(--rc-mixed-solid); }
+.rc-band-solid.rc-tone-light, .rc-bar-seg.rc-tone-light { background-color: var(--rc-light-solid); }
+.rc-band-solid.rc-tone-none, .rc-bar-seg.rc-tone-none { background-color: var(--rc-none-solid); }
+
+/* span bar: room above for the "today" word, below for the month labels */
+.rc-bar { position: relative; padding-top: 14px; padding-bottom: 18px; }
+.rc-bar-track { position: relative; height: 14px; border-radius: 7px; background: var(--rc-track); overflow: visible; }
+.rc-bar-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 3px;
+  border: 0;
+  padding: 0;
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
+  cursor: pointer;
+}
+html.light .rc-bar-seg { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.8); }
+.rc-bar-seg:focus-visible { outline: 2px solid var(--rc-today); outline-offset: 2px; }
+.rc-bar-key {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 22px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--rc-key);
+  pointer-events: none;
+}
+/* today: a 2 px line the bar's full height with a dot on top, held 4 px inside either end of the bar */
+.rc-bar-today {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: clamp(4px, var(--rc-at, 0%), calc(100% - 4px));
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--rc-today);
+  box-shadow: 0 0 0 1.5px var(--rc-today-ring);
+  pointer-events: none;
+  z-index: 1;
+}
+.rc-bar-today-dot {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 9999px;
+  background: var(--rc-today);
+  box-shadow: 0 0 0 1.5px var(--rc-today-ring);
+}
+/* the word sits over the line, pushed inside the bar at either end */
+.rc-bar-today-label {
+  position: absolute;
+  top: 0;
+  left: clamp(0px, calc(var(--rc-at, 0%) - 18px), calc(100% - 36px));
+  width: 36px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rc-today);
+  pointer-events: none;
+}
+.rc-bar-ticks { position: absolute; left: 0; right: 0; top: 28px; height: 18px; }
+.rc-bar-tick { position: absolute; top: 0; width: 1px; height: 4px; background: var(--rc-tick); }
+.rc-bar-tick-on { height: 6px; }
+.rc-bar-tick-start { background: transparent; }
+/* a label box is BAR_LABEL_PX wide, placed by the code so it never leaves the bar or meets its neighbour */
+.rc-bar-tick-label {
+  position: absolute;
+  top: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 12px;
+  color: var(--rc-tick-text);
+  font-variant-numeric: tabular-nums;
+}
+.rc-bar-tick-label.rc-align-l { text-align: left; }
+.rc-bar-tick-label.rc-align-c { text-align: center; }
+.rc-bar-tick-label.rc-align-r { text-align: right; }
+
+/* months: on the board card the calendar fills its tab panel, and the weeks grow into spare height (up to 44 px a
+   row) instead of leaving a void under the lists; on a short card they keep the compact size and the panel scrolls */
+[data-card-scroll='true']:has(> div > .rc-root) { display: flex; flex-direction: column; }
+[data-card-scroll='true'] > div:has(> .rc-root) { flex: 1 0 auto; display: flex; flex-direction: column; }
+.rc-root { flex: 1 0 auto; display: flex; flex-direction: column; }
+/* the pager, the months and the legend grow together, only as far as the weeks can (the pager ~36 px, the legend ~24 px
+   and their margins): any height left over falls under the lists, never between the months and the legend */
+.rc-months-block {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(var(--rc-rows, 6) * 44px + (var(--rc-rows, 6) - 1) * 3px + 40px + 36px + 8px + 32px);
+}
+.rc-months {
+  flex: 1 0 auto;
+  display: grid;
+  column-gap: 12px;
+  row-gap: 16px;
+  /* grows only as far as the weeks can (44 px a row, plus title and weekdays): the legend and lists stay right under it */
+  max-height: calc(var(--rc-rows, 6) * 44px + (var(--rc-rows, 6) - 1) * 3px + 40px);
+}
+.rc-month { min-width: 0; display: flex; flex-direction: column; }
+.rc-month-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; text-align: center; }
+.rc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 0; }
+.rc-weekdays { font-size: 11px; text-align: center; margin-bottom: 2px; }
+.rc-days {
+  --rc-cell: 26px;
+  --rc-cell-max: 44px;
+  flex: 1 0 auto;
+  grid-template-rows: repeat(var(--rc-rows, 6), minmax(var(--rc-cell), 1fr));
+  row-gap: 3px;
+  max-height: calc(var(--rc-rows, 6) * var(--rc-cell-max) + (var(--rc-rows, 6) - 1) * 3px);
+}
+.rc-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: var(--rc-cell);
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  container: rc-day / inline-size;
+}
+@container (min-width: 700px) {
+  .rc-days { --rc-cell: 30px; }
+  .rc-day { font-size: 12px; }
+}
+/* the band: full cell width, so neighbouring days touch; only a window's ends are rounded */
+.rc-band { position: absolute; inset: 2px 0; border-radius: 0; }
+.rc-band.rc-round-l { left: 1px; border-top-left-radius: 9px; border-bottom-left-radius: 9px; }
+.rc-band.rc-round-r { right: 1px; border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
+.rc-num { position: relative; }
+/* today: a ring round the number, the same size however tall the row */
+.rc-today {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1.5px var(--rc-today);
+}
+/* "Start" / "End" under the number, only where the cell can hold the word (the legend says it everywhere) */
+.rc-cap-word {
+  display: none;
+  position: relative;
+  margin-top: 2px;
+  font-size: 8px;
+  line-height: 8px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+@container rc-day (min-width: 30px) {
+  .rc-cap-word { display: block; }
+}
+.rc-dot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 9999px;
+  background: var(--rc-key);
+}
+/* the legend under the months: Start and End of the window, and today */
+.rc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--rc-tick-text);
+  font-variant-numeric: tabular-nums;
+}
+.rc-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.rc-legend-cap { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.rc-legend-today { display: inline-block; width: 10px; height: 10px; border-radius: 9999px; box-shadow: inset 0 0 0 1.5px var(--rc-today); }

@@ -252,6 +252,23 @@ export interface SelfV3CardContent {
   ladder: LadderSteps | null;
   /** "Checked on 3 of 4 clocks" */
   agreement: { agree: number; of: number } | null;
+  /**
+   * docs/dashboards/13 §4.1: the chart-language reasoning from the stored card (the Astrology Reading tab). Absent from
+   * older servers; null when nothing is stored.
+   */
+  chart?: CardChartReading | null;
+  /** docs/dashboards/13 §4.1 (phase 5): one plain sentence saying why the reading holds; absent until then */
+  why?: string | null;
+}
+
+/** the chart-language text of a card, as served (text only, never evidence keys) */
+export interface CardChartReading {
+  gift: string | null;
+  knot: string | null;
+  /** the stored enum ("strong", "likely", "possible"); the page maps it to a word */
+  certainty: string | null;
+  /** what each stretch shows in the chart, by span id */
+  spans: Array<{ span: string; shows: string }>;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

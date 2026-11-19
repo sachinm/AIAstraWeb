@@ -19,10 +19,10 @@ describe('board tabs (server docs/reading-engine/45 §4, 54 §3)', () => {
     const you = screen.getByRole('link', { name: 'You' });
     expect(you).toHaveAttribute('href', '/dashboard/you');
     expect(screen.getByRole('link', { name: 'Love' })).toHaveAttribute('href', '/dashboard/love');
-    // Lucky times is in the default portal list (server docs/dashboards/11; Sachin, 2026-11-18)
+    // Lucky times is in the default portal list (server docs/dashboards/11, 13); it shows in the rail from 768 px too (doc 13 §4.3)
     const happy = screen.getByRole('link', { name: 'Happy Hour(s)' });
     expect(happy).toHaveAttribute('href', '/dashboard/lucky');
-    expect(happy).toHaveClass('md:hidden');
+    expect(happy).not.toHaveClass('md:hidden');
     // a person who unticks it loses the link
     act(() => setPortalDashboards(['self', 'love', 'work']));
     expect(screen.queryByRole('link', { name: 'Happy Hour(s)' })).toBeNull();

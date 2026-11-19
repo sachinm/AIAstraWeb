@@ -149,7 +149,10 @@ describe('Self board v3, doc 75: no method on screen', () => {
     expect(within(c).getByTestId('period-1')).not.toHaveTextContent(/stretch ·/);
   });
 
+  // server docs/dashboards/13: the "i" button (and its sheet) is the phone card's only; tablet and desktop read the reasons
+  // on the Astrology Reading tab
   it('Why lists no clocks and no agreement', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-body');
     fireEvent.click(within(c).getByTestId('card-why'));

@@ -19,14 +19,19 @@ import { cardTitle } from './features';
 import { label } from './faces/parts';
 import { SPAN_TONE_DOT, SPAN_TONE_WORD, V3_WORDS } from './words';
 
-export type CardViewId = 'read' | 'analysis' | 'calendar';
+/** a phone's views are Read · Analysis · Calendar; a tablet or desktop card's are Outlook · Astrology Reading · Calendar */
+export type CardViewId = 'read' | 'analysis' | 'calendar' | 'outlook' | 'astrology';
 export const CARD_VIEWS: readonly CardViewId[] = ['read', 'analysis', 'calendar'];
+/** the views of a card on tablet and desktop (server docs/dashboards/13 §4.3) */
+export const BOARD_VIEWS: readonly CardViewId[] = ['outlook', 'astrology', 'calendar'];
 
 export const VIEW_WORDS = {
   bars: 'Card views',
   read: 'Read',
   analysis: 'Analysis',
   calendar: 'Calendar',
+  outlook: 'Outlook',
+  astrology: 'Astrology Reading',
   why: 'Why we think so',
   systems: 'How the systems read it',
   agree: (n: number, of: number) => `${n} of ${of} agree`,
@@ -44,7 +49,7 @@ export const VIEW_WORDS = {
   conversation: 'Conversation about this card',
 } as const;
 
-const STEP_WORD: Record<string, string> = { best: 'Best', practical: 'Practical', drift: 'If it drifts', floor: 'The floor' };
+export const STEP_WORD: Record<string, string> = { best: 'Best', practical: 'Practical', drift: 'If it drifts', floor: 'The floor' };
 
 /** the v2 Chart details body reads only `details` */
 export function detailsArea(card: SelfV3CardView): SelfV2Area {
@@ -63,28 +68,45 @@ export function detailsArea(card: SelfV3CardView): SelfV2Area {
 // The bars
 // ---------------------------------------------------------------------------------------------------------------------
 
-export function CardViewBars({ cardId, view, onView, panelId, hasOwn = false, ownLabel }: { cardId: string; view: CardViewId | null; onView: (v: CardViewId) => void; panelId: string; hasOwn?: boolean; ownLabel?: string }) {
+export function CardViewBars({
+  cardId,
+  view,
+  onView,
+  panelId,
+  hasOwn = false,
+  ownLabel,
+  views = CARD_VIEWS,
+}: {
+  cardId: string;
+  view: CardViewId | null;
+  onView: (v: CardViewId) => void;
+  panelId: string;
+  hasOwn?: boolean;
+  ownLabel?: string;
+  /** the views offered, in order (the first is where a card opens) */
+  views?: readonly CardViewId[];
+}) {
   const onKeys = (e: KeyboardEvent<HTMLDivElement>) => {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (!d) return;
     e.preventDefault();
     e.stopPropagation();
-    const at = CARD_VIEWS.indexOf(view ?? 'read');
-    const next = CARD_VIEWS[(at + d + CARD_VIEWS.length) % CARD_VIEWS.length]!;
+    const at = Math.max(0, views.indexOf(view ?? views[0]!));
+    const next = views[(at + d + views.length) % views.length]!;
     onView(next);
     (e.currentTarget.querySelector(`[data-view="${next}"]`) as HTMLElement | null)?.focus();
   };
   return (
     <div className="flex min-w-0 shrink-0 items-center gap-2" data-testid={`card-bars-${cardId}`}>
       <div role="tablist" aria-label={VIEW_WORDS.bars} onKeyDown={onKeys} className="grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-xl border border-white/10 bg-white/5 p-0.5" data-testid="card-bars">
-        {CARD_VIEWS.map((v) => (
+        {views.map((v) => (
           <button
             key={v}
             type="button"
             role="tab"
             aria-selected={view === v}
             aria-controls={panelId}
-            tabIndex={view === v || (view === null && v === 'read') ? 0 : -1}
+            tabIndex={view === v || (view === null && v === views[0]) ? 0 : -1}
             data-view={v}
             onClick={() => onView(v)}
             className={`self-v3-btn inline-flex min-h-[36px] items-center justify-center rounded-lg px-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 ${view === v ? 'self-v3-on' : 'text-white/70 hover:text-white'}`}
@@ -117,7 +139,11 @@ export function AnalysisView({ card, period, options, why }: { card: SelfV3CardV
   const steps = planSteps(card, options);
   const details = detailsArea(card).details;
   const hasDetails = why && (!!details.headline || (details.paragraphs ?? []).some((p) => !!p?.trim()));
-  if (!hasDetails && !clocks.length && !span?.agreement && !steps.length)
+  // a card with no v2 details (every Love and Work card) says why from its chart reading (server docs/dashboards/13 §4.1)
+  const chart = why && !hasDetails ? (card.v3?.chart ?? null) : null;
+  const shows = chart?.spans.find((s) => s.span === (period?.span?.span ?? span?.span))?.shows ?? chart?.spans[0]?.shows ?? null;
+  const chartLines = [shows, chart?.gift, chart?.knot].filter((t): t is string => !!t?.trim());
+  if (!hasDetails && !chartLines.length && !clocks.length && !span?.agreement && !steps.length)
     return (
       <p className="text-center text-[15px] text-white/60" data-testid="analysis-empty">
         {VIEW_WORDS.noAnalysis}
@@ -130,6 +156,18 @@ export function AnalysisView({ card, period, options, why }: { card: SelfV3CardV
           <h4 className={label}>{VIEW_WORDS.why}</h4>
           <div className="mt-1.5">
             <ChartDetails area={detailsArea(card)} showEvidence={false} />
+          </div>
+        </section>
+      )}
+      {chartLines.length > 0 && (
+        <section data-testid="analysis-chart">
+          <h4 className={label}>{VIEW_WORDS.why}</h4>
+          <div className="mt-1.5 space-y-2">
+            {chartLines.map((t, i) => (
+              <p key={i} className="text-[15px] leading-relaxed text-white/85">
+                {t}
+              </p>
+            ))}
           </div>
         </section>
       )}
@@ -163,7 +201,7 @@ export function AnalysisView({ card, period, options, why }: { card: SelfV3CardV
   );
 }
 
-function SystemList({ title, items, testId }: { title: string; items: Array<{ label: string; tone: SpanTone }>; testId: string }) {
+export function SystemList({ title, items, testId }: { title: string; items: Array<{ label: string; tone: SpanTone }>; testId: string }) {
   return (
     <div className="mt-2" data-testid={testId}>
       <p className="text-[13px] font-semibold text-white/60">{title}</p>

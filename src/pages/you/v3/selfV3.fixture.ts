@@ -298,3 +298,36 @@ export function selfV3Unchosen(): SelfV3Response {
   b.layout = { template: 'seasons', cards: [], sections: {}, chosen: false, updatedAt: null };
   return b;
 }
+
+/**
+ * Tablet and desktop cards (server docs/dashboards/13): Body & energy as the server sends it with the Astrology Reading
+ * text (`chart`), a plain `why` and its three windows, plus two key dates. Not on the board fixture's card list, so the
+ * tests that count cards are unchanged. `withWhy: false` leaves `why` off (the counted line shows instead).
+ */
+export function selfV3OutlookCard(opts: { withWhy?: boolean; withChart?: boolean } = {}): SelfV3CardView {
+  const base = selfV3Fixture().cards.find((c) => c.id === 'body')!;
+  const { withWhy = true, withChart = true } = opts;
+  return {
+    ...base,
+    keyDates: [
+      { date: '2026-12-05', label: 'Rest comes back' },
+      { date: '2027-03-01', label: 'A good month to start a routine' },
+    ],
+    v3: {
+      ...base.v3!,
+      why: withWhy ? 'You have run on short sleep since May, and this stretch asks more of the body than usual.' : null,
+      chart: withChart
+        ? {
+            gift: 'The sixth lord sits strong in its own sign, so the body recovers well once rested.',
+            knot: 'Saturn crosses the ascendant, pressing on stamina until early December.',
+            certainty: 'likely',
+            spans: [
+              { span: 's1', shows: 'Saturn on the ascendant weighs on vitality for these weeks.' },
+              { span: 's2', shows: 'Mixed periods: the moon period lifts while the sub-period still presses.' },
+              { span: 's3', shows: 'Jupiter aspects the sixth house and supports a lasting routine.' },
+            ],
+          }
+        : null,
+    },
+  } as SelfV3CardView;
+}

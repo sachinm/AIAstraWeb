@@ -25,14 +25,15 @@ afterEach(() => {
 });
 
 describe('the portal list', () => {
-  it('defaults to Self, Love, Career and Lucky times when unanswered, declined or unreadable', () => {
-    expect(DEFAULT_PORTAL_DASHBOARDS).toEqual(['self', 'love', 'work', 'lucky']);
-    expect(portalDashboardsFrom(null)).toEqual(['self', 'love', 'work', 'lucky']);
-    expect(portalDashboardsFrom({})).toEqual(['self', 'love', 'work', 'lucky']);
-    expect(parsePortalDashboards('declined')).toEqual(['self', 'love', 'work', 'lucky']);
-    expect(parsePortalDashboards('horoscope, ,')).toEqual(['self', 'love', 'work', 'lucky']);
-    // a person who chose without Lucky times keeps their choice
+  it('defaults to all twelve when unanswered, declined or unreadable (server docs/dashboards/13, decision 1)', () => {
+    expect(DEFAULT_PORTAL_DASHBOARDS).toEqual([...PORTAL_DASHBOARD_IDS]);
+    expect(portalDashboardsFrom(null)).toEqual([...PORTAL_DASHBOARD_IDS]);
+    expect(portalDashboardsFrom({})).toEqual([...PORTAL_DASHBOARD_IDS]);
+    expect(parsePortalDashboards('declined')).toEqual([...PORTAL_DASHBOARD_IDS]);
+    expect(parsePortalDashboards('horoscope, ,')).toEqual([...PORTAL_DASHBOARD_IDS]);
+    // a stored list is kept exactly as it is: the old default of four stays four
     expect(parsePortalDashboards('self,love,work')).toEqual(['self', 'love', 'work']);
+    expect(parsePortalDashboards('self,love,work,lucky')).toEqual(['self', 'love', 'work', 'lucky']);
   });
   it('keeps known ids once each, in menu order', () => {
     expect(parsePortalDashboards('business, lucky,self,business,horoscope')).toEqual(['self', 'lucky', 'business']);
@@ -71,7 +72,7 @@ describe('the store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const a = renderHook(() => usePortalDashboards());
     const b = renderHook(() => usePortalDashboards());
-    expect(a.result.current).toEqual(['self', 'love', 'work', 'lucky']);
+    expect(a.result.current).toEqual([...PORTAL_DASHBOARD_IDS]);
     await waitFor(() => expect(a.result.current).toEqual(['love', 'lucky']));
     expect(b.result.current).toEqual(['love', 'lucky']);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -87,7 +88,7 @@ describe('the store', () => {
     localStorage.setItem('token', 't');
     const b = renderHook(() => usePortalDashboards());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(a.result.current).toEqual(['self', 'love', 'work', 'lucky']);
-    expect(b.result.current).toEqual(['self', 'love', 'work', 'lucky']);
+    expect(a.result.current).toEqual([...PORTAL_DASHBOARD_IDS]);
+    expect(b.result.current).toEqual([...PORTAL_DASHBOARD_IDS]);
   });
 });
