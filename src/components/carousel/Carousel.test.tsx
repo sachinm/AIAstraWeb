@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { useState } from 'react';
-import Carousel, { CarouselArrows, CarouselDots, startFor } from './Carousel';
+import Carousel, { CarouselArrows, CarouselDots, SETTLE_MS, startFor } from './Carousel';
 import Chips, { useSeenCounts } from './Chips';
 
 function Harness({ count = 6, perView = 3, locked = false }: { count?: number; perView?: number; locked?: boolean }) {
@@ -97,6 +97,67 @@ describe('Carousel', () => {
     fireEvent.pointerUp(track, { pointerType: 'mouse', clientX: 200 });
     act(() => within(within(track).getAllByRole('group')[5]!).getByRole('button').focus());
     expect(region).toHaveAttribute('data-index', '0');
+  });
+
+  /** a laid-out track for jsdom: one card across, 600 px cards with a 24 px gap, and a scrollLeft that keeps its value */
+  function layOut() {
+    const track = screen.getByTestId('carousel-track');
+    within(track)
+      .getAllByRole('group')
+      .forEach((s, i) => {
+        Object.defineProperty(s, 'offsetLeft', { configurable: true, get: () => i * 624 });
+        Object.defineProperty(s, 'offsetWidth', { configurable: true, get: () => 600 });
+      });
+    let left = 0;
+    Object.defineProperty(track, 'scrollLeft', { configurable: true, get: () => left, set: (v: number) => void (left = v) });
+    return track;
+  }
+
+  it('a scroll the person did not make (a card scrolling its own chip into view) keeps the first card and puts the track back', () => {
+    vi.useFakeTimers();
+    try {
+      render(<Harness perView={1} />);
+      const track = layOut();
+      // what PeriodStrip's scrollIntoView does to the track when the peeking second card picks its chip on mount
+      track.scrollLeft = 624;
+      fireEvent.scroll(track);
+      act(() => void vi.advanceTimersByTime(SETTLE_MS + 50));
+      expect(screen.getByTestId('carousel')).toHaveAttribute('data-index', '0');
+      expect(track.scrollLeft).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a swipe (touch) or a sideways wheel moves the focus once the track settles', () => {
+    vi.useFakeTimers();
+    try {
+      render(<Harness perView={1} />);
+      const track = layOut();
+      fireEvent.touchStart(track, { touches: [{ clientX: 300, clientY: 200 }] });
+      track.scrollLeft = 624;
+      fireEvent.scroll(track);
+      fireEvent.touchEnd(track, { changedTouches: [{ clientX: 100, clientY: 200 }] });
+      act(() => void vi.advanceTimersByTime(SETTLE_MS + 50));
+      expect(screen.getByTestId('carousel')).toHaveAttribute('data-index', '1');
+      // the move to card 1 was ours (scrollTo): its scroll event is not a new gesture
+      track.scrollLeft = 624;
+      fireEvent.scroll(track);
+      fireEvent.wheel(track, { deltaX: 80 });
+      track.scrollLeft = 1248;
+      fireEvent.scroll(track);
+      act(() => void vi.advanceTimersByTime(SETTLE_MS + 50));
+      expect(screen.getByTestId('carousel')).toHaveAttribute('data-index', '2');
+      // a vertical wheel inside a card is not a swipe: a later foreign scroll is put back
+      fireEvent.wheel(track, { deltaY: 80 });
+      track.scrollLeft = 1872;
+      fireEvent.scroll(track);
+      act(() => void vi.advanceTimersByTime(SETTLE_MS + 50));
+      expect(screen.getByTestId('carousel')).toHaveAttribute('data-index', '2');
+      expect(track.scrollLeft).toBe(1248);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('the first card on screen never passes the end', () => {

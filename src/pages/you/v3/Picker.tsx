@@ -23,6 +23,8 @@ export default function Picker({
   lead = V3_WORDS.pickerLead,
   minCards = MIN_CARDS,
   minReadingCards = MIN_READING_CARDS,
+  reorder = false,
+  suggestedIds,
 }: {
   /** Love and Work (server docs/dashboards/10 W4): the board, its lenses as groups, its own words and minimums */
   board?: BoardId;
@@ -41,6 +43,10 @@ export default function Picker({
   onCancel?: () => void;
   /** the per-card reading is on: under five cards the board saves but is not read (doc 70 §4.3 item 1) */
   readingOn?: boolean;
+  /** tablet and desktop (server docs/dashboards/13 §4.3): the tray's cards can be put in order; Done returns that order */
+  reorder?: boolean;
+  /** with `reorder`: "Reset to suggested" puts these cards back, in this order */
+  suggestedIds?: readonly SelfCardId[];
 }) {
   const note = (picked: string[]) =>
     picked.length < minCards
@@ -69,6 +75,8 @@ export default function Picker({
       onDone={(picked) => onDone(picked as SelfCardId[])}
       onCancel={onCancel}
       testId="self-v3-picker"
+      reorder={reorder}
+      suggestedIds={suggestedIds}
     />
   );
 }

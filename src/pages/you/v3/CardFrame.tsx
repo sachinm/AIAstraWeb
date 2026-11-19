@@ -12,6 +12,11 @@
  * foot on every view. Starting to type opens the conversation over the card's view, with "Back to card" and the
  * period it is about; the bars, Back, Esc or the browser's Back return to the card. The board keeps the conversation.
  * The periods no longer change on a sideways swipe inside the card: on a phone that swipe moves between cards.
+ *
+ * `shape` (server docs/dashboards/13): `'phone'` (the default) is the card above, unchanged. `'board'` is the tablet and
+ * desktop card: Outlook · Astrology Reading · Calendar, no "i" button (Why is inside the card and the reasoning is its own
+ * tab), no 72-character cap (the card's own width lays it out), and "Is this right?" pinned between the view and the
+ * chat input on Outlook.
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowLeft, Info, Lock } from 'lucide-react';
@@ -21,7 +26,10 @@ import { V2_WORDS } from '../v2/words';
 import { CardBanner, cardAccentClass } from './CardBanner';
 import CardFooter from './CardFooter';
 import { SensitiveNote, type CardReading } from './CardParts';
-import { AnalysisView, CalendarView, CardViewBars, VIEW_WORDS, type CardViewId } from './CardViews';
+import AstrologyView from './AstrologyView';
+import { AnalysisView, BOARD_VIEWS, CalendarView, CardViewBars, VIEW_WORDS, type CardViewId } from './CardViews';
+import OutlookView from './OutlookView';
+import RangeCalendar from './RangeCalendar';
 import { dayWords, headlineOf, keyDatesOf, todayIso, type PeriodView } from './cardModel';
 import FaceBody from './faces/FaceBody';
 import { label } from './faces/parts';
@@ -54,8 +62,13 @@ export interface CardChatFace {
 
 export const ALL_ALLOWED: CardAllowed = { short: true, periods: true, keyDates: true, why: true, confirm: true };
 
+/** `'phone'`: today's card; `'board'`: the tablet and desktop card (server docs/dashboards/13) */
+export type CardShape = 'phone' | 'board';
+
 export interface CardProps {
   card: SelfV3CardView;
+  /** the card's shape; `'phone'` when absent */
+  shape?: CardShape;
   /** the options in force: the card's own choices over the board's over the defaults */
   options: CardOptions;
   hasOwn?: boolean;
@@ -105,6 +118,7 @@ export function KeyDates({ card }: { card: SelfV3CardView }) {
 export default function CardFrame({
   variant,
   card,
+  shape = 'phone',
   options,
   hasOwn = false,
   confirmOn = true,
@@ -125,7 +139,8 @@ export default function CardFrame({
   const title = cardTitle(card);
   const subtitle = cardSubtitle(card);
   // the three bars replace Read / Short (server docs/dashboards/12): a stored Short reads as Read, whose top it now is
-  const [shownView, setShownView] = useState<CardViewId>('read');
+  const boardShape = shape === 'board';
+  const [shownView, setShownView] = useState<CardViewId>(boardShape ? 'outlook' : 'read');
   const chips = allowed.periods ? view.chips : [];
   const period = allowed.periods ? view.period : (view.periods.find((p) => p.current && p.own) ?? null);
   const headline = headlineOf(card, period, voice);
@@ -144,7 +159,9 @@ export default function CardFrame({
     if (chatting) chatFace!.onClose();
     setShownView(v);
   };
-  const bars = <CardViewBars cardId={card.id} view={chatting ? null : shownView} onView={pickView} panelId={panelId} hasOwn={hasOwn} />;
+  const bars = (
+    <CardViewBars cardId={card.id} view={chatting ? null : shownView} onView={pickView} panelId={panelId} hasOwn={hasOwn} {...(boardShape ? { views: BOARD_VIEWS } : {})} />
+  );
 
   const header = (
     <div className="relative shrink-0" data-testid="card-header">
@@ -163,7 +180,7 @@ export default function CardFrame({
         {ready && (
           <div className="flex shrink-0 items-center gap-1" data-testid="card-header-icons">
             {chat?.(card, period)}
-            {allowed.why && onWhy && (
+            {!boardShape && allowed.why && onWhy && (
               <button type="button" onClick={() => onWhy(card, period)} aria-label={`${V3_WORDS.why}: ${title}`} title={V3_WORDS.why} className={iconBtn} data-testid="card-why">
                 <Info className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -183,7 +200,22 @@ export default function CardFrame({
 
   // the view under the bars: the reading, the analysis or the calendar (the body is the card's one vertical scroll)
   const viewBody =
-    shownView === 'analysis' ? (
+    shownView === 'outlook' ? (
+      <OutlookView
+        card={card}
+        period={period}
+        periods={view.periods}
+        standing={view.standing}
+        options={options}
+        showWhy={allowed.why}
+        showDates={allowed.keyDates}
+        onAstrology={() => pickView('astrology')}
+      />
+    ) : shownView === 'astrology' ? (
+      <AstrologyView card={card} period={period} showDetails={allowed.why} />
+    ) : shownView === 'calendar' && boardShape ? (
+      <RangeCalendar card={card} periods={view.periods} showWindows={allowed.periods} showDates={allowed.keyDates} />
+    ) : shownView === 'analysis' ? (
       <AnalysisView card={card} period={period} options={options} why={allowed.why} />
     ) : shownView === 'calendar' ? (
       <CalendarView card={card} periods={view.periods} showWindows={allowed.periods} showDates={allowed.keyDates} />
@@ -194,6 +226,7 @@ export default function CardFrame({
       </>
     );
   const withPeriods = shownView !== 'calendar' && chips.length > 1;
+  const pinnedFooter = boardShape && !chatting && shownView === 'outlook' && confirmOn && allowed.confirm && !!card.v3?.confirm;
 
   // every slot below keeps its place whether or not the conversation is open, so the chat input (last) is never
   // remounted: a focused box keeps its focus and the phone keyboard
@@ -236,7 +269,7 @@ export default function CardFrame({
           id={panelId}
           role="tabpanel"
           // the text scrolls inside the card and never hands the scroll on to the page (server docs/dashboards/12)
-          className="self-v3-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+          className={`self-v3-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]${pinnedFooter ? ' self-v3-scroll-pinned' : ''}`}
           style={{ overscrollBehavior: 'contain' }}
           data-testid="card-body"
           data-card-scroll="true"
@@ -244,11 +277,21 @@ export default function CardFrame({
           tabIndex={0}
           aria-label={`${title}, ${VIEW_WORDS[shownView]}`}
         >
-          <div className="self-v3-column mx-auto w-full max-w-[72ch] space-y-4 px-1 pb-1">{viewBody}</div>
+          {/* the board card's headline scrolls with the reading: on a short card the pinned question and the input
+              keep their place and nothing is pushed out of the card (server docs/dashboards/13 §4.3) */}
+          {shownView === 'outlook' ? (
+            <p key={`h-${view.selected ?? -1}`} className={`self-v3-fade self-v3-headline mb-3 text-center font-bold leading-snug text-white ${compact ? 'text-lg' : 'text-[22px] sm:text-2xl'}`} data-testid="card-line">
+              {headline}
+            </p>
+          ) : null}
+          <div className={boardShape ? 'self-v3-column w-full space-y-4 px-1 pb-1' : 'self-v3-column mx-auto w-full max-w-[72ch] space-y-4 px-1 pb-1'}>{viewBody}</div>
           {/* "Is this right?" ends the reading inside its scroll, so it is never cut off on a short phone */}
           {shownView === 'read' ? <CardFooter card={card} confirmOn={confirmOn && allowed.confirm} /> : null}
         </div>
       ) : null}
+      {/* tablet and desktop: "Is this right?" pinned between the view and the chat input; the slot is always here so the
+          input after it keeps its place */}
+      {pinnedFooter ? <CardFooter card={card} confirmOn={confirmOn && allowed.confirm} pinned /> : null}
       {chatFace ? chatFace.render(card, period, { conversation: chatting, onStart: () => chatFace.onOpen(card, period) }) : null}
     </div>
   );
@@ -260,6 +303,7 @@ export default function CardFrame({
       data-status={card.status}
       data-state={card.state}
       data-template={variant}
+      {...(boardShape ? { 'data-shape': 'board' } : {})}
       data-face={chatting ? 'chat' : shownView}
       data-locked={lockedPlan ? 'true' : 'false'}
       aria-label={title}

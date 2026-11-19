@@ -4,9 +4,11 @@
  * its first line for this person. Chosen, suggested and coming-soon tiles look different and say so in words.
  * A tray at the top shows the board forming. On a phone each group is a swipe row with dots and the groups are chips;
  * on a tablet or desktop they are grids. With `options`, a chosen tile opens "How this card reads".
+ * With `reorder` (the tablet and desktop board, server docs/dashboards/13 §4.3) the tray's cards move earlier and later
+ * (buttons, and a mouse drag), Done returns them in tray order, and `suggestedIds` adds "Reset to suggested".
  */
-import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, SlidersHorizontal, Star } from 'lucide-react';
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Check, ChevronLeft, ChevronRight, SlidersHorizontal, Star, X } from 'lucide-react';
 import { optionsFor, withCardOption, type BoardCardOptions } from '../../lib/cardOptions';
 import CardArt from './CardArt';
 import CardOptionsControls from './CardOptionsControls';
@@ -34,7 +36,35 @@ export const PICKER_WORDS = {
   cancel: 'Cancel',
   chosenCount: (n: number) => `${n} chosen`,
   soonTitle: 'On the way',
+  moveEarlier: (title: string) => `Move ${title} earlier`,
+  moveLater: (title: string) => `Move ${title} later`,
+  remove: (title: string) => `Remove ${title}`,
+  resetSuggested: 'Reset to suggested',
+  reorderHint: 'Drag a card, or use the arrows, to set the order.',
 } as const;
+
+/** move `id` to sit where `over` sits (the same rule as the Self chips' `moveTo`) */
+export function moveTo<T>(order: readonly T[], id: T, over: T): T[] {
+  const from = order.indexOf(id);
+  const to = order.indexOf(over);
+  if (from < 0 || to < 0 || from === to) return order.slice();
+  const next = order.slice();
+  next.splice(from, 1);
+  next.splice(to, 0, id);
+  return next;
+}
+
+/** swap `id` with its neighbour one place earlier (-1) or later (1) */
+export function moveBy<T>(order: readonly T[], id: T, d: -1 | 1): T[] {
+  const i = order.indexOf(id);
+  const j = i + d;
+  if (i < 0 || j < 0 || j >= order.length) return order.slice();
+  const next = order.slice();
+  [next[i], next[j]] = [next[j]!, next[i]!];
+  return next;
+}
+
+const moveBtn = 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-30 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60';
 
 function GroupRow({ children, count, soon, label }: { children: ReactNode; count: number; soon?: boolean; label: string }) {
   const row = useRef<HTMLDivElement>(null);
@@ -78,6 +108,8 @@ export default function BoardCardPicker({
   onCancel,
   options,
   testId = 'board-picker',
+  reorder = false,
+  suggestedIds,
 }: {
   board: BoardKind;
   title: string;
@@ -97,6 +129,13 @@ export default function BoardCardPicker({
   /** Love and Work: each chosen tile opens its options here; Self sets them on the card itself */
   options?: { initial: BoardCardOptions; notes?: Record<string, string[]> };
   testId?: string;
+  /** the tray's cards can be put in order (move earlier / later buttons, mouse drag); off by default */
+  reorder?: boolean;
+  /**
+   * With `reorder`: "Reset to suggested" replaces the choice with these ids, in this order (the board's own suggested
+   * list, as the chips' reset uses; ids not offered or not available are dropped). Absent: no reset button.
+   */
+  suggestedIds?: readonly string[];
 }) {
   useLoadCardPhotos(board);
   const [picked, setPicked] = useState<string[]>(initial);
@@ -114,6 +153,33 @@ export default function BoardCardPicker({
     if (openOpts === c.id) setOpenOpts(null);
   };
   const addSuggested = () => setPicked((p) => [...p, ...suggested.map((c) => c.id).filter((id) => !p.includes(id))]);
+  const resetIds = reorder && suggestedIds ? suggestedIds.filter((id) => byId.get(id)?.available) : null;
+
+  // a mouse drag over the tray puts the dragged card where the pointer is (touch scrolls the tray instead)
+  const dragging = useRef<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const onDown = (e: ReactPointerEvent<HTMLElement>, id: string) => {
+    if (!reorder || e.pointerType !== 'mouse') return;
+    if ((e.target as HTMLElement).closest('button')) return;
+    dragging.current = id;
+    setDragId(id);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {
+      /* a synthetic pointer has nothing to capture */
+    }
+  };
+  const onMove = (e: ReactPointerEvent<HTMLElement>) => {
+    const id = dragging.current;
+    if (!id || typeof document.elementFromPoint !== 'function') return;
+    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+    const over = el?.closest<HTMLElement>('[data-tray-id]')?.dataset.trayId;
+    if (over && over !== id) setPicked((p) => moveTo(p, id, over));
+  };
+  const onUp = () => {
+    dragging.current = null;
+    setDragId(null);
+  };
   const enough = picked.length >= minCards;
 
   const tile = (c: PickerCard) => {
@@ -219,6 +285,17 @@ export default function BoardCardPicker({
               <Star className="h-4 w-4" aria-hidden="true" />
               {addSuggestedLabel}
             </button>
+            {resetIds && (
+              <button
+                type="button"
+                onClick={() => setPicked([...resetIds])}
+                disabled={!resetIds.length || resetIds.join(',') === picked.join(',')}
+                className="inline-flex min-h-[44px] items-center rounded-full border border-white/15 px-4 text-sm font-semibold text-white/80 hover:bg-white/5 disabled:opacity-40"
+                data-testid="picker-reset"
+              >
+                {PICKER_WORDS.resetSuggested}
+              </button>
+            )}
             <span className="text-sm text-white/60" aria-live="polite" data-testid="picker-count">
               {PICKER_WORDS.chosenCount(picked.length)}
             </span>
@@ -226,15 +303,40 @@ export default function BoardCardPicker({
         </div>
         {/* the tray: the board forming, in order */}
         <div
-          className="mt-3 flex min-h-[52px] w-full min-w-0 items-center gap-2 overflow-x-auto rounded-xl border border-white/10 bg-white/5 p-1.5 [scrollbar-width:none]"
+          className={`mt-3 flex min-h-[52px] w-full min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-1.5 ${reorder ? 'max-h-[40vh] flex-wrap overflow-y-auto' : 'overflow-x-auto [scrollbar-width:none]'}`}
           data-testid="picker-tray"
         >
           {picked.length === 0 ? (
             <span className="px-2 text-sm text-white/55">{PICKER_WORDS.trayEmpty}</span>
           ) : (
-            picked.map((id) => {
+            picked.map((id, i) => {
               const c = byId.get(id);
               if (!c) return null;
+              if (reorder)
+                return (
+                  <div
+                    key={id}
+                    data-tray-id={id}
+                    onPointerDown={(e) => onDown(e, id)}
+                    onPointerMove={onMove}
+                    onPointerUp={onUp}
+                    onPointerCancel={onUp}
+                    className={`flex shrink-0 cursor-grab select-none items-center gap-0.5 rounded-lg border p-0.5 ${dragId === id ? 'border-teal-300/70 bg-teal-500/20' : 'border-white/10 bg-white/5'}`}
+                    data-testid={`picker-tray-${id}`}
+                  >
+                    <button type="button" className={moveBtn} aria-label={PICKER_WORDS.moveEarlier(c.title)} disabled={i === 0} onClick={() => setPicked((p) => moveBy(p, id, -1))} data-testid={`picker-tray-earlier-${id}`}>
+                      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <CardArt id={c.id} group={c.group} size="thumb" className="h-9 w-12 rounded-md" />
+                    <span className="max-w-[10rem] truncate px-1 text-[13px] font-semibold text-white/85">{c.title}</span>
+                    <button type="button" className={moveBtn} aria-label={PICKER_WORDS.moveLater(c.title)} disabled={i === picked.length - 1} onClick={() => setPicked((p) => moveBy(p, id, 1))} data-testid={`picker-tray-later-${id}`}>
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button type="button" className={moveBtn} aria-label={PICKER_WORDS.remove(c.title)} onClick={() => toggle(c)} data-testid={`picker-tray-remove-${id}`}>
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                );
               return (
                 <button
                   key={id}
@@ -251,6 +353,11 @@ export default function BoardCardPicker({
             })
           )}
         </div>
+        {reorder && picked.length > 1 && (
+          <p className="mt-1.5 text-xs text-white/55" data-testid="picker-reorder-hint">
+            {PICKER_WORDS.reorderHint}
+          </p>
+        )}
         {/* phone: the groups as chips */}
         {shownGroups.length > 1 && (
           <nav className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none] sm:hidden" aria-label="Card groups">

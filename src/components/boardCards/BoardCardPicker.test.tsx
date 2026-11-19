@@ -99,3 +99,68 @@ describe('BoardCardPicker', () => {
     for (const id of ids) expect(CARD_GLYPH[id], id).toBeTruthy();
   });
 });
+
+describe('BoardCardPicker order (server docs/dashboards/13 §4.3)', () => {
+  it('is off by default: the tray holds one remove button per card and Done returns the order cards were chosen', () => {
+    const onDone = renderPicker({ initial: ['love_meet', 'love_where'] });
+    expect(screen.queryByTestId('picker-tray-earlier-love_meet')).toBeNull();
+    expect(screen.queryByTestId('picker-reset')).toBeNull();
+    expect(screen.getByTestId('picker-tray-love_meet').tagName).toBe('BUTTON');
+    fireEvent.click(screen.getByTestId('picker-tile-love_friends'));
+    fireEvent.click(screen.getByTestId('picker-done'));
+    expect(onDone.mock.calls[0]![0]).toEqual(['love_meet', 'love_where', 'love_friends']);
+  });
+
+  it('with reorder, opens in the given order and the move buttons change the order Done returns', () => {
+    const onDone = renderPicker({ initial: ['love_where', 'love_meet', 'love_friends'], reorder: true });
+    const tray = screen.getByTestId('picker-tray');
+    const order = () => [...tray.querySelectorAll('[data-tray-id]')].map((el) => el.getAttribute('data-tray-id'));
+    expect(order()).toEqual(['love_where', 'love_meet', 'love_friends']);
+    expect(screen.getByRole('button', { name: 'Move Where love stands earlier' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Friendships later' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Friendships earlier' }));
+    expect(order()).toEqual(['love_where', 'love_friends', 'love_meet']);
+    fireEvent.click(screen.getByRole('button', { name: 'Move Where love stands later' }));
+    expect(order()).toEqual(['love_friends', 'love_where', 'love_meet']);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Where love stands' }));
+    fireEvent.click(screen.getByTestId('picker-done'));
+    expect(onDone.mock.calls[0]![0]).toEqual(['love_friends', 'love_meet']);
+  });
+
+  it('a mouse drag moves a card to where it is dropped', () => {
+    // jsdom has no PointerEvent: a MouseEvent with pointerType stands in (as in Carousel.test)
+    if (typeof window.PointerEvent === 'undefined') {
+      class PE extends MouseEvent {
+        pointerType: string;
+        constructor(type: string, init: MouseEventInit & { pointerType?: string } = {}) {
+          super(type, init);
+          this.pointerType = init.pointerType ?? 'mouse';
+        }
+      }
+      vi.stubGlobal('PointerEvent', PE);
+    }
+    const onDone = renderPicker({ initial: ['love_where', 'love_meet', 'love_friends'], reorder: true });
+    const target = screen.getByTestId('picker-tray-love_where');
+    const orig = document.elementFromPoint;
+    document.elementFromPoint = () => target;
+    try {
+      const src = screen.getByTestId('picker-tray-love_friends');
+      fireEvent.pointerDown(src, { pointerType: 'mouse', pointerId: 1 });
+      fireEvent.pointerMove(src, { pointerType: 'mouse', pointerId: 1, clientX: 5, clientY: 5 });
+      fireEvent.pointerUp(src, { pointerType: 'mouse', pointerId: 1 });
+    } finally {
+      document.elementFromPoint = orig;
+      vi.unstubAllGlobals();
+    }
+    fireEvent.click(screen.getByTestId('picker-done'));
+    expect(onDone.mock.calls[0]![0]).toEqual(['love_friends', 'love_where', 'love_meet']);
+  });
+
+  it('Reset to suggested puts the given suggested cards back, in their order, dropping any not available', () => {
+    const onDone = renderPicker({ initial: ['love_friends'], reorder: true, suggestedIds: ['love_meet', 'love_partner', 'love_where'] });
+    fireEvent.click(screen.getByTestId('picker-reset'));
+    expect(screen.getByTestId('picker-reset')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('picker-done'));
+    expect(onDone.mock.calls[0]![0]).toEqual(['love_meet', 'love_where']);
+  });
+});

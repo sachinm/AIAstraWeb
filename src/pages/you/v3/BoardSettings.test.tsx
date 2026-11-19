@@ -13,6 +13,27 @@ function setup(extra: Partial<BoardSettingsProps> = {}) {
 }
 
 describe('BoardSettings', () => {
+  it('tablet and desktop: "Cards across: Auto · 1 · 2 · 3 · 4", Auto by default', () => {
+    const onAcross = vi.fn();
+    setup({ onAcross });
+    const group = screen.getByTestId('bs-across');
+    expect(group).toHaveAccessibleName('Cards across');
+    expect(Array.from(group.querySelectorAll('[role="radio"]')).map((r) => r.textContent)).toEqual(['Auto', '1', '2', '3', '4']);
+    expect(screen.getByTestId('bs-across-auto')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByTestId('bs-across-3'));
+    expect(onAcross).toHaveBeenLastCalledWith('3');
+  });
+
+  it('offers no "Cards across" on a phone or without a handler; it alone keeps the gear', () => {
+    setup({ phone: true, onAcross: vi.fn() });
+    expect(screen.queryByTestId('bs-across')).toBeNull();
+  });
+
+  it('keeps the gear when "Cards across" is its only choice', () => {
+    setup({ shortOn: false, confirmOn: false, onAcross: vi.fn(), across: '2' });
+    expect(screen.getByTestId('bs-across-2')).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('opens from the gear, which has a plain name', () => {
     render(<BoardSettings value={COLD_BOARD_DEFAULTS} onChange={() => {}} />);
     expect(screen.getByTestId('board-settings-open')).toHaveAccessibleName('Card settings');

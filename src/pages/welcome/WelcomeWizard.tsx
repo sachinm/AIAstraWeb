@@ -7,16 +7,8 @@
 import { useEffect, useState } from 'react';
 import { fetchFacts, saveFacts } from '../../lib/profileApi';
 import { track } from '../../lib/events';
-import {
-  PORTAL_DASHBOARD_IDS,
-  PORTAL_DASHBOARD_LABELS,
-  PORTAL_FACT,
-  isFocusedDashboard,
-  parsePortalDashboards,
-  portalFactValue,
-  setPortalDashboards,
-  type PortalDashboardId,
-} from '../../lib/portalDashboards';
+import { PORTAL_FACT, parsePortalDashboards, portalFactValue, setPortalDashboards } from '../../lib/portalDashboards';
+import DashboardChooser from '../../components/DashboardChooser';
 import SelfieStep from './SelfieStep';
 
 type Opt = { key: string; label: string };
@@ -24,13 +16,6 @@ type Question = { fact: string; text: string; options: Opt[]; multi?: number };
 type Step = { id: string; title: string; questions: Question[] };
 
 const DECLINE = '__declined__';
-
-/** the dashboards step's groups: the three boards, the focused dashboards, Lucky times */
-export const DASHBOARD_GROUPS: Array<{ title: string; ids: PortalDashboardId[] }> = [
-  { title: 'Boards', ids: ['self', 'love', 'work'] },
-  { title: 'Focused dashboards', ids: PORTAL_DASHBOARD_IDS.filter(isFocusedDashboard) },
-  { title: 'Timing', ids: ['lucky'] },
-];
 
 export const STEPS: Step[] = [
   { id: 'selfie', title: 'A photo of you', questions: [] },
@@ -199,14 +184,8 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
     });
   };
 
-  // the dashboards step: what is ticked (Self, Love, Career and Lucky times until the person chooses); one always stays ticked
+  // the dashboards step: what is ticked (all twelve until the person chooses); one always stays ticked
   const dashboards = parsePortalDashboards(answers[PORTAL_FACT]);
-  const toggleDashboard = (id: PortalDashboardId) => {
-    const has = dashboards.includes(id);
-    if (has && dashboards.length <= 1) return;
-    const nextList = has ? dashboards.filter((d) => d !== id) : [...dashboards, id];
-    setAnswers((a) => ({ ...a, [PORTAL_FACT]: portalFactValue(nextList) }));
-  };
 
   const useLocation = () => {
     navigator.geolocation?.getCurrentPosition(
@@ -314,40 +293,7 @@ export default function WelcomeWizard({ onFinish, inModal = false }: { onFinish:
                 </div>
               ))}
             </div>
-            {step.id === 'dashboards' && (
-              <fieldset data-testid="dashboards-choice" className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <legend className="mb-1 font-medium text-white/90">Which dashboards do you want to see?</legend>
-                <p className="mb-3 text-sm text-white/60">{dashboards.length <= 1 ? 'Keep at least one.' : 'You can change this any time here.'}</p>
-                <div className="space-y-3">
-                  {DASHBOARD_GROUPS.map((g) => (
-                    <div key={g.title}>
-                      <p className="mb-1.5 text-xs uppercase tracking-wide text-white/50">{g.title}</p>
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {g.ids.map((id) => {
-                          const ticked = dashboards.includes(id);
-                          const last = ticked && dashboards.length <= 1;
-                          return (
-                            <label
-                              key={id}
-                              className={`${chip} flex items-center gap-3 ${last ? 'cursor-not-allowed' : 'cursor-pointer'} ${ticked ? 'border-purple-400 bg-white/15 text-white' : 'border-white/15 bg-white/5 text-white/85 hover:bg-white/10'}`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={ticked}
-                                disabled={last}
-                                onChange={() => toggleDashboard(id)}
-                                className="h-4 w-4 shrink-0 accent-purple-500"
-                              />
-                              <span>{PORTAL_DASHBOARD_LABELS[id]}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </fieldset>
-            )}
+            {step.id === 'dashboards' && <DashboardChooser value={dashboards} onChange={(list) => setAnswers((a) => ({ ...a, [PORTAL_FACT]: portalFactValue(list) }))} />}
           </div>
         )}
 

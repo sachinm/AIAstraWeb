@@ -83,21 +83,52 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
   }, [start, step, across]);
   useEffect(() => () => void (settle.current && clearTimeout(settle.current)), []);
 
+  // a person's own sideways scroll: a touch, a pen or a wheel on the track. Only a scroll that follows one may move the
+  // focus. Anything else that scrolls the track (a card's own `scrollIntoView`, which scrolls every scrolling ancestor,
+  // e.g. a period strip bringing its picked chip into view inside the peeking card) is put back at once.
+  const gesture = useRef(false);
+  const scrolledSinceGesture = useRef(false);
+  const startGesture = () => {
+    gesture.current = true;
+    scrolledSinceGesture.current = false;
+  };
+  // a tap that did not scroll is not a scroll gesture (touch momentum after the finger lifts is: it scrolled already)
+  const endGesture = () => {
+    if (!scrolledSinceGesture.current) gesture.current = false;
+  };
+  const putBack = (t: HTMLDivElement) => {
+    const s = step();
+    if (!s) return;
+    const left = live.current.start * s;
+    if (Math.abs(t.scrollLeft - left) < 2) return;
+    programmatic.current = Date.now();
+    target.current = left;
+    if (typeof t.scrollTo === 'function') t.scrollTo({ left, behavior: 'auto' });
+    else t.scrollLeft = left;
+  };
+
   // a swipe or a trackpad scroll moved the track: once it settles, the first card on screen takes the focus. A scroll
   // we started is ignored until it reaches its target (or runs past IGNORE_SCROLL_MS * 3), so the chips never lag.
   const onScroll = () => {
     const t = track.current;
-    if (!t || locked) return;
+    if (!t) return;
     if (target.current !== null) {
       const arrived = Math.abs(t.scrollLeft - target.current) < 2;
       if (!arrived && Date.now() - programmatic.current < IGNORE_SCROLL_MS * 3) return;
       target.current = null;
       return;
     }
+    // not the person's scroll (or the track is held): the card in focus stays, and so does the track
+    if (locked || !gesture.current) {
+      putBack(t);
+      return;
+    }
+    scrolledSinceGesture.current = true;
     if (Date.now() - programmatic.current < IGNORE_SCROLL_MS) return;
     if (settle.current) clearTimeout(settle.current);
     settle.current = setTimeout(() => {
       settle.current = null;
+      gesture.current = false;
       const s = step();
       if (!s || target.current !== null) return;
       const first = Math.round(t.scrollLeft / s);
@@ -127,8 +158,11 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
   // a mouse has no swipe: a drag of more than 48 px moves one card (touch uses the track's own scroll-snap)
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     drag.current = e.pointerType === 'mouse' && !locked ? e.clientX : null;
+    // a mouse cannot scroll the track by dragging (that is `move` below); a finger or a pen can
+    if (e.pointerType !== 'mouse') startGesture();
   };
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse') endGesture();
     if (drag.current === null) return;
     const dx = e.clientX - drag.current;
     drag.current = null;
@@ -169,7 +203,20 @@ export default function Carousel({ count, index, onIndexChange, perView, label, 
       <p className="sr-only" aria-live="polite" data-testid={`${testId}-status`}>
         {slideLabel ? slideLabel(index) : `${index + 1} of ${count}`}
       </p>
-      <div ref={track} style={trackStyle} onScroll={onScroll} onPointerDown={onPointerDown} onPointerUp={onPointerUp} data-testid={`${testId}-track`}>
+      <div
+        ref={track}
+        style={trackStyle}
+        onScroll={onScroll}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onTouchStart={startGesture}
+        onTouchEnd={endGesture}
+        // a sideways wheel or trackpad swipe only: a card's own vertical scroll is not a move of the track
+        onWheel={(e) => {
+          if (e.deltaX !== 0 || e.shiftKey) startGesture();
+        }}
+        data-testid={`${testId}-track`}
+      >
         {Array.from({ length: count }, (_, i) => {
           const visible = i >= start && i < start + across;
           const isPeek = peek && across > 1 && i === start + across - 1 && start + across < count && i !== index;

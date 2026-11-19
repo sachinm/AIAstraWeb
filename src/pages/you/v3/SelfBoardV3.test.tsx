@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import SelfBoardV3, { perViewFor } from './SelfBoardV3';
 import { SUGGESTED_IDS, selfV3Fixture, selfV3Unchosen } from './selfV3.fixture';
 import { selfV2Fixture } from '../v2/selfV2.fixture';
@@ -188,6 +188,31 @@ describe('Self board v3: the board', () => {
     expect(perViewFor('seasons', 'phone')).toBe(1);
   });
 
+  // server docs/dashboards/13 §4.3: Seasons cards across follows the deck's measured width once it is measured
+  it('three cards across on a 1708 px deck (1920 px desktop), and the gear\'s "Cards across" overrides it', async () => {
+    const seen: Array<(w: number) => void> = [];
+    class RO {
+      cb: (e: Array<{ contentRect: { width: number } }>) => void;
+      constructor(cb: (e: Array<{ contentRect: { width: number } }>) => void) {
+        this.cb = cb;
+        seen.push((w) => this.cb([{ contentRect: { width: w } }]));
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', RO);
+    Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 1080, configurable: true, writable: true });
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    act(() => seen.forEach((fire) => fire(1708)));
+    expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-per-view', '3');
+    fireEvent.click(screen.getByTestId('board-settings-open'));
+    fireEvent.click(screen.getByTestId('bs-across-2'));
+    expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-per-view', '2');
+    expect(localStorage.getItem('aa.board.across')).toBe('2');
+  });
+
   it('a chip slides the carousel to its card and is marked as the one in view', async () => {
     render(<SelfBoardV3 />);
     await screen.findByTestId('self-v3-chips');
@@ -219,9 +244,10 @@ describe('Self board v3: the board', () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-body');
     expect(within(c).queryByTestId('face-short')).toBeNull();
-    expect(c).toHaveAttribute('data-face', 'read');
-    fireEvent.click(within(c).getByTestId('card-view-analysis'));
-    expect(c).toHaveAttribute('data-face', 'analysis');
+    // tablet and desktop (server docs/dashboards/13): Outlook · Astrology Reading · Calendar
+    expect(c).toHaveAttribute('data-face', 'outlook');
+    fireEvent.click(within(c).getByTestId('card-view-astrology'));
+    expect(c).toHaveAttribute('data-face', 'astrology');
     fireEvent.click(within(c).getByTestId('card-view-calendar'));
     expect(c).toHaveAttribute('data-face', 'calendar');
     await new Promise((r) => setTimeout(r, 450));
@@ -269,7 +295,17 @@ describe('Self board v3: the board', () => {
     expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-index', '2');
   });
 
-  it('Why opens the details sheet under its plain name', async () => {
+  // server docs/dashboards/13: on tablet and desktop the "i" button is gone; the reasons are the Astrology Reading tab
+  it('the chart\'s reasons are on the Astrology Reading tab; no "i" button on tablet or desktop', async () => {
+    render(<SelfBoardV3 />);
+    const c = await screen.findByTestId('v3-card-stuck');
+    expect(within(c).queryByTestId('card-why')).toBeNull();
+    fireEvent.click(within(c).getByTestId('card-view-astrology'));
+    expect(within(c).getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");
+  });
+
+  it('a phone: Why opens the details sheet under its plain name', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-stuck');
     fireEvent.click(within(c).getByTestId('card-why'));
@@ -284,12 +320,16 @@ describe('Self board v3: the board', () => {
     expect(cardSections({ ...b.layout, sections: { body: ['ladder'] } }, card)).toEqual(['line', 'year', 'ladder']);
   });
 
-  it('edit mode hides Edit while Done shows; move, remove (never below three), reset to suggested', async () => {
+  // server docs/dashboards/13 §4.3: on a phone Edit stays the chips edit mode (in the board sheet)
+  it('a phone: edit mode shows Done; move, remove (never below three), reset to suggested', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
     withBoard((b) => (b.layout.cards = ['body', 'mind', 'stuck', 'year']));
     render(<SelfBoardV3 />);
-    await screen.findByTestId('self-v3-chips');
-    fireEvent.click(screen.getByTestId('self-v3-edit'));
-    expect(screen.queryByTestId('self-v3-edit')).toBeNull();
+    const edit = async () => {
+      fireEvent.click(await screen.findByTestId('self-phone-reading'));
+      fireEvent.click(within(await screen.findByTestId('self-reading-sheet')).getByTestId('self-v3-edit'));
+    };
+    await edit();
     expect(screen.getByTestId('chips-done')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('chip-right-body'));
     fireEvent.click(screen.getByTestId('chip-remove-stuck'));
@@ -297,12 +337,40 @@ describe('Self board v3: the board', () => {
     fireEvent.click(screen.getByTestId('chips-done'));
     await waitFor(() => expect(puts()).toHaveLength(1));
     expect(puts()[0]!.body).toMatchObject({ template: 'seasons', cards: ['mind', 'body', 'year'], sections: {} });
-    expect(await screen.findByTestId('self-v3-edit')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('self-v3-edit'));
+    await waitFor(() => expect(screen.queryByTestId('chips-done')).toBeNull());
+    await edit();
     fireEvent.click(screen.getByTestId('chips-reset'));
     fireEvent.click(screen.getByTestId('chips-done'));
     await waitFor(() => expect(puts()).toHaveLength(2));
     expect(puts()[1]!.body!.cards).toEqual(SUGGESTED_NOW);
+  });
+
+  // server docs/dashboards/13 §4.3: on tablet and desktop "Cards" opens the chooser with the board's cards ticked, in order
+  it('tablet and desktop: Cards opens the chooser with the board ticked; Done saves the order and the choice in one save', async () => {
+    withBoard((b) => (b.layout.cards = ['body', 'mind', 'stuck', 'year']));
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.getByTestId('self-v3-edit')).toHaveTextContent('Cards');
+    fireEvent.click(screen.getByTestId('self-v3-edit'));
+    await screen.findByTestId('self-v3-picker');
+    expect(ticked()).toHaveLength(4);
+    for (const id of ['body', 'mind', 'stuck', 'year']) expect(tile(id)).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByTestId('chips-done')).toBeNull();
+    fireEvent.click(screen.getByTestId('picker-tray-later-body'));
+    fireEvent.click(tile('stuck'));
+    fireEvent.click(screen.getByTestId('picker-done'));
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    expect(puts()[0]!.body).toMatchObject({ template: 'seasons', cards: ['mind', 'body', 'year'], sections: {} });
+    await waitFor(() => expect(screen.queryByTestId('self-v3-picker')).toBeNull());
+  });
+
+  it('tablet and desktop: Cancel leaves the board as it was', async () => {
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    fireEvent.click(screen.getByTestId('self-v3-edit'));
+    fireEvent.click(await screen.findByTestId('picker-cancel'));
+    expect(await screen.findByTestId('self-v3-chips')).toBeInTheDocument();
+    expect(puts()).toHaveLength(0);
   });
 
   it('says "All cards are shown" when there is nothing left to add', async () => {
@@ -311,7 +379,14 @@ describe('Self board v3: the board', () => {
     await screen.findByTestId('self-v3-chips');
     expect(screen.queryByTestId('self-v3-chip-add')).toBeNull();
     expect(screen.getByTestId('chips-all-shown')).toHaveTextContent('All cards are shown');
-    fireEvent.click(screen.getByTestId('self-v3-edit'));
+  });
+
+  it('a phone: "All cards are shown" stays in edit mode', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
+    withBoard((b) => (b.layout.cards = b.cards.filter((c) => c.available).map((c) => c.id)));
+    render(<SelfBoardV3 />);
+    fireEvent.click(await screen.findByTestId('self-phone-reading'));
+    fireEvent.click(within(await screen.findByTestId('self-reading-sheet')).getByTestId('self-v3-edit'));
     expect(screen.getByTestId('chips-all-shown')).toBeInTheDocument();
   });
 

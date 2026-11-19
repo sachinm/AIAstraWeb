@@ -326,7 +326,7 @@ export class CardChatStore {
     this.set(key, (s) => ({ turns: s.turns.filter((x) => x.key !== turnKey), draft: t.question }));
   }
 
-  /** the board went away: every stream and open stops (an open's period is forgotten so the next mount opens again) */
+  /** the board went away: every stream and open stops (an open's period is dropped so the next mount opens again) */
   dispose(): void {
     this.controllers.forEach((c) => c.abort());
     this.opening.forEach((c) => c.abort());
