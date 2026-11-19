@@ -50,11 +50,15 @@ export default function TitleStrip({ titles, index, open, onSelect, onActivity, 
   // the active title sits in the middle: on open, and whenever the card on screen changes
   useLayoutEffect(() => {
     if (!open) return;
-    const el = list.current?.querySelector<HTMLElement>(`[data-title-index="${index}"]`);
-    if (!el || typeof el.scrollIntoView !== 'function') return;
+    const box = list.current;
+    const el = box?.querySelector<HTMLElement>(`[data-title-index="${index}"]`);
+    if (!box || !el) return;
     own.current = Date.now();
     const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    // the list's own scroll only (scrollIntoView would also scroll the page's clipped ancestors sideways)
+    const left = Math.max(0, el.offsetLeft + el.offsetWidth / 2 - box.clientWidth / 2);
+    if (typeof box.scrollTo === 'function') box.scrollTo({ left, behavior: reduce ? 'auto' : 'smooth' });
+    else box.scrollLeft = left;
   }, [open, index]);
   useEffect(() => () => void (settle.current && clearTimeout(settle.current)), []);
 
@@ -88,12 +92,12 @@ export default function TitleStrip({ titles, index, open, onSelect, onActivity, 
 
   return (
     <div
-      className={`grid shrink-0 overflow-hidden transition-[grid-template-rows,opacity] duration-200 motion-reduce:transition-none ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      className={`grid min-w-0 shrink-0 grid-cols-[minmax(0,1fr)] overflow-hidden transition-[grid-template-rows,opacity] duration-200 motion-reduce:transition-none ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
       data-testid={testId}
       data-open={open ? 'true' : 'false'}
       aria-hidden={open ? undefined : true}
     >
-      <div className="flex min-h-0 items-center gap-1.5">
+      <div className="flex min-h-0 min-w-0 items-center gap-1.5">
         <div
           ref={list}
           role="tablist"

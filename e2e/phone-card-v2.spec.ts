@@ -62,9 +62,13 @@ test('phone card layout v2 at 360 × 800', async ({ page }, info) => {
 
   await page.getByTestId('phone-card-title').click();
   await expect(page.getByTestId('title-strip')).toHaveAttribute('data-open', 'true');
+  // the board controls are pinned beside the titles, on screen
+  await expect(page.getByTestId('self-phone-reading')).toBeInViewport();
   await shot('title-strip');
   await page.getByTestId('title-strip-title-1').click();
   await expect(page.getByTestId('title-strip')).toHaveAttribute('data-open', 'false');
+  // the card picked from the strip is the one on screen
+  await expect(page.locator('[data-slide="1"] article')).toBeInViewport({ ratio: 0.9 });
   await shot('second-card');
   await page.getByTestId('title-strip-title-0').click({ force: true }).catch(() => undefined);
   await page.getByTestId('phone-card-title').click();
