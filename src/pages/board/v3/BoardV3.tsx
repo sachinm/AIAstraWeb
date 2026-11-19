@@ -31,20 +31,20 @@
  * (the board's chat store holds every card's thread). A chip, a lens, the picker, Edit or a template change also close
  * it.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { useInRouterContext, useSearchParams } from 'react-router-dom';
 import { BoardIdContext } from '../../you/v3/boardContext';
-import { LensTabs, LensTitleButton, type LensOption } from './LensSwitcher';
+import { LensTabs, type LensOption } from './LensSwitcher';
 import { usePlan } from '../../../Auth/ProfileGate';
-import { RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import BoardHeaderSlot from '../../../components/BoardHeaderSlot';
 import Carousel from '../../../components/carousel/Carousel';
+import TitleStrip, { ProgressTicks } from '../../../components/carousel/TitleStrip';
 import LoadingVeil from '../../../components/LoadingVeil';
 import { longDate } from '../../../lib/careerApi';
 import { track } from '../../../lib/events';
 import { announceUsage } from '../../../lib/planUsage';
 import type { RefreshResult } from '../../../lib/boardRefresh';
-import type { SelfV2Area } from '../../../lib/selfV2Api';
 import {
   BOARD_LENSES,
   DEFAULT_TEMPLATE,
@@ -75,6 +75,7 @@ import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, b
 import Sheet from '../../you/v2/Sheet';
 import { V2_WORDS } from '../../you/v2/words';
 import CardChips from '../../you/v3/CardChips';
+import { detailsArea } from '../../you/v3/CardViews';
 import type { CardReading } from '../../you/v3/CardParts';
 import type { CardAllowed, CardProps } from '../../you/v3/CardFrame';
 import type { PeriodView } from '../../you/v3/cardModel';
@@ -126,6 +127,10 @@ const CARD_CHAT_KEY = '__cardChat';
 
 /** the next card left showing past the last full card */
 export const PEEK_PX = 40;
+/** a phone's pull-down: the drag that opens the title strip, the rubber band's limit, and its idle close (docs/dashboards/12) */
+export const PULL_OPEN_PX = 48;
+export const PULL_MAX_PX = 56;
+export const STRIP_IDLE_MS = 4000;
 /** the gutter between Seasons cards */
 export const SEASONS_GAP = 24;
 /** doc 70 §4.3 item 3: poll every 2 s while any card on the board is queued or reading */
@@ -363,19 +368,6 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
 // The board
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** Why reuses the v2 Chart details sheet body, which reads only `details`. */
-function detailsArea(card: SelfV3CardView): SelfV2Area {
-  return {
-    id: 'diagnosis',
-    group: 'you',
-    title: cardTitle(card),
-    status: card.status,
-    card: card.v2?.card ?? null,
-    floor: [],
-    details: { ...(card.v2?.details ?? { evidence: [] }), certainty: card.v2?.details?.certainty as SelfV2Area['details']['certainty'] },
-  };
-}
-
 /** the options of the cards still on the board, sent only when there are any (an older body stays as it was) */
 function keptOptions(all: SelfBoardLayout['options'], cards: readonly string[]): Pick<SelfBoardLayout, 'options'> {
   const kept = optionsFor(all, cards);
@@ -460,6 +452,11 @@ function Board({
   const [clockOpen, setClockOpen] = useState(false);
   // the phone's reading sheet (server docs/dashboards/09)
   const [readingOpen, setReadingOpen] = useState(false);
+  // a phone's strip of card titles (docs/dashboards/12): open, the live pull distance, and the idle timer's restart
+  const [stripOpen, setStripOpen] = useState(false);
+  const [pull, setPull] = useState(0);
+  const [stripTouched, setStripTouched] = useState(0);
+  const touch = useRef<{ x: number; y: number; atTop: boolean; inStrip: boolean } | null>(null);
   const [wizard, setWizard] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
   const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | null>(null);
@@ -789,7 +786,8 @@ function Board({
     <BoardSettings
       value={boardSettings}
       onChange={(patch) => saves.changeBoard(patch)}
-      shortOn={allowed.short}
+      // docs/dashboards/12: the three bars replaced Read / Short, so the gear no longer offers a face
+      shortOn={false}
       voiceOn={voiceOn}
       confirmOn={allowed.confirm}
       phone={mode === 'phone'}
@@ -797,31 +795,97 @@ function Board({
     />
   );
   const lensLabel = `${boardTitle}: what to read`;
-  const phoneHead = mode === 'phone' && (
+  // a phone (server docs/dashboards/12): the header's middle holds the card on screen, "n/N"; a tap (or pulling the card
+  // down from its top) opens the strip of card titles under the header. The board's own controls (lens, reading,
+  // settings, Edit, add a card) live in the board sheet, opened from the strip's last chip.
+  const phone = mode === 'phone';
+  const titleList = useMemo(() => shown.map((c) => cardTitle(c)), [shown]);
+  const phoneHead = phone && (
     <BoardHeaderSlot>
-      {isSelf ? (
-        <span className="min-w-0 truncate pl-1 text-base font-bold text-white" data-testid="self-phone-title">
-          {V3_WORDS.boardTitle}
-        </span>
-      ) : (
-        <LensTitleButton boardTitle={boardTitle} lenses={lenses} active={pickLens ?? lens} onPick={pickLensNow} label={lensLabel} />
-      )}
       <button
         type="button"
-        onClick={() => setReadingOpen(true)}
-        aria-label={V3_WORDS.readingSheet}
-        className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
-        data-testid="self-phone-reading"
+        onClick={() => setStripOpen((o) => !o)}
+        aria-expanded={stripOpen}
+        aria-controls="phone-title-strip"
+        aria-label={active && !showPicker ? `${cardTitle(active)}, card ${Math.min(index + 1, shown.length)} of ${shown.length}. Show all card titles` : boardTitle}
+        className="relative flex min-w-0 max-w-full flex-col items-center rounded-lg px-1.5 py-0.5 leading-tight text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+        data-testid="phone-card-title"
       >
-        <RefreshCw className="h-[18px] w-[18px]" aria-hidden="true" />
-        {readingNeedsLook && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-teal-300" data-testid="self-phone-reading-dot" />}
+        {/* up to two lines at 360 px, so the card's name reads whole instead of "Body &…" */}
+        <span className="line-clamp-2 max-w-full break-words text-center text-[12.5px] font-bold leading-[1.15]" data-testid="phone-card-title-text">
+          {active && !showPicker ? cardTitle(active) : boardTitle}
+        </span>
+        {active && !showPicker && (
+          <span className="text-[10.5px] leading-none tabular-nums text-white/60" data-testid="phone-card-count">
+            {Math.min(index + 1, shown.length)}/{shown.length}
+          </span>
+        )}
+        {readingNeedsLook && <span className="absolute right-0 top-0.5 h-2 w-2 rounded-full bg-teal-300" data-testid="self-phone-reading-dot" />}
       </button>
-      {boardSettingsControl}
     </BoardHeaderSlot>
   );
-  const readingSheet = mode === 'phone' && readingOpen && (
-    <Sheet title={V3_WORDS.readingSheet} onClose={() => setReadingOpen(false)} testId="self-reading-sheet">
+  // the strip closes by itself after a few idle seconds, and whenever a conversation, the picker or Edit takes over
+  useEffect(() => {
+    if (!stripOpen) return undefined;
+    const t = setTimeout(() => setStripOpen(false), STRIP_IDLE_MS);
+    return () => clearTimeout(t);
+  }, [stripOpen, stripTouched, index]);
+  useEffect(() => {
+    if (chatCard || showPicker || editing || !phone) setStripOpen(false);
+  }, [chatCard, showPicker, editing, phone]);
+  /**
+   * Pulling the card down reveals the strip: only from a card whose own scroll is at its very top (so it never fights
+   * the card's text), past PULL_OPEN_PX, with a rubber band while dragging; pushing the card back up closes it. A touch
+   * that starts on the strip is the strip's own. The page's pull-to-refresh stays off (`app-frame` on html and body).
+   */
+  const pullHandlers = {
+    onTouchStart: (e: ReactTouchEvent<HTMLDivElement>) => {
+      const t = e.touches[0];
+      if (!t || chatCard) {
+        touch.current = null;
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      const scroller = target?.closest?.('[data-card-scroll], .self-v3-scroll') as HTMLElement | null;
+      touch.current = { x: t.clientX, y: t.clientY, atTop: !scroller || scroller.scrollTop <= 0, inStrip: false };
+    },
+    onTouchMove: (e: ReactTouchEvent<HTMLDivElement>) => {
+      const s = touch.current;
+      const t = e.touches[0];
+      if (!s || !t || stripOpen || !s.atTop) return;
+      const dy = t.clientY - s.y;
+      const dx = t.clientX - s.x;
+      if (dy <= 0 || Math.abs(dx) > dy) {
+        if (pull) setPull(0);
+        return;
+      }
+      // the rubber band: half the finger's travel, never past the strip's height
+      setPull(Math.min(PULL_MAX_PX, Math.round(dy * 0.5)));
+    },
+    onTouchEnd: (e: ReactTouchEvent<HTMLDivElement>) => {
+      const s = touch.current;
+      touch.current = null;
+      setPull(0);
+      const t = e.changedTouches[0];
+      if (!s || !t) return;
+      const dy = t.clientY - s.y;
+      const dx = t.clientX - s.x;
+      if (Math.abs(dx) > Math.abs(dy)) return;
+      if (!stripOpen && s.atTop && dy >= PULL_OPEN_PX) {
+        setStripOpen(true);
+        track('chip_select', SURFACE, 'title_strip_pull');
+      } else if (stripOpen && dy <= -PULL_OPEN_PX) setStripOpen(false);
+    },
+    // a touch the browser took over (a native scroll, a system gesture): nothing stays half open
+    onTouchCancel: () => {
+      touch.current = null;
+      setPull(0);
+    },
+  };
+  const readingSheet = phone && readingOpen && (
+    <Sheet title={isSelf ? V3_WORDS.readingSheet : boardTitle} onClose={() => setReadingOpen(false)} testId="self-reading-sheet">
       <div className="flex flex-col gap-3">
+        {!isSelf && <LensTabs lenses={lenses} active={pickLens ?? lens} onPick={(id) => { setReadingOpen(false); pickLensNow(id); }} label={lensLabel} />}
         {clockLine}
         {!showPicker && readingStatus}
         {!veiled && lateLine}
@@ -829,7 +893,23 @@ function Board({
         {buildStatus}
         <div className="flex flex-wrap items-center gap-2">
           {editButton && <span onClickCapture={() => setReadingOpen(false)}>{editButton}</span>}
+          {!showPicker && canAdd && (
+            <button
+              type="button"
+              onClick={() => {
+                setReadingOpen(false);
+                setSaveError(null);
+                setPickerOpen(true);
+              }}
+              className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-4 text-[13px] font-semibold text-white/85 hover:bg-white/5"
+              data-testid="phone-add-card"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {V3_WORDS.addCard}
+            </button>
+          )}
           {templateSwitch}
+          {boardSettingsControl}
         </div>
       </div>
     </Sheet>
@@ -872,13 +952,16 @@ function Board({
               open: chatCard === c.id,
               onOpen: (card: SelfV3CardView) => openChat(card),
               onClose: () => closeChat(true),
-              render: (card: SelfV3CardView, period: PeriodView | null) => (
+              // every ready card carries the thin input (docs/dashboards/12); the conversation opens over it on start
+              render: (card: SelfV3CardView, period: PeriodView | null, opts: { conversation: boolean; onStart: () => void }) => (
                 <CardChat
                   store={chatStore}
                   chatRef={{ board: boardId, cardId: card.id, from: period?.item.from ?? null, to: period?.item.to ?? null }}
                   periodLabel={period?.label ?? null}
                   fallbackCostLine={chatFallbackCost}
                   onBack={() => closeChat(true)}
+                  conversation={opts.conversation}
+                  onStart={opts.onStart}
                 />
               ),
             },
@@ -898,9 +981,10 @@ function Board({
       label={carouselLabel}
       slideLabel={slideLabel}
       renderSlide={renderSlide}
-      peek={template === 'compact'}
-      peekPx={template === 'seasons' ? PEEK_PX : 0}
-      gap={template === 'seasons' ? SEASONS_GAP : 14}
+      // a phone: the card is full width with no side peek (docs/dashboards/12)
+      peek={!phone && template === 'compact'}
+      peekPx={!phone && template === 'seasons' ? PEEK_PX : 0}
+      gap={phone ? 12 : template === 'seasons' ? SEASONS_GAP : 14}
       testId="self-v3-carousel"
       locked={!!chatCard}
     />
@@ -991,7 +1075,42 @@ function Board({
         </div>
       </div>
       )}
-      {!showPicker && (
+      {phone && !showPicker && (
+        <div className="flex min-w-0 flex-col gap-1" data-testid="phone-board-head">
+          <ProgressTicks count={shown.length} index={index} />
+          <div id="phone-title-strip" style={pull && !stripOpen ? { height: pull, overflow: 'hidden', opacity: Math.min(1, pull / PULL_OPEN_PX) } : undefined} data-testid="phone-strip-wrap" data-pull={pull}>
+            <TitleStrip
+              titles={titleList}
+              index={Math.min(index, Math.max(0, shown.length - 1))}
+              open={stripOpen || pull > 0}
+              onSelect={(i, fromScroll) => {
+                select(i);
+                if (!fromScroll) setStripOpen(false);
+              }}
+              onActivity={() => setStripTouched((n) => n + 1)}
+              label={carouselLabel}
+              trailing={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStripOpen(false);
+                    setReadingOpen(true);
+                  }}
+                  aria-label={isSelf ? V3_WORDS.readingSheet : `${boardTitle}: ${V3_WORDS.readingSheet}`}
+                  tabIndex={stripOpen ? 0 : -1}
+                  className="relative inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/15 px-3 text-[13px] font-semibold text-white/80"
+                  data-testid="self-phone-reading"
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  {readingNeedsLook && <span className="absolute right-1 top-1.5 h-2 w-2 rounded-full bg-teal-300" />}
+                </button>
+              }
+            />
+          </div>
+        </div>
+      )}
+      {/* a phone keeps the chips row only while editing the deck or saying a save failed */}
+      {!showPicker && (!phone || !!editing || !!saveError) && (
         <div className="min-w-0 xl:order-2 xl:flex-1" data-testid="self-v3-chips-slot">
         <CardChips
           cards={shownIds}
@@ -1022,7 +1141,7 @@ function Board({
         </div>
       )}
       </div>
-      <div className="relative min-h-0 min-w-0" data-testid="self-v3-deck">
+      <div className="relative min-h-0 min-w-0" data-testid="self-v3-deck" {...(phone && !showPicker ? pullHandlers : {})}>
         {deck}
       </div>
 

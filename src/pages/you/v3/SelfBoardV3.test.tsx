@@ -212,116 +212,32 @@ describe('Self board v3: the board', () => {
     expect(text()).toContain('The pull on money and effort eases');
   });
 
-  it('a face saves for that card only, after 400 ms, and shows at once', async () => {
+  // docs/dashboards/12: the three bars (Read · Analysis · Calendar) replaced the per-card Read / Short switch, so no card
+  // control saves a face of its own any more (the per-card PATCH queue keeps its unit tests in layoutSaver.test.ts)
+  it('a card has no face switch of its own; a stored own Short reads as Read and nothing is saved', async () => {
+    withBoard((b) => (b.layout = { ...b.layout, options: { body: { face: 'light' } } }));
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-body');
+    expect(within(c).queryByTestId('face-short')).toBeNull();
     expect(c).toHaveAttribute('data-face', 'read');
-    fireEvent.click(within(c).getByTestId('face-short'));
-    expect(c).toHaveAttribute('data-face', 'short');
+    fireEvent.click(within(c).getByTestId('card-view-analysis'));
+    expect(c).toHaveAttribute('data-face', 'analysis');
+    fireEvent.click(within(c).getByTestId('card-view-calendar'));
+    expect(c).toHaveAttribute('data-face', 'calendar');
+    await new Promise((r) => setTimeout(r, 450));
     expect(puts()).toHaveLength(0);
-    await waitFor(() => expect(puts()).toHaveLength(1));
-    expect(puts()[0]!.body!.options).toEqual({ body: { face: 'light' } });
+    expect(patches()).toHaveLength(0);
   });
 
-  it('with the PATCH routes live: one small PATCH per card with the version, never the whole layout', async () => {
-    srv.patchLive = true;
-    withBoard((b) => (b.layout = { ...b.layout, version: 1 }));
-    render(<SelfBoardV3 />);
-    const body = await screen.findByTestId('v3-card-body');
-    fireEvent.click(within(body).getByTestId('face-short'));
-    fireEvent.click(within(screen.getByTestId('v3-card-mind')).getByTestId('face-short'));
-    await waitFor(() => expect(patches()).toHaveLength(2));
-    expect(patches().map((p) => [p.url.replace(/^.*\/api/, '/api'), p.body])).toEqual([
-      ['/api/self/v3/layout/cards/body', { version: 1, options: { face: 'light' } }],
-      ['/api/self/v3/layout/cards/mind', { version: 2, options: { face: 'light' } }],
-    ]);
-    expect(puts()).toHaveLength(0);
-  });
-
-  it('Edit then Done right after a face change keeps both: the order and the face', async () => {
-    srv.patchLive = true;
-    withBoard((b) => (b.layout = { ...b.layout, cards: ['body', 'mind', 'stuck', 'year'], version: 1 }));
-    srv.stored = { ...srv.stored, cards: ['body', 'mind', 'stuck', 'year'] };
-    render(<SelfBoardV3 />);
-    await screen.findByTestId('self-v3-chips');
-    fireEvent.click(within(screen.getByTestId('v3-card-body')).getByTestId('face-short'));
-    fireEvent.click(screen.getByTestId('self-v3-edit'));
-    fireEvent.click(screen.getByTestId('chip-right-body'));
-    fireEvent.click(screen.getByTestId('chips-done'));
-    await waitFor(() => expect(srv.stored.cards).toEqual(['mind', 'body', 'stuck', 'year']));
-    await waitFor(() => expect(srv.stored.options).toEqual({ body: { face: 'light' } }));
-    expect(patches().find((p) => p.url.endsWith('/layout/deck'))!.body).not.toHaveProperty('options');
-  });
-
-  it('a 409 reads the layout again and reapplies the change', async () => {
-    srv.patchLive = true;
-    srv.stored = { ...srv.stored, version: 7, options: { mind: { face: 'light' } } };
-    withBoard((b) => (b.layout = { ...b.layout, version: 1 }));
-    render(<SelfBoardV3 />);
-    const body = await screen.findByTestId('v3-card-body');
-    srv.v3Body = () => {
-      const b = selfV3Fixture();
-      b.layout = srv.stored;
-      return json(b);
-    };
-    fireEvent.click(within(body).getByTestId('face-short'));
-    await waitFor(() => expect(srv.stored.options).toEqual({ mind: { face: 'light' }, body: { face: 'light' } }));
-    expect(screen.queryByTestId('chips-error')).toBeNull();
-  });
-
-  it('a 401 refreshes the session quietly and saves', async () => {
-    srv.patchLive = true;
-    srv.refreshOk = true;
-    srv.patchQueue = [401];
-    withBoard((b) => (b.layout = { ...b.layout, version: 1 }));
-    render(<SelfBoardV3 />);
-    fireEvent.click(within(await screen.findByTestId('v3-card-body')).getByTestId('face-short'));
-    await waitFor(() => expect(srv.stored.options).toEqual({ body: { face: 'light' } }));
-    expect(localStorage.getItem('token')).toBe('t2');
-    expect(screen.queryByTestId('chips-error')).toBeNull();
-  });
-
-  it('a session that cannot be refreshed says so, offers Sign in again, and keeps the choice on screen', async () => {
-    srv.patchLive = true;
-    srv.patchQueue = [401];
-    withBoard((b) => (b.layout = { ...b.layout, version: 1 }));
-    render(<SelfBoardV3 />);
-    const body = await screen.findByTestId('v3-card-body');
-    fireEvent.click(within(body).getByTestId('face-short'));
-    expect(await screen.findByTestId('chips-error')).toHaveTextContent(V3_WORDS.sessionEnded);
-    expect(screen.getByTestId('self-sign-in-again')).toHaveAttribute('href', expect.stringContaining('/signin'));
-    expect(body).toHaveAttribute('data-face', 'short');
-    // back from signing in: the waiting change goes out
-    fireEvent.focus(window);
-    await waitFor(() => expect(srv.stored.options).toEqual({ body: { face: 'light' } }));
-    await waitFor(() => expect(screen.queryByTestId('chips-error')).toBeNull());
-  });
-
-  it('a refused save puts the card back and says so', async () => {
-    srv.layoutStatus = 500;
-    srv.layoutBody = () => ({ error: 'boom' });
-    render(<SelfBoardV3 />);
-    const c = await screen.findByTestId('v3-card-body');
-    fireEvent.click(within(c).getByTestId('face-short'));
-    expect(c).toHaveAttribute('data-face', 'short');
-    await waitFor(() => expect(c).toHaveAttribute('data-face', 'read'));
-    expect(screen.getByTestId('chips-error')).toHaveTextContent(V3_WORDS.saveFailed);
-  });
-
-  it('the gear keeps the default face and "Is this right?" only; a board face applies to every card', async () => {
+  it('the gear keeps "Is this right?" and no face or tools', async () => {
     render(<SelfBoardV3 />);
     await screen.findByTestId('v3-card-body');
     fireEvent.click(screen.getByTestId('board-settings-open'));
     expect(screen.queryByTestId('bs-groupby')).toBeNull();
     expect(screen.queryByTestId('bs-tools')).toBeNull();
     expect(screen.queryByTestId('bs-voice')).toBeNull();
-    fireEvent.click(screen.getByTestId('bs-face-short'));
-    expect(screen.getByTestId('v3-card-body')).toHaveAttribute('data-face', 'short');
-    expect(screen.getByTestId('v3-card-mind')).toHaveAttribute('data-face', 'short');
-    await waitFor(() => expect(puts()).toHaveLength(1));
-    expect(puts()[0]!.body!.boardOptions).toEqual({ face: 'light' });
+    expect(screen.queryByTestId('bs-face-short')).toBeNull();
   });
-
   it('the voice shows in the gear only when the server allows it and a card has both voices', async () => {
     withBoard((b) => {
       b.features = { allowed: ['feature.voice', 'feature.face.short', 'feature.periods', 'feature.confirm', 'feature.why_panel', 'feature.key_dates'] };

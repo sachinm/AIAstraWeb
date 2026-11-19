@@ -1,34 +1,35 @@
 /**
- * One Self v3 card (doc 75, "The foundation card"). From the top: the header art carrying the card's name, large, and
- * one line saying what it answers, with the chat bubble and "i" for Why at its right; the Read / Short switch and the
- * named period chips; the stale-dates note when the server flags one; the headline, always visible; then the body,
- * which scrolls inside the card's fixed height (the face, then Key dates); and "Is this right?" at the foot.
+ * One Self v3 card (doc 75, "The foundation card"; server docs/dashboards/12). From the top: the header art carrying the
+ * card's name and one line saying what it answers, with the chat bubble and "i" for Why at its right; three wide bars,
+ * Read · Analysis · Calendar; the named period chips (Read and Analysis); the stale-dates note when the server flags
+ * one; on Read the headline; then the body, the card's one vertical scroll (`overscroll-behavior: contain`); "Is this
+ * right?"; and at the foot, always, the card's chat input.
  *
  * A card the person's plan does not cover shows a lock and "Part of Plus", never its content. Nothing here calls the
- * network: choices go up through `onOptions`, Why through `onWhy`, the chat bubble is drawn by the board.
+ * network: choices go up through `onOptions`, Why through `onWhy`, the chat is drawn by the board.
  *
- * Card chat (server docs/reading-engine/85): with `chatFace`, the face switch offers Chat beside Read and Short. In the
- * Chat face the card keeps its header and its height; the switch, the period on screen (fixed while chatting) and the
- * board's chat view replace the headline, the body and the footer, so the chat's input is the card's foot. Read or
- * Short closes it; the board keeps the conversation.
+ * Card chat (server docs/reading-engine/85, docs/dashboards/12): with `chatFace`, the thin input sits at the card's
+ * foot on every view. Starting to type opens the conversation over the card's view, with "Back to card" and the
+ * period it is about; the bars, Back, Esc or the browser's Back return to the card. The board keeps the conversation.
+ * The periods no longer change on a sideways swipe inside the card: on a phone that swipe moves between cards.
  */
-import { useEffect, type ReactNode } from 'react';
-import { Info, Lock } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ArrowLeft, Info, Lock } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
 import { V2_WORDS } from '../v2/words';
 import { CardBanner, cardAccentClass } from './CardBanner';
 import CardFooter from './CardFooter';
 import { SensitiveNote, type CardReading } from './CardParts';
-import CardToolbar from './CardToolbar';
-import { dayWords, headlineOf, keyDatesOf, neighbour, todayIso, type PeriodView } from './cardModel';
-import FaceBody, { shownFace, type ShownFace } from './faces/FaceBody';
+import { AnalysisView, CalendarView, CardViewBars, VIEW_WORDS, type CardViewId } from './CardViews';
+import { dayWords, headlineOf, keyDatesOf, todayIso, type PeriodView } from './cardModel';
+import FaceBody from './faces/FaceBody';
 import { label } from './faces/parts';
 import { cardSubtitle, cardTitle, planWord } from './features';
 import { notReadyBody } from './notReady';
 import PeriodStrip from './PeriodStrip';
-import { swipeHandlers, useCardView } from './useCardView';
-import { FACE_WIRE, V3_WORDS } from './words';
+import { useCardView } from './useCardView';
+import { V3_WORDS } from './words';
 
 /** what the board lets a card show (doc 75 feature switches) */
 export interface CardAllowed {
@@ -39,12 +40,16 @@ export interface CardAllowed {
   confirm: boolean;
 }
 
-/** the Chat face a board gives a card: open or not, the way in and out, and the view itself */
+/**
+ * The card's conversation a board gives a card (server docs/dashboards/12): open or not, the way in and out, and the
+ * chat itself. `render` is called on every ready card, open or not: closed it draws only the thin input anchored at the
+ * card's foot (`conversation` false), and `onStart` (focus, typing, the mic) opens the conversation over the card's view.
+ */
 export interface CardChatFace {
   open: boolean;
   onOpen: (card: SelfV3CardView, period: PeriodView | null) => void;
   onClose: () => void;
-  render: (card: SelfV3CardView, period: PeriodView | null) => ReactNode;
+  render: (card: SelfV3CardView, period: PeriodView | null, opts: { conversation: boolean; onStart: () => void }) => ReactNode;
 }
 
 export const ALL_ALLOWED: CardAllowed = { short: true, periods: true, keyDates: true, why: true, confirm: true };
@@ -107,7 +112,6 @@ export default function CardFrame({
   voice = 'gentle',
   allowed = ALL_ALLOWED,
   lockedPlan = null,
-  onOptions,
   onWhy,
   chat,
   chatFace,
@@ -120,41 +124,27 @@ export default function CardFrame({
   const compact = variant === 'compact';
   const title = cardTitle(card);
   const subtitle = cardSubtitle(card);
-  const face = shownFace(options.face, allowed.short);
+  // the three bars replace Read / Short (server docs/dashboards/12): a stored Short reads as Read, whose top it now is
+  const [shownView, setShownView] = useState<CardViewId>('read');
   const chips = allowed.periods ? view.chips : [];
   const period = allowed.periods ? view.period : (view.periods.find((p) => p.current && p.own) ?? null);
   const headline = headlineOf(card, period, voice);
   const notReady = lockedPlan ? null : notReadyBody(card, veil, reading);
   const panelId = `card-body-${card.id}`;
-  const prev = neighbour(view.periods, view.selected, -1);
-  const next = neighbour(view.periods, view.selected, 1);
-  const swipe = swipeHandlers(
-    () => allowed.periods && prev !== null && view.select(prev),
-    () => allowed.periods && next !== null && view.select(next),
-  );
   const ready = !lockedPlan && !notReady;
   const chatting = ready && !!chatFace?.open;
-  // a card that stops being readable (a new build, a lock) leaves its Chat face; the board keeps the conversation
+  // a card that stops being readable (a new build, a lock) leaves its conversation; the board keeps it
   const chatOpenButNotReady = !ready && !!chatFace?.open;
   const closeChatFace = chatFace?.onClose;
   useEffect(() => {
     if (chatOpenButNotReady) closeChatFace?.();
   }, [chatOpenButNotReady, closeChatFace]);
-  /** a face picked on the switch: from Chat it closes the chat, and a face already stored is not saved again */
-  const pickFace = (f: ShownFace) => {
+  /** a bar picked: from the conversation it goes back to the card on that view */
+  const pickView = (v: CardViewId) => {
     if (chatting) chatFace!.onClose();
-    if (!chatting || f !== face) onOptions({ face: FACE_WIRE[f] });
+    setShownView(v);
   };
-  const toolbar = (allowed.short || !!chatFace) && (
-    <CardToolbar
-      cardId={card.id}
-      face={face}
-      onFace={pickFace}
-      hasOwn={hasOwn}
-      shortOn={allowed.short}
-      {...(chatFace ? { chat: { open: chatting, onOpen: () => chatFace.onOpen(card, period) } } : {})}
-    />
-  );
+  const bars = <CardViewBars cardId={card.id} view={chatting ? null : shownView} onView={pickView} panelId={panelId} hasOwn={hasOwn} />;
 
   const header = (
     <div className="relative shrink-0" data-testid="card-header">
@@ -191,15 +181,41 @@ export default function CardFrame({
     </div>
   );
 
+  // the view under the bars: the reading, the analysis or the calendar (the body is the card's one vertical scroll)
+  const viewBody =
+    shownView === 'analysis' ? (
+      <AnalysisView card={card} period={period} options={options} why={allowed.why} />
+    ) : shownView === 'calendar' ? (
+      <CalendarView card={card} periods={view.periods} showWindows={allowed.periods} showDates={allowed.keyDates} />
+    ) : (
+      <>
+        <FaceBody face="read" card={card} periods={view.periods} period={period} standing={view.standing} />
+        {allowed.keyDates && <KeyDates card={card} />}
+      </>
+    );
+  const withPeriods = shownView !== 'calendar' && chips.length > 1;
+
+  // every slot below keeps its place whether or not the conversation is open, so the chat input (last) is never
+  // remounted: a focused box keeps its focus and the phone keyboard
   const body = (
-    <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2">
-      {(toolbar || chips.length > 1) && (
-        <div className="flex min-w-0 shrink-0 flex-col gap-1.5">
-          {toolbar}
-          <PeriodStrip cardId={card.id} periods={view.periods} chips={chips} selected={view.selected} onSelect={view.select} panelId={panelId} />
+    <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2" data-testid="card-stage">
+      {bars}
+      {chatting ? (
+        <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-2" data-testid="card-chat-face">
+          <button type="button" onClick={() => chatFace!.onClose()} className="inline-flex min-h-[36px] shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/10 px-3 text-[13px] font-semibold text-white hover:bg-white/15" data-testid="card-chat-back">
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {VIEW_WORDS.backToCard}
+          </button>
+          {period?.label && (
+            <span className="min-w-0 truncate rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[13px] text-white/75" data-testid="card-chat-period">
+              {period.label}
+            </span>
+          )}
         </div>
-      )}
-      {card.datesPassed && (
+      ) : withPeriods ? (
+        <PeriodStrip cardId={card.id} periods={view.periods} chips={chips} selected={view.selected} onSelect={view.select} panelId={panelId} />
+      ) : null}
+      {!chatting && card.datesPassed ? (
         <p role="status" className="flex shrink-0 flex-wrap items-center gap-x-2 rounded-lg bg-amber-500/10 px-3 py-1.5 text-[13px] text-amber-100" data-testid="card-dates-passed">
           {V3_WORDS.datesPassed}
           {onRefresh && (
@@ -208,40 +224,32 @@ export default function CardFrame({
             </button>
           )}
         </p>
-      )}
-      {card.status === 'stale' && <p className="shrink-0 text-center text-[13px] text-white/55" data-testid="card-stale">{V2_WORDS.cardStale}</p>}
-      <p key={`h-${view.selected ?? -1}`} className={`self-v3-fade shrink-0 text-center font-bold leading-snug text-white ${compact ? 'text-lg' : 'text-[22px] sm:text-2xl'}`} data-testid="card-line">
-        {headline}
-      </p>
-      <div
-        id={panelId}
-        role={chips.length > 1 ? 'tabpanel' : undefined}
-        className="self-v3-scroll min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]"
-        data-testid="card-body"
-        {...swipe}
-        tabIndex={0}
-        aria-label={`${title}, more`}
-      >
-        <div className="self-v3-column mx-auto w-full max-w-[72ch] space-y-4 px-1 pb-1">
-          <FaceBody face={face} card={card} periods={view.periods} period={period} standing={view.standing} />
-          {face === 'read' && allowed.keyDates && <KeyDates card={card} />}
+      ) : null}
+      {!chatting && card.status === 'stale' ? <p className="shrink-0 text-center text-[13px] text-white/55" data-testid="card-stale">{V2_WORDS.cardStale}</p> : null}
+      {!chatting && shownView === 'read' ? (
+        <p key={`h-${view.selected ?? -1}`} className={`self-v3-fade shrink-0 text-center font-bold leading-snug text-white ${compact ? 'text-lg' : 'text-[22px] sm:text-2xl'}`} data-testid="card-line">
+          {headline}
+        </p>
+      ) : null}
+      {!chatting ? (
+        <div
+          id={panelId}
+          role="tabpanel"
+          // the text scrolls inside the card and never hands the scroll on to the page (server docs/dashboards/12)
+          className="self-v3-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+          style={{ overscrollBehavior: 'contain' }}
+          data-testid="card-body"
+          data-card-scroll="true"
+          data-view={shownView}
+          tabIndex={0}
+          aria-label={`${title}, ${VIEW_WORDS[shownView]}`}
+        >
+          <div className="self-v3-column mx-auto w-full max-w-[72ch] space-y-4 px-1 pb-1">{viewBody}</div>
+          {/* "Is this right?" ends the reading inside its scroll, so it is never cut off on a short phone */}
+          {shownView === 'read' ? <CardFooter card={card} confirmOn={confirmOn && allowed.confirm} /> : null}
         </div>
-      </div>
-    </div>
-  );
-
-  // the Chat face: the switch, the period it is about, then the board's chat view down to the card's foot
-  const chatBody = chatting && (
-    <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2" data-testid="card-chat-face">
-      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
-        {toolbar}
-        {period?.label && (
-          <span className="min-w-0 truncate rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[13px] text-white/75" data-testid="card-chat-period">
-            {period.label}
-          </span>
-        )}
-      </div>
-      {chatFace!.render(card, period)}
+      ) : null}
+      {chatFace ? chatFace.render(card, period, { conversation: chatting, onStart: () => chatFace.onOpen(card, period) }) : null}
     </div>
   );
 
@@ -252,15 +260,14 @@ export default function CardFrame({
       data-status={card.status}
       data-state={card.state}
       data-template={variant}
-      data-face={chatting ? 'chat' : face}
+      data-face={chatting ? 'chat' : shownView}
       data-locked={lockedPlan ? 'true' : 'false'}
       aria-label={title}
     >
       {header}
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-2 xl:px-5">
         <SensitiveNote card={card} />
-        {locked || notReady || chatBody || body}
-        {ready && !chatting && <CardFooter card={card} confirmOn={confirmOn && allowed.confirm} />}
+        {locked || notReady || body}
       </div>
     </article>
   );

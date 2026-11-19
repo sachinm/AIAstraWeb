@@ -30,6 +30,14 @@ export interface CardChatProps {
   fallbackCostLine?: string | null;
   /** Esc goes back to the card */
   onBack: () => void;
+  /**
+   * Server docs/dashboards/12: the input is always on the card. `conversation` false draws only the thin input at the
+   * card's foot (nothing opened, no cost line); `onStart` is called when the person starts (focus, typing, the mic or
+   * Send) and the board turns `conversation` on, which opens the card and shows the preamble and the thread over the
+   * card's view. The textarea is the same node in both, so focus and the phone keyboard stay. Default: today's view.
+   */
+  conversation?: boolean;
+  onStart?: () => void;
 }
 
 /** the input bar's height with its cost line: what stays on screen above the keyboard at the least */
@@ -125,8 +133,11 @@ function Turn({ turn, busy, onRetry, onAnswer, onConfirm, onChange }: {
   );
 }
 
-export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine = null, onBack }: CardChatProps) {
-  const chat = useCardChat(store, chatRef, periodLabel);
+export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine = null, onBack, conversation = true, onStart }: CardChatProps) {
+  const chat = useCardChat(store, chatRef, periodLabel, conversation);
+  const start = () => {
+    if (!conversation) onStart?.();
+  };
   const { state, setDraft } = chat;
   const root = useRef<HTMLDivElement | null>(null);
   const thread = useRef<HTMLOListElement | null>(null);
@@ -144,6 +155,7 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
   }, [setDraft]);
   const mic = useSpeechRecognition({ onTranscript });
   const startMic = () => {
+    start();
     base.current = state.draft.trim();
     accepting.current = true;
     mic.startListening();
@@ -153,6 +165,11 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
   };
 
   const send = () => {
+    // from the idle input, Send opens the conversation (and its cost line) first; it never sends unseen
+    if (!conversation) {
+      start();
+      return;
+    }
     accepting.current = false;
     if (mic.isListening) mic.stopListening();
     chat.send(state.draft);
@@ -181,10 +198,11 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
     if (el && (grew || isNearBottom(el))) el.scrollTop = el.scrollHeight;
   }, [state.turns.length, last?.answer, last?.status]);
 
-  // the box takes focus when the chat opens on a device with a keyboard of its own
+  // the box takes focus when the conversation opens on a device with a keyboard of its own (never for the idle input)
   useEffect(() => {
+    if (!conversation || document.activeElement === box.current) return;
     if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches) box.current?.focus();
-  }, []);
+  }, [conversation]);
 
   const open = state.open;
   // the keyboard is up: the preamble gives way first, so the input stays on screen above it
@@ -194,19 +212,23 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
   const keyDates = open?.preamble.keyDates ?? [];
   const costLine = state.costLine !== undefined ? state.costLine : open ? (open.costLine ?? fallbackCostLine) : fallbackCostLine;
   const canType = state.phase === 'ready';
-  const canSend = canType && !state.busy && !!state.draft.trim();
+  // the box stays typeable while the card opens (disabling a focused box would drop the phone keyboard); only a failed
+  // open blocks it. Send waits for the open, so the cost line is on screen before any question goes.
+  const blocked = conversation && state.phase === 'error';
+  const canSend = conversation ? canType && !state.busy && !!state.draft.trim() : !!state.draft.trim();
   const micTitle = !mic.isSupported ? W.micUnsupportedReason : mic.permissionDenied ? W.micDenied : W.micStart;
 
   return (
     <div
       ref={root}
-      className="flex min-h-0 flex-1 flex-col gap-2"
+      className={conversation ? 'flex min-h-0 flex-1 flex-col gap-2' : 'flex shrink-0 flex-col'}
       style={inset ? { paddingBottom: inset } : undefined}
       onKeyDown={onRootKey}
       data-testid="card-chat"
       data-phase={state.phase}
+      data-conversation={conversation ? 'true' : 'false'}
     >
-      <section className={`shrink-0 rounded-xl bg-white/[0.06] px-3 py-2 text-[14px] text-white/75 ${keyboardUp ? 'hidden' : ''}`} data-testid="card-chat-preamble" data-keyboard={keyboardUp ? 'up' : 'down'} aria-label={W.fromCard}>
+      {conversation && <section className={`shrink-0 rounded-xl bg-white/[0.06] px-3 py-2 text-[14px] text-white/75 ${keyboardUp ? 'hidden' : ''}`} data-testid="card-chat-preamble" data-keyboard={keyboardUp ? 'up' : 'down'} aria-label={W.fromCard}>
         {state.phase === 'opening' || state.phase === 'idle' ? (
           <p className="h-4 w-2/3 animate-pulse rounded bg-white/10" role="status" aria-label={W.opening} data-testid="card-chat-opening" />
         ) : state.phase === 'error' ? (
@@ -244,9 +266,9 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
             )}
           </>
         )}
-      </section>
+      </section>}
 
-      <ol ref={thread} className="self-v3-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-0.5 [scrollbar-width:thin]" data-testid="card-chat-thread" aria-label={periodLabel ?? undefined}>
+      {conversation && <ol ref={thread} className="self-v3-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-0.5 [scrollbar-width:thin]" data-testid="card-chat-thread" aria-label={periodLabel ?? undefined}>
         {state.turns.length === 0 && canType && <li className="text-[14px] text-white/50">{W.empty}</li>}
         {state.turns.map((t) => (
           <Turn
@@ -259,9 +281,9 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
             onChange={() => chat.change(t.key)}
           />
         ))}
-      </ol>
+      </ol>}
 
-      <div className="shrink-0 border-t border-white/10 pt-2" data-testid="card-chat-input-bar" data-anchor="card-bottom">
+      <div className={`shrink-0 ${conversation ? 'border-t border-white/10 pt-2' : ''}`} data-testid="card-chat-input-bar" data-anchor="card-bottom">
         {state.quota && (
           <p role="status" className="mb-1.5 text-[13px] text-amber-100" data-testid="card-chat-quota">
             {W.quota}{' '}
@@ -275,21 +297,26 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
             {PROBLEM_WORD[state.problem]}
           </p>
         )}
-        <div className="flex items-end gap-1.5">
+        {/* one thin box: the textarea with the mic and Send inside it (server docs/dashboards/12) */}
+        <div className="flex items-end gap-1 rounded-2xl border border-white/15 bg-black/25 py-0.5 pl-1 pr-0.5 focus-within:ring-2 focus-within:ring-teal-300/50" data-testid="card-chat-box">
           <textarea
             ref={box}
             value={state.draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (e.target.value) start();
+            }}
+            onFocus={start}
             onKeyDown={onKey}
             rows={1}
-            disabled={!canType}
+            disabled={blocked}
             placeholder={W.placeholder}
             aria-label={W.question}
-            className="max-h-28 min-h-[44px] min-w-0 flex-1 resize-none rounded-xl border border-white/15 bg-black/20 px-3 py-2.5 text-[16px] text-white placeholder-white/45 focus:outline-none focus:ring-2 focus:ring-teal-300/50 disabled:opacity-50"
+            className={`min-h-[40px] min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-[16px] leading-6 text-white placeholder-white/45 focus:outline-none disabled:opacity-50 ${conversation ? 'max-h-28' : 'max-h-10'}`}
             data-testid="card-chat-textarea"
           />
           {mic.isListening ? (
-            <button type="button" onClick={stopMic} aria-label={W.micStop} title={W.micStop} className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-500/90 text-white" data-testid="card-chat-mic" data-listening="true">
+            <button type="button" onClick={stopMic} aria-label={W.micStop} title={W.micStop} className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/90 text-white" data-testid="card-chat-mic" data-listening="true">
               <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-red-300/60" aria-hidden="true" />
               <Square className="h-4 w-4 fill-current" aria-hidden="true" />
             </button>
@@ -297,21 +324,21 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
             <button
               type="button"
               onClick={startMic}
-              disabled={!mic.isSupported || !canType}
+              disabled={!mic.isSupported || blocked}
               aria-label={!mic.isSupported ? W.micUnavailable : mic.permissionDenied ? W.micDenied : W.micStart}
               title={micTitle}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
               data-testid="card-chat-mic"
               data-listening="false"
             >
               <Mic className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
-          <button type="button" onClick={send} disabled={!canSend} aria-label={W.send} title={W.send} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal-500/80 text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-40" data-testid="card-chat-send">
+          <button type="button" onClick={send} disabled={!canSend} aria-label={W.send} title={W.send} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-500/80 text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-40" data-testid="card-chat-send">
             <Send className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <p className="mt-1 flex min-h-[18px] flex-wrap items-center justify-between gap-x-3 text-[12px] text-white/55">
+        {conversation && <p className="mt-1 flex min-h-[18px] flex-wrap items-center justify-between gap-x-3 text-[12px] text-white/55">
           {mic.isListening ? (
             <span role="status" className="text-red-200" data-testid="card-chat-listening">
               {W.micListening}
@@ -322,7 +349,7 @@ export default function CardChat({ store, chatRef, periodLabel, fallbackCostLine
             <span />
           )}
           {!mic.isSupported && <span data-testid="card-chat-mic-reason">{W.micUnavailable}</span>}
-        </p>
+        </p>}
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Clock, Menu } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import GeneralReadingBubble from '../components/GeneralReadingBubble';
 import ProfileMenu from '../components/ProfileMenu';
+import ProfileMenuSheet from '../components/ProfileMenuSheet';
 import NotificationBell from '../components/NotificationBell';
 import { boardsEnabled } from '../components/BoardTabBar';
 import { useLeftRail } from '../components/SideNav';
@@ -10,6 +12,9 @@ import { track } from '../lib/events';
 import { usePortalDashboards } from '../lib/portalDashboards';
 import { PRODUCT_NAME, PRODUCT_TAGLINE, PRODUCT_TITLE } from '../lib/legal';
 import WelcomeWizard from './welcome/WelcomeWizard';
+
+/** the product's name as the owner wrote it for the phone header (server docs/dashboards/12) */
+export const PHONE_BRAND = PRODUCT_NAME.replace(/\s+/g, '');
 
 interface User {
   name: string;
@@ -27,6 +32,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
   const rail = useLeftRail();
   // Happy Hour(s) shows when the person chose Lucky times for their portal (server docs/dashboards/11)
   const portal = usePortalDashboards();
+  const { pathname } = useLocation();
+  const onChatPage = pathname.replace(/\/+$/, '').endsWith('/chat');
 
   return (
     <>
@@ -34,10 +41,11 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
         className="sticky top-0 z-50 w-screen shrink-0 glass-bar border-b border-white/10 ml-[calc(50%-50vw)]"
         aria-label="Main"
       >
-        <div className="w-full px-3 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center gap-2 sm:gap-3">
-            {/* below 768 px the boards rail is a drawer, opened here, left of the brand (Sachin, 2026-11-10) */}
-            {rail && boardsEnabled() && (
+        <div className="w-full px-2 sm:px-6 lg:px-8">
+          <div className="flex h-14 items-center gap-1 md:h-16 md:gap-3" data-testid="header-row">
+            {/* below 768 px the avatar's full-screen menu is the navigation (server docs/dashboards/12); the drawer's
+                button stays only on the chat page, where the drawer holds the conversations */}
+            {rail && boardsEnabled() && onChatPage && (
               <button
                 type="button"
                 onClick={() => rail.setDrawer(!rail.drawer)}
@@ -50,10 +58,14 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
                 <Menu className="h-6 w-6" aria-hidden="true" />
               </button>
             )}
-            <Link to="/dashboard/you" title={PRODUCT_TITLE} aria-label={PRODUCT_TITLE} className="flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-              <img src="/images/logo-128.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" data-test-id="brand-logo" />
+            <Link to="/dashboard/you" title={PRODUCT_TITLE} aria-label={PRODUCT_TITLE} className="flex shrink-0 items-center gap-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 md:gap-3" data-testid="header-brand">
+              <img src="/images/logo-128.png" alt="" width={40} height={40} className="h-8 w-8 shrink-0 rounded-lg md:h-10 md:w-10 md:rounded-xl" data-test-id="brand-logo" />
+              {/* a phone: the name alone, in full, never clipped (server docs/dashboards/12) */}
+              <span className="shrink-0 whitespace-nowrap bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-[15px] font-bold leading-none text-transparent md:hidden" data-testid="header-brand-name">
+                {PHONE_BRAND}
+              </span>
               {/* name over tagline; General Reading and Personalize live in the avatar menu (Sachin, 2026-11-12) */}
-              <div className="hidden min-w-0 flex-col justify-center bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent sm:flex">
+              <div className="hidden min-w-0 flex-col justify-center bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent md:flex">
                 <h1 className="text-xl font-bold leading-none">{PRODUCT_NAME}</h1>
                 <span className="mt-1 text-[11px] leading-tight" data-test-id="header-tagline">
                   {PRODUCT_TAGLINE}
@@ -62,7 +74,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
             </Link>
 
             {/* the board's own title and controls on a phone (server docs/dashboards/09): a board portals them in here */}
-            <div data-board-header-slot className="flex min-w-0 flex-1 items-center gap-1" />
+            <div data-board-header-slot className="flex min-w-0 flex-1 items-center justify-center gap-1 md:justify-start" />
 
             {/* below 768 px Happy Hour(s) lives in the menu drawer (SideNav) */}
             {boardsEnabled() && portal.includes('lucky') && (
@@ -79,9 +91,25 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout, errorMess
               </NavLink>
             )}
             <div data-chat-header-slot className="flex min-w-0 items-center" />
-            <UsageRing />
-            {user && <NotificationBell />}
-            <ProfileMenu user={user} onLogout={onLogout} onOpenWizard={() => setWizardOpen(true)} />
+            {/* a phone: the questions left ride on the General Reading bubble instead of the ring */}
+            <div className="hidden md:block" data-testid="header-usage-ring-slot">
+              <UsageRing />
+            </div>
+            <div className="flex shrink-0 items-center md:gap-3" data-testid="header-actions">
+              {user && (
+                <div className="md:hidden">
+                  <NotificationBell variant="messages" />
+                </div>
+              )}
+              {user && <NotificationBell />}
+              {user && <GeneralReadingBubble className="md:hidden" />}
+              <div className="md:hidden">
+                <ProfileMenuSheet user={user} onLogout={onLogout} onOpenWizard={() => setWizardOpen(true)} />
+              </div>
+              <div className="hidden md:block">
+                <ProfileMenu user={user} onLogout={onLogout} onOpenWizard={() => setWizardOpen(true)} />
+              </div>
+            </div>
           </div>
 
           {/* ✅ Error Banner */}
