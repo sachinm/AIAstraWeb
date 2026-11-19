@@ -16,7 +16,7 @@ face" part of doc 85 (the chat input is now always on the card; the three bars a
 ## 2. End goal (phone, under 768 px)
 
 - **Header, one thin row:** left, the logo and the product name **AdAstraAI** (enough width; never clipped); middle,
-  the **card title** with `▾` and `3/11` (tap: "All cards" grid sheet, each tile with its art and a dot for new); right,
+  the **card title** with `▾` and `3/11` (tap: toggles the pull-down strip of card titles, §3a; the "All cards" grid sheet was dropped); right,
   **Messages**, **Bell**, **General Reading chat bubble** (carries the questions-left count the usage ring showed) and
   the **avatar**. The avatar opens a **full-screen menu**: dashboards (the person's chosen ones), profile, personalize,
   plans and usage, settings, sign out. The side menu button goes; the full-screen menu is the navigation.
@@ -43,7 +43,7 @@ face" part of doc 85 (the chat input is now always on the card; the three bars a
 
 `TopNavigation.tsx` (brand left, board slot middle, icons right, usage count onto the chat bubble), new full-screen
 `ProfileMenuSheet` (replaces the dropdown on phone, hosts dashboard navigation from `portalDashboards`),
-`BoardV3.tsx` + `CardChips` (chips row gone on phone; header title opens `AllCardsSheet`), Carousel (`peek` off on
+`BoardV3.tsx` + `CardChips` (chips row gone on phone; header title toggles the title strip, §3a), Carousel (`peek` off on
 phone, progress strip), `CardFrame.tsx` (three bars, scroll container with `overscroll-contain`), new `AnalysisView`
 and `CalendarView` (read `card.periods`, `keyDates`, `rail`, details), `components/cardChat/*` (input anchored on the
 card, conversation overlay with back chip; keep the clarifier path), tests, and doc 85 note.

@@ -186,15 +186,22 @@ test('Love v3: lens switcher, cards by lens, no internal ids', async ({ page }, 
   });
   await signIn(page);
   await page.goto('/dashboard/love');
-  await expect(page.getByTestId('self-v3-chips')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('self-v3-chip-dating_pulse')).toBeVisible();
-  await page.screenshot({ path: path.join(dir, '40-love-v3-dating.png') });
   if (info.project.name === 'phone') {
-    await page.getByTestId('self-phone-title').click();
-    await page.getByTestId('lens-option-marriage').click();
-  } else await page.getByTestId('lens-marriage').click();
-  await expect(page.getByTestId('self-v3-chip-marriage_pulse')).toBeVisible();
-  await expect(page.getByTestId('self-v3-chip-dating_pulse')).toBeHidden();
+    // server docs/dashboards/12: no chips row on a phone; the header shows the card on screen, the lens is in the board sheet
+    await expect(page.getByTestId('phone-card-count')).toHaveText('1/2', { timeout: 30_000 });
+    await page.screenshot({ path: path.join(dir, '40-love-v3-dating.png') });
+    await page.getByTestId('phone-card-title').click();
+    await page.getByTestId('self-phone-reading').click();
+    await page.getByTestId('self-reading-sheet').getByTestId('lens-marriage').click();
+    await expect(page.getByTestId('phone-card-count')).toHaveText('1/1');
+  } else {
+    await expect(page.getByTestId('self-v3-chips')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('self-v3-chip-dating_pulse')).toBeVisible();
+    await page.screenshot({ path: path.join(dir, '40-love-v3-dating.png') });
+    await page.getByTestId('lens-marriage').click();
+    await expect(page.getByTestId('self-v3-chip-marriage_pulse')).toBeVisible();
+    await expect(page.getByTestId('self-v3-chip-dating_pulse')).toBeHidden();
+  }
   await page.screenshot({ path: path.join(dir, '41-love-v3-marriage.png') });
   const text = (await page.locator('body').textContent())!;
   expect(text).not.toMatch(/\b(work|love|self)\.[a-z_]+\b/);

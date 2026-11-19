@@ -232,12 +232,12 @@ export function windowForDay(windows: readonly CalendarWindow[], day: string): C
   return best;
 }
 
-/** the months the calendar can show: from the first date to the last, at most 36; opens on today's when inside */
+/** the months the calendar can show: from the first date to the last (one month a page); opens on today's when inside */
 export function calendarMonths(windows: readonly CalendarWindow[], dates: readonly { date: string }[], today: string): { first: number; last: number; open: number } | null {
   const all = [...windows.flatMap((w) => [w.from, w.to]), ...dates.map((d) => d.date.slice(0, 10))].filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
   if (!all.length) return null;
   const first = monthIndex(all[0]!);
-  const last = Math.min(monthIndex(all[all.length - 1]!), first + 35);
+  const last = monthIndex(all[all.length - 1]!);
   const t = monthIndex(today);
   return { first, last, open: Math.max(first, Math.min(last, t)) };
 }

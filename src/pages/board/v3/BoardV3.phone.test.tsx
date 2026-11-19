@@ -99,6 +99,21 @@ describe('the phone board', () => {
     fireEvent.touchEnd(body, { changedTouches: [{ clientX: 100, clientY: 240 }] });
     expect(screen.getByTestId('phone-strip-wrap')).toHaveAttribute('data-pull', '0');
     expect(strip()).toHaveAttribute('data-open', 'false');
+    // a touch the browser cancels leaves nothing half open
+    fireEvent.touchStart(body, { touches: [{ clientX: 100, clientY: 200 }] });
+    fireEvent.touchMove(body, { touches: [{ clientX: 100, clientY: 260 }] });
+    expect(screen.getByTestId('phone-strip-wrap')).toHaveAttribute('data-pull', '30');
+    fireEvent.touchCancel(body);
+    expect(screen.getByTestId('phone-strip-wrap')).toHaveAttribute('data-pull', '0');
+  });
+
+  it('the board controls sit pinned beside the titles, outside their scroll, and take no focus while closed', async () => {
+    await mount();
+    const button = screen.getByTestId('self-phone-reading');
+    expect(within(screen.getByTestId('title-strip-list')).queryByTestId('self-phone-reading')).toBeNull();
+    expect(button).toHaveAttribute('tabindex', '-1');
+    fireEvent.click(screen.getByTestId('phone-card-title'));
+    expect(button).toHaveAttribute('tabindex', '0');
   });
 
   it('a tapped title changes the card and the strip collapses', async () => {

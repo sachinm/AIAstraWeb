@@ -136,6 +136,16 @@ describe('three bars: Read · Analysis · Calendar (docs/dashboards/12)', () => 
     expect(screen.getAllByTestId('calendar-day').find((d) => d.getAttribute('data-day') === '2027-01-04')).toHaveAttribute('data-key-date', 'true');
   });
 
+  it('Calendar opens on today even when a window began years ago, and pages to the last date', () => {
+    mount({ ...body, v3: null, rail: rail([{ from: '2021-03-01', to: '2027-06-01', current: true }]), keyDates: [{ date: '2027-05-10', label: 'the long stretch ends' }] });
+    fireEvent.click(screen.getByTestId('card-view-calendar'));
+    expect(screen.getByTestId('calendar-title')).toHaveTextContent('November 2026');
+    expect(screen.getByTestId('calendar-prev')).not.toBeDisabled();
+    for (let i = 0; i < 6; i++) fireEvent.click(screen.getByTestId('calendar-next'));
+    expect(screen.getByTestId('calendar-title')).toHaveTextContent('May 2027');
+    expect(screen.getByTestId('calendar-next')).not.toBeDisabled();
+  });
+
   it('Calendar honours the switches: no key dates when they are off, a plain line when nothing is dated', () => {
     mount({ ...body, rail: [], periods: [], keyDates: [{ date: '2026-11-20', label: 'x' }] }, {}, { allowed: { short: true, periods: true, keyDates: false, why: true, confirm: true } });
     fireEvent.click(screen.getByTestId('card-view-calendar'));

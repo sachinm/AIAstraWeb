@@ -811,11 +811,12 @@ function Board({
         className="relative flex min-w-0 max-w-full flex-col items-center rounded-lg px-1.5 py-0.5 leading-tight text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
         data-testid="phone-card-title"
       >
-        <span className="max-w-full truncate text-[14px] font-bold" data-testid="phone-card-title-text">
+        {/* up to two lines at 360 px, so the card's name reads whole instead of "Body &…" */}
+        <span className="line-clamp-2 max-w-full break-words text-center text-[12.5px] font-bold leading-[1.15]" data-testid="phone-card-title-text">
           {active && !showPicker ? cardTitle(active) : boardTitle}
         </span>
         {active && !showPicker && (
-          <span className="text-[11px] tabular-nums text-white/60" data-testid="phone-card-count">
+          <span className="text-[10.5px] leading-none tabular-nums text-white/60" data-testid="phone-card-count">
             {Math.min(index + 1, shown.length)}/{shown.length}
           </span>
         )}
@@ -874,6 +875,11 @@ function Board({
         setStripOpen(true);
         track('chip_select', SURFACE, 'title_strip_pull');
       } else if (stripOpen && dy <= -PULL_OPEN_PX) setStripOpen(false);
+    },
+    // a touch the browser took over (a native scroll, a system gesture): nothing stays half open
+    onTouchCancel: () => {
+      touch.current = null;
+      setPull(0);
     },
   };
   const readingSheet = phone && readingOpen && (
@@ -1091,6 +1097,7 @@ function Board({
                     setReadingOpen(true);
                   }}
                   aria-label={isSelf ? V3_WORDS.readingSheet : `${boardTitle}: ${V3_WORDS.readingSheet}`}
+                  tabIndex={stripOpen ? 0 : -1}
                   className="relative inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/15 px-3 text-[13px] font-semibold text-white/80"
                   data-testid="self-phone-reading"
                 >

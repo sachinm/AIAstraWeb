@@ -35,7 +35,7 @@ export interface TitleStripProps {
   /** any touch, scroll or tap on the strip: the board restarts its idle timer */
   onActivity?: () => void;
   label: string;
-  /** a trailing item after the titles (the board's own controls) */
+  /** an item pinned after the titles, outside their scroll (the board's own controls); give it tabIndex -1 while closed */
   trailing?: ReactNode;
   testId?: string;
 }
@@ -93,14 +93,14 @@ export default function TitleStrip({ titles, index, open, onSelect, onActivity, 
       data-open={open ? 'true' : 'false'}
       aria-hidden={open ? undefined : true}
     >
-      <div className="min-h-0">
+      <div className="flex min-h-0 items-center gap-1.5">
         <div
           ref={list}
           role="tablist"
           aria-label={label}
           onScroll={onScroll}
           onTouchStart={onActivity}
-          className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-[40%] py-1 [scrollbar-width:none]"
+          className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overscroll-x-contain px-[40%] py-1 [scrollbar-width:none]"
           style={{ scrollSnapType: 'x mandatory' }}
           data-testid={`${testId}-list`}
         >
@@ -123,8 +123,9 @@ export default function TitleStrip({ titles, index, open, onSelect, onActivity, 
               {t}
             </button>
           ))}
-          {trailing}
         </div>
+        {/* pinned at the right edge, outside the titles' scroll */}
+        {trailing}
       </div>
     </div>
   );

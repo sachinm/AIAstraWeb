@@ -134,7 +134,8 @@ describe('personalization wizard', () => {
     );
     expect(screen.queryByTestId('header-wizard-trigger')).not.toBeInTheDocument();
     expect(screen.queryByTestId('header-tabs')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Open profile menu' }));
+    // the desktop dropdown (the phone's full-screen menu is the other avatar button, hidden from 768 px; docs/dashboards/12)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open profile menu' }).find((b) => b.getAttribute('aria-haspopup') === 'menu')!);
     fireEvent.click(screen.getByTestId('menu-personalize-wizard'));
 
     const modal = await screen.findByTestId('header-wizard-modal');
