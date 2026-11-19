@@ -169,11 +169,12 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
   await assertNoOverflow(page);
   await saveShot(page, '03-work-board.png', saveToTargets, '06-work-board-ndjson-stream.png');
 
-  // 4. Lucky Times board (/dashboard/lucky): the header pill from 768 px, the menu drawer below
+  // 4. Lucky Times board (/dashboard/lucky): the header pill from 768 px, the avatar's menu below
   if (isPhone) {
     await expect(page.getByTestId('header-happy-hours')).toBeHidden();
-    await page.getByTestId('header-menu-button').click();
-    await page.getByTestId('drawer-happy-hours').click();
+    // server docs/dashboards/12: the avatar's full-screen menu is the phone's navigation
+    await page.getByTestId('profile-menu-sheet-button').click();
+    await page.getByTestId('menu-sheet-dashboard-lucky').click();
   } else {
     await page.getByTestId('header-happy-hours').click();
   }

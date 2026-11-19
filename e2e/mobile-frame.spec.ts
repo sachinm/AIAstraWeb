@@ -94,14 +94,17 @@ test('public pages and boards keep the phone frame', async ({ page }, info) => {
     const f = await frame(page, '[data-test-id="dashboard-footer"]');
     expect(f.pageScroll, `board ${size.name}: the page itself scrolls`).toBeLessThanOrEqual(0);
     expect(f.footerBottom).toBe(size.height);
+    // server docs/dashboards/12: below 768 px the avatar's full-screen menu is the navigation (no drawer button)
     const menu = page.getByTestId('header-menu-button');
+    const avatar = page.getByTestId('profile-menu-sheet-button');
     if (size.width < 768) {
       expect(f.footerHeight!, 'phone footer is a sliver').toBeLessThanOrEqual(30);
       await expect(page.getByTestId('side-nav')).not.toBeInViewport();
-      await expect(menu).toBeVisible();
+      await expect(menu).toHaveCount(0);
+      await expect(avatar).toBeVisible();
       // the header row fits: nothing in it is pushed past its edge or over its neighbour
       const crowded = await page.evaluate(() => {
-        const row = document.querySelector('nav[aria-label="Main"] .h-16');
+        const row = document.querySelector('[data-testid="header-row"]');
         if (!row) return 'no header row';
         const boxes = [...row.children].map((c) => c.getBoundingClientRect()).filter((r) => r.width > 0);
         for (let i = 1; i < boxes.length; i++) if (boxes[i].left < boxes[i - 1].right - 1) return `item ${i} overlaps the one before`;
@@ -117,16 +120,16 @@ test('public pages and boards keep the phone frame', async ({ page }, info) => {
     await page.screenshot({ path: path.join(ROOT, file) });
     report.push({ file, ...f });
     if (size.width < 768) {
-      await menu.click();
-      await expect(page.getByTestId('side-nav')).toBeInViewport();
+      await avatar.click();
+      await expect(page.getByTestId('profile-menu-sheet')).toBeVisible();
       await page.waitForTimeout(400);
       n += 1;
       file = `${String(n).padStart(2, '0')}-board-${size.name}-menu-open.png`;
       await page.screenshot({ path: path.join(ROOT, file) });
       report.push({ file });
-      await page.getByRole('link', { name: 'Love' }).first().click();
+      await page.getByTestId('menu-sheet-dashboard-love').click();
       await expect(page).toHaveURL(/\/dashboard\/love/);
-      await expect(page.getByTestId('side-nav')).not.toBeInViewport();
+      await expect(page.getByTestId('profile-menu-sheet')).toHaveCount(0);
     }
   }
   writeFileSync(path.join(ROOT, 'manifest.json'), JSON.stringify(report, null, 2));

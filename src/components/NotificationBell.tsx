@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Bell, CheckCheck, X } from 'lucide-react';
+import { Bell, CheckCheck, Mail, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -12,6 +12,12 @@ import {
 } from '../lib/notificationsApi';
 
 const POLL_MS = 60_000;
+
+export const MESSAGES_WORD = {
+  button: 'Messages from AdAstra',
+  title: 'Messages from AdAstra',
+  empty: 'No messages from AdAstra yet.',
+};
 
 function formatRelativeTime(iso: string): string {
   const ts = Date.parse(iso);
@@ -27,7 +33,13 @@ function formatRelativeTime(iso: string): string {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-const NotificationBell: React.FC = () => {
+/**
+ * `all` (the Bell) is the one inbox, with the unread count. `messages` (server docs/dashboards/12) is the same inbox
+ * filtered to messages from AdAstra (category `admin_message`): no count of its own, because the server's unread count
+ * covers every category, and no second poll.
+ */
+const NotificationBell: React.FC<{ variant?: 'all' | 'messages' }> = ({ variant = 'all' }) => {
+  const messagesOnly = variant === 'messages';
   const { t } = useTranslation();
   const navigate = useNavigate();
   const panelId = useId();
@@ -48,14 +60,19 @@ const NotificationBell: React.FC = () => {
     setLoading(true);
     try {
       const res = await fetchNotifications({ limit: 20 });
+      if (messagesOnly) {
+        setItems(res.items.filter((x) => x.category === 'admin_message'));
+        return;
+      }
       setItems(res.items);
       setUnreadCount(res.unreadCount);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [messagesOnly]);
 
   useEffect(() => {
+    if (messagesOnly) return undefined;
     void refreshUnread();
     const onFocus = () => void refreshUnread();
     window.addEventListener('focus', onFocus);
@@ -67,7 +84,7 @@ const NotificationBell: React.FC = () => {
       window.removeEventListener('focus', onFocus);
       window.clearInterval(id);
     };
-  }, [refreshUnread]);
+  }, [refreshUnread, messagesOnly]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -121,10 +138,12 @@ const NotificationBell: React.FC = () => {
   };
 
   const badgeLabel = unreadCount > 9 ? '9+' : String(unreadCount);
-  const ariaLabel =
-    unreadCount > 0
+  const ariaLabel = messagesOnly
+    ? MESSAGES_WORD.button
+    : unreadCount > 0
       ? t('notifications.bellUnread', { count: unreadCount })
       : t('notifications.bellEmpty');
+  const Icon = messagesOnly ? Mail : Bell;
 
   return (
     <div ref={rootRef} className="relative shrink-0" onKeyDown={handleKeyDown}>
@@ -134,12 +153,12 @@ const NotificationBell: React.FC = () => {
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-controls={panelId}
-        data-testid="notification-bell-button"
+        data-testid={messagesOnly ? 'header-messages-button' : 'notification-bell-button'}
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-300 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-300 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 md:h-10 md:w-10"
       >
-        <Bell className="h-5 w-5" aria-hidden="true" />
-        {unreadCount > 0 && (
+        <Icon className="h-5 w-5" aria-hidden="true" />
+        {!messagesOnly && unreadCount > 0 && (
           <span
             data-testid="notification-unread-badge"
             className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-purple-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#0b0a1f]"
@@ -153,14 +172,15 @@ const NotificationBell: React.FC = () => {
         <div
           id={panelId}
           role="region"
-          aria-label={t('notifications.title')}
-          data-testid="notification-popover"
-          className="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-white/15 bg-slate-900 shadow-2xl backdrop-blur-md sm:w-96"
+          aria-label={messagesOnly ? MESSAGES_WORD.title : t('notifications.title')}
+          data-testid={messagesOnly ? 'messages-popover' : 'notification-popover'}
+          // a phone: fixed under the header with side insets, so an icon further left never pushes it off screen
+          className="fixed inset-x-3 top-14 z-50 overflow-hidden rounded-xl border border-white/15 bg-slate-900 shadow-2xl backdrop-blur-md md:absolute md:inset-x-auto md:right-0 md:top-auto md:mt-2 md:w-96"
         >
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-white">{t('notifications.title')}</h2>
-              {unreadCount > 0 && (
+              <h2 className="text-sm font-semibold text-white">{messagesOnly ? MESSAGES_WORD.title : t('notifications.title')}</h2>
+              {!messagesOnly && unreadCount > 0 && (
                 <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-200">
                   {unreadCount}
                 </span>
@@ -184,7 +204,7 @@ const NotificationBell: React.FC = () => {
               <p className="px-4 py-6 text-center text-sm text-gray-400">{t('notifications.loading')}</p>
             ) : items.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-gray-400" data-testid="notifications-empty">
-                {t('notifications.empty')}
+                {messagesOnly ? MESSAGES_WORD.empty : t('notifications.empty')}
               </p>
             ) : (
               items.map((item) => {

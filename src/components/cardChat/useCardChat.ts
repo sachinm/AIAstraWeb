@@ -18,7 +18,11 @@ export interface CardChatControls {
   change: (turnKey: string) => void;
 }
 
-export function useCardChat(store: CardChatStore, ref: CardChatRef, periodLabel: string | null): CardChatControls {
+/**
+ * `active` false (the card's idle input, server docs/dashboards/12) holds the open back: every card on a board carries
+ * the input, and a board must not open every card's chat on render. It opens once the person starts.
+ */
+export function useCardChat(store: CardChatStore, ref: CardChatRef, periodLabel: string | null, active = true): CardChatControls {
   const key = chatKey(ref);
   const { board, cardId, from, to } = ref;
   // the ref as a stable value: a new object each render must not reopen the card
@@ -28,7 +32,9 @@ export function useCardChat(store: CardChatStore, ref: CardChatRef, periodLabel:
     () => store.get(key),
     () => store.get(key),
   );
-  useEffect(() => store.open(stable), [store, stable]);
+  useEffect(() => {
+    if (active) store.open(stable);
+  }, [store, stable, active]);
   const reopen = useCallback(() => {
     store.open(stable);
   }, [store, stable]);
