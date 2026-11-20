@@ -45,6 +45,9 @@ describe('refreshBoard', () => {
     expect(await refreshBoard('love', { lens: 'dating' })).toEqual({ kind: 'not_ready' });
     answer = { status: 409, body: { error: 'not_due', code: 'not_due', valid_until: '2026-12-05' } };
     expect(await refreshBoard('love')).toEqual({ kind: 'not_due', validUntil: '2026-12-05' });
+    // a build already running for the board: the page waits for it as for its own
+    answer = { status: 409, body: { error: 'building', code: 'building' } };
+    expect(await refreshBoard('self')).toEqual({ kind: 'building', usage: null });
     answer = { status: 400, body: { error: 'unknown_lens', code: 'unknown_lens' } };
     expect(await refreshBoard('love', { lens: 'nope' })).toEqual({ kind: 'error' });
   });

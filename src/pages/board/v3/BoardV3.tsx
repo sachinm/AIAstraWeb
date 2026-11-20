@@ -179,12 +179,14 @@ export function deckReadingLine(
 ): { text: string; fromBuild: boolean } | null {
   if (!reading?.enabled) return null;
   if (reading.preparing) return { text: V3_WORDS.chartPreparing, fromBuild: false };
+  if (reading.stage === 'clocks') return { text: V3_WORDS.stageClocks, fromBuild: false };
+  if (reading.stage === 'ledger') return { text: V3_WORDS.stageLedger, fromBuild: false };
   const pending = deck.filter((c) => cardReadPending(c.state));
   const cardsStage = reading.stage === 'cards' || pending.length > 0;
   if (cardsStage && lensDeck && !pending.length) return null;
   const buildOn = !!build && (build.state === 'queued' || build.state === 'running');
   if (cardsStage && buildOn && !deck.some((c) => c.state === 'reading')) {
-    const step = build!.state === 'running' && build!.stage ? BUILD_STAGE_WORDS[build!.stage] : BUILD_STAGE_WORDS.queued;
+    const step = (build!.state === 'running' && build!.stage ? BUILD_STAGE_WORDS[build!.stage] : null) ?? BUILD_STAGE_WORDS.queued;
     return { text: V3_WORDS.stagePreparing(step), fromBuild: true };
   }
   if (cardsStage && lensDeck) {
@@ -797,9 +799,19 @@ function Board({
   }, [lensAsk, board, lensTries, onReload]);
   // another lens on screen: the last answer was about the one before
   useEffect(() => setFreshAnswer(null), [lens]);
-  // Love and Work, a lens never read with nothing of it queued: its first reading, free (server docs/billing/03 §10)
+  // Love and Work, a lens never read with nothing of it queued: its first reading, free (server docs/billing/03 §10).
+  // Saving the lens queues its unread cards already; this is the way back when that did not happen (a queue that failed,
+  // cards that did not come through). It mirrors the server's rule (no card of the lens has a reading) and only for the
+  // lens the served `refresh` describes, so "Free" is never shown for a lens that would be charged.
   const firstReadable =
-    !isSelf && readingOn && !refresh?.madeAt && !refresh?.due && !lensPending && shown.some((c) => c.available && (c.state === 'not_read' || c.state === 'failed'));
+    !isSelf &&
+    readingOn &&
+    board.activeLens === lens &&
+    !refresh?.madeAt &&
+    !refresh?.due &&
+    !lensPending &&
+    !shown.some((c) => c.state === 'ready') &&
+    shown.some((c) => c.available && (c.state === 'not_read' || c.state === 'failed'));
   const [firstBusy, setFirstBusy] = useState(false);
   const readFirst = async () => {
     if (firstBusy) return;
@@ -829,7 +841,7 @@ function Board({
   const buildStatus = freshFailed || deckLine?.fromBuild ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} served={served} />;
   // a phone (server docs/dashboards/09): the board's title and controls live in the app header; the reading details
   // (clock, status, fresh reading, build, Edit, template) open in one sheet, so the main area holds only the cards
-  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || lensBusy;
+  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || lensBusy || firstReadable;
 
   const showPicker = !layout.chosen || pickerOpen;
   const lastTemplate = useRef(template);

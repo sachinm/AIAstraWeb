@@ -97,6 +97,9 @@ describe('deckReadingLine', () => {
     expect(deckReadingLine(reading({ done: 5, total: 8 }), build({ state: 'ready' }), [card('ready')], false)?.text).toBe('Writing your cards · 5 of 8');
     expect(deckReadingLine(reading({ stage: 'done' }), null, [], false)).toBeNull();
     expect(deckReadingLine(null, null, [], false)).toBeNull();
+    // the clocks and ledger stages are said even while the build runs
+    expect(deckReadingLine(reading({ stage: 'clocks' }), build(), [], false)?.text).toBe('Reading your chart');
+    expect(deckReadingLine(reading({ stage: 'ledger' }), build(), [], true)?.text).toBe('Putting your reading together');
   });
 });
 
@@ -122,6 +125,20 @@ describe('the Love board header', () => {
     expect(post.body).toEqual({ lens: 'dating' });
     await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveAttribute('data-state', 'building'));
     expect(screen.getByTestId('fresh-line')).toHaveTextContent('Free: first reading');
+  });
+
+  it('a lens with one card read and one failed is not offered as free', async () => {
+    board = () => {
+      const b = boardV3Fixture('love');
+      b.reading = reading({ stage: 'idle' });
+      b.refresh = { madeAt: null, validUntil: null, due: false };
+      b.cards = b.cards.map((c) => (c.id === 'dating_meeting_timing' ? { ...c, state: 'failed' } : c));
+      return b;
+    };
+    render(<BoardV3 board="love" />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByText('Free: first reading')).toBeNull();
+    expect(screen.queryByTestId('fresh-button')).toBeNull();
   });
 
   it('a 409 not_ready says the board is catching up, with Try again', async () => {

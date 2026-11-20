@@ -32,7 +32,7 @@ export default function ClockSheet({ clock, plan, onClose, onChanged }: { clock:
   const [error, setError] = useState<string | null>(null);
   const chosen = clock.applicable.find((c) => c.system === pick) ?? null;
   // the sheet seen (the switch itself is recorded by the server as `clock_viewed`)
-  useEffect(() => track('window_open', 'self_clock', clock.system), [clock.system]);
+  useEffect(() => track('chip_select', 'self_clock', 'clock_sheet_open'), [clock.system]);
 
   const confirm = async () => {
     if (!chosen) return;
