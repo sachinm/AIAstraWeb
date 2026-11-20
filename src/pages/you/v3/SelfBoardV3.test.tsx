@@ -3,7 +3,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import SelfBoardV3, { perViewFor } from './SelfBoardV3';
 import { selfHeaderLine } from '../../board/v3/BoardV3';
 import { SUGGESTED_IDS, selfV3Fixture, selfV3Unchosen } from './selfV3.fixture';
-import { selfV2Fixture } from '../v2/selfV2.fixture';
 import { V3_WORDS } from './words';
 import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import { cardSections, type SelfBoardLayoutView, type SelfV3Response } from '../../../lib/selfV3Api';
@@ -75,7 +74,6 @@ beforeEach(() => {
       }
       if (u.endsWith('/api/auth/refresh')) return srv.refreshOk ? new Response(json({ token: 't2' }), { status: 200 }) : new Response(null, { status: 401 });
       if (u.endsWith('/api/self/v3/confirm')) return new Response(null, { status: 204 });
-      if (u.endsWith('/api/self/v2') && method === 'GET') return new Response(json(selfV2Fixture()), { status: 200 });
       return new Response(null, { status: 404 });
     }),
   );
@@ -224,7 +222,7 @@ describe('Self board v3: the board', () => {
     expect(screen.getByTestId('self-v3-of')).toHaveTextContent('8 of 8');
   });
 
-  it('a card filled from the v2 build: its body is the current period; named chips; the chip swaps headline and text', async () => {
+  it('a card read with its stored dates: its body is the current period; named chips; the chip swaps headline and text', async () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-stuck');
     expect(within(c).getByTestId('card-title')).toHaveTextContent('What’s weighing on you');
@@ -579,11 +577,11 @@ describe('Self board v3: the header line (the diagnosis card)', () => {
 });
 
 describe('Self board v3: the legacy fallback', () => {
-  it('a 404 without a body shows the legacy board it was given (the v2 board by default) unchanged', async () => {
+  it('a 404 without a body shows the legacy board it was given, unchanged', async () => {
     srv.v3Status = 404;
     srv.v3Body = () => null;
-    render(<SelfBoardV3 />);
-    expect(await screen.findByTestId('area-card-stuck')).toBeInTheDocument();
+    render(<SelfBoardV3 legacy={<div data-testid="legacy-you">legacy</div>} />);
+    expect(await screen.findByTestId('legacy-you')).toBeInTheDocument();
     expect(screen.queryByTestId('self-v3-chips')).toBeNull();
   });
 

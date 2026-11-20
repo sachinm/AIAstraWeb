@@ -42,7 +42,7 @@ test('phone card layout v2 at 360 × 800', async ({ page }, info) => {
   let n = 0;
   const shot = (name: string) => page.screenshot({ path: path.join(DIR, `${String(++n).padStart(2, '0')}-${name}.png`) });
 
-  await page.goto('/dashboard/you?v2=1');
+  await page.goto('/dashboard/you');
   const card = page.getByTestId('v3-card-body');
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('phone-card-title')).toBeVisible();

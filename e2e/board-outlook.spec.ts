@@ -141,7 +141,7 @@ async function openBoard(page: Page, opts: { stored?: string | null } = {}): Pro
   await stubBoard(page, opts.stored ?? null, unexpected);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await signIn(page);
-  await page.goto('/dashboard/you?v2=1');
+  await page.goto('/dashboard/you');
   await expect(page.getByTestId('v3-card-body')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('self-v3-carousel')).toBeVisible();
   // the rail's 200 ms transition and the deck's re-measure

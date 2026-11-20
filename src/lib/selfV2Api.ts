@@ -55,20 +55,6 @@ export type SelfV2State =
   | { kind: 'error' };
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The flag
-// ---------------------------------------------------------------------------------------------------------------------
-
-/** The v2 board shows when the build sets VITE_SELF_V2=1 or the address carries ?v2=1, so release can be undone. */
-export function selfV2Enabled(search: string = typeof window !== 'undefined' ? window.location.search : '', env: string | undefined = import.meta.env.VITE_SELF_V2): boolean {
-  if (env === '1') return true;
-  try {
-    return new URLSearchParams(search).get('v2') === '1';
-  } catch {
-    return false;
-  }
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
 // Calls
 // ---------------------------------------------------------------------------------------------------------------------
 

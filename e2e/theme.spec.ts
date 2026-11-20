@@ -15,7 +15,7 @@ const PAGES: { name: string; url: string; signedIn: boolean; ready?: (p: Page) =
   { name: 'signin', url: '/signin', signedIn: false },
   { name: 'pricing', url: '/pricing', signedIn: false },
   { name: 'terms', url: '/terms', signedIn: false },
-  { name: 'you', url: '/dashboard/you', signedIn: true, ready: (p) => expect(p.getByTestId('tone-card')).toBeVisible() },
+  { name: 'you', url: '/dashboard/you?legacy=1', signedIn: true, ready: (p) => expect(p.getByTestId('tone-card')).toBeVisible() },
   { name: 'love', url: '/dashboard/love', signedIn: true },
   { name: 'work', url: '/dashboard/work', signedIn: true },
   { name: 'lucky', url: '/dashboard/lucky', signedIn: true },
