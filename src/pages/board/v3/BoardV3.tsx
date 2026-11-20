@@ -79,6 +79,7 @@ import Sheet from '../../you/v2/Sheet';
 import { BUILD_STAGE_WORDS, V2_WORDS } from '../../you/v2/words';
 import CardChips from '../../you/v3/CardChips';
 import { detailsArea } from '../../you/v3/CardViews';
+import { StoryProse, hasLongReading } from '../../you/v3/AstrologyView';
 import type { CardReading } from '../../you/v3/CardParts';
 import type { CardAllowed, CardProps } from '../../you/v3/CardFrame';
 import type { PeriodView } from '../../you/v3/cardModel';
@@ -1270,6 +1271,9 @@ function Board({
 
       {details && (
         <Sheet title={`${cardTitle(details.card)} · ${V3_WORDS.why}`} onClose={() => setDetails(null)} testId="details-sheet">
+          {/* the card's technical story when served (plan revision 2 §6), then its long reading */}
+          <StoryProse text={details.card.v3?.story} testId="details-story" />
+          {details.card.v3?.story?.trim() && hasLongReading(details.card) ? <div className="h-4" /> : null}
           <ChartDetails area={detailsArea(details.card)} showEvidence={false} />
         </Sheet>
       )}

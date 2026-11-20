@@ -121,7 +121,7 @@ describe('the Love board header', () => {
     asked = true;
     fireEvent.click(btn);
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/boards/love/refresh'))).toBe(true));
-    const post = calls.find((c) => c.method === 'POST')!;
+    const post = calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/boards/love/refresh'))!;
     expect(post.body).toEqual({ lens: 'dating' });
     await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveAttribute('data-state', 'building'));
     expect(screen.getByTestId('fresh-line')).toHaveTextContent('Free: first reading');
@@ -156,7 +156,7 @@ describe('the Love board header', () => {
     const again = screen.getByTestId('fresh-button');
     expect(again).toHaveAttribute('data-state', 'catching_up');
     expect(screen.queryByText('That did not work. Try again')).toBeNull();
-    expect(calls.find((c) => c.method === 'POST')!.body).toEqual({ lens: 'dating' });
+    expect(calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/boards/love/refresh'))!.body).toEqual({ lens: 'dating' });
     fireEvent.click(again);
     expect(await screen.findByTestId('fresh-sheet')).toBeInTheDocument();
   });

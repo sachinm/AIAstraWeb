@@ -110,6 +110,15 @@ export const OUTLOOK_WORDS = {
   clocks: 'Which clocks agree',
   certainty: 'How sure',
   nothing: 'Nothing more to show for this card yet.',
+  /** the Astrology Reading tab before the server writes the card's story (plan revision 2 §6) */
+  storyPending: 'The full astrology reading is being prepared for this card.',
+  systemsRead: 'Systems read',
+  /** the Outlook tab's section toolbar */
+  toolbar: 'Sections of this card',
+  whyAndTodo: 'Why we think so, What to do',
+  giftAndKnot: 'The gift and the knot',
+  fullReading: 'Full reading',
+  growth: 'What this builds in you',
 } as const;
 
 export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'>, string> = {

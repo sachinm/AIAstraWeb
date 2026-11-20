@@ -219,6 +219,8 @@ export interface SpanReading {
   asks: string;
   /** at most 20 words */
   obstacle: string;
+  /** what this stretch builds in you, one sentence (doc 09 §4.1); absent until the server writes it */
+  growth?: string | null;
   /** one if-then sentence */
   step: string;
   /** doc 75: the span's own headline, and the one thing to avoid (absent from older servers) */
@@ -259,6 +261,15 @@ export interface SelfV3CardContent {
   chart?: CardChartReading | null;
   /** docs/dashboards/13 §4.1 (phase 5): one plain sentence saying why the reading holds; absent until then */
   why?: string | null;
+  /**
+   * The Oracle's technical story of the card (server plan revision 2 §6): continuous text, paragraphs separated by blank
+   * lines, no headings. The Astrology Reading tab and the "i" sheet show it. Absent until the server writes it.
+   */
+  story?: string | null;
+  /** the Personalizer's plain story, shown on Outlook under the headline; absent until the server writes it */
+  plain?: { story?: string | null } | null;
+  /** the systems the story read, each with what is running ("Systems read" under the story) */
+  systems?: Array<{ name: string; running: string }> | null;
 }
 
 /** the chart-language text of a card, as served (text only, never evidence keys) */

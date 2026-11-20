@@ -1,15 +1,18 @@
 /**
- * The Astrology Reading tab of a card on tablet and desktop (server docs/dashboards/13 §4.3): the chart-language
- * reasoning the server stored with the card. The gift, the knot, what the chart shows for the picked stretch, the
- * certainty word, which clocks agree, and on Self the card's chart details. Absent text is simply not drawn; a card with
- * none of it says "Nothing more to show for this card yet." Nothing is computed here.
+ * The Astrology Reading tab of a card on tablet and desktop (server plan revision 2 §6): the Oracle's technical story,
+ * `card.v3.story`, as readable prose (paragraphs, a ~72-character measure, no headings), and under it a small "Systems
+ * read" list from `card.v3.systems`. Until the story is served the tab says it is being prepared.
+ *
+ * A served reading field is never hidden: the card's older long reading (its v2 chart details) is shown here too, under
+ * the story or under the waiting line. The short chart sentences (the gift, the knot, how sure, what the chart shows)
+ * are Outlook's "The gift and the knot" section. Nothing is computed here.
  */
 import type { AreaCertainty } from '../../../lib/selfV2Api';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
 import { ChartDetails } from '../v2/AreaCard';
 import { CERTAINTY_WORD } from '../v2/words';
-import { analysisSpan, detailsArea, SystemList, VIEW_WORDS } from './CardViews';
 import type { PeriodView } from './cardModel';
+import { detailsArea } from './CardViews';
 import { label } from './faces/parts';
 import { OUTLOOK_WORDS } from './words';
 
@@ -19,58 +22,87 @@ export function certaintyWord(certainty: string | null | undefined): string | nu
   return key && Object.prototype.hasOwnProperty.call(CERTAINTY_WORD, key) ? CERTAINTY_WORD[key as AreaCertainty] : null;
 }
 
-/** what the chart shows for the picked stretch: matched by its span id */
+/**
+ * Served text with the stored span ids taken out ("Mixed periods (s1): …" → "Mixed periods: …"). The ids are internal
+ * keys; the server should not write them into prose (filed in the server's TODOS), and the page never shows them.
+ */
+export function withoutSpanIds(text: string | null | undefined): string {
+  return (text ?? '')
+    .replace(/[ \t]*\((?:span\s*)?s\d+\)/gi, '')
+    .replace(/\b(?:span[ \t]+)?s\d+\b[ \t]*/gi, '')
+    .replace(/[ \t]+([,.:;])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/** what the chart shows for the picked stretch: matched by its span id, with any span id taken out of the text */
 export function chartShows(card: SelfV3CardView, period: PeriodView | null): string | null {
   const id = period?.span?.span ?? period?.item.span ?? null;
   if (!id) return null;
-  return card.v3?.chart?.spans?.find((s) => s?.span === id)?.shows?.trim() || null;
+  return withoutSpanIds(card.v3?.chart?.spans?.find((s) => s?.span === id)?.shows) || null;
 }
 
-export default function AstrologyView({ card, period, showDetails }: { card: SelfV3CardView; period: PeriodView | null; showDetails: boolean }) {
-  const chart = card.v3?.chart ?? null;
-  const gift = chart?.gift?.trim() || null;
-  const knot = chart?.knot?.trim() || null;
-  const shows = chartShows(card, period);
-  const certainty = certaintyWord(chart?.certainty);
-  const span = analysisSpan(card, period);
-  const clocks = (span?.clocks ?? []).filter((c) => !!c.label?.trim());
-  const agreeing = clocks.filter((c) => c.agrees);
-  const testing = clocks.filter((c) => !c.agrees);
-  const area = detailsArea(card);
-  // the older chart details are the same card read by an earlier build: shown only when this card has no chart reading
-  const hasDetails = showDetails && !gift && !knot && !shows && (!!area.details.headline?.trim() || (area.details.paragraphs ?? []).some((p) => !!p?.trim()));
-  if (!gift && !knot && !shows && !certainty && !clocks.length && !hasDetails)
-    return (
-      <p className="text-center text-[15px] text-white/60" data-testid="astrology-empty">
-        {OUTLOOK_WORDS.nothing}
-      </p>
-    );
-  const block = (testId: string, title: string, text: string) => (
-    <section data-testid={testId}>
-      <h4 className={label}>{title}</h4>
-      <p className="mt-1 text-[15px] leading-relaxed text-white/85">{text}</p>
-    </section>
-  );
+/** a served story's paragraphs (blank-line separated), span ids taken out; [] when there is none */
+export function storyParagraphs(text: string | null | undefined): string[] {
+  return (text ?? '')
+    .split(/\n\s*\n/)
+    .map((p) => withoutSpanIds(p.replace(/\s*\n\s*/g, ' ')))
+    .filter(Boolean);
+}
+
+/** a story as prose: paragraphs on a readable measure */
+export function StoryProse({ text, testId }: { text: string | null | undefined; testId: string }) {
+  const paras = storyParagraphs(text);
+  if (!paras.length) return null;
   return (
-    <div key={period?.index ?? -1} className="self-v3-fade self-v3-astrology space-y-4" data-testid="astrology-view">
-      {gift && block('astrology-gift', OUTLOOK_WORDS.gift, gift)}
-      {knot && block('astrology-knot', OUTLOOK_WORDS.knot, knot)}
-      {shows && block('astrology-shows', OUTLOOK_WORDS.shows, shows)}
-      {certainty && (
-        <p className="text-[13px] text-white/60" data-testid="astrology-certainty">
-          {OUTLOOK_WORDS.certainty}: <b className="font-semibold text-white/85">{certainty}</b>
+    <div className="max-w-[72ch] space-y-3" data-testid={testId}>
+      {paras.map((p, i) => (
+        <p key={i} className="text-[15px] leading-relaxed text-white/85">
+          {p}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** true when the card carries its older long reading (v2 chart details) */
+export function hasLongReading(card: SelfV3CardView): boolean {
+  const d = detailsArea(card).details;
+  return !!d.headline?.trim() || (d.paragraphs ?? []).some((p) => !!p?.trim());
+}
+
+export default function AstrologyView({ card, showDetails = true }: { card: SelfV3CardView; period?: PeriodView | null; showDetails?: boolean }) {
+  const story = storyParagraphs(card.v3?.story);
+  const systems = (card.v3?.systems ?? []).filter((s) => !!s?.name?.trim());
+  const longReading = showDetails && hasLongReading(card);
+  return (
+    <div className="self-v3-fade self-v3-astrology space-y-5" data-testid="astrology-view">
+      {story.length ? (
+        <StoryProse text={card.v3?.story} testId="astrology-story" />
+      ) : (
+        <p className="text-center text-[15px] text-white/60" data-testid="astrology-empty">
+          {OUTLOOK_WORDS.storyPending}
         </p>
       )}
-      {clocks.length > 0 && (
-        <section data-testid="astrology-clocks">
-          <h4 className={label}>{OUTLOOK_WORDS.clocks}</h4>
-          {agreeing.length > 0 && <SystemList title={VIEW_WORDS.agreeing} items={agreeing} testId="astrology-agreeing" />}
-          {testing.length > 0 && <SystemList title={VIEW_WORDS.testing} items={testing} testId="astrology-testing" />}
+      {systems.length > 0 && (
+        <section data-testid="astrology-systems">
+          <h4 className={label}>{OUTLOOK_WORDS.systemsRead}</h4>
+          <ul className="mt-1.5 grid gap-1 text-[14px]">
+            {systems.map((s, i) => (
+              <li key={`${s.name}-${i}`} className="flex gap-2" data-testid="astrology-system">
+                <b className="shrink-0 font-semibold text-white/90">{s.name}</b>
+                {s.running?.trim() && <span className="text-white/65">{withoutSpanIds(s.running)}</span>}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
-      {hasDetails && (
+      {longReading && (
         <section data-testid="astrology-details">
-          <ChartDetails area={area} showEvidence={false} />
+          <h4 className={label}>{OUTLOOK_WORDS.fullReading}</h4>
+          <div className="mt-1.5">
+            <ChartDetails area={detailsArea(card)} showEvidence={false} />
+          </div>
         </section>
       )}
     </div>
