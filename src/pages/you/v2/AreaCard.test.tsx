@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import AreaCard from './AreaCard';
 import { selfV2Fixture } from './selfV2.fixture';
-import { V2_WORDS } from './words';
+import { V2_WORDS } from '../../../components/board/words';
 import type { CardIllustration, SelfV2Area } from '../../../lib/selfV2Api';
 
 const stuck = (edit?: (a: SelfV2Area) => void): SelfV2Area => {

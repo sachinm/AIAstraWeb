@@ -8,7 +8,7 @@
  * Doc 70 Phase 3: every card is `ready`, the board's `reading` is null (the per-card reading off); Body & energy's spans
  * carry their clock agreement (the second span is split: no tone word). `selfV3Reading` turns the per-card reading on.
  */
-import type { PersonalCard } from '../../../lib/selfV2Api';
+import type { PersonalCard } from '../../../lib/boardTypes';
 import type { BoardReadingView, RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardContent, SelfV3CardView, SelfV3Response, SpanClockView, SpanReading } from '../../../lib/selfV3Api';
 import { DEFAULT_SECTIONS } from '../../../lib/selfV3Api';
 

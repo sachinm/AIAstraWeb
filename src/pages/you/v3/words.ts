@@ -1,7 +1,7 @@
 /**
  * Every word the Self board v3 says that is not from the server (server docs/reading-engine/68 §4.1, §4.4, §4.7).
  * Plain words only: no chart term, clock count or engine name on a card face. The v2 words (header, clock sheet, fresh
- * reading, build progress) are reused from ../v2/words.
+ * reading, build progress) are in components/board/words.ts.
  */
 import type { CardFace } from '../../../lib/cardOptions';
 import type { CardVoice, SelfSectionId, SelfTemplateId, SpanMode, SpanTone } from '../../../lib/selfV3Api';

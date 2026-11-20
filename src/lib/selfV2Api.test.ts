@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { changeSelfV2Clock, fetchSelfV2, selfV2Enabled, sendSelfV2Confirm, sendSelfV2Mood } from './selfV2Api';
+import { fetchSelfV2, selfV2Enabled, sendSelfV2Confirm, sendSelfV2Mood } from './selfV2Api';
 import { selfV2Fixture } from '../pages/you/v2/selfV2.fixture';
 
 function answer(status: number, body: unknown) {
@@ -51,14 +51,6 @@ describe('fetchSelfV2', () => {
 });
 
 describe('the writes', () => {
-  it('clock: 202 carries the usage; 400 names the error', async () => {
-    answer(202, { usage: { used: 4 }, status: 'building', alsoChanges: ['love', 'work'] });
-    expect(await changeSelfV2Clock('yogini')).toEqual({ ok: true, usage: { used: 4 }, alsoChanges: ['love', 'work'] });
-    answer(400, { error: 'unknown_system' });
-    expect(await changeSelfV2Clock('nope')).toEqual({ ok: false, error: 'unknown_system' });
-    answer(500, null);
-    expect(await changeSelfV2Clock('yogini')).toEqual({ ok: false, error: 'failed' });
-  });
   it('confirm and mood are true on 204', async () => {
     answer(204, null);
     expect(await sendSelfV2Confirm('c1', 'yes')).toBe(true);

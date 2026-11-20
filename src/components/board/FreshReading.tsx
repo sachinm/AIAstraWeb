@@ -19,12 +19,12 @@
  */
 import { useState, type ReactNode } from 'react';
 import { Link, useInRouterContext } from 'react-router-dom';
-import type { PlanStatus } from '../../../lib/billing';
-import { refreshBoard, type RefreshBoard, type RefreshResult } from '../../../lib/boardRefresh';
-import type { SelfV2BuildView, SelfV2Refresh } from '../../../lib/selfV2Api';
+import type { PlanStatus } from '../../lib/billing';
+import { refreshBoard, type RefreshBoard, type RefreshResult } from '../../lib/boardRefresh';
+import type { SelfV2BuildView, SelfV2Refresh } from '../../lib/boardTypes';
 import Sheet from './Sheet';
 import { BUILD_WORDS, V2_WORDS, freshCostLine, freshSheetBody } from './words';
-import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../../../lib/aiStatus';
+import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../../lib/aiStatus';
 
 const W = V2_WORDS.fresh;
 const PLAN_PAGE = '/pricing';

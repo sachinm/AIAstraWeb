@@ -8,10 +8,10 @@
  * the story or under the waiting line. The short chart sentences (the gift, the knot, how sure, what the chart shows)
  * are Outlook's "The gift and the knot" section. Nothing is computed here.
  */
-import type { AreaCertainty } from '../../../lib/selfV2Api';
+import type { AreaCertainty } from '../../../lib/boardTypes';
 import type { CardSystemView, SelfV3CardView } from '../../../lib/selfV3Api';
-import { ChartDetails, hasChartDetails } from '../v2/AreaCard';
-import { CERTAINTY_WORD } from '../v2/words';
+import { ChartDetails, hasChartDetails } from '../../../components/board/ChartDetails';
+import { CERTAINTY_WORD } from '../../../components/board/words';
 import { dayWords, type PeriodView } from './cardModel';
 import { cardDetails } from './CardViews';
 import { label } from './faces/parts';

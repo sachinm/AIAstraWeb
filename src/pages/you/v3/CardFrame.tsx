@@ -22,7 +22,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowLeft, Info, Lock } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
-import { V2_WORDS } from '../v2/words';
+import { V2_WORDS } from '../../../components/board/words';
 import { CardBanner, cardAccentClass } from './CardBanner';
 import CardFooter from './CardFooter';
 import { SensitiveNote, type CardReading } from './CardParts';

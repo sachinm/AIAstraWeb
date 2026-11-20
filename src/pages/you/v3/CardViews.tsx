@@ -13,7 +13,7 @@ import { useMemo, useState, type KeyboardEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView, SpanReading, SpanTone } from '../../../lib/selfV3Api';
-import { ChartDetails, hasChartDetails, type ChartDetailsBody } from '../v2/AreaCard';
+import { ChartDetails, hasChartDetails, type ChartDetailsBody } from '../../../components/board/ChartDetails';
 import { dayWords, datesWords, keyDatesOf, planSteps, todayIso, type PeriodView } from './cardModel';
 import { label } from './faces/parts';
 import { SPAN_TONE_DOT, SPAN_TONE_WORD, V3_WORDS } from './words';

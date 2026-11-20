@@ -2,7 +2,7 @@
  * The Self board v3 client (server docs/reading-engine/68 §4.6). One GET carries the whole board: the layout the person
  * chose, every catalogue card in registry order with its period rail, and the build state. The types below are copied
  * from the server's `src/reading/self/v3/types.ts` and must stay identical to it; where the server reuses a v2 type,
- * this file reuses the one in selfV2Api.ts.
+ * this file reuses the one in boardTypes.ts.
  *
  * GET /api/self/v3            -> 200 SelfV3Response (`status` ok | pending | preparing) | 404 no_kundli
  *                                | 404 without a v3 body: the server has v3 off, the page shows the v2 board
@@ -11,7 +11,7 @@
  * POST /api/self/v3/confirm   -> 204
  * POST /api/self/v3/cards/:id/read (doc 70 §4.2) -> 202 { state: 'queued' } | 409 already_reading | 429 spend_cap
  *                                | 400 unknown_card, card_not_offered | 404 no_kundli | 503 off
- * The clock switch stays PUT /api/self/v2/clock (selfV2Api.changeSelfV2Clock).
+ * The clock switch stays PUT /api/self/v2/clock (selfClockApi.changeSelfV2Clock).
  *
  * Love and Work (server docs/dashboards/10 §4.3) use the same calls under /api/board/:board/v3, with these differences
  * (all of them in `boardBase`, `isV3Board`, `boardLayoutBody` and `fetchSelfV3State` below, so they are easy to adjust):
@@ -38,7 +38,7 @@ import type {
   SelfV2Quality,
   SelfV2Refresh,
   SelfV2Response,
-} from './selfV2Api';
+} from './boardTypes';
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Copied from the server's src/reading/self/v3/types.ts. Keep identical.

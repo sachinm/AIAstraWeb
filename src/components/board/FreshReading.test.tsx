@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { freshnessState } from './FreshReading';
 import { clockCounts, costLine } from './ClockSheet';
 import { V2_WORDS } from './words';
-import type { PlanStatus } from '../../../lib/billing';
+import type { PlanStatus } from '../../lib/billing';
 
 const good = { madeAt: '2026-11-18T08:00:00Z', validUntil: '2026-12-05', due: false };
 

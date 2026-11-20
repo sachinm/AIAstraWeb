@@ -3,7 +3,7 @@
  * lines for a card that is not ready (server docs/reading-engine/68 §4.4, doc 75).
  */
 import { useState } from 'react';
-import type { LadderSteps, PersonalPattern } from '../../../lib/selfV2Api';
+import type { LadderSteps, PersonalPattern } from '../../../lib/boardTypes';
 import { cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
 import { CONFIRM_ANSWERS, V3_WORDS } from './words';
 import { useBoardId } from './boardContext';

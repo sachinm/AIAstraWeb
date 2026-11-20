@@ -5,9 +5,10 @@
  * A 400 is shown in the sheet; a 202 hands the plan status back to the page and closes the sheet.
  */
 import { useEffect, useState } from 'react';
-import { track } from '../../../lib/events';
-import type { PlanStatus } from '../../../lib/billing';
-import { changeSelfV2Clock, type ClockChangeResult, type SelfV2Clock } from '../../../lib/selfV2Api';
+import { track } from '../../lib/events';
+import type { PlanStatus } from '../../lib/billing';
+import { changeSelfV2Clock } from '../../lib/selfClockApi';
+import type { ClockChangeResult, SelfV2Clock } from '../../lib/boardTypes';
 import Sheet from './Sheet';
 import { V2_WORDS } from './words';
 

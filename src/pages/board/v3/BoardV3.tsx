@@ -67,17 +67,21 @@ import {
   type SelfV3Response,
   type SelfV3State,
 } from '../../../lib/selfV3Api';
-import { ChartDetails, cardShell } from '../../you/v2/AreaCard';
+import { ChartDetails, cardShell } from '../../../components/board/ChartDetails';
 import { useLoadCardPhotos } from '../../../components/boardCards/cardPhotos';
 import { getUserId } from '../../../lib/graphql';
 import { getActiveCard, getSelfV3Cached, readSelfV3Persisted, setActiveCard, setSelfV3Cached, writeSelfV3Persisted } from '../../../lib/selfV3Cache';
-import ClockSheet from '../../you/v2/ClockSheet';
-import { BuildStatus, FreshControl, FreshSheet } from '../../you/v2/FreshReading';
+import ClockSheet from '../../../components/board/ClockSheet';
+import { BuildStatus, FreshControl, FreshSheet } from '../../../components/board/FreshReading';
 import { refreshBoard } from '../../../lib/boardRefresh';
-import type { SelfV2BuildView } from '../../../lib/selfV2Api';
-import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, useBoardMode, veilProgress, type BoardMode } from '../../you/v2/SelfBoardV2';
-import Sheet from '../../you/v2/Sheet';
-import { BUILD_STAGE_WORDS, V2_WORDS } from '../../you/v2/words';
+import type { SelfV2BuildView } from '../../../lib/boardTypes';
+import SelfBoardV2 from '../../you/v2/SelfBoardV2';
+import PersonalizeModal from '../../../components/board/PersonalizeModal';
+import { SelfTitle } from '../../../components/board/SelfTitle';
+import { V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, veilProgress } from '../../../components/board/buildState';
+import { useBoardMode, type BoardMode } from '../../../components/board/boardMode';
+import Sheet from '../../../components/board/Sheet';
+import { BUILD_STAGE_WORDS, V2_WORDS } from '../../../components/board/words';
 import CardChips from '../../you/v3/CardChips';
 import { cardDetails } from '../../you/v3/CardViews';
 import { StoryProse, SystemsRead, hasLongReading, storyParagraphs, systemsRead, withoutSpanIds } from '../../you/v3/AstrologyView';
