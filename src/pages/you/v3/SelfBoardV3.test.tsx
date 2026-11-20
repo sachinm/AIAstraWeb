@@ -446,6 +446,46 @@ describe('Self board v3: the board', () => {
   });
 });
 
+describe('Self board v3: served board fields (servedFieldsRendered, board)', () => {
+  it('`reading.deeperReadingReady`: one calm note; its Refresh opens the consent sheet; closing it holds for the session', async () => {
+    withBoard((b) => {
+      b.reading = { enabled: true, stage: 'done', clocks: [], done: 8, total: 8, capReached: false, preparing: false, deeperReadingReady: true };
+    });
+    const r = render(<SelfBoardV3 />);
+    const note = await screen.findByTestId('deeper-ready');
+    expect(note).toHaveTextContent('A deeper reading is ready. Refresh uses 1 of your questions.');
+    fireEvent.click(within(note).getByTestId('deeper-refresh'));
+    expect(await screen.findByTestId('fresh-sheet')).toBeInTheDocument();
+    // the note never refreshes by itself: only the sheet's confirm posts
+    expect(calls.some((c) => c.method === 'POST' && c.url.includes('refresh'))).toBe(false);
+    fireEvent.click(screen.getByTestId('fresh-not-now'));
+    fireEvent.click(screen.getByTestId('deeper-hide'));
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+    r.unmount();
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+  });
+
+  it('no note without the flag', async () => {
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+  });
+
+  it('a phone: the note is in the reading sheet and the reading button carries its dot', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
+    withBoard((b) => {
+      b.reading = { enabled: true, stage: 'done', clocks: [], done: 8, total: 8, capReached: false, preparing: false, deeperReadingReady: true };
+    });
+    render(<SelfBoardV3 />);
+    expect(await screen.findByTestId('self-phone-reading-dot')).toBeInTheDocument();
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+    fireEvent.click(screen.getByTestId('self-phone-reading'));
+    expect(within(await screen.findByTestId('self-reading-sheet')).getByTestId('deeper-ready')).toBeInTheDocument();
+  });
+});
+
 describe('Self board v3: the v2 fallback', () => {
   it('a 404 without a body shows the v2 board unchanged', async () => {
     srv.v3Status = 404;

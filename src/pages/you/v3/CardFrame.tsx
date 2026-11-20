@@ -2,7 +2,7 @@
  * One Self v3 card (doc 75, "The foundation card"; server docs/dashboards/12). From the top: the header art carrying the
  * card's name and one line saying what it answers, with the chat bubble and "i" for Why at its right; three wide bars,
  * Read · Analysis · Calendar; the named period chips (Read and Analysis); the stale-dates note when the server flags
- * one; on Read the headline; then the body, the card's one vertical scroll (`overscroll-behavior: contain`); "Is this
+ * one; "Good until <date>" when the server sends how long the reading holds; on Read the headline; then the body, the card's one vertical scroll (`overscroll-behavior: contain`); "Is this
  * right?"; and at the foot, always, the card's chat input.
  *
  * A card the person's plan does not cover shows a lock and "Part of Plus", never its content. Nothing here calls the
@@ -148,6 +148,7 @@ export default function CardFrame({
   const headline = headlineOf(card, period, voice);
   const notReady = lockedPlan ? null : notReadyBody(card, veil, reading);
   const panelId = `card-body-${card.id}`;
+  const goodUntil = /^\d{4}-\d{2}-\d{2}/.test(card.v3?.goodUntil ?? '') ? card.v3!.goodUntil!.slice(0, 10) : null;
   const ready = !lockedPlan && !notReady;
   const chatting = ready && !!chatFace?.open;
   // a card that stops being readable (a new build, a lock) leaves its conversation; the board keeps it
@@ -263,6 +264,12 @@ export default function CardFrame({
         </p>
       ) : null}
       {!chatting && card.status === 'stale' ? <p className="shrink-0 text-center text-[13px] text-white/55" data-testid="card-stale">{V2_WORDS.cardStale}</p> : null}
+      {/* how long this reading holds (docs/techniques/09 §3.2): small, beside the card's other freshness lines */}
+      {!chatting && goodUntil ? (
+        <p className="shrink-0 text-right text-[12px] leading-4 text-white/50" data-testid="card-good-until">
+          {V3_WORDS.goodUntil(dayWords(goodUntil))}
+        </p>
+      ) : null}
       {!chatting && shownView === 'read' ? (
         <p key={`h-${view.selected ?? -1}`} className={`self-v3-fade shrink-0 text-center font-bold leading-snug text-white ${compact ? 'text-lg' : 'text-[22px] sm:text-2xl'}`} data-testid="card-line">
           {headline}

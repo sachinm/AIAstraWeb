@@ -266,10 +266,26 @@ export interface SelfV3CardContent {
    * lines, no headings. The Astrology Reading tab and the "i" sheet show it. Absent until the server writes it.
    */
   story?: string | null;
-  /** the Personalizer's plain story, shown on Outlook under the headline; absent until the server writes it */
-  plain?: { story?: string | null } | null;
-  /** the systems the story read, each with what is running ("AdAstra AI read" under the story) */
-  systems?: Array<{ name: string; running: string }> | null;
+  /**
+   * The Personalizer's plain story, shown on Outlook under the headline; absent until the server writes it. `pending`
+   * while the Personalizer is being run again (server docs/techniques/09 §3.3): the page says the plain reading is being
+   * written.
+   */
+  plain?: { story?: string | null; pending?: boolean } | null;
+  /** the systems the story read, each with the period running today ("AdAstra AI read" under the story) */
+  systems?: CardSystemView[] | null;
+  /** docs/techniques/09 §3.2: the reading holds until this day (YYYY-MM-DD) unless the person refreshes; null when unknown */
+  goodUntil?: IsoDate | null;
+}
+
+/** one system a card's story read, as the server sends it (plain names, never an engine's) */
+export interface CardSystemView {
+  /** the internal key; never shown */
+  system: string;
+  /** the plain name shown ("Life chapters") */
+  label: string;
+  /** the period running today on this system (lord or sign, and its dates); null when none is stored */
+  running: { lord: string; from: IsoDate; to: IsoDate | null } | null;
 }
 
 /** the chart-language text of a card, as served (text only, never evidence keys) */
@@ -530,6 +546,11 @@ export interface BoardReadingView {
   capReached: boolean;
   /** fewer clocks stored than READING_CLOCKS_MIN: "Your chart is still being prepared" */
   preparing: boolean;
+  /**
+   * docs/techniques/09 §6: a card on this board was read before the full-thread reading; a refresh (charged) reads it
+   * again. Absent from older servers.
+   */
+  deeperReadingReady?: boolean;
 }
 
 /** POST /api/self/v3/cards/:id/read */

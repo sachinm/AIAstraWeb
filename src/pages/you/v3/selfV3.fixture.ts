@@ -342,6 +342,18 @@ export const STORY_TEXT = [
 /** the Personalizer's plain story: what Outlook shows under the headline */
 export const PLAIN_STORY = 'You are rebuilding, not running down. This stretch asks for a slower rhythm, and gives back a steadier body for it.';
 export const GROWTH_LINE = 'It teaches you to keep a pace you can hold.';
+/** how long the story card's reading holds (server `v3.goodUntil`) */
+export const GOOD_UNTIL = '2027-12-27';
+/**
+ * The systems the story read, in the server's shape (server src/reading/self/v3/types.ts `CardSystemView`): the internal
+ * key, the plain label and what runs today. The last one has no end date stored; a fourth has nothing running.
+ */
+export const STORY_SYSTEMS: NonNullable<NonNullable<SelfV3CardView['v3']>['systems']> = [
+  { system: 'vimshottari', label: 'Life chapters', running: { lord: 'Saturn', from: '2008-12-27', to: '2027-12-27' } },
+  { system: 'narayana', label: 'Sign periods', running: { lord: 'Virgo', from: '2026-01-10', to: '2027-01-10' } },
+  { system: 'tp_year', label: 'Birthday year', running: { lord: 'Saturn', from: '2026-08-01', to: null } },
+  { system: 'yogini', label: 'Short chapters', running: null },
+];
 
 /**
  * The Outlook card with every reading field the server serves or will serve: the technical story, the plain story,
@@ -355,12 +367,9 @@ export function selfV3StoryCard(): SelfV3CardView {
     v3: {
       ...c.v3!,
       story: STORY_TEXT,
-      plain: { story: PLAIN_STORY },
-      systems: [
-        { name: 'Life chapters', running: 'Saturn · Moon, until 27 Dec 2027' },
-        { name: 'Sign periods', running: 'Virgo, until 10 Jan 2027' },
-        { name: 'Birthday year', running: 'Saturn year, until 1 Aug 2027' },
-      ],
+      plain: { story: PLAIN_STORY, pending: false },
+      systems: STORY_SYSTEMS,
+      goodUntil: GOOD_UNTIL,
       spans: c.v3!.spans.map((x) => ({ ...x, growth: GROWTH_LINE })),
     },
   };

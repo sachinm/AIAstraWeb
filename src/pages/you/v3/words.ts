@@ -84,6 +84,13 @@ export const V3_WORDS = {
   // tablet and desktop (server docs/dashboards/13): the Edit button opens the card chooser, and the gear's cards across
   cards: 'Cards',
   cardsAcross: 'Cards across',
+  // docs/techniques/09 §6: a card was read before the full-thread reading; a refresh (charged) reads it again
+  deeperReady: 'A deeper reading is ready.',
+  deeperRefresh: 'Refresh',
+  deeperCost: 'uses 1 of your questions.',
+  deeperHide: 'Hide this note',
+  /** a card's reading holds until this day (docs/techniques/09 §3.2) */
+  goodUntil: (date: string) => `Good until ${date}`,
 } as const;
 
 /** the gear's "Cards across" (tablet and desktop, docs/dashboards/13 §4.3): Auto follows the deck's width */
@@ -113,6 +120,10 @@ export const OUTLOOK_WORDS = {
   /** the Astrology Reading tab before the server writes the card's story (plan revision 2 §6) */
   storyPending: 'The full astrology reading is being prepared for this card.',
   systemsRead: 'AdAstra AI read',
+  /** what a system has running: "until 27 Dec 2027" */
+  until: (date: string) => `until ${date}`,
+  /** the plain story is being written again (server `plain.pending`) */
+  plainPending: 'The plain reading is being written.',
   /** the Outlook tab's section toolbar */
   toolbar: 'Sections of this card',
   whyAndTodo: 'Why we think so, What to do',

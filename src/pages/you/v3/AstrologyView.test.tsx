@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import AstrologyView, { certaintyWord, chartShows, storyParagraphs, withoutSpanIds } from './AstrologyView';
+import AstrologyView, { certaintyWord, chartShows, storyParagraphs, systemRunning, withoutSpanIds } from './AstrologyView';
 import { periodsOf } from './cardModel';
 import { selfV3Fixture, selfV3OutlookCard, selfV3StoryCard } from './selfV3.fixture';
 
@@ -22,8 +22,13 @@ describe('Astrology Reading (plan revision 2 §6)', () => {
     expect(story).toHaveTextContent('Saturn runs the main period on the life-chapters clock');
     const systems = screen.getByTestId('astrology-systems');
     expect(systems).toHaveTextContent('AdAstra AI read');
-    expect(within(systems).getAllByTestId('astrology-system')).toHaveLength(3);
-    expect(systems).toHaveTextContent('Saturn · Moon, until 27 Dec 2027');
+    // the server shape: four systems, the label shown, the internal key never; what runs today with its end date
+    const rows = within(systems).getAllByTestId('astrology-system');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent(/^Life chapters\s*· Saturn · until 27 Dec 2027$/);
+    expect(rows[2]).toHaveTextContent(/^Birthday year\s*· Saturn$/);
+    expect(rows[3]).toHaveTextContent(/^Short chapters$/);
+    expect(systems).not.toHaveTextContent('vimshottari');
     expect(screen.queryByTestId('astrology-empty')).toBeNull();
     expect(screen.getByTestId('astrology-details')).toBeInTheDocument();
   });
@@ -43,6 +48,17 @@ describe('Astrology Reading (plan revision 2 §6)', () => {
     const stuck = selfV3Fixture().cards.find((c) => c.id === 'stuck')!;
     render(<AstrologyView card={stuck} showDetails={false} />);
     expect(screen.queryByTestId('astrology-details')).toBeNull();
+  });
+});
+
+describe('AdAstra AI read', () => {
+  it('skips a system with no label and says "until" only with an end date', () => {
+    expect(systemRunning({ running: { lord: 'Saturn', from: '2008-12-27', to: '2027-12-27' } })).toBe('Saturn · until 27 Dec 2027');
+    expect(systemRunning({ running: { lord: 'Virgo', from: '2026-01-10', to: null } })).toBe('Virgo');
+    expect(systemRunning({ running: null })).toBe('');
+    const c = selfV3StoryCard();
+    render(<AstrologyView card={{ ...c, v3: { ...c.v3!, systems: [{ system: 'x', label: '  ', running: null }] } }} />);
+    expect(screen.queryByTestId('astrology-systems')).toBeNull();
   });
 });
 

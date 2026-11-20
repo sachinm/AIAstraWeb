@@ -37,7 +37,7 @@ import { BoardIdContext } from '../../you/v3/boardContext';
 import { LensTabs, type LensOption } from './LensSwitcher';
 import { usePlan } from '../../../Auth/ProfileGate';
 import { plainLabel } from '../../../lib/plainLabel';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, X } from 'lucide-react';
 import BoardHeaderSlot from '../../../components/BoardHeaderSlot';
 import Carousel from '../../../components/carousel/Carousel';
 import TitleStrip, { ProgressTicks } from '../../../components/carousel/TitleStrip';
@@ -836,13 +836,56 @@ function Board({
       compact={mode === 'phone' || mode === 'duo'}
     />
   );
+  // docs/techniques/09 §6: a card on this board was read before the full-thread reading. One calm note beside the
+  // freshness chip; its "Refresh" opens the same consent sheet as the chip (it never refreshes by itself). Hidden for the
+  // rest of the session once the person closes it.
+  const deeperKey = `aiastra.deeper.hidden.${boardId}`;
+  const [deeperHidden, setDeeperHidden] = useState(() => {
+    try {
+      return sessionStorage.getItem(deeperKey) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const hideDeeper = () => {
+    setDeeperHidden(true);
+    try {
+      sessionStorage.setItem(deeperKey, '1');
+    } catch {
+      /* private window: hidden for this page only */
+    }
+  };
+  const deeperOn = !!board.reading?.deeperReadingReady && !deeperHidden && !freshBuilding && !lensBusy && !(!layout.chosen || pickerOpen);
+  const deeperNotice = deeperOn ? (
+    <p role="status" className={`flex min-w-0 items-center gap-1.5 text-[13px] text-teal-100/85 ${mode === 'phone' ? 'flex-wrap' : ''}`} title={`${V3_WORDS.deeperReady} ${V3_WORDS.deeperRefresh} ${V3_WORDS.deeperCost}`} data-testid="deeper-ready">
+      <span className={mode === 'phone' ? '' : 'truncate'}>
+        {V3_WORDS.deeperReady}{' '}
+        <button
+          type="button"
+          onClick={() => {
+            track('chip_select', SURFACE, 'deeper_refresh');
+            setReadingOpen(false);
+            setFreshOpen(true);
+          }}
+          className="font-semibold text-teal-200 underline underline-offset-4 hover:text-teal-100"
+          data-testid="deeper-refresh"
+        >
+          {V3_WORDS.deeperRefresh}
+        </button>{' '}
+        {V3_WORDS.deeperCost}
+      </span>
+      <button type="button" onClick={hideDeeper} aria-label={V3_WORDS.deeperHide} title={V3_WORDS.deeperHide} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white/55 hover:bg-white/10 hover:text-white" data-testid="deeper-hide">
+        <X className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </p>
+  ) : null;
   // one state in the header: a served reading is not contradicted by a failed background build, and the build's stage
   // is not said twice when the reading line already names it
   const served = board.status === 'ok' && !!refresh?.madeAt && !shown.some((c) => c.status === 'pending');
   const buildStatus = freshFailed || deckLine?.fromBuild ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} served={served} />;
   // a phone (server docs/dashboards/09): the board's title and controls live in the app header; the reading details
   // (clock, status, fresh reading, build, Edit, template) open in one sheet, so the main area holds only the cards
-  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || lensBusy || firstReadable;
+  const readingNeedsLook = Boolean(refresh?.due) || deeperOn || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || lensBusy || firstReadable;
 
   const showPicker = !layout.chosen || pickerOpen;
   const lastTemplate = useRef(template);
@@ -1011,6 +1054,7 @@ function Board({
         {!showPicker && readingStatus}
         {!veiled && lateLine}
         {freshControl}
+        {deeperNotice}
         {buildStatus}
         <div className="flex flex-wrap items-center gap-2">
           {editButton && <span onClickCapture={() => setReadingOpen(false)}>{editButton}</span>}
@@ -1188,6 +1232,7 @@ function Board({
             {clockLine}
             {!showPicker && readingStatus}
             {!veiled && lateLine}
+            {deeperNotice}
           </div>
           {freshControl}
           {buildStatus}

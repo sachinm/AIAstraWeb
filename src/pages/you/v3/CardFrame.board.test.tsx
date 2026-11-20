@@ -4,6 +4,8 @@ import SeasonsCard from './SeasonsCard';
 import CompactCard from './CompactCard';
 import { cardNow } from './boardOptions';
 import { GROWTH_LINE, PLAIN_STORY, STORY_TEXT, selfV3Fixture, selfV3OutlookCard, selfV3StoryCard } from './selfV3.fixture';
+import { systemRunning } from './AstrologyView';
+import { dayWords } from './cardModel';
 import type { OutlookSection } from './OutlookView';
 import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
@@ -155,7 +157,9 @@ describe('the board card (tablet and desktop, server docs/dashboards/13)', () =>
       ['ladder best', v3.ladder?.best],
       ['ladder floor', v3.ladder?.floor],
       ...(card.keyDates ?? []).map((k) => [`key date ${k.date}`, k.label] as [string, string]),
-      ...(v3.systems ?? []).map((x) => [`system ${x.name}`, x.name] as [string, string]),
+      ...(v3.systems ?? []).map((x) => [`system ${x.system}`, x.label] as [string, string]),
+      ...(v3.systems ?? []).map((x) => [`system ${x.system} running`, systemRunning(x)] as [string, string]),
+      ['goodUntil', v3.goodUntil ? `Good until ${dayWords(v3.goodUntil)}` : null],
       ...v3.spans.flatMap((x) => (x.clocks ?? []).map((c) => [`clock ${c.label}`, c.label] as [string, string])),
       ['v2 details headline', details?.headline],
       ...(details?.paragraphs ?? []).map((t, i) => [`v2 details ${i}`, t] as [string, string]),
@@ -163,6 +167,34 @@ describe('the board card (tablet and desktop, server docs/dashboards/13)', () =>
     const missing = texts.filter(([, t]) => !!t?.trim() && !all.includes(t.replace(/\s+/g, ' ').trim())).map(([k]) => k);
     expect(missing).toEqual([]);
     expect(texts.length).toBeGreaterThan(12);
+    // the server shapes are what is checked: three systems with a period running, one end date, one without
+    expect(v3.systems).toHaveLength(4);
+    expect(all).toContain('Saturn · until 27 Dec 2027');
+    expect(all).toContain('Good until 27 Dec 2027');
+    // the internal system keys never reach the screen
+    for (const x of v3.systems ?? []) expect(all).not.toContain(x.system);
+  });
+
+  it('servedFieldsRendered: `plain.pending` says the plain reading is being written', () => {
+    const c = selfV3StoryCard();
+    mount({ ...c, v3: { ...c.v3!, plain: { story: null, pending: true } } });
+    expect(screen.getByTestId('plain-pending')).toHaveTextContent('The plain reading is being written.');
+    expect(screen.queryByTestId('outlook-plain-story')).toBeNull();
+  });
+
+  it('servedFieldsRendered: a served plain story wins over `pending`', () => {
+    const c = selfV3StoryCard();
+    mount({ ...c, v3: { ...c.v3!, plain: { story: PLAIN_STORY, pending: true } } });
+    expect(screen.getByTestId('outlook-plain-story')).toHaveTextContent(PLAIN_STORY);
+    expect(screen.queryByTestId('plain-pending')).toBeNull();
+  });
+
+  it('servedFieldsRendered: `goodUntil` is a small line in the card; none without it', () => {
+    mount(selfV3StoryCard());
+    expect(screen.getByTestId('card-good-until')).toHaveTextContent('Good until 27 Dec 2027');
+    cleanup();
+    mount(selfV3OutlookCard());
+    expect(screen.queryByTestId('card-good-until')).toBeNull();
   });
 
   it('a v2-filled card shows its long reading on the Astrology tab, under the waiting line', () => {
@@ -213,6 +245,18 @@ describe('the pinned "Is this right?"', () => {
   it('is off when the feature is off', () => {
     mount(selfV3OutlookCard(), { allowed: { short: true, periods: true, keyDates: true, why: true, confirm: false } });
     expect(screen.queryByTestId('card-footer')).toBeNull();
+  });
+});
+
+describe('the phone card shows the served reading fields too', () => {
+  it('Read leads with the plain story, or its "being written" line; "Good until" sits in the card', () => {
+    const c = selfV3StoryCard();
+    render(<CompactCard card={c} options={cardNow(fx.layout, 'body')} onOptions={() => {}} onWhy={() => {}} />);
+    expect(screen.getByTestId('outlook-plain-story')).toHaveTextContent(PLAIN_STORY);
+    expect(screen.getByTestId('card-good-until')).toHaveTextContent('Good until 27 Dec 2027');
+    cleanup();
+    render(<CompactCard card={{ ...c, v3: { ...c.v3!, plain: { story: null, pending: true } } }} options={cardNow(fx.layout, 'body')} onOptions={() => {}} onWhy={() => {}} />);
+    expect(screen.getByTestId('plain-pending')).toBeInTheDocument();
   });
 });
 
