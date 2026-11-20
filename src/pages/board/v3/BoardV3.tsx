@@ -916,8 +916,8 @@ function Board({
   };
   const deeperOn = !!board.reading?.deeperReadingReady && !deeperHidden && !freshBuilding && !lensBusy && !(!layout.chosen || pickerOpen);
   const deeperNotice = deeperOn ? (
-    <p role="status" className={`flex min-w-0 items-center gap-1.5 text-[13px] text-teal-100/85 ${mode === 'phone' ? 'flex-wrap' : ''}`} title={`${V3_WORDS.deeperReady} ${V3_WORDS.deeperRefresh} ${V3_WORDS.deeperCost}`} data-testid="deeper-ready">
-      <span className={mode === 'phone' ? '' : 'truncate'}>
+    <p role="status" className="flex min-w-0 items-start gap-1.5 text-[13px] leading-[18px] text-teal-100/85" data-testid="deeper-ready">
+      <span className="min-w-0">
         {V3_WORDS.deeperReady}{' '}
         <button
           type="button"
@@ -1288,7 +1288,9 @@ function Board({
               <LensTabs lenses={lenses} active={pickLens ?? lens} onPick={pickLensNow} label={lensLabel} />
             </>
           )}
-          <div className="min-w-0">
+          {/* capped, so a long header line or the deeper-reading note truncates or wraps here instead of squeezing the
+              chips that share this row from 1280 px */}
+          <div className="min-w-0 max-w-[20rem] 2xl:max-w-[28rem]" data-testid="self-head-text">
             {heroLineEl(false)}
             {clockLine}
             {!showPicker && readingStatus}

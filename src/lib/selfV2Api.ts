@@ -4,14 +4,12 @@
  * status. The card types are copied from the server's `src/reading/self/v2types.ts` and must stay identical to it.
  *
  * GET /api/self/v2            -> SelfV2Response (`status` ok | pending | preparing | no_kundli)
- * PUT /api/self/v2/clock      -> 202 { usage, status: 'building', alsoChanges } | 400 { error }
+ * (PUT /api/self/v2/clock, which the v3 Self header keeps, is in selfClockApi.ts)
  * POST /api/self/v2/confirm   -> 204
  * POST /api/self/v2/mood      -> 204
  */
 import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
-// the clock switch the v3 Self header keeps (PUT /api/self/v2/clock) lives in selfClockApi.ts
-export { changeSelfV2Clock } from './selfClockApi';
 import type { Mood, SelfConfirmAnswer, SelfV2Response } from './boardTypes';
 
 // The shared board types live in boardTypes.ts (moved there unchanged); they are re-exported for the v2 board.
