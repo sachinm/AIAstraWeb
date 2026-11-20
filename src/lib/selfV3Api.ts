@@ -268,7 +268,7 @@ export interface SelfV3CardContent {
   story?: string | null;
   /** the Personalizer's plain story, shown on Outlook under the headline; absent until the server writes it */
   plain?: { story?: string | null } | null;
-  /** the systems the story read, each with what is running ("Systems read" under the story) */
+  /** the systems the story read, each with what is running ("AdAstra AI read" under the story) */
   systems?: Array<{ name: string; running: string }> | null;
 }
 

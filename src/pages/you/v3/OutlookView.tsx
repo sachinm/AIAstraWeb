@@ -4,7 +4,7 @@
  * row of icon buttons that picks one short section at a time:
  *
  *   Why we think so, What to do (the default: Why, Do and Avoid, what the stretch builds in you, the stretch's own text
- *   and the pattern line) · Key dates (a thin start-to-end bar marking today) · How the systems read it (the count, the
+ *   and the pattern line) · Key dates (a thin start-to-end bar marking today) · How AdAstra AI read it (the count, the
  *   agreeing and testing clocks) · The ladder · The gift and the knot (with how sure, and what the chart shows for the
  *   stretch)
  *
@@ -56,7 +56,7 @@ export const OUTLOOK_SECTIONS: ReadonlyArray<{ id: OutlookSection; title: string
 
 /**
  * The plain Why: the card's own sentence when the server wrote one, else a line from the counts it served ("5 of 7
- * timing systems read this stretch as mixed"); null when there is neither. A split stretch carries no tone word.
+ * timing views AdAstra AI reads this stretch as mixed"); null when there is neither. A split stretch carries no tone word.
  */
 export function whyLine(card: SelfV3CardView, period: PeriodView | null): string | null {
   const own = card.v3?.why?.trim();

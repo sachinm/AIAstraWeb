@@ -34,7 +34,7 @@ export const VIEW_WORDS = {
   outlook: 'Outlook',
   astrology: 'Astrology Reading',
   why: 'Why we think so',
-  systems: 'How the systems read it',
+  systems: 'How AdAstra AI read it',
   agree: (n: number, of: number) => `${n} of ${of} agree`,
   agreeing: 'Agreeing',
   testing: 'Testing it',

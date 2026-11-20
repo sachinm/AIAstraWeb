@@ -106,7 +106,7 @@ describe('the board card (tablet and desktop, server docs/dashboards/13)', () =>
 
   it('uses the counted Why line when the card has no Why sentence', () => {
     mount(selfV3OutlookCard({ withWhy: false }));
-    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('4 of 5 timing systems read this stretch as heavy');
+    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('On 4 of 5 timing views, AdAstra AI reads this stretch as heavy');
   });
 
   it('renders when the server sends neither `chart` nor `why`', () => {

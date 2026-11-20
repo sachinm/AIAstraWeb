@@ -93,15 +93,15 @@ export const ACROSS_WORD: Record<AcrossChoice, string> = { auto: 'Auto', '1': '1
 
 /**
  * Outlook and Astrology Reading (server docs/dashboards/13 §4.3, §4.4). Outlook speaks plainly: no chart term. The
- * counted Why line says how many timing systems read the stretch one way, from counts the server sent.
+ * counted Why line says how many timing views AdAstra AI read the stretch one way, from counts the server sent.
  */
 export const OUTLOOK_WORDS = {
   why: 'Why we think so',
   seeAstrology: 'See the astrology reading',
-  /** "5 of 7 timing systems read this stretch as mixed" */
-  countedTone: (n: number, of: number, tone: string, own: boolean) => `${n} of ${of} timing systems read ${own ? 'this stretch' : 'this reading'} as ${tone}`,
+  /** "On 5 of 7 timing views, AdAstra AI reads this stretch as mixed" */
+  countedTone: (n: number, of: number, tone: string, own: boolean) => `On ${n} of ${of} timing views, AdAstra AI reads ${own ? 'this stretch' : 'this reading'} as ${tone}`,
   /** a split stretch shows no tone word (doc 68 §4.7) */
-  countedSplit: (n: number, of: number, own: boolean) => `${n} of ${of} timing systems agree on ${own ? 'this stretch' : 'this reading'}`,
+  countedSplit: (n: number, of: number, own: boolean) => `On ${n} of ${of} timing views, AdAstra AI finds ${own ? 'this stretch' : 'this reading'} split`,
   stretchBar: 'The stretch, start to end',
   today: 'Today',
   gift: 'The gift',
@@ -112,7 +112,7 @@ export const OUTLOOK_WORDS = {
   nothing: 'Nothing more to show for this card yet.',
   /** the Astrology Reading tab before the server writes the card's story (plan revision 2 §6) */
   storyPending: 'The full astrology reading is being prepared for this card.',
-  systemsRead: 'Systems read',
+  systemsRead: 'AdAstra AI read',
   /** the Outlook tab's section toolbar */
   toolbar: 'Sections of this card',
   whyAndTodo: 'Why we think so, What to do',

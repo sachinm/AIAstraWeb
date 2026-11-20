@@ -110,12 +110,12 @@ describe('Outlook, in the plan\'s order', () => {
 
   it('without a Why sentence, counts the timing systems for the stretch on screen', () => {
     mount(selfV3OutlookCard({ withWhy: false }));
-    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('4 of 5 timing systems read this stretch as heavy');
+    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('On 4 of 5 timing views, AdAstra AI reads this stretch as heavy');
   });
 
   it('a split stretch gets no tone word in its counted line', () => {
     mount(selfV3OutlookCard({ withWhy: false }), 1);
-    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('2 of 5 timing systems agree on this stretch');
+    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('On 2 of 5 timing views, AdAstra AI finds this stretch split');
     expect(screen.getByTestId('outlook-why-line')).not.toHaveTextContent(/mixed|heavy|light/);
   });
 

@@ -21,7 +21,7 @@ describe('Astrology Reading (plan revision 2 §6)', () => {
     expect(story.className).toMatch(/max-w-\[72ch\]/);
     expect(story).toHaveTextContent('Saturn runs the main period on the life-chapters clock');
     const systems = screen.getByTestId('astrology-systems');
-    expect(systems).toHaveTextContent('Systems read');
+    expect(systems).toHaveTextContent('AdAstra AI read');
     expect(within(systems).getAllByTestId('astrology-system')).toHaveLength(3);
     expect(systems).toHaveTextContent('Saturn · Moon, until 27 Dec 2027');
     expect(screen.queryByTestId('astrology-empty')).toBeNull();
