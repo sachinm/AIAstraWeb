@@ -331,3 +331,37 @@ export function selfV3OutlookCard(opts: { withWhy?: boolean; withChart?: boolean
     },
   } as SelfV3CardView;
 }
+
+/** the Oracle's technical story (plan revision 2 §6): continuous paragraphs, no headings; test and screenshot data only */
+export const STORY_TEXT = [
+  'From the rising sign, the sixth house and its lord carry the body here; the lord is a friend to the rising sign, so effort turns into stamina once it is paced.',
+  'Saturn runs the main period on the life-chapters clock until 27 Dec 2027, with the Moon under it; the sign periods are quieter, and the birthday year asks for habits.',
+  'Saturn crosses the rising degree in early December 2026. The signs lean toward a slow, steady rebuild; a month of early nights would settle it.',
+].join('\n\n');
+
+/** the Personalizer's plain story: what Outlook shows under the headline */
+export const PLAIN_STORY = 'You are rebuilding, not running down. This stretch asks for a slower rhythm, and gives back a steadier body for it.';
+export const GROWTH_LINE = 'It teaches you to keep a pace you can hold.';
+
+/**
+ * The Outlook card with every reading field the server serves or will serve: the technical story, the plain story,
+ * the systems read and a growth line on each stretch, on top of the Outlook card's why, chart lines, ladder, key dates,
+ * agreement counts and its v2 long reading.
+ */
+export function selfV3StoryCard(): SelfV3CardView {
+  const c = selfV3OutlookCard();
+  return {
+    ...c,
+    v3: {
+      ...c.v3!,
+      story: STORY_TEXT,
+      plain: { story: PLAIN_STORY },
+      systems: [
+        { name: 'Life chapters', running: 'Saturn · Moon, until 27 Dec 2027' },
+        { name: 'Sign periods', running: 'Virgo, until 10 Jan 2027' },
+        { name: 'Birthday year', running: 'Saturn year, until 1 Aug 2027' },
+      ],
+      spans: c.v3!.spans.map((x) => ({ ...x, growth: GROWTH_LINE })),
+    },
+  };
+}

@@ -409,11 +409,7 @@ function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string
               ))}
             </ul>
           )}
-          {area && area.evidence.length > 0 && (
-            <p className="font-mono text-[11px] text-white/45" data-testid="self-area-evidence">
-              {area.evidence.join(' · ')}
-            </p>
-          )}
+          {/* evidence keys, claim ids, the technique id and timings are internal: never on a person's screen */}
           {adjusted.map((t, i) => (
             <p key={i} className="text-xs text-white/60" data-testid="self-panel-adjusted">
               Adjusted by a whole-chart check: {t}
@@ -423,17 +419,11 @@ function PanelView({ panel, today, adjusted }: { panel: SelfPanel; today: string
             <ul className="rounded-lg border border-white/10 bg-white/5 p-2 text-xs text-white/60" data-testid="self-panel-vetoed">
               {vetoed.map((v) => (
                 <li key={v.claimId}>
-                  <span className="line-through">{v.text}</span>{' '}
-                  <span className="font-mono text-[11px] text-white/45">
-                    {v.claimId} · {v.rule}
-                  </span>
+                  <span className="line-through">{v.text}</span>
                 </li>
               ))}
             </ul>
           )}
-          <p className="font-mono text-[11px] text-white/50" data-testid="self-panel-technique">
-            {panel.technique} · {panel.ms} ms · {panel.cached ? 'cached' : 'fresh'}
-          </p>
         </div>
       )}
     </section>
@@ -557,12 +547,12 @@ function LineView({ line, header, details }: { line: SelfLine; header: LineRange
   );
 }
 
-function ChartDetail({ detail, evidence, extra }: { detail: string; evidence: string[]; extra?: string }) {
+/** the line's chart words; its claim ids are internal and never shown */
+function ChartDetail({ detail, extra }: { detail: string; evidence?: string[]; extra?: string }) {
   return (
     <div className="mt-1 rounded-lg border border-white/10 bg-white/5 p-2 text-xs text-white/60" data-testid="self-chart-detail">
       {detail && <p>{detail}</p>}
       {extra && <p className="mt-1">{extra}</p>}
-      {evidence.length > 0 && <p className="mt-1 font-mono text-[11px] text-white/45">{evidence.join(' · ')}</p>}
     </div>
   );
 }

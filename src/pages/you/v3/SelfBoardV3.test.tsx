@@ -295,12 +295,16 @@ describe('Self board v3: the board', () => {
     expect(screen.getByTestId('self-v3-carousel')).toHaveAttribute('data-index', '2');
   });
 
-  // server docs/dashboards/13: on tablet and desktop the "i" button is gone; the reasons are the Astrology Reading tab
-  it('the chart\'s reasons are on the Astrology Reading tab; no "i" button on tablet or desktop', async () => {
+  // docs/techniques/09 §4.3: the "i" button is back on tablet and desktop and opens the full reading; Outlook's Full
+  // reading section carries it too; the Astrology Reading tab waits for the thread
+  it('tablet and desktop: "i" opens the full reading sheet; the Astrology tab waits for the story and keeps the long reading', async () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-stuck');
-    expect(within(c).queryByTestId('card-why')).toBeNull();
+    fireEvent.click(within(c).getByTestId('card-why'));
+    const sheet = await screen.findByTestId('details-sheet');
+    expect(sheet).toHaveTextContent("the chart's own reasons");
     fireEvent.click(within(c).getByTestId('card-view-astrology'));
+    expect(within(c).getByTestId('astrology-empty')).toBeInTheDocument();
     expect(within(c).getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");
   });
 

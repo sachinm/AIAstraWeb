@@ -14,8 +14,8 @@
  * The periods no longer change on a sideways swipe inside the card: on a phone that swipe moves between cards.
  *
  * `shape` (server docs/dashboards/13): `'phone'` (the default) is the card above, unchanged. `'board'` is the tablet and
- * desktop card: Outlook · Astrology Reading · Calendar, no "i" button (Why is inside the card and the reasoning is its own
- * tab), no 72-character cap (the card's own width lays it out), and "Is this right?" pinned between the view and the
+ * desktop card: Outlook · Astrology Reading · Calendar, the "i" button opening the full reading in a sheet (as on the
+ * phone), the Outlook sections behind a toolbar (the section picked kept per card while it is mounted), no 72-character cap (the card's own width lays it out), and "Is this right?" pinned between the view and the
  * chat input on Outlook.
  */
 import { useEffect, useState, type ReactNode } from 'react';
@@ -28,7 +28,7 @@ import CardFooter from './CardFooter';
 import { SensitiveNote, type CardReading } from './CardParts';
 import AstrologyView from './AstrologyView';
 import { AnalysisView, BOARD_VIEWS, CalendarView, CardViewBars, VIEW_WORDS, type CardViewId } from './CardViews';
-import OutlookView from './OutlookView';
+import OutlookView, { type OutlookSection } from './OutlookView';
 import RangeCalendar from './RangeCalendar';
 import { dayWords, headlineOf, keyDatesOf, todayIso, type PeriodView } from './cardModel';
 import FaceBody from './faces/FaceBody';
@@ -141,6 +141,8 @@ export default function CardFrame({
   // the three bars replace Read / Short (server docs/dashboards/12): a stored Short reads as Read, whose top it now is
   const boardShape = shape === 'board';
   const [shownView, setShownView] = useState<CardViewId>(boardShape ? 'outlook' : 'read');
+  // board shape: the Outlook section picked, kept for this card while it is on the board (never stored)
+  const [outlookSection, setOutlookSection] = useState<OutlookSection>('overview');
   const chips = allowed.periods ? view.chips : [];
   const period = allowed.periods ? view.period : (view.periods.find((p) => p.current && p.own) ?? null);
   const headline = headlineOf(card, period, voice);
@@ -180,7 +182,7 @@ export default function CardFrame({
         {ready && (
           <div className="flex shrink-0 items-center gap-1" data-testid="card-header-icons">
             {chat?.(card, period)}
-            {!boardShape && allowed.why && onWhy && (
+            {allowed.why && onWhy && (
               <button type="button" onClick={() => onWhy(card, period)} aria-label={`${V3_WORDS.why}: ${title}`} title={V3_WORDS.why} className={iconBtn} data-testid="card-why">
                 <Info className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -210,6 +212,8 @@ export default function CardFrame({
         showWhy={allowed.why}
         showDates={allowed.keyDates}
         onAstrology={() => pickView('astrology')}
+        section={outlookSection}
+        onSection={setOutlookSection}
       />
     ) : shownView === 'astrology' ? (
       <AstrologyView card={card} period={period} showDetails={allowed.why} />
