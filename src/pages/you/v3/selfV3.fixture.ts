@@ -1,6 +1,7 @@
 /**
- * A Self board v3 response for tests (server docs/reading-engine/68 §4). Eleven cards in registry order: eight filled
- * from the v2 build with rails from their dates, two filled by v3 with three spans each (Body & energy and How you
+ * A Self board v3 response for tests (server docs/reading-engine/68 §4). Eleven cards in registry order: seven read with
+ * a line, a story and their stored dates (`v2: null`, as the server sends them once v2 is retired; `{ v2: true }` gives
+ * the older shape, filled from the v2 build), two filled by v3 with three spans each (Body & energy and How you
  * think), one pending (Chapters) and one unavailable (How you come across). Eight are suggested, none of them the
  * unavailable one. Plain words on every card face; chart terms only under `details`.
  *
@@ -8,7 +9,7 @@
  * carry their clock agreement (the second span is split: no tone word). `selfV3Reading` turns the per-card reading on.
  */
 import type { PersonalCard } from '../../../lib/selfV2Api';
-import type { BoardReadingView, RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardView, SelfV3Response, SpanClockView, SpanReading } from '../../../lib/selfV3Api';
+import type { BoardReadingView, RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardContent, SelfV3CardView, SelfV3Response, SpanClockView, SpanReading } from '../../../lib/selfV3Api';
 import { DEFAULT_SECTIONS } from '../../../lib/selfV3Api';
 
 export const V3_CARDS: ReadonlyArray<{ id: SelfCardIdV2; group: SelfCardGroup; title: string; description: string; suggested: boolean; sensitive: boolean }> = [
@@ -31,7 +32,7 @@ function v2Card(id: SelfCardIdV2, title: string): PersonalCard {
   return {
     areaId: id,
     headline: `${title}: ideas outrun their footing until 12 Dec 2026.`,
-    body: ['The heaviest pull this stretch is on money and effort; it eases on 12 Dec.', 'Beneath it sits a standing pattern you will recognise.'],
+    body: [...V2_BODY],
     patterns: [
       { text: 'You speculate past the evidence.', kind: 'risk', since: null, until: '2028-02-16', source: `${id}.p1` },
       { text: 'You recover through structure.', kind: 'strength', since: null, until: null, source: `${id}.p2` },
@@ -52,9 +53,12 @@ function v2Card(id: SelfCardIdV2, title: string): PersonalCard {
   };
 }
 
-function v2Rail(): RailItem[] {
+/** the stored v2 body: on a v2-filled card it belongs to the current period; a card read without v2 carries it as that period's own text */
+const V2_BODY = ['The heaviest pull this stretch is on money and effort; it eases on 12 Dec.', 'Beneath it sits a standing pattern you will recognise.'];
+
+function v2Rail(currentText: string[] | null = null): RailItem[] {
   return [
-    { from: '2026-05-05', to: '2026-12-12', label: 'now → 12 Dec 2026', tone: null, note: 'Money and effort press', current: true, span: null },
+    { from: '2026-05-05', to: '2026-12-12', label: 'now → 12 Dec 2026', tone: null, note: 'Money and effort press', current: true, span: null, ...(currentText ? { text: currentText } : {}) },
     // the second period has words of its own and can be picked; the third has none, so it is not offered
     { from: '2026-12-12', to: '2027-06-03', label: '12 Dec → 3 Jun 2027', tone: null, note: 'The pull eases', current: false, span: null, text: ['The pull on money and effort eases once the heavy stretch ends.', 'Take the first free month to tidy what you postponed.'] },
     { from: '2027-06-03', to: '2027-10-04', label: '3 Jun → 4 Oct 2027', tone: null, note: 'A good stretch to build', current: false, span: null, text: null },
@@ -183,7 +187,26 @@ function details(title: string) {
   return { headline: `${title}: the chart's own reasons`, paragraphs: ['Two stored rows press on this part of the chart until 12 Dec 2026.'], evidence: ['row.k1'], certainty: 'strong' };
 }
 
-function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
+/**
+ * A card read without the v2 build (the server after v2 is retired): its line, pattern and ladder as v3 content, the
+ * technical story where the long reading was, and the body as the current period's own text. `v2` is null.
+ */
+function v3Only(id: SelfCardIdV2, title: string): SelfV3CardContent {
+  const v2 = v2Card(id, title);
+  return {
+    line: v2.headline,
+    spans: [],
+    confirm: null,
+    pattern: v2.patterns[0] ?? null,
+    ladder: v2.ladder,
+    agreement: null,
+    story: `${title}: the chart's own reasons.
+
+Two stored rows press on this part of the chart until 12 Dec 2026.`,
+  };
+}
+
+function card(def: (typeof V3_CARDS)[number], withV2: boolean): SelfV3CardView {
   const base: SelfV3CardView = {
     id: def.id,
     group: def.group,
@@ -197,9 +220,9 @@ function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
     state: 'ready',
     firstLine: `${def.title}: ideas outrun their footing until 12 Dec 2026.`,
     defaultSections: [...DEFAULT_SECTIONS],
-    rail: v2Rail(),
-    v3: null,
-    v2: { card: v2Card(def.id, def.title), rangeLabel: 'True until 12 Dec 2026', details: details(def.title) },
+    rail: withV2 ? v2Rail() : v2Rail(V2_BODY),
+    v3: withV2 ? null : v3Only(def.id, def.title),
+    v2: withV2 ? { card: v2Card(def.id, def.title), rangeLabel: 'True until 12 Dec 2026', details: details(def.title) } : null,
   };
   if (def.id === 'body') {
     return {
@@ -232,13 +255,17 @@ function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
       },
     };
   }
-  if (def.id === 'chapters') return { ...base, status: 'pending', firstLine: null, rail: [], v2: null };
+  if (def.id === 'chapters') return { ...base, status: 'pending', firstLine: null, rail: [], v3: null, v2: null };
   if (def.id === 'presence')
-    return { ...base, available: false, unavailableReason: 'Your chart needs a birth time to read this card.', status: 'pending', firstLine: null, rail: [], v2: null };
+    return { ...base, available: false, unavailableReason: 'Your chart needs a birth time to read this card.', status: 'pending', firstLine: null, rail: [], v3: null, v2: null };
   return base;
 }
 
-export function selfV3Fixture(): SelfV3Response {
+/**
+ * The board as the server sends it. Every card has `v2: null` (v2 is retired); `{ v2: true }` is the board while the
+ * server still fills cards from the v2 build (eight cards with `v2` and no `v3`), for the legacy Chart details path.
+ */
+export function selfV3Fixture(opts: { v2?: boolean } = {}): SelfV3Response {
   return {
     status: 'ok',
     builtAt: '2026-11-09T08:00:00Z',
@@ -265,7 +292,7 @@ export function selfV3Fixture(): SelfV3Response {
       chosen: true,
       updatedAt: '2026-11-09T08:05:00Z',
     },
-    cards: V3_CARDS.map(card),
+    cards: V3_CARDS.map((d) => card(d, opts.v2 === true)),
     reading: null,
   };
 }

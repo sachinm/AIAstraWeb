@@ -13,7 +13,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('Astrology Reading (plan revision 2 §6)', () => {
-  it('shows the technical story as paragraphs with no headings, then the systems read, then the long reading', () => {
+  it('shows the technical story as paragraphs with no headings, then the systems read; no long reading with `v2: null`', () => {
     render(<AstrologyView card={selfV3StoryCard()} />);
     const story = screen.getByTestId('astrology-story');
     expect(story.querySelectorAll('p')).toHaveLength(3);
@@ -30,11 +30,12 @@ describe('Astrology Reading (plan revision 2 §6)', () => {
     expect(rows[3]).toHaveTextContent(/^Short chapters$/);
     expect(systems).not.toHaveTextContent('vimshottari');
     expect(screen.queryByTestId('astrology-empty')).toBeNull();
-    expect(screen.getByTestId('astrology-details')).toBeInTheDocument();
+    expect(screen.queryByTestId('astrology-details')).toBeNull();
+    expect(screen.queryByText('Nothing more to show for this card yet.')).toBeNull();
   });
 
-  it('until the story is served it says so, and the long reading still shows under it', () => {
-    const stuck = selfV3Fixture().cards.find((c) => c.id === 'stuck')!;
+  it('until the story is served it says so, and the long reading of a v2-filled card still shows under it', () => {
+    const stuck = selfV3Fixture({ v2: true }).cards.find((c) => c.id === 'stuck')!;
     render(<AstrologyView card={stuck} />);
     expect(screen.getByTestId('astrology-empty')).toHaveTextContent('The full astrology reading is being prepared for this card.');
     expect(screen.getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");
@@ -45,7 +46,7 @@ describe('Astrology Reading (plan revision 2 §6)', () => {
     render(<AstrologyView card={{ ...mind, v2: null }} />);
     expect(screen.getByTestId('astrology-empty')).toBeInTheDocument();
     expect(screen.queryByTestId('astrology-details')).toBeNull();
-    const stuck = selfV3Fixture().cards.find((c) => c.id === 'stuck')!;
+    const stuck = selfV3Fixture({ v2: true }).cards.find((c) => c.id === 'stuck')!;
     render(<AstrologyView card={stuck} showDetails={false} />);
     expect(screen.queryByTestId('astrology-details')).toBeNull();
   });

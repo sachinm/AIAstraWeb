@@ -513,7 +513,7 @@ function Board({
   const detailsSheet = (inPane: boolean) =>
     details && (
       <Sheet title={`${details.title} · ${V2_WORDS.chartDetails}`} onClose={() => setDetails(null)} testId="details-sheet" inPane={inPane}>
-        <ChartDetails area={details} showEvidence={board.profile?.role === 'practitioner'} />
+        <ChartDetails details={details.details} showEvidence={board.profile?.role === 'practitioner'} />
       </Sheet>
     );
 

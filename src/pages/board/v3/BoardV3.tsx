@@ -78,8 +78,8 @@ import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, b
 import Sheet from '../../you/v2/Sheet';
 import { BUILD_STAGE_WORDS, V2_WORDS } from '../../you/v2/words';
 import CardChips from '../../you/v3/CardChips';
-import { detailsArea } from '../../you/v3/CardViews';
-import { StoryProse, hasLongReading } from '../../you/v3/AstrologyView';
+import { cardDetails } from '../../you/v3/CardViews';
+import { StoryProse, SystemsRead, hasLongReading, storyParagraphs, systemsRead } from '../../you/v3/AstrologyView';
 import type { CardReading } from '../../you/v3/CardParts';
 import type { CardAllowed, CardProps } from '../../you/v3/CardFrame';
 import type { PeriodView } from '../../you/v3/cardModel';
@@ -98,7 +98,7 @@ import type { SaveProblem } from '../../you/v3/layoutSaver';
 import Picker from '../../you/v3/Picker';
 import SeasonsCard from '../../you/v3/SeasonsCard';
 import { deckPerView, useAcross, useDeckWidth } from '../../you/v3/useDeckWidth';
-import { LAYOUT_ERROR_WORD, TEMPLATE_WORD, V3_WORDS } from '../../you/v3/words';
+import { LAYOUT_ERROR_WORD, OUTLOOK_WORDS, TEMPLATE_WORD, V3_WORDS } from '../../you/v3/words';
 import '../../you/v3/selfBoardV3.css';
 
 /** the board's name in its header and its words (Self keeps "You") */
@@ -423,6 +423,30 @@ function keptOptions(all: SelfBoardLayout['options'], cards: readonly string[]):
 export function signInHref(board: BoardId = 'self'): string {
   const back = typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/dashboard/${board === 'self' ? 'you' : board}`;
   return `/signin?next=${encodeURIComponent(back)}`;
+}
+
+/**
+ * The "i" sheet's body: the card's technical story when served (plan revision 2 §6), "AdAstra AI read" under it, then its
+ * older long reading only when the card has one. A card with none of them says its reading is being prepared, never a
+ * filler line.
+ */
+export function DetailsBody({ card }: { card: SelfV3CardView }) {
+  const story = storyParagraphs(card.v3?.story).length > 0;
+  const systems = systemsRead(card).length > 0;
+  const long = hasLongReading(card);
+  if (!story && !systems && !long)
+    return (
+      <p className="text-[15px] text-white/60" data-testid="details-empty">
+        {OUTLOOK_WORDS.storyPending}
+      </p>
+    );
+  return (
+    <div className="space-y-4" data-testid="details-body">
+      <StoryProse text={card.v3?.story} testId="details-story" />
+      <SystemsRead card={card} testId="details-systems" />
+      {long && <ChartDetails details={cardDetails(card)!} showEvidence={false} emptyLine={false} />}
+    </div>
+  );
 }
 
 function Board({
@@ -1316,10 +1340,7 @@ function Board({
 
       {details && (
         <Sheet title={`${cardTitle(details.card)} · ${V3_WORDS.why}`} onClose={() => setDetails(null)} testId="details-sheet">
-          {/* the card's technical story when served (plan revision 2 §6), then its long reading */}
-          <StoryProse text={details.card.v3?.story} testId="details-story" />
-          {details.card.v3?.story?.trim() && hasLongReading(details.card) ? <div className="h-4" /> : null}
-          <ChartDetails area={detailsArea(details.card)} showEvidence={false} />
+          <DetailsBody card={details.card} />
         </Sheet>
       )}
       {isSelf && clockOpen && (

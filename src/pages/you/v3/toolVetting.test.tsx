@@ -47,7 +47,7 @@ describe('scrubEmptyRefs & formatDisplayDate', () => {
         certainty: 'strong',
       },
     };
-    render(<ChartDetails area={area} />);
+    render(<ChartDetails details={area.details} />);
     const details = screen.getByTestId('area-details');
     expect(details).toHaveTextContent('Body & energy: chart reasons');
     expect(details).toHaveTextContent('Stored period (Mars) presses on rest until 5 Dec 2026.');
@@ -117,6 +117,7 @@ describe('vetCardTools: strict per-card gating', () => {
   it('returns zero optional tools on a single-stretch untoned card without a ladder, while keeping Chart details required', () => {
     const card = fixtureCard('stuck');
     if (card.v2?.card) card.v2.card.ladder = null;
+    if (card.v3) card.v3.ladder = null;
     card.rail = card.rail.slice(0, 1);
     const res = vetCardTools({
       card,
@@ -211,6 +212,7 @@ describe('Doc 75 foundation card controls and vetting data models', () => {
   it('omits legacy tool panels on SeasonsCard and CompactCard while keeping the Why button across Read and Short faces', () => {
     const card = fixtureCard('stuck');
     if (card.v2?.card) card.v2.card.ladder = null;
+    if (card.v3) card.v3.ladder = null;
     card.rail = card.rail.slice(0, 1);
     const onWhy = vi.fn();
     const opts: CardOptions = { ...cardNow(fx.layout, 'stuck'), tools: [...CARD_TOOLS] };

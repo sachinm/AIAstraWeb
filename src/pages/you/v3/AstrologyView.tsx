@@ -10,10 +10,10 @@
  */
 import type { AreaCertainty } from '../../../lib/selfV2Api';
 import type { CardSystemView, SelfV3CardView } from '../../../lib/selfV3Api';
-import { ChartDetails } from '../v2/AreaCard';
+import { ChartDetails, hasChartDetails } from '../v2/AreaCard';
 import { CERTAINTY_WORD } from '../v2/words';
 import { dayWords, type PeriodView } from './cardModel';
-import { detailsArea } from './CardViews';
+import { cardDetails } from './CardViews';
 import { label } from './faces/parts';
 import { OUTLOOK_WORDS } from './words';
 
@@ -119,8 +119,7 @@ export function SystemsRead({ card, testId = 'astrology-systems' }: { card: Self
 
 /** true when the card carries its older long reading (v2 chart details) */
 export function hasLongReading(card: SelfV3CardView): boolean {
-  const d = detailsArea(card).details;
-  return !!d.headline?.trim() || (d.paragraphs ?? []).some((p) => !!p?.trim());
+  return hasChartDetails(cardDetails(card));
 }
 
 export default function AstrologyView({ card, showDetails = true }: { card: SelfV3CardView; period?: PeriodView | null; showDetails?: boolean }) {
@@ -140,7 +139,7 @@ export default function AstrologyView({ card, showDetails = true }: { card: Self
         <section data-testid="astrology-details">
           <h4 className={label}>{OUTLOOK_WORDS.fullReading}</h4>
           <div className="mt-1.5">
-            <ChartDetails area={detailsArea(card)} showEvidence={false} />
+            <ChartDetails details={cardDetails(card)!} showEvidence={false} emptyLine={false} />
           </div>
         </section>
       )}

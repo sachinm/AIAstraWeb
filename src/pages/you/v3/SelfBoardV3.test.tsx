@@ -297,12 +297,39 @@ describe('Self board v3: the board', () => {
 
   // docs/techniques/09 §4.3: the "i" button is back on tablet and desktop and opens the full reading; Outlook's Full
   // reading section carries it too; the Astrology Reading tab waits for the thread
-  it('tablet and desktop: "i" opens the full reading sheet; the Astrology tab waits for the story and keeps the long reading', async () => {
+  it('tablet and desktop: "i" opens the full reading sheet (the story, no filler); the Astrology tab shows the story', async () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-stuck');
     fireEvent.click(within(c).getByTestId('card-why'));
     const sheet = await screen.findByTestId('details-sheet');
-    expect(sheet).toHaveTextContent("the chart's own reasons");
+    expect(within(sheet).getByTestId('details-story')).toHaveTextContent("the chart's own reasons");
+    expect(within(sheet).queryByTestId('area-details')).toBeNull();
+    expect(sheet).not.toHaveTextContent('Nothing more to show');
+    fireEvent.click(within(c).getByTestId('card-view-astrology'));
+    expect(within(c).getByTestId('astrology-story')).toHaveTextContent("the chart's own reasons");
+    expect(within(c).queryByTestId('astrology-details')).toBeNull();
+  });
+
+  it('"i" on a card with no story, no systems and no long reading says it is being prepared, never a filler line', async () => {
+    withBoard((b) => {
+      const s = b.cards.find((c) => c.id === 'stuck')!;
+      s.v3 = { ...s.v3!, story: null };
+    });
+    render(<SelfBoardV3 />);
+    const c = await screen.findByTestId('v3-card-stuck');
+    fireEvent.click(within(c).getByTestId('card-why'));
+    const sheet = await screen.findByTestId('details-sheet');
+    expect(within(sheet).getByTestId('details-empty')).toHaveTextContent('The full astrology reading is being prepared for this card.');
+    expect(sheet).not.toHaveTextContent('Nothing more to show');
+  });
+
+  it('legacy: a card still filled from the v2 build shows its long reading in the "i" sheet and on the Astrology tab', async () => {
+    srv.v3Body = () => json(selfV3Fixture({ v2: true }));
+    render(<SelfBoardV3 />);
+    const c = await screen.findByTestId('v3-card-stuck');
+    fireEvent.click(within(c).getByTestId('card-why'));
+    const sheet = await screen.findByTestId('details-sheet');
+    expect(within(sheet).getByTestId('area-details')).toHaveTextContent("the chart's own reasons");
     fireEvent.click(within(c).getByTestId('card-view-astrology'));
     expect(within(c).getByTestId('astrology-empty')).toBeInTheDocument();
     expect(within(c).getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");

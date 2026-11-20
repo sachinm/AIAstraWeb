@@ -198,7 +198,7 @@ describe('the board card (tablet and desktop, server docs/dashboards/13)', () =>
   });
 
   it('a v2-filled card shows its long reading on the Astrology tab, under the waiting line', () => {
-    mount(fx.cards.find((c) => c.id === 'stuck')!);
+    mount(selfV3Fixture({ v2: true }).cards.find((c) => c.id === 'stuck')!);
     fireEvent.click(screen.getByTestId('card-view-astrology'));
     expect(screen.getByTestId('astrology-empty')).toBeInTheDocument();
     expect(screen.getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");
