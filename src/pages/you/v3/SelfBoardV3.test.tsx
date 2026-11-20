@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import SelfBoardV3, { perViewFor } from './SelfBoardV3';
+import { selfHeaderLine } from '../../board/v3/BoardV3';
 import { SUGGESTED_IDS, selfV3Fixture, selfV3Unchosen } from './selfV3.fixture';
 import { selfV2Fixture } from '../v2/selfV2.fixture';
 import { V3_WORDS } from './words';
@@ -510,6 +511,70 @@ describe('Self board v3: served board fields (servedFieldsRendered, board)', () 
     expect(screen.queryByTestId('deeper-ready')).toBeNull();
     fireEvent.click(screen.getByTestId('self-phone-reading'));
     expect(within(await screen.findByTestId('self-reading-sheet')).getByTestId('deeper-ready')).toBeInTheDocument();
+  });
+});
+
+describe('Self board v3: the header line (the diagnosis card)', () => {
+  const LINE = 'In short: ideas outrun their footing until 12 Dec 2026.';
+
+  it("reads the diagnosis card's v3 line and shows it beside the clock line", async () => {
+    render(<SelfBoardV3 />);
+    const line = await screen.findByTestId('self-hero-line');
+    expect(line).toHaveTextContent(LINE);
+    expect(line.parentElement).toBe(screen.getByTestId('self-clock-line').parentElement);
+    expect(screen.getAllByTestId('self-hero-line')).toHaveLength(1);
+  });
+
+  it("the server's `headerLine` wins; a null `headerLine` shows nothing", async () => {
+    withBoard((b) => (b.headerLine = 'You are rebuilding, not running down, until 5 December.'));
+    const r = render(<SelfBoardV3 />);
+    expect(await screen.findByTestId('self-hero-line')).toHaveTextContent('You are rebuilding, not running down, until 5 December.');
+    r.unmount();
+    clearSelfV3Cached();
+    withBoard((b) => (b.headerLine = null));
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+  });
+
+  it('comes from every card the board carries, not only the ones on screen', async () => {
+    withBoard((b) => (b.layout = { ...b.layout, cards: b.layout.cards.filter((id) => id !== 'diagnosis') }));
+    render(<SelfBoardV3 />);
+    expect(await screen.findByTestId('self-hero-line')).toHaveTextContent(LINE);
+  });
+
+  it.each<[string, (b: SelfV3Response) => void]>([
+    ['unread', (b) => (b.cards.find((c) => c.id === 'diagnosis')!.state = 'not_read')],
+    ['locked', (b) => (b.features = { allowed: ['card.self.body', 'feature.why_panel'], locked: [{ key: 'card.self.diagnosis', minPlan: 'plus' }] })],
+    ['off', (b) => (b.features = { allowed: ['card.self.body', 'feature.why_panel'] })],
+    ['no v3 text', (b) => (b.cards.find((c) => c.id === 'diagnosis')!.v3 = null)],
+  ])('nothing when the card is %s', async (_n, edit) => {
+    withBoard(edit);
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-page');
+    await waitFor(() => expect(calls.some((c) => c.method === 'GET' && c.url.endsWith('/api/self/v3'))).toBe(true));
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+  });
+
+  it('never falls back to the v2 headline', async () => {
+    srv.v3Body = () => json(selfV3Fixture({ v2: true }));
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+  });
+
+  it('a phone: only in the reading sheet', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('v3-card-body');
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+    fireEvent.click(screen.getByTestId('self-phone-reading'));
+    expect(within(await screen.findByTestId('self-reading-sheet')).getByTestId('self-hero-line')).toHaveTextContent(LINE);
+  });
+
+  it('Love and Work have none', () => {
+    expect(selfHeaderLine({ ...selfV3Fixture(), headerLine: 'x' }, 'love')).toBeNull();
+    expect(selfHeaderLine(selfV3Fixture(), 'self')).toBe(LINE);
   });
 });
 

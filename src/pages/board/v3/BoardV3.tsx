@@ -7,7 +7,8 @@
  * What follows is the Self board's own description, which holds for every board.
  *
  * One title row (photo, Self, the clock line, the fresh-reading control, Edit and the template switch), the chips row
- * (the person's cards, `+`, arrows and "3 of 8"), then the carousel. No hero, no strip. The page never scrolls
+ * (the person's cards, `+`, arrows and "3 of 8"), then the carousel. Self's header carries one line from its `diagnosis`
+ * card (`selfHeaderLine`; on a phone, in the reading sheet); no hero card, no strip. The page never scrolls
  * vertically on tablet or desktop: one grid of three rows, the carousel in the last. Seasons (the default) shows two
  * cards across at tablet landscape with the next one peeking; one card on a phone with chips and dots. Compact shows
  * today's v2 card look four across.
@@ -79,7 +80,7 @@ import Sheet from '../../you/v2/Sheet';
 import { BUILD_STAGE_WORDS, V2_WORDS } from '../../you/v2/words';
 import CardChips from '../../you/v3/CardChips';
 import { cardDetails } from '../../you/v3/CardViews';
-import { StoryProse, SystemsRead, hasLongReading, storyParagraphs, systemsRead } from '../../you/v3/AstrologyView';
+import { StoryProse, SystemsRead, hasLongReading, storyParagraphs, systemsRead, withoutSpanIds } from '../../you/v3/AstrologyView';
 import type { CardReading } from '../../you/v3/CardParts';
 import type { CardAllowed, CardProps } from '../../you/v3/CardFrame';
 import type { PeriodView } from '../../you/v3/cardModel';
@@ -425,6 +426,28 @@ export function signInHref(board: BoardId = 'self'): string {
   return `/signin?next=${encodeURIComponent(back)}`;
 }
 
+/** the card whose plain line heads the Self board (retire-v2 plan; docs/techniques/09) */
+export const HEADER_CARD = 'diagnosis';
+
+/**
+ * The Self board's header line: the server's `headerLine`, else the `diagnosis` card's own plain line (its v3 line, else
+ * the first paragraph of its plain story), read from every card the board carries, not only the ones on screen. Nothing
+ * (null) on Love and Work, and when that card is off or locked for this person, unread, not ready, or has no v3 text.
+ * Never the older v2 headline.
+ */
+export function selfHeaderLine(board: SelfV3Response, boardId: BoardId = 'self'): string | null {
+  if (boardId !== 'self') return null;
+  const card = board.cards.find((c) => c.id === HEADER_CARD);
+  if (card && cardAccess(board, card.id, boardId) !== 'on') return null;
+  const served = board.headerLine?.trim();
+  if (served) return withoutSpanIds(served) || null;
+  // the server said there is none (unread, not this person's): the page does not guess
+  if (board.headerLine === null) return null;
+  if (!card || card.available === false || card.state !== 'ready' || (card.status !== 'ok' && card.status !== 'stale')) return null;
+  const line = card.v3?.line?.trim() || storyParagraphs(card.v3?.plain?.story)[0] || '';
+  return withoutSpanIds(line) || null;
+}
+
 /**
  * The "i" sheet's body: the card's technical story when served (plan revision 2 §6), "AdAstra AI read" under it, then its
  * older long reading only when the card has one. A card with none of them says its reading is being prepared, never a
@@ -756,7 +779,14 @@ function Board({
     }
   };
 
-  // the header (reused from the v2 board)
+  // the header line (the diagnosis card's plain line), then the clock line
+  const heroLine = selfHeaderLine(board, boardId);
+  const heroLineEl = (phoneSheet: boolean) =>
+    heroLine ? (
+      <p className={phoneSheet ? 'text-[15px] font-semibold leading-snug text-white' : 'truncate text-[14px] font-semibold text-white/90'} title={phoneSheet ? undefined : heroLine} data-testid="self-hero-line">
+        {heroLine}
+      </p>
+    ) : null;
   const clockLine = isSelf && (
     <p className="truncate text-[13px] text-white/65" data-testid="self-clock-line">
       <span>Read on your {board.clock.label} clock</span> ·{' '}
@@ -1074,6 +1104,7 @@ function Board({
     <Sheet title={isSelf ? V3_WORDS.readingSheet : boardTitle} onClose={() => setReadingOpen(false)} testId="self-reading-sheet">
       <div className="flex flex-col gap-3">
         {!isSelf && <LensTabs lenses={lenses} active={pickLens ?? lens} onPick={(id) => { setReadingOpen(false); pickLensNow(id); }} label={lensLabel} />}
+        {heroLineEl(true)}
         {clockLine}
         {!showPicker && readingStatus}
         {!veiled && lateLine}
@@ -1253,6 +1284,7 @@ function Board({
             </>
           )}
           <div className="min-w-0">
+            {heroLineEl(false)}
             {clockLine}
             {!showPicker && readingStatus}
             {!veiled && lateLine}

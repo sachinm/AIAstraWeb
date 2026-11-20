@@ -505,6 +505,11 @@ export interface SelfV3Response {
   activeLens?: BoardLensId | null;
   /** the lens the server routes this person to from their stated facts */
   defaultLens?: BoardLensId | null;
+  /**
+   * Self only (retire-v2 plan): the board's header line, the `diagnosis` card's plain line as the server serves it; null
+   * when that card is unread or not this person's; absent from older servers (the page then reads the card itself).
+   */
+  headerLine?: string | null;
 }
 
 /** GET /api/board/:board/v3: the Self response field for field, plus the board and its lenses */
