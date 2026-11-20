@@ -8,6 +8,7 @@
  * their clocks, details, ladder) and does date arithmetic for the month grid. No internal id, clock key or evidence key
  * is shown, only the plain labels.
  */
+import { nameOr } from '../../../lib/plainLabel';
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
@@ -190,7 +191,7 @@ export function AnalysisView({ card, period, options, why }: { card: SelfV3CardV
           <ol className="mt-1.5 grid gap-1.5">
             {steps.map((s) => (
               <li key={s.key} className="grid grid-cols-[88px_1fr] gap-2.5 rounded-xl bg-white/5 px-3 py-2 text-[15px]" data-testid={`ladder-${s.key}`}>
-                <b className="self-center text-[13px] font-bold text-teal-200">{STEP_WORD[s.key] ?? s.key}</b>
+                <b className="self-center text-[13px] font-bold text-teal-200">{nameOr(STEP_WORD, s.key)}</b>
                 <span className="text-white/85">{s.text}</span>
               </li>
             ))}

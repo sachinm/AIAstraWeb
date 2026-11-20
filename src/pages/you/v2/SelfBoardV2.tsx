@@ -335,7 +335,7 @@ function Board({
   const [clockOpen, setClockOpen] = useState(false);
   const [wizard, setWizard] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
-  const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | null>(null);
+  const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | 'catching_up' | null>(null);
   /** a 409 not_due names the server's last good day; shown until the board is read again */
   const [notDue, setNotDue] = useState<{ validUntil: string | null } | null>(null);
   useEffect(() => setNotDue(null), [board]);
@@ -403,7 +403,8 @@ function Board({
       setFreshAnswer(null);
       setNotDue({ validUntil: r.validUntil });
       onReload();
-    } else setFreshAnswer('failed');
+    } else if (r.kind === 'not_ready') setFreshAnswer('catching_up');
+    else setFreshAnswer('failed');
   };
   const freshControl = (
     <FreshControl
@@ -413,13 +414,15 @@ function Board({
       noQuestions={freshAnswer === 'no_questions'}
       failed={freshAnswer === 'failed'}
       buildFailed={freshFailed}
+      catchingUp={freshAnswer === 'catching_up'}
       onAsk={() => setFreshOpen(true)}
       compact={mode === 'duo' || mode === 'phone'}
     />
   );
 
   // a paid fresh build that failed keeps its own Try again (the consent sheet) in the fresh control
-  const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
+  // a served reading with its dates is not contradicted by a failed background build (one state in the header)
+  const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} served={board.status === 'ok' && !!board.refresh?.madeAt} />;
 
   const heroLayout: HeroLayout = mode === 'duo' ? 'pane' : mode === 'xwide' || mode === 'ultrawide' ? 'wide' : mode;
   const ranked = areas.find((a) => a.status === 'ok' && a.card?.ladder);

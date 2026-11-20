@@ -36,6 +36,7 @@ import { useInRouterContext, useSearchParams } from 'react-router-dom';
 import { BoardIdContext } from '../../you/v3/boardContext';
 import { LensTabs, type LensOption } from './LensSwitcher';
 import { usePlan } from '../../../Auth/ProfileGate';
+import { plainLabel } from '../../../lib/plainLabel';
 import { Plus, RefreshCw } from 'lucide-react';
 import BoardHeaderSlot from '../../../components/BoardHeaderSlot';
 import Carousel from '../../../components/carousel/Carousel';
@@ -71,9 +72,11 @@ import { getUserId } from '../../../lib/graphql';
 import { getActiveCard, getSelfV3Cached, readSelfV3Persisted, setActiveCard, setSelfV3Cached, writeSelfV3Persisted } from '../../../lib/selfV3Cache';
 import ClockSheet from '../../you/v2/ClockSheet';
 import { BuildStatus, FreshControl, FreshSheet } from '../../you/v2/FreshReading';
+import { refreshBoard } from '../../../lib/boardRefresh';
+import type { SelfV2BuildView } from '../../../lib/selfV2Api';
 import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, useBoardMode, veilProgress, type BoardMode } from '../../you/v2/SelfBoardV2';
 import Sheet from '../../you/v2/Sheet';
-import { V2_WORDS } from '../../you/v2/words';
+import { BUILD_STAGE_WORDS, V2_WORDS } from '../../you/v2/words';
 import CardChips from '../../you/v3/CardChips';
 import { detailsArea } from '../../you/v3/CardViews';
 import type { CardReading } from '../../you/v3/CardParts';
@@ -104,8 +107,13 @@ export const BOARD_TITLE: Record<BoardId, string> = { self: V3_WORDS.boardTitle,
 export function boardLenses(board: BoardId, b: Pick<SelfV3Response, 'lenses'> | null | undefined): Array<LensOption & { suggested: SelfCardId[] }> {
   if (board === 'self') return [];
   const fromServer = b?.lenses?.filter((l) => l && typeof l.id === 'string');
-  if (fromServer?.length) return fromServer.map((l) => ({ id: l.id, title: l.title || l.id, suggested: Array.isArray(l.suggested) ? l.suggested : [] }));
+  if (fromServer?.length) return fromServer.map((l) => ({ id: l.id, title: l.title?.trim() || lensName(board, l.id), suggested: Array.isArray(l.suggested) ? l.suggested : [] }));
   return BOARD_LENSES[board].map((l) => ({ ...l, suggested: [] }));
+}
+
+/** a lens's display name when the server sent none: the page's own name for it, never its id */
+function lensName(board: Exclude<BoardId, 'self'>, id: string): string {
+  return BOARD_LENSES[board].find((l) => l.id === id)?.title ?? plainLabel(id);
 }
 
 /** the lens the board opens on: the person's stored choice, the server's active lens, its default, else the first */
@@ -136,6 +144,8 @@ export const STRIP_IDLE_MS = 4000;
 export const SEASONS_GAP = 24;
 /** doc 70 §4.3 item 3: poll every 2 s while any card on the board is queued or reading */
 export const READING_POLL_MS = 2000;
+/** a Love/Work lens refresh: board reads after the answer before the chip stops waiting for a change */
+export const LENS_ASK_TRIES = 5;
 
 /** true while the per-card reading is on and a card on the person's board is queued or reading */
 export function readingPending(board: SelfV3Response | null): boolean {
@@ -152,6 +162,37 @@ export function readingLine(reading: BoardReadingView | null | undefined): strin
   if (reading.stage === 'ledger') return V3_WORDS.stageLedger;
   if (reading.stage === 'cards') return V3_WORDS.stageCards(reading.done, reading.total);
   return null;
+}
+
+/**
+ * The header's reading line for the deck on screen (TODOS 2026-11-19 "0 of 19"). While the day's build is still running
+ * and no card of the deck is being written yet, it names the build's stage (from `build.stage`) instead of a counter
+ * that cannot move. Love and Work count only their active lens's cards that are being read or were read (the server's
+ * `done`/`total` cover every lens on the deck); Self keeps the server's counts. A lens with nothing being read says
+ * nothing even when another lens is.
+ */
+export function deckReadingLine(
+  reading: BoardReadingView | null | undefined,
+  build: SelfV2BuildView | null | undefined,
+  deck: ReadonlyArray<Pick<SelfV3CardView, 'state' | 'available'>>,
+  lensDeck: boolean,
+): { text: string; fromBuild: boolean } | null {
+  if (!reading?.enabled) return null;
+  if (reading.preparing) return { text: V3_WORDS.chartPreparing, fromBuild: false };
+  const pending = deck.filter((c) => cardReadPending(c.state));
+  const cardsStage = reading.stage === 'cards' || pending.length > 0;
+  if (cardsStage && lensDeck && !pending.length) return null;
+  const buildOn = !!build && (build.state === 'queued' || build.state === 'running');
+  if (cardsStage && buildOn && !deck.some((c) => c.state === 'reading')) {
+    const step = build!.state === 'running' && build!.stage ? BUILD_STAGE_WORDS[build!.stage] : BUILD_STAGE_WORDS.queued;
+    return { text: V3_WORDS.stagePreparing(step), fromBuild: true };
+  }
+  if (cardsStage && lensDeck) {
+    const done = deck.filter((c) => c.available !== false && c.state === 'ready').length;
+    return { text: V3_WORDS.stageCards(done, done + pending.length), fromBuild: false };
+  }
+  const line = readingLine(reading);
+  return line ? { text: line, fromBuild: false } : null;
 }
 
 /**
@@ -460,7 +501,9 @@ function Board({
   const touch = useRef<{ x: number; y: number; atTop: boolean; inStrip: boolean } | null>(null);
   const [wizard, setWizard] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
-  const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | null>(null);
+  const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | 'catching_up' | null>(null);
+  // Love and Work: the lens refresh just asked for (server lensRefresh.ts), shown as building until its cards are read
+  const [lensAsk, setLensAsk] = useState<{ lens: string | null; from: SelfV3Response; note: string | null } | null>(null);
   const [notDue, setNotDue] = useState<{ validUntil: string | null } | null>(null);
   useEffect(() => setNotDue(null), [board]);
   useEffect(() => {
@@ -597,7 +640,8 @@ function Board({
     }),
     [readingOn, onReload, boardId],
   );
-  const stageLine = readingLine(board.reading);
+  const deckLine = deckReadingLine(board.reading, board.build, shown, !isSelf);
+  const stageLine = deckLine?.text ?? null;
   const fewForReading = readingOn && layout.chosen && layout.cards.length < minReadingCardsFor(boardId);
 
   const select = useCallback(
@@ -710,7 +754,13 @@ function Board({
         setPlan(r.usage);
         announceUsage(r.usage);
       } else void refreshPlan();
-      if (r.kind === 'building') onFreshStarted();
+      if (!isSelf) {
+        // Love and Work: the lens's cards are queued; what it cost is said under the chip while they are read
+        const W = V2_WORDS.fresh;
+        const note = r.kind === 'made' ? (r.first ? W.free : r.repeat ? W.repeat : r.charged === true ? W.used : r.charged === false ? W.included : null) : null;
+        setLensAsk({ lens, from: board, note });
+        onReload();
+      } else if (r.kind === 'building') onFreshStarted();
       else onReload();
     } else if (r.kind === 'no_questions') {
       setFreshAnswer('no_questions');
@@ -719,24 +769,67 @@ function Board({
       setFreshAnswer(null);
       setNotDue({ validUntil: r.validUntil });
       onReload();
-    } else setFreshAnswer('failed');
+    } else if (r.kind === 'not_ready') setFreshAnswer('catching_up');
+    else setFreshAnswer('failed');
+  };
+  // the lens asked for is being read: from the answer until the board read after it has no card of the lens pending
+  const lensPending = shown.some((c) => cardReadPending(c.state));
+  const lensBusy = !isSelf && !!lensAsk && lensAsk.lens === lens && (board === lensAsk.from || lensPending);
+  useEffect(() => {
+    if (lensAsk && !lensBusy) setLensAsk(null);
+  }, [lensAsk, lensBusy]);
+  // the board has not moved since the answer (nothing queued yet, or an unchanged read): read it again a few times,
+  // then let the chip go back to the served dates rather than say "Making" for ever
+  const [lensTries, setLensTries] = useState(0);
+  useEffect(() => {
+    if (!lensAsk || board !== lensAsk.from) {
+      if (lensTries) setLensTries(0);
+      return undefined;
+    }
+    const t = setTimeout(() => {
+      if (lensTries >= LENS_ASK_TRIES) setLensAsk(null);
+      else {
+        setLensTries((n) => n + 1);
+        onReload();
+      }
+    }, READING_POLL_MS);
+    return () => clearTimeout(t);
+  }, [lensAsk, board, lensTries, onReload]);
+  // another lens on screen: the last answer was about the one before
+  useEffect(() => setFreshAnswer(null), [lens]);
+  // Love and Work, a lens never read with nothing of it queued: its first reading, free (server docs/billing/03 §10)
+  const firstReadable =
+    !isSelf && readingOn && !refresh?.madeAt && !refresh?.due && !lensPending && shown.some((c) => c.available && (c.state === 'not_read' || c.state === 'failed'));
+  const [firstBusy, setFirstBusy] = useState(false);
+  const readFirst = async () => {
+    if (firstBusy) return;
+    setFirstBusy(true);
+    const r = await refreshBoard(boardId, { lens });
+    setFirstBusy(false);
+    freshAnswered(r);
   };
   const freshControl = (
     <FreshControl
       refresh={refresh}
       plan={plan}
-      building={freshBuilding}
+      building={freshBuilding || lensBusy || firstBusy}
       noQuestions={freshAnswer === 'no_questions'}
       failed={freshAnswer === 'failed'}
       buildFailed={freshFailed}
+      catchingUp={freshAnswer === 'catching_up'}
       onAsk={() => setFreshOpen(true)}
+      {...(firstReadable ? { onFirst: () => void readFirst() } : {})}
+      note={lensBusy ? (lensAsk?.note ?? null) : null}
       compact={mode === 'phone' || mode === 'duo'}
     />
   );
-  const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
+  // one state in the header: a served reading is not contradicted by a failed background build, and the build's stage
+  // is not said twice when the reading line already names it
+  const served = board.status === 'ok' && !!refresh?.madeAt && !shown.some((c) => c.status === 'pending');
+  const buildStatus = freshFailed || deckLine?.fromBuild ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} served={served} />;
   // a phone (server docs/dashboards/09): the board's title and controls live in the app header; the reading details
   // (clock, status, fresh reading, build, Edit, template) open in one sheet, so the main area holds only the cards
-  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine);
+  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || lensBusy;
 
   const showPicker = !layout.chosen || pickerOpen;
   const lastTemplate = useRef(template);
@@ -1185,7 +1278,7 @@ function Board({
         />
       )}
       {isSelf && wizard && <PersonalizeModal onClose={() => setWizard(false)} />}
-      {freshOpen && <FreshSheet plan={plan} board={boardId} onClose={() => setFreshOpen(false)} onDone={freshAnswered} />}
+      {freshOpen && <FreshSheet plan={plan} board={boardId} lens={isSelf ? null : lens} onClose={() => setFreshOpen(false)} onDone={freshAnswered} />}
     </div>
   );
 }

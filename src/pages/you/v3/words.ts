@@ -73,6 +73,8 @@ export const V3_WORDS = {
   stageClocks: 'Reading your chart',
   stageLedger: 'Putting your reading together',
   stageCards: (done: number, total: number) => `Writing your cards · ${done} of ${total}`,
+  /** the day's build is still running and no card is being written yet: its own stage, in plain words */
+  stagePreparing: (step: string) => `Preparing today's reading · ${step}`,
   chartPreparing: 'Your chart is still being prepared. Back in a few minutes.',
   addFive: 'Add at least five cards to start your reading.',
   comingSoon: 'Coming soon',

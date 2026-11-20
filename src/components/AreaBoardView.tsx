@@ -5,6 +5,7 @@
  * Each finding category renders a 2-column Master-Detail view (findings list on the left, full Vedic reading, time-period
  * charter, natal promise, and placements on the right) with Focus and Time-Frame filters and top-right technique badges.
  */
+import { nameOr } from '../lib/plainLabel';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   fetchArea,
@@ -307,7 +308,7 @@ function buildEnrichedFindings(
 
   if (kind === 'window' || kind === 'all') {
     board.ahead.forEach((w: AreaWindow, idx: number) => {
-      const subLabel = cfg.subareas[w.subarea] ?? w.subarea;
+      const subLabel = nameOr(cfg.subareas, w.subarea);
       const dateLabel = w.dateLabel ?? `${longDate(w.from)} – ${longDate(w.to)}`;
       const sysCount = w.systems?.length ?? 1;
       const techniqueId = w.techniqueId ?? `${cfg.area}.activation`;
@@ -1049,7 +1050,7 @@ function SubareaPanel({ id, windows, cfg }: { id: string; windows: AreaWindow[];
   return (
     <div className={panel} data-testid={`ahead-${id}`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs uppercase tracking-wide text-white/50">{cfg.subareas[id] ?? id}</div>
+        <div className="text-xs uppercase tracking-wide text-white/50">{nameOr(cfg.subareas, id)}</div>
       </div>
       <ul className="space-y-3">
         {windows.map((w, i) => (
@@ -1106,7 +1107,7 @@ function AheadPage({
       <div role="tablist" aria-label="Ahead by topic" className="mb-3 flex gap-2 overflow-x-auto">
         {subs.map((s) => (
           <button key={s} role="tab" type="button" aria-selected={sel === s} onClick={() => pick(s)} className={`${chip} ${sel === s ? 'border-white/40 bg-white/15' : 'border-white/10 text-white/60'}`}>
-            {cfg.subareas[s] ?? s}
+            {nameOr(cfg.subareas, s)}
           </button>
         ))}
       </div>

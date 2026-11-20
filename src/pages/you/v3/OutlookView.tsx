@@ -8,6 +8,7 @@
  * 500 px (Do | Avoid, Key dates | Systems), two columns from 700 px (the reading on the left, dates and systems on the
  * right). Nothing astrological is computed: it lays out what the server sent and does date arithmetic for the bar.
  */
+import { nameOr } from '../../../lib/plainLabel';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
 import { analysisSpan, STEP_WORD, SystemList, VIEW_WORDS } from './CardViews';
@@ -170,7 +171,7 @@ export default function OutlookView({ card, period, periods, standing, options, 
             <ol className="mt-1.5 grid gap-1.5">
               {steps.map((s) => (
                 <li key={s.key} className="grid grid-cols-[88px_1fr] gap-2.5 rounded-xl bg-white/5 px-3 py-2 text-[15px]" data-testid={`ladder-${s.key}`}>
-                  <b className="self-center text-[13px] font-bold text-teal-200">{STEP_WORD[s.key] ?? s.key}</b>
+                  <b className="self-center text-[13px] font-bold text-teal-200">{nameOr(STEP_WORD, s.key)}</b>
                   <span className="text-white/85">{s.text}</span>
                 </li>
               ))}
