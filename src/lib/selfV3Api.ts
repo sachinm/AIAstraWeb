@@ -5,7 +5,7 @@
  * this file reuses the one in boardTypes.ts.
  *
  * GET /api/self/v3            -> 200 SelfV3Response (`status` ok | pending | preparing) | 404 no_kundli
- *                                | 404 without a v3 body: the server has v3 off, the page shows the v2 board
+ *                                | 404 without a v3 body: the server has v3 off, the page shows the legacy board
  * PUT /api/self/v3/layout     -> 200 SelfBoardLayoutView (+ `reading: { queued }` when five or more cards and the per-card
  *                                reading is on) | 400 { error: LayoutError }
  * POST /api/self/v3/confirm   -> 204
@@ -582,8 +582,9 @@ export type SelfV3State =
   | { kind: 'ok'; board: SelfV3Response }
   | { kind: 'preparing' }
   | { kind: 'no_kundli' }
-  /** the server has v3 off (a 404 without a v3 body): the page shows the v2 board unchanged */
-  | { kind: 'v2' }
+  /** the server has this board's v3 off (a 404 without a v3 body; Love and Work also their off errors): the page shows
+   * the board's legacy page (the `legacy` the page was given) unchanged */
+  | { kind: 'legacy' }
   | { kind: 'error' };
 
 /** PUT /api/self/v3/layout 200: the layout, plus the cards queued for reading (five or more cards, the reading on) */
@@ -755,7 +756,7 @@ export async function fetchSelfV3State(opts?: { signal?: AbortSignal; board?: Bo
     // Love and Work: the server has the board's v3 off, or cannot read cards: the legacy board stands in
     if (board !== 'self' && r.status === 503) {
       const off = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (off?.error && LEGACY_ERRORS.has(off.error)) return { state: { kind: 'v2' }, notModified: false };
+      if (off?.error && LEGACY_ERRORS.has(off.error)) return { state: { kind: 'legacy' }, notModified: false };
     }
     if (r.status === 503 && !retried) {
       retried = true;
@@ -765,9 +766,9 @@ export async function fetchSelfV3State(opts?: { signal?: AbortSignal; board?: Bo
     if (TRANSIENT.has(r.status)) return { state: { kind: 'preparing' }, notModified: false };
     const j = (await r.json().catch(() => null)) as (Partial<SelfV3Response> & { error?: string }) | null;
     if (j?.status === ('no_kundli' as string) || j?.error === 'no_kundli') return { state: { kind: 'no_kundli' }, notModified: false };
-    // a 404 without a v3 body: the route is off on this server; the v2 board (Self) or the legacy board (Love, Work) stands in
-    if (r.status === 404) return { state: { kind: 'v2' }, notModified: false };
-    if (board !== 'self' && r.status === 400 && j?.error && LEGACY_ERRORS.has(j.error)) return { state: { kind: 'v2' }, notModified: false };
+    // a 404 without a v3 body: the route is off on this server; the board's legacy page stands in
+    if (r.status === 404) return { state: { kind: 'legacy' }, notModified: false };
+    if (board !== 'self' && r.status === 400 && j?.error && LEGACY_ERRORS.has(j.error)) return { state: { kind: 'legacy' }, notModified: false };
     if (j?.status === 'preparing' && !isV3Board(j, board)) return { state: { kind: 'preparing' }, notModified: false };
     if (!r.ok && r.status !== 202) return { state: { kind: 'error' }, notModified: false };
     if (!isV3Board(j, board)) return { state: r.status === 202 ? { kind: 'preparing' } : { kind: 'error' }, notModified: false };

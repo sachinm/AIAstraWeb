@@ -2,7 +2,8 @@
  * One v3 board for Self, Love and Work (server docs/dashboards/10 W2), made from the Self board v3 (server
  * docs/reading-engine/68 §4.1, §4.2, §4.7). `board="self"` is /dashboard/you exactly as before; Love and Work are the
  * same page with their own cards, a lens switcher (docs/dashboards/10 §4.4) and their legacy board as the fallback when
- * the server has their v3 off. Self-only: the photo title, the clock line, Personalize and the v2 fallback.
+ * the server has their v3 off. Self-only: the photo title, the clock line and Personalize. Every board, Self included, is
+ * given its legacy page as `legacy` and shows it when the server has its v3 off.
  *
  * What follows is the Self board's own description, which holds for every board.
  *
@@ -16,8 +17,9 @@
  * On a first visit (`layout.chosen` false) the picker fills the deck. The `+` chip opens it again. Every layout change
  * (picker, edit mode, the template, a card's sections) goes out through PUT /api/self/v3/layout.
  *
- * When the server has v3 off (GET /api/self/v3 answers 404 without a v3 body) the page renders the v2 board unchanged.
- * Loading, polling, the clock switch, the fresh reading and the build progress are the v2 board's, reused.
+ * When the server has v3 off (GET /api/self/v3 answers 404 without a v3 body) the page renders its `legacy` unchanged.
+ * Loading, polling, the clock switch, the fresh reading and the build progress come from components/board, shared with
+ * the older Self board.
  *
  * Doc 70 Phase 3 (a reading per card, when `reading.enabled`): each card shows its own state (a quiet skeleton while
  * queued or reading, Try again when it failed, "Not read yet" otherwise), the header carries the board's reading line,
@@ -75,7 +77,6 @@ import ClockSheet from '../../../components/board/ClockSheet';
 import { BuildStatus, FreshControl, FreshSheet } from '../../../components/board/FreshReading';
 import { refreshBoard } from '../../../lib/boardRefresh';
 import type { SelfV2BuildView } from '../../../lib/boardTypes';
-import SelfBoardV2 from '../../you/v2/SelfBoardV2';
 import PersonalizeModal from '../../../components/board/PersonalizeModal';
 import { SelfTitle } from '../../../components/board/SelfTitle';
 import { V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, veilProgress } from '../../../components/board/buildState';
@@ -229,7 +230,7 @@ function UrlLens({ onLens, taken, onDropped }: { onLens: (id: string | null) => 
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The page: loads, polls and falls back to the v2 board
+// The page: loads, polls and falls back to the legacy board
 // ---------------------------------------------------------------------------------------------------------------------
 
 export default function BoardV3({ board: boardId = 'self', legacy = null }: { board?: BoardId; legacy?: ReactNode }) {
@@ -292,7 +293,7 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
       off = true;
     };
   }, [load, boardId]);
-  // counted once, on the first v3 board (a v2 fallback counts its own open)
+  // counted once, on the first v3 board (a legacy fallback counts its own open)
   const opened = useRef(false);
   useEffect(() => {
     if (state?.kind === 'ok' && !opened.current) {
@@ -368,9 +369,9 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
     </div>
   );
 
-  // the server has this board's v3 off: Self shows its v2 board, Love and Work their legacy board. Love and Work also
+  // the server has this board's v3 off: every board shows the legacy page it was given. Love and Work also
   // fall back on an error before any v3 board was drawn (the legacy board still works on an older server)
-  if (state?.kind === 'v2') return boardId === 'self' ? <SelfBoardV2 /> : <>{legacy}</>;
+  if (state?.kind === 'legacy') return <>{legacy}</>;
   if (boardId !== 'self' && state?.kind === 'error') return <>{legacy}</>;
   if (!state) return frame(<LoadingVeil testId="self-v3-loading" note={V2_WORDS.loading}><div className={`${cardShell} h-full`} /></LoadingVeil>, 'self-v3-wait');
   if (state.kind === 'preparing')

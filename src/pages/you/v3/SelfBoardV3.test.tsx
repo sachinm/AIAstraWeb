@@ -578,8 +578,8 @@ describe('Self board v3: the header line (the diagnosis card)', () => {
   });
 });
 
-describe('Self board v3: the v2 fallback', () => {
-  it('a 404 without a body shows the v2 board unchanged', async () => {
+describe('Self board v3: the legacy fallback', () => {
+  it('a 404 without a body shows the legacy board it was given (the v2 board by default) unchanged', async () => {
     srv.v3Status = 404;
     srv.v3Body = () => null;
     render(<SelfBoardV3 />);
