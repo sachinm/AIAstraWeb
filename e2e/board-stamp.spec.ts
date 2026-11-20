@@ -48,7 +48,8 @@ for (const theme of ['dark', 'light'] as const) {
     const shot = async (name: string) => page.screenshot({ path: path.join(dir, `${String(++n).padStart(2, '0')}-${name}-${theme}.png`) });
     const stamp = () => page.getByTestId('reading-stamp');
 
-    await page.goto('/dashboard/you');
+    // the legacy You page (one release behind ?legacy=1 since the v3 Self board took the route)
+    await page.goto('/dashboard/you?legacy=1');
     await expect(stamp()).toContainText('Made 9 Nov 2026 · Good until 3 Dec 2026', { timeout: 20_000 });
     await expect(page.getByTestId('refresh-later')).toHaveText('Fresh reading after 3 Dec 2026');
     await shot('you-not-due');

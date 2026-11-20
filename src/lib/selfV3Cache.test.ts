@@ -224,7 +224,7 @@ describe('fetchSelfV3', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(404, { error: 'no_kundli' })));
     await expect(fetchSelfV3()).rejects.toBeInstanceOf(SelfV3FetchError);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(404, null)));
-    await expect(fetchSelfV3()).rejects.toMatchObject({ state: { kind: 'v2' } });
+    await expect(fetchSelfV3()).rejects.toMatchObject({ state: { kind: 'legacy' } });
   });
   it('an aborted request rejects with AbortError', async () => {
     const c = new AbortController();

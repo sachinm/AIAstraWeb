@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import SelfBoardV3, { perViewFor } from './SelfBoardV3';
+import { selfHeaderLine } from '../../board/v3/BoardV3';
 import { SUGGESTED_IDS, selfV3Fixture, selfV3Unchosen } from './selfV3.fixture';
-import { selfV2Fixture } from '../v2/selfV2.fixture';
 import { V3_WORDS } from './words';
 import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import { cardSections, type SelfBoardLayoutView, type SelfV3Response } from '../../../lib/selfV3Api';
@@ -74,7 +74,6 @@ beforeEach(() => {
       }
       if (u.endsWith('/api/auth/refresh')) return srv.refreshOk ? new Response(json({ token: 't2' }), { status: 200 }) : new Response(null, { status: 401 });
       if (u.endsWith('/api/self/v3/confirm')) return new Response(null, { status: 204 });
-      if (u.endsWith('/api/self/v2') && method === 'GET') return new Response(json(selfV2Fixture()), { status: 200 });
       return new Response(null, { status: 404 });
     }),
   );
@@ -223,7 +222,7 @@ describe('Self board v3: the board', () => {
     expect(screen.getByTestId('self-v3-of')).toHaveTextContent('8 of 8');
   });
 
-  it('a card filled from the v2 build: its body is the current period; named chips; the chip swaps headline and text', async () => {
+  it('a card read with its stored dates: its body is the current period; named chips; the chip swaps headline and text', async () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-stuck');
     expect(within(c).getByTestId('card-title')).toHaveTextContent('What’s weighing on you');
@@ -297,12 +296,39 @@ describe('Self board v3: the board', () => {
 
   // docs/techniques/09 §4.3: the "i" button is back on tablet and desktop and opens the full reading; Outlook's Full
   // reading section carries it too; the Astrology Reading tab waits for the thread
-  it('tablet and desktop: "i" opens the full reading sheet; the Astrology tab waits for the story and keeps the long reading', async () => {
+  it('tablet and desktop: "i" opens the full reading sheet (the story, no filler); the Astrology tab shows the story', async () => {
     render(<SelfBoardV3 />);
     const c = await screen.findByTestId('v3-card-stuck');
     fireEvent.click(within(c).getByTestId('card-why'));
     const sheet = await screen.findByTestId('details-sheet');
-    expect(sheet).toHaveTextContent("the chart's own reasons");
+    expect(within(sheet).getByTestId('details-story')).toHaveTextContent("the chart's own reasons");
+    expect(within(sheet).queryByTestId('area-details')).toBeNull();
+    expect(sheet).not.toHaveTextContent('Nothing more to show');
+    fireEvent.click(within(c).getByTestId('card-view-astrology'));
+    expect(within(c).getByTestId('astrology-story')).toHaveTextContent("the chart's own reasons");
+    expect(within(c).queryByTestId('astrology-details')).toBeNull();
+  });
+
+  it('"i" on a card with no story, no systems and no long reading says it is being prepared, never a filler line', async () => {
+    withBoard((b) => {
+      const s = b.cards.find((c) => c.id === 'stuck')!;
+      s.v3 = { ...s.v3!, story: null };
+    });
+    render(<SelfBoardV3 />);
+    const c = await screen.findByTestId('v3-card-stuck');
+    fireEvent.click(within(c).getByTestId('card-why'));
+    const sheet = await screen.findByTestId('details-sheet');
+    expect(within(sheet).getByTestId('details-empty')).toHaveTextContent('The full astrology reading is being prepared for this card.');
+    expect(sheet).not.toHaveTextContent('Nothing more to show');
+  });
+
+  it('legacy: a card still filled from the v2 build shows its long reading in the "i" sheet and on the Astrology tab', async () => {
+    srv.v3Body = () => json(selfV3Fixture({ v2: true }));
+    render(<SelfBoardV3 />);
+    const c = await screen.findByTestId('v3-card-stuck');
+    fireEvent.click(within(c).getByTestId('card-why'));
+    const sheet = await screen.findByTestId('details-sheet');
+    expect(within(sheet).getByTestId('area-details')).toHaveTextContent("the chart's own reasons");
     fireEvent.click(within(c).getByTestId('card-view-astrology'));
     expect(within(c).getByTestId('astrology-empty')).toBeInTheDocument();
     expect(within(c).getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");
@@ -446,12 +472,116 @@ describe('Self board v3: the board', () => {
   });
 });
 
-describe('Self board v3: the v2 fallback', () => {
-  it('a 404 without a body shows the v2 board unchanged', async () => {
+describe('Self board v3: served board fields (servedFieldsRendered, board)', () => {
+  it('`reading.deeperReadingReady`: one calm note; its Refresh opens the consent sheet; closing it holds for the session', async () => {
+    withBoard((b) => {
+      b.reading = { enabled: true, stage: 'done', clocks: [], done: 8, total: 8, capReached: false, preparing: false, deeperReadingReady: true };
+    });
+    const r = render(<SelfBoardV3 />);
+    const note = await screen.findByTestId('deeper-ready');
+    expect(note).toHaveTextContent('A deeper reading is ready. Refresh uses 1 of your questions.');
+    fireEvent.click(within(note).getByTestId('deeper-refresh'));
+    expect(await screen.findByTestId('fresh-sheet')).toBeInTheDocument();
+    // the note never refreshes by itself: only the sheet's confirm posts
+    expect(calls.some((c) => c.method === 'POST' && c.url.includes('refresh'))).toBe(false);
+    fireEvent.click(screen.getByTestId('fresh-not-now'));
+    fireEvent.click(screen.getByTestId('deeper-hide'));
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+    r.unmount();
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+  });
+
+  it('no note without the flag', async () => {
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+  });
+
+  it('a phone: the note is in the reading sheet and the reading button carries its dot', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
+    withBoard((b) => {
+      b.reading = { enabled: true, stage: 'done', clocks: [], done: 8, total: 8, capReached: false, preparing: false, deeperReadingReady: true };
+    });
+    render(<SelfBoardV3 />);
+    expect(await screen.findByTestId('self-phone-reading-dot')).toBeInTheDocument();
+    expect(screen.queryByTestId('deeper-ready')).toBeNull();
+    fireEvent.click(screen.getByTestId('self-phone-reading'));
+    expect(within(await screen.findByTestId('self-reading-sheet')).getByTestId('deeper-ready')).toBeInTheDocument();
+  });
+});
+
+describe('Self board v3: the header line (the diagnosis card)', () => {
+  const LINE = 'In short: ideas outrun their footing until 12 Dec 2026.';
+
+  it("reads the diagnosis card's v3 line and shows it beside the clock line", async () => {
+    render(<SelfBoardV3 />);
+    const line = await screen.findByTestId('self-hero-line');
+    expect(line).toHaveTextContent(LINE);
+    expect(line.parentElement).toBe(screen.getByTestId('self-clock-line').parentElement);
+    expect(screen.getAllByTestId('self-hero-line')).toHaveLength(1);
+  });
+
+  it("the server's `headerLine` wins; a null `headerLine` shows nothing", async () => {
+    withBoard((b) => (b.headerLine = 'You are rebuilding, not running down, until 5 December.'));
+    const r = render(<SelfBoardV3 />);
+    expect(await screen.findByTestId('self-hero-line')).toHaveTextContent('You are rebuilding, not running down, until 5 December.');
+    r.unmount();
+    clearSelfV3Cached();
+    withBoard((b) => (b.headerLine = null));
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+  });
+
+  it('comes from every card the board carries, not only the ones on screen', async () => {
+    withBoard((b) => (b.layout = { ...b.layout, cards: b.layout.cards.filter((id) => id !== 'diagnosis') }));
+    render(<SelfBoardV3 />);
+    expect(await screen.findByTestId('self-hero-line')).toHaveTextContent(LINE);
+  });
+
+  it.each<[string, (b: SelfV3Response) => void]>([
+    ['unread', (b) => (b.cards.find((c) => c.id === 'diagnosis')!.state = 'not_read')],
+    ['locked', (b) => (b.features = { allowed: ['card.self.body', 'feature.why_panel'], locked: [{ key: 'card.self.diagnosis', minPlan: 'plus' }] })],
+    ['off', (b) => (b.features = { allowed: ['card.self.body', 'feature.why_panel'] })],
+    ['no v3 text', (b) => (b.cards.find((c) => c.id === 'diagnosis')!.v3 = null)],
+  ])('nothing when the card is %s', async (_n, edit) => {
+    withBoard(edit);
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-page');
+    await waitFor(() => expect(calls.some((c) => c.method === 'GET' && c.url.endsWith('/api/self/v3'))).toBe(true));
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+  });
+
+  it('never falls back to the v2 headline', async () => {
+    srv.v3Body = () => json(selfV3Fixture({ v2: true }));
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('self-v3-chips');
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+  });
+
+  it('a phone: only in the reading sheet', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
+    render(<SelfBoardV3 />);
+    await screen.findByTestId('v3-card-body');
+    expect(screen.queryByTestId('self-hero-line')).toBeNull();
+    fireEvent.click(screen.getByTestId('self-phone-reading'));
+    expect(within(await screen.findByTestId('self-reading-sheet')).getByTestId('self-hero-line')).toHaveTextContent(LINE);
+  });
+
+  it('Love and Work have none', () => {
+    expect(selfHeaderLine({ ...selfV3Fixture(), headerLine: 'x' }, 'love')).toBeNull();
+    expect(selfHeaderLine(selfV3Fixture(), 'self')).toBe(LINE);
+  });
+});
+
+describe('Self board v3: the legacy fallback', () => {
+  it('a 404 without a body shows the legacy board it was given, unchanged', async () => {
     srv.v3Status = 404;
     srv.v3Body = () => null;
-    render(<SelfBoardV3 />);
-    expect(await screen.findByTestId('area-card-stuck')).toBeInTheDocument();
+    render(<SelfBoardV3 legacy={<div data-testid="legacy-you">legacy</div>} />);
+    expect(await screen.findByTestId('legacy-you')).toBeInTheDocument();
     expect(screen.queryByTestId('self-v3-chips')).toBeNull();
   });
 

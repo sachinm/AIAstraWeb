@@ -2,12 +2,14 @@
  * One v3 board for Self, Love and Work (server docs/dashboards/10 W2), made from the Self board v3 (server
  * docs/reading-engine/68 §4.1, §4.2, §4.7). `board="self"` is /dashboard/you exactly as before; Love and Work are the
  * same page with their own cards, a lens switcher (docs/dashboards/10 §4.4) and their legacy board as the fallback when
- * the server has their v3 off. Self-only: the photo title, the clock line, Personalize and the v2 fallback.
+ * the server has their v3 off. Self-only: the photo title, the clock line and Personalize. Every board, Self included, is
+ * given its legacy page as `legacy` and shows it when the server has its v3 off.
  *
  * What follows is the Self board's own description, which holds for every board.
  *
  * One title row (photo, Self, the clock line, the fresh-reading control, Edit and the template switch), the chips row
- * (the person's cards, `+`, arrows and "3 of 8"), then the carousel. No hero, no strip. The page never scrolls
+ * (the person's cards, `+`, arrows and "3 of 8"), then the carousel. Self's header carries one line from its `diagnosis`
+ * card (`selfHeaderLine`; on a phone, in the reading sheet); no hero card, no strip. The page never scrolls
  * vertically on tablet or desktop: one grid of three rows, the carousel in the last. Seasons (the default) shows two
  * cards across at tablet landscape with the next one peeking; one card on a phone with chips and dots. Compact shows
  * today's v2 card look four across.
@@ -15,8 +17,9 @@
  * On a first visit (`layout.chosen` false) the picker fills the deck. The `+` chip opens it again. Every layout change
  * (picker, edit mode, the template, a card's sections) goes out through PUT /api/self/v3/layout.
  *
- * When the server has v3 off (GET /api/self/v3 answers 404 without a v3 body) the page renders the v2 board unchanged.
- * Loading, polling, the clock switch, the fresh reading and the build progress are the v2 board's, reused.
+ * When the server has v3 off (GET /api/self/v3 answers 404 without a v3 body) the page renders its `legacy` unchanged.
+ * Loading, polling, the clock switch, the fresh reading and the build progress come from components/board, shared with
+ * the older Self board.
  *
  * Doc 70 Phase 3 (a reading per card, when `reading.enabled`): each card shows its own state (a quiet skeleton while
  * queued or reading, Try again when it failed, "Not read yet" otherwise), the header carries the board's reading line,
@@ -37,7 +40,7 @@ import { BoardIdContext } from '../../you/v3/boardContext';
 import { LensTabs, type LensOption } from './LensSwitcher';
 import { usePlan } from '../../../Auth/ProfileGate';
 import { plainLabel } from '../../../lib/plainLabel';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, X } from 'lucide-react';
 import BoardHeaderSlot from '../../../components/BoardHeaderSlot';
 import Carousel from '../../../components/carousel/Carousel';
 import TitleStrip, { ProgressTicks } from '../../../components/carousel/TitleStrip';
@@ -66,20 +69,23 @@ import {
   type SelfV3Response,
   type SelfV3State,
 } from '../../../lib/selfV3Api';
-import { ChartDetails, cardShell } from '../../you/v2/AreaCard';
+import { ChartDetails, cardShell } from '../../../components/board/ChartDetails';
 import { useLoadCardPhotos } from '../../../components/boardCards/cardPhotos';
 import { getUserId } from '../../../lib/graphql';
 import { getActiveCard, getSelfV3Cached, readSelfV3Persisted, setActiveCard, setSelfV3Cached, writeSelfV3Persisted } from '../../../lib/selfV3Cache';
-import ClockSheet from '../../you/v2/ClockSheet';
-import { BuildStatus, FreshControl, FreshSheet } from '../../you/v2/FreshReading';
+import ClockSheet from '../../../components/board/ClockSheet';
+import { BuildStatus, FreshControl, FreshSheet } from '../../../components/board/FreshReading';
 import { refreshBoard } from '../../../lib/boardRefresh';
-import type { SelfV2BuildView } from '../../../lib/selfV2Api';
-import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, useBoardMode, veilProgress, type BoardMode } from '../../you/v2/SelfBoardV2';
-import Sheet from '../../you/v2/Sheet';
-import { BUILD_STAGE_WORDS, V2_WORDS } from '../../you/v2/words';
+import type { SelfV2BuildView } from '../../../lib/boardTypes';
+import PersonalizeModal from '../../../components/board/PersonalizeModal';
+import { SelfTitle } from '../../../components/board/SelfTitle';
+import { V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, veilProgress } from '../../../components/board/buildState';
+import { useBoardMode, type BoardMode } from '../../../components/board/boardMode';
+import Sheet from '../../../components/board/Sheet';
+import { BUILD_STAGE_WORDS, V2_WORDS } from '../../../components/board/words';
 import CardChips from '../../you/v3/CardChips';
-import { detailsArea } from '../../you/v3/CardViews';
-import { StoryProse, hasLongReading } from '../../you/v3/AstrologyView';
+import { cardDetails } from '../../you/v3/CardViews';
+import { StoryProse, SystemsRead, hasLongReading, storyParagraphs, systemsRead, withoutSpanIds } from '../../you/v3/AstrologyView';
 import type { CardReading } from '../../you/v3/CardParts';
 import type { CardAllowed, CardProps } from '../../you/v3/CardFrame';
 import type { PeriodView } from '../../you/v3/cardModel';
@@ -98,7 +104,7 @@ import type { SaveProblem } from '../../you/v3/layoutSaver';
 import Picker from '../../you/v3/Picker';
 import SeasonsCard from '../../you/v3/SeasonsCard';
 import { deckPerView, useAcross, useDeckWidth } from '../../you/v3/useDeckWidth';
-import { LAYOUT_ERROR_WORD, TEMPLATE_WORD, V3_WORDS } from '../../you/v3/words';
+import { LAYOUT_ERROR_WORD, OUTLOOK_WORDS, TEMPLATE_WORD, V3_WORDS } from '../../you/v3/words';
 import '../../you/v3/selfBoardV3.css';
 
 /** the board's name in its header and its words (Self keeps "You") */
@@ -224,7 +230,7 @@ function UrlLens({ onLens, taken, onDropped }: { onLens: (id: string | null) => 
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The page: loads, polls and falls back to the v2 board
+// The page: loads, polls and falls back to the legacy board
 // ---------------------------------------------------------------------------------------------------------------------
 
 export default function BoardV3({ board: boardId = 'self', legacy = null }: { board?: BoardId; legacy?: ReactNode }) {
@@ -287,7 +293,7 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
       off = true;
     };
   }, [load, boardId]);
-  // counted once, on the first v3 board (a v2 fallback counts its own open)
+  // counted once, on the first v3 board (a legacy fallback counts its own open)
   const opened = useRef(false);
   useEffect(() => {
     if (state?.kind === 'ok' && !opened.current) {
@@ -363,9 +369,9 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
     </div>
   );
 
-  // the server has this board's v3 off: Self shows its v2 board, Love and Work their legacy board. Love and Work also
+  // the server has this board's v3 off: every board shows the legacy page it was given. Love and Work also
   // fall back on an error before any v3 board was drawn (the legacy board still works on an older server)
-  if (state?.kind === 'v2') return boardId === 'self' ? <SelfBoardV2 /> : <>{legacy}</>;
+  if (state?.kind === 'legacy') return <>{legacy}</>;
   if (boardId !== 'self' && state?.kind === 'error') return <>{legacy}</>;
   if (!state) return frame(<LoadingVeil testId="self-v3-loading" note={V2_WORDS.loading}><div className={`${cardShell} h-full`} /></LoadingVeil>, 'self-v3-wait');
   if (state.kind === 'preparing')
@@ -423,6 +429,52 @@ function keptOptions(all: SelfBoardLayout['options'], cards: readonly string[]):
 export function signInHref(board: BoardId = 'self'): string {
   const back = typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/dashboard/${board === 'self' ? 'you' : board}`;
   return `/signin?next=${encodeURIComponent(back)}`;
+}
+
+/** the card whose plain line heads the Self board (retire-v2 plan; docs/techniques/09) */
+export const HEADER_CARD = 'diagnosis';
+
+/**
+ * The Self board's header line: the server's `headerLine`, else the `diagnosis` card's own plain line (its v3 line, else
+ * the first paragraph of its plain story), read from every card the board carries, not only the ones on screen. Nothing
+ * (null) on Love and Work, and when that card is off or locked for this person, unread, not ready, or has no v3 text.
+ * Never the older v2 headline.
+ */
+export function selfHeaderLine(board: SelfV3Response, boardId: BoardId = 'self'): string | null {
+  if (boardId !== 'self') return null;
+  const card = board.cards.find((c) => c.id === HEADER_CARD);
+  if (card && cardAccess(board, card.id, boardId) !== 'on') return null;
+  const served = board.headerLine?.trim();
+  if (served) return withoutSpanIds(served) || null;
+  // the server said there is none (unread, not this person's): the page does not guess
+  if (board.headerLine === null) return null;
+  if (!card || card.available === false || card.state !== 'ready' || (card.status !== 'ok' && card.status !== 'stale')) return null;
+  const line = card.v3?.line?.trim() || storyParagraphs(card.v3?.plain?.story)[0] || '';
+  return withoutSpanIds(line) || null;
+}
+
+/**
+ * The "i" sheet's body: the card's technical story when served (plan revision 2 §6), "AdAstra AI read" under it, then its
+ * older long reading only when the card has one. A card with none of them says its reading is being prepared, never a
+ * filler line.
+ */
+export function DetailsBody({ card }: { card: SelfV3CardView }) {
+  const story = storyParagraphs(card.v3?.story).length > 0;
+  const systems = systemsRead(card).length > 0;
+  const long = hasLongReading(card);
+  if (!story && !systems && !long)
+    return (
+      <p className="text-[15px] text-white/60" data-testid="details-empty">
+        {OUTLOOK_WORDS.storyPending}
+      </p>
+    );
+  return (
+    <div className="space-y-4" data-testid="details-body">
+      <StoryProse text={card.v3?.story} testId="details-story" />
+      <SystemsRead card={card} testId="details-systems" />
+      {long && <ChartDetails details={cardDetails(card)!} showEvidence={false} emptyLine={false} />}
+    </div>
+  );
 }
 
 function Board({
@@ -732,7 +784,14 @@ function Board({
     }
   };
 
-  // the header (reused from the v2 board)
+  // the header line (the diagnosis card's plain line), then the clock line
+  const heroLine = selfHeaderLine(board, boardId);
+  const heroLineEl = (phoneSheet: boolean) =>
+    heroLine ? (
+      <p className={phoneSheet ? 'text-[15px] font-semibold leading-snug text-white' : 'truncate text-[14px] font-semibold text-white/90'} title={phoneSheet ? undefined : heroLine} data-testid="self-hero-line">
+        {heroLine}
+      </p>
+    ) : null;
   const clockLine = isSelf && (
     <p className="truncate text-[13px] text-white/65" data-testid="self-clock-line">
       <span>Read on your {board.clock.label} clock</span> ·{' '}
@@ -836,13 +895,56 @@ function Board({
       compact={mode === 'phone' || mode === 'duo'}
     />
   );
+  // docs/techniques/09 §6: a card on this board was read before the full-thread reading. One calm note beside the
+  // freshness chip; its "Refresh" opens the same consent sheet as the chip (it never refreshes by itself). Hidden for the
+  // rest of the session once the person closes it.
+  const deeperKey = `aiastra.deeper.hidden.${boardId}`;
+  const [deeperHidden, setDeeperHidden] = useState(() => {
+    try {
+      return sessionStorage.getItem(deeperKey) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const hideDeeper = () => {
+    setDeeperHidden(true);
+    try {
+      sessionStorage.setItem(deeperKey, '1');
+    } catch {
+      /* private window: hidden for this page only */
+    }
+  };
+  const deeperOn = !!board.reading?.deeperReadingReady && !deeperHidden && !freshBuilding && !lensBusy && !(!layout.chosen || pickerOpen);
+  const deeperNotice = deeperOn ? (
+    <p role="status" className="flex min-w-0 items-start gap-1.5 text-[13px] leading-[18px] text-teal-100/85" data-testid="deeper-ready">
+      <span className="min-w-0">
+        {V3_WORDS.deeperReady}{' '}
+        <button
+          type="button"
+          onClick={() => {
+            track('chip_select', SURFACE, 'deeper_refresh');
+            setReadingOpen(false);
+            setFreshOpen(true);
+          }}
+          className="font-semibold text-teal-200 underline underline-offset-4 hover:text-teal-100"
+          data-testid="deeper-refresh"
+        >
+          {V3_WORDS.deeperRefresh}
+        </button>{' '}
+        {V3_WORDS.deeperCost}
+      </span>
+      <button type="button" onClick={hideDeeper} aria-label={V3_WORDS.deeperHide} title={V3_WORDS.deeperHide} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white/55 hover:bg-white/10 hover:text-white" data-testid="deeper-hide">
+        <X className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </p>
+  ) : null;
   // one state in the header: a served reading is not contradicted by a failed background build, and the build's stage
   // is not said twice when the reading line already names it
   const served = board.status === 'ok' && !!refresh?.madeAt && !shown.some((c) => c.status === 'pending');
   const buildStatus = freshFailed || deckLine?.fromBuild ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} served={served} />;
   // a phone (server docs/dashboards/09): the board's title and controls live in the app header; the reading details
   // (clock, status, fresh reading, build, Edit, template) open in one sheet, so the main area holds only the cards
-  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || lensBusy || firstReadable;
+  const readingNeedsLook = Boolean(refresh?.due) || deeperOn || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || lensBusy || firstReadable;
 
   const showPicker = !layout.chosen || pickerOpen;
   const lastTemplate = useRef(template);
@@ -1007,10 +1109,12 @@ function Board({
     <Sheet title={isSelf ? V3_WORDS.readingSheet : boardTitle} onClose={() => setReadingOpen(false)} testId="self-reading-sheet">
       <div className="flex flex-col gap-3">
         {!isSelf && <LensTabs lenses={lenses} active={pickLens ?? lens} onPick={(id) => { setReadingOpen(false); pickLensNow(id); }} label={lensLabel} />}
+        {heroLineEl(true)}
         {clockLine}
         {!showPicker && readingStatus}
         {!veiled && lateLine}
         {freshControl}
+        {deeperNotice}
         {buildStatus}
         <div className="flex flex-wrap items-center gap-2">
           {editButton && <span onClickCapture={() => setReadingOpen(false)}>{editButton}</span>}
@@ -1184,10 +1288,14 @@ function Board({
               <LensTabs lenses={lenses} active={pickLens ?? lens} onPick={pickLensNow} label={lensLabel} />
             </>
           )}
-          <div className="min-w-0">
+          {/* capped, so a long header line or the deeper-reading note truncates or wraps here instead of squeezing the
+              chips that share this row from 1280 px */}
+          <div className="min-w-0 max-w-[20rem] 2xl:max-w-[28rem]" data-testid="self-head-text">
+            {heroLineEl(false)}
             {clockLine}
             {!showPicker && readingStatus}
             {!veiled && lateLine}
+            {deeperNotice}
           </div>
           {freshControl}
           {buildStatus}
@@ -1271,10 +1379,7 @@ function Board({
 
       {details && (
         <Sheet title={`${cardTitle(details.card)} · ${V3_WORDS.why}`} onClose={() => setDetails(null)} testId="details-sheet">
-          {/* the card's technical story when served (plan revision 2 §6), then its long reading */}
-          <StoryProse text={details.card.v3?.story} testId="details-story" />
-          {details.card.v3?.story?.trim() && hasLongReading(details.card) ? <div className="h-4" /> : null}
-          <ChartDetails area={detailsArea(details.card)} showEvidence={false} />
+          <DetailsBody card={details.card} />
         </Sheet>
       )}
       {isSelf && clockOpen && (

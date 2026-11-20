@@ -1,6 +1,7 @@
 /**
  * The Outlook tab of a card on tablet and desktop (server docs/dashboards/13 §4.3, plan revision 2 §6). The stretch
- * picker and the headline sit above it in the card frame; then the plain story (`v3.plain.story`, when served), then a
+ * picker and the headline sit above it in the card frame; then the plain story (`v3.plain.story`, when served; a calm
+ * "being written" line while `v3.plain.pending`), then a
  * row of icon buttons that picks one short section at a time:
  *
  *   Why we think so, What to do (the default: Why, Do and Avoid, what the stretch builds in you, the stretch's own text
@@ -16,7 +17,7 @@
  */
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { CalendarRange, Gift, Lightbulb, ListOrdered, Scale } from 'lucide-react';
-import { certaintyWord, chartShows, StoryProse, storyParagraphs, withoutSpanIds } from './AstrologyView';
+import { certaintyWord, chartShows, PlainStory, plainPending, storyParagraphs, withoutSpanIds } from './AstrologyView';
 import { nameOr } from '../../../lib/plainLabel';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
@@ -156,7 +157,7 @@ export default function OutlookView({
   const certainty = certaintyWord(chart?.certainty);
   const hasTodo = !!(todo.best || todo.avoid);
   const growth = period?.span?.growth?.trim() || null;
-  const plain = storyParagraphs(card.v3?.plain?.story).length > 0;
+  const plain = storyParagraphs(card.v3?.plain?.story).length > 0 || plainPending(card);
   const has: Record<OutlookSection, boolean> = {
     overview: !!why || hasTodo || !!growth || paragraphs.length > 0 || !!pattern,
     dates: !!stretch || dates.length > 0,
@@ -325,7 +326,7 @@ export default function OutlookView({
     <div className="self-v3-outlook-wrap" data-testid="outlook-view" data-section={on ?? ''}>
       {plain && (
         <div className="mb-3">
-          <StoryProse text={card.v3?.plain?.story} testId="outlook-plain-story" />
+          <PlainStory card={card} />
         </div>
       )}
       {tools.length > 1 && (

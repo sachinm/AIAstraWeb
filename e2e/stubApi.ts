@@ -161,6 +161,8 @@ export async function stubApi(page: Page, s: StubState): Promise<void> {
     if (!data) s.unhandled.add(op);
     return json(route, { data: data ?? {} });
   });
+  // the Self v3 board: off by default (a bare 404 shows the legacy You page); a spec that needs the board stubs it after this
+  await page.route('**/api/self/v3', (route) => route.fulfill({ status: 404, body: '' }));
   await page.route('**/api/billing/plans*', (route) => json(route, plansBody(s, new URL(route.request().url()))));
   await page.route('**/api/billing/checkout', (route) => json(route, { status: 'pending_payment', checkout_url: null, plan: plan(s) }));
   await page.route('**/api/chat/ask-stream', async (route) => {

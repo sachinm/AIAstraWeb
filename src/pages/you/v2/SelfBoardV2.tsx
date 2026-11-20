@@ -18,153 +18,30 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { usePlan } from '../../../Auth/ProfileGate';
 import Carousel, { CarouselArrows, CarouselDots } from '../../../components/carousel/Carousel';
 import Chips, { useSeenCounts, type ChipGroup } from '../../../components/carousel/Chips';
-import LoadingVeil, { type VeilProgress } from '../../../components/LoadingVeil';
-import UserAvatar from '../../../components/UserAvatar';
-import { ShriGaneshAvatar } from '../../../components/ShriGaneshAvatar';
+import LoadingVeil from '../../../components/LoadingVeil';
 import { longDate } from '../../../lib/careerApi';
 import { track } from '../../../lib/events';
 import { announceUsage } from '../../../lib/planUsage';
 import type { RefreshResult } from '../../../lib/boardRefresh';
-import { fetchSelfV2, type SelfV2Area, type SelfV2BuildView, type SelfV2Response, type SelfV2State } from '../../../lib/selfV2Api';
-import WelcomeWizard from '../../welcome/WelcomeWizard';
-import AreaCard, { ChartDetails, cardShell } from './AreaCard';
-import ClockSheet from './ClockSheet';
-import { BuildStatus, FreshControl, FreshSheet } from './FreshReading';
+import { fetchSelfV2, type SelfV2Area, type SelfV2Response, type SelfV2State } from '../../../lib/selfV2Api';
+import { ChartDetails, cardShell } from '../../../components/board/ChartDetails';
+import ClockSheet from '../../../components/board/ClockSheet';
+import { BuildStatus, FreshControl, FreshSheet } from '../../../components/board/FreshReading';
+import Sheet from '../../../components/board/Sheet';
+import { GROUP_LABEL, V2_WORDS } from '../../../components/board/words';
+import { PER_VIEW, useBoardMode } from '../../../components/board/boardMode';
+import { V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, veilProgress } from '../../../components/board/buildState';
+import { SelfTitle } from '../../../components/board/SelfTitle';
+import PersonalizeModal from '../../../components/board/PersonalizeModal';
+import AreaCard from './AreaCard';
 import Hero, { type HeroLayout } from './Hero';
-import Sheet from './Sheet';
-import { BUILD_STAGE_WORDS, GROUP_LABEL, V2_WORDS } from './words';
 import './selfBoardV2.css';
 
 const SURFACE = 'self_v2';
-/**
- * pending (the board being written) and a clock rebuild: every 10 s; preparing (the chart): every 30 s; a build the
- * server says is queued or running (`board.build`, server docs/loading-overlay/05): every 2 s, so the bar moves
- */
-export const V2_POLL_MS = { pending: 10_000, preparing: 30_000, build: 2_000 } as const;
-/** after this long waiting the board says so and offers Retry */
-export const V2_MAX_WAIT_MS = 6 * 60_000;
 const SEEN_KEY = 'aiastra.self.v2.seen';
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Layout
-// ---------------------------------------------------------------------------------------------------------------------
-
-export type BoardMode = 'phone' | 'portrait' | 'landscape' | 'wide' | 'xwide' | 'ultrawide' | 'duo';
-
-function mq(q: string): boolean {
-  try {
-    return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(q).matches;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The board's shape for this window. A two-fold reports two horizontal viewport segments; where the browser does not,
- * a touch screen at least 1200 wide and at most 740 tall is read as one spanned across its hinge.
- */
-export function boardMode(w: number, h: number, segments = mq('(horizontal-viewport-segments: 2)'), coarse = mq('(pointer: coarse)')): BoardMode {
-  if (segments || (w >= 1200 && h <= 740 && coarse)) return 'duo';
-  if (w >= 2300) return 'ultrawide';
-  if (w >= 1680) return 'xwide';
-  if (w >= 1440) return 'wide';
-  if (w >= 1100) return 'landscape';
-  if (w >= 768) return 'portrait';
-  return 'phone';
-}
-
-export const PER_VIEW: Record<BoardMode, number> = { phone: 1, portrait: 2, landscape: 3, wide: 4, xwide: 4, ultrawide: 5, duo: 1 };
-
-export function useBoardMode(): BoardMode {
-  const read = () => (typeof window === 'undefined' ? 'landscape' : boardMode(window.innerWidth, window.innerHeight));
-  const [mode, setMode] = useState<BoardMode>(read);
-  useEffect(() => {
-    const on = () => setMode(read());
-    window.addEventListener('resize', on);
-    let seg: MediaQueryList | null = null;
-    try {
-      seg = typeof window.matchMedia === 'function' ? window.matchMedia('(horizontal-viewport-segments: 2)') : null;
-      seg?.addEventListener?.('change', on);
-    } catch {
-      seg = null;
-    }
-    return () => {
-      window.removeEventListener('resize', on);
-      seg?.removeEventListener?.('change', on);
-    };
-  }, []);
-  return mode;
-}
-
-/** The server says a build is queued or running now. */
-export function buildActive(build: SelfV2BuildView | undefined): boolean {
-  return build?.state === 'queued' || build?.state === 'running';
-}
-
-/** The server says the build failed or stalled: the page stops polling and the header offers Try again. */
-export function buildStopped(build: SelfV2BuildView | undefined): boolean {
-  return build?.state === 'failed' || build?.state === 'stuck';
-}
-
-/** The veil's bar from the server's build, while one is queued or running; undefined otherwise (no bar). */
-export function veilProgress(build: SelfV2BuildView | undefined): VeilProgress | undefined {
-  if (!build || !buildActive(build)) return undefined;
-  const label = build.state === 'queued' || !build.stage ? BUILD_STAGE_WORDS.queued : BUILD_STAGE_WORDS[build.stage];
-  return {
-    percent: build.percent,
-    nextPercent: build.nextPercent,
-    stageExpectedMs: build.stageExpectedMs,
-    stageAt: build.stageAt,
-    label,
-    step: build.state === 'running' ? build.step : 0,
-    steps: build.steps,
-  };
-}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// The title: the person is the title
-// ---------------------------------------------------------------------------------------------------------------------
-
-export function SelfTitle({ onAddPhoto, small = false }: { onAddPhoto: () => void; small?: boolean }) {
-  const size = small ? 'h-9 w-9' : 'h-11 w-11';
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <UserAvatar
-        className={size}
-        fallback={
-          <button type="button" onClick={onAddPhoto} className="group flex items-center gap-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60" data-testid="self-add-photo" aria-label={V2_WORDS.addPhoto}>
-            {/* the avatar alone is the way in (Sachin 2026-11-09: no "Add your photo" words in the header) */}
-            <ShriGaneshAvatar className={size} />
-          </button>
-        }
-      />
-      <div className="min-w-0">
-        <h1 className={`bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text font-extrabold leading-none tracking-tight text-transparent ${small ? 'text-2xl' : 'text-3xl'}`} data-testid="self-title">
-          {V2_WORDS.title}
-        </h1>
-      </div>
-    </div>
-  );
-}
-
-export function PersonalizeModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Personalize your readings" onClick={onClose} data-testid="self-personalize-modal">
-      <div className="relative flex h-[min(640px,88vh)] w-[min(880px,94vw)] flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0d0c24] p-4 shadow-2xl sm:p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-2 flex shrink-0 items-center justify-between border-b border-white/10 pb-3">
-          <h2 className="text-lg font-semibold text-white">Personalize Your Readings</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white">
-            ✕
-          </button>
-        </div>
-        <WelcomeWizard onFinish={onClose} inModal />
-      </div>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -513,7 +390,7 @@ function Board({
   const detailsSheet = (inPane: boolean) =>
     details && (
       <Sheet title={`${details.title} · ${V2_WORDS.chartDetails}`} onClose={() => setDetails(null)} testId="details-sheet" inPane={inPane}>
-        <ChartDetails area={details} showEvidence={board.profile?.role === 'practitioner'} />
+        <ChartDetails details={details.details} showEvidence={board.profile?.role === 'practitioner'} />
       </Sheet>
     );
 

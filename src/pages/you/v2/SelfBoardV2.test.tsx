@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import SelfBoardV2, { boardMode, V2_MAX_WAIT_MS, V2_POLL_MS } from './SelfBoardV2';
+import SelfBoardV2 from './SelfBoardV2';
+import { V2_MAX_WAIT_MS, V2_POLL_MS } from '../../../components/board/buildState';
 import { V2_AREAS, selfV2Fixture } from './selfV2.fixture';
-import { V2_WORDS } from './words';
+import { V2_WORDS } from '../../../components/board/words';
 import type { SelfV2BuildView, SelfV2Response } from '../../../lib/selfV2Api';
 
 const plan = vi.hoisted(() => ({ setPlan: vi.fn(), refreshPlan: vi.fn(async () => {}) }));
@@ -387,18 +388,6 @@ describe('Self board v2', () => {
     await ready();
     expect(screen.getByTestId('self-carousel')).toHaveAttribute('data-per-view', '4');
     expect(screen.getByTestId('hero-todo')).toBeInTheDocument();
-  });
-
-  it('chooses the two-fold layout from viewport segments, or a wide short touch screen', () => {
-    expect(boardMode(1180, 820, true, false)).toBe('duo');
-    expect(boardMode(1280, 720, false, true)).toBe('duo');
-    expect(boardMode(1280, 720, false, false)).toBe('landscape');
-    expect(boardMode(1180, 820, false, false)).toBe('landscape');
-    expect(boardMode(1440, 900, false, false)).toBe('wide');
-    expect(boardMode(1920, 1080, false, false)).toBe('xwide');
-    expect(boardMode(2560, 1440, false, false)).toBe('ultrawide');
-    expect(boardMode(1024, 1366, false, false)).toBe('portrait');
-    expect(boardMode(390, 844, false, false)).toBe('phone');
   });
 
   it('on a two-fold: the left pane holds the hero and the area list, the right pane one card, Chart details over it', async () => {

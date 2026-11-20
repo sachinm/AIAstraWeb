@@ -9,7 +9,7 @@ import BoardV3, { deckReadingLine } from './BoardV3';
 import { boardV3Fixture } from './boardV3.fixture';
 import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import type { BoardReadingView, BoardV3Response } from '../../../lib/selfV3Api';
-import type { SelfV2BuildView } from '../../../lib/selfV2Api';
+import type { SelfV2BuildView } from '../../../lib/boardTypes';
 
 const plan = vi.hoisted(() => ({ setPlan: vi.fn(), refreshPlan: vi.fn(async () => {}) }));
 vi.mock('../../../Auth/ProfileGate', () => ({ usePlan: () => ({ plan: null, setPlan: plan.setPlan, refreshPlan: plan.refreshPlan }) }));

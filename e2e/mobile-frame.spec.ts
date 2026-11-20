@@ -88,7 +88,8 @@ test('public pages and boards keep the phone frame', async ({ page }, info) => {
   await signIn(page);
   for (const size of BOARD_SIZES) {
     await page.setViewportSize({ width: size.width, height: size.height });
-    await page.goto('/dashboard/you');
+    // the legacy You page (one release behind ?legacy=1 since the v3 Self board took the route)
+    await page.goto('/dashboard/you?legacy=1');
     await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => undefined);
     await page.waitForTimeout(1500);
     const f = await frame(page, '[data-test-id="dashboard-footer"]');

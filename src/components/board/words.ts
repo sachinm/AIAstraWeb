@@ -3,9 +3,9 @@
  * mockup). Plain words only: no technique id, internal label, chart term, clock count or engine name on a card face or
  * the hero. Chart details may carry chart terms; those come from the server.
  */
-import { longDate } from '../../../lib/careerApi';
-import type { PlanStatus } from '../../../lib/billing';
-import type { AreaCertainty, SelfV2Area, SelfV2BuildStage, SelfV2Group, Tone } from '../../../lib/selfV2Api';
+import { longDate } from '../../lib/careerApi';
+import type { PlanStatus } from '../../lib/billing';
+import type { AreaCertainty, SelfV2Area, SelfV2BuildStage, SelfV2Group, Tone } from '../../lib/boardTypes';
 
 export const V2_WORDS = {
   title: 'Self',

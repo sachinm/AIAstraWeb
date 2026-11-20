@@ -2,16 +2,16 @@
  * The Self board v3 client (server docs/reading-engine/68 §4.6). One GET carries the whole board: the layout the person
  * chose, every catalogue card in registry order with its period rail, and the build state. The types below are copied
  * from the server's `src/reading/self/v3/types.ts` and must stay identical to it; where the server reuses a v2 type,
- * this file reuses the one in selfV2Api.ts.
+ * this file reuses the one in boardTypes.ts.
  *
  * GET /api/self/v3            -> 200 SelfV3Response (`status` ok | pending | preparing) | 404 no_kundli
- *                                | 404 without a v3 body: the server has v3 off, the page shows the v2 board
+ *                                | 404 without a v3 body: the server has v3 off, the page shows the legacy board
  * PUT /api/self/v3/layout     -> 200 SelfBoardLayoutView (+ `reading: { queued }` when five or more cards and the per-card
  *                                reading is on) | 400 { error: LayoutError }
  * POST /api/self/v3/confirm   -> 204
  * POST /api/self/v3/cards/:id/read (doc 70 §4.2) -> 202 { state: 'queued' } | 409 already_reading | 429 spend_cap
  *                                | 400 unknown_card, card_not_offered | 404 no_kundli | 503 off
- * The clock switch stays PUT /api/self/v2/clock (selfV2Api.changeSelfV2Clock).
+ * The clock switch stays PUT /api/self/v2/clock (selfClockApi.changeSelfV2Clock).
  *
  * Love and Work (server docs/dashboards/10 §4.3) use the same calls under /api/board/:board/v3, with these differences
  * (all of them in `boardBase`, `isV3Board`, `boardLayoutBody` and `fetchSelfV3State` below, so they are easy to adjust):
@@ -38,7 +38,7 @@ import type {
   SelfV2Quality,
   SelfV2Refresh,
   SelfV2Response,
-} from './selfV2Api';
+} from './boardTypes';
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Copied from the server's src/reading/self/v3/types.ts. Keep identical.
@@ -266,10 +266,26 @@ export interface SelfV3CardContent {
    * lines, no headings. The Astrology Reading tab and the "i" sheet show it. Absent until the server writes it.
    */
   story?: string | null;
-  /** the Personalizer's plain story, shown on Outlook under the headline; absent until the server writes it */
-  plain?: { story?: string | null } | null;
-  /** the systems the story read, each with what is running ("AdAstra AI read" under the story) */
-  systems?: Array<{ name: string; running: string }> | null;
+  /**
+   * The Personalizer's plain story, shown on Outlook under the headline; absent until the server writes it. `pending`
+   * while the Personalizer is being run again (server docs/techniques/09 §3.3): the page says the plain reading is being
+   * written.
+   */
+  plain?: { story?: string | null; pending?: boolean } | null;
+  /** the systems the story read, each with the period running today ("AdAstra AI read" under the story) */
+  systems?: CardSystemView[] | null;
+  /** docs/techniques/09 §3.2: the reading holds until this day (YYYY-MM-DD) unless the person refreshes; null when unknown */
+  goodUntil?: IsoDate | null;
+}
+
+/** one system a card's story read, as the server sends it (plain names, never an engine's) */
+export interface CardSystemView {
+  /** the internal key; never shown */
+  system: string;
+  /** the plain name shown ("Life chapters") */
+  label: string;
+  /** the period running today on this system (lord or sign, and its dates); null when none is stored */
+  running: { lord: string; from: IsoDate; to: IsoDate | null } | null;
 }
 
 /** the chart-language text of a card, as served (text only, never evidence keys) */
@@ -489,6 +505,11 @@ export interface SelfV3Response {
   activeLens?: BoardLensId | null;
   /** the lens the server routes this person to from their stated facts */
   defaultLens?: BoardLensId | null;
+  /**
+   * Self only (retire-v2 plan): the board's header line, the `diagnosis` card's plain line as the server serves it; null
+   * when that card is unread or not this person's; absent from older servers (the page then reads the card itself).
+   */
+  headerLine?: string | null;
 }
 
 /** GET /api/board/:board/v3: the Self response field for field, plus the board and its lenses */
@@ -530,6 +551,11 @@ export interface BoardReadingView {
   capReached: boolean;
   /** fewer clocks stored than READING_CLOCKS_MIN: "Your chart is still being prepared" */
   preparing: boolean;
+  /**
+   * docs/techniques/09 §6: a card on this board was read before the full-thread reading; a refresh (charged) reads it
+   * again. Absent from older servers.
+   */
+  deeperReadingReady?: boolean;
 }
 
 /** POST /api/self/v3/cards/:id/read */
@@ -556,8 +582,9 @@ export type SelfV3State =
   | { kind: 'ok'; board: SelfV3Response }
   | { kind: 'preparing' }
   | { kind: 'no_kundli' }
-  /** the server has v3 off (a 404 without a v3 body): the page shows the v2 board unchanged */
-  | { kind: 'v2' }
+  /** the server has this board's v3 off (a 404 without a v3 body; Love and Work also their off errors): the page shows
+   * the board's legacy page (the `legacy` the page was given) unchanged */
+  | { kind: 'legacy' }
   | { kind: 'error' };
 
 /** PUT /api/self/v3/layout 200: the layout, plus the cards queued for reading (five or more cards, the reading on) */
@@ -729,7 +756,7 @@ export async function fetchSelfV3State(opts?: { signal?: AbortSignal; board?: Bo
     // Love and Work: the server has the board's v3 off, or cannot read cards: the legacy board stands in
     if (board !== 'self' && r.status === 503) {
       const off = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (off?.error && LEGACY_ERRORS.has(off.error)) return { state: { kind: 'v2' }, notModified: false };
+      if (off?.error && LEGACY_ERRORS.has(off.error)) return { state: { kind: 'legacy' }, notModified: false };
     }
     if (r.status === 503 && !retried) {
       retried = true;
@@ -739,9 +766,9 @@ export async function fetchSelfV3State(opts?: { signal?: AbortSignal; board?: Bo
     if (TRANSIENT.has(r.status)) return { state: { kind: 'preparing' }, notModified: false };
     const j = (await r.json().catch(() => null)) as (Partial<SelfV3Response> & { error?: string }) | null;
     if (j?.status === ('no_kundli' as string) || j?.error === 'no_kundli') return { state: { kind: 'no_kundli' }, notModified: false };
-    // a 404 without a v3 body: the route is off on this server; the v2 board (Self) or the legacy board (Love, Work) stands in
-    if (r.status === 404) return { state: { kind: 'v2' }, notModified: false };
-    if (board !== 'self' && r.status === 400 && j?.error && LEGACY_ERRORS.has(j.error)) return { state: { kind: 'v2' }, notModified: false };
+    // a 404 without a v3 body: the route is off on this server; the board's legacy page stands in
+    if (r.status === 404) return { state: { kind: 'legacy' }, notModified: false };
+    if (board !== 'self' && r.status === 400 && j?.error && LEGACY_ERRORS.has(j.error)) return { state: { kind: 'legacy' }, notModified: false };
     if (j?.status === 'preparing' && !isV3Board(j, board)) return { state: { kind: 'preparing' }, notModified: false };
     if (!r.ok && r.status !== 202) return { state: { kind: 'error' }, notModified: false };
     if (!isV3Board(j, board)) return { state: r.status === 202 ? { kind: 'preparing' } : { kind: 'error' }, notModified: false };

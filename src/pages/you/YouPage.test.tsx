@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import YouPage, { youHeadline } from './YouPage';
+import YouPage, { YouLegacyPage, youHeadline } from './YouPage';
+import { selfV3Fixture } from './v3/selfV3.fixture';
+import { clearSelfV3Cached } from '../../lib/selfV3Cache';
 import { BANNED_ON_BOARD } from '../lucky/words';
 import type { AreaBoard } from '../../lib/areaApi';
 import { selfReadingFixture } from './selfReading.fixture';
@@ -70,19 +72,21 @@ function youBoard(over: Partial<AreaBoard['tone']> = {}): AreaBoard {
   };
 }
 
-let state: { status: number; body: any; checks: Record<string, string>; ask: boolean; focus: string | null };
+let state: { status: number; body: any; checks: Record<string, string>; ask: boolean; focus: string | null; v3Status: number; v3Body: unknown };
 let calls: Array<{ method: string; url: string; body?: any }>;
 
 beforeEach(() => {
   localStorage.setItem('token', 't');
   calls = [];
-  state = { status: 200, body: null, checks: {}, ask: true, focus: 'growth' };
+  state = { status: 200, body: null, checks: {}, ask: true, focus: 'growth', v3Status: 404, v3Body: null };
+  clearSelfV3Cached();
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init: RequestInit = {}) => {
       const method = (init.method ?? 'GET').toUpperCase();
       const body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({ method, url, body });
+      if (url.endsWith('/api/self/v3') && method === 'GET') return new Response(state.v3Body === null ? null : JSON.stringify(state.v3Body), { status: state.v3Status });
       if (url.endsWith('/api/area/self')) {
         if (state.status !== 200) return new Response(JSON.stringify(state.body ?? { error: 'x' }), { status: state.status });
         return new Response(JSON.stringify({ status: 'ok', built_at: '2026-11-05', cached: true, focus: state.focus, ask: state.ask, board: youBoard(), checks: state.checks }), { status: 200 });
@@ -112,11 +116,11 @@ const text = () => screen.getByTestId('you-page').textContent!.toLowerCase();
 
 describe('You board', () => {
   it('shows loading first', () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     expect(screen.getByTestId('board-loading')).toBeInTheDocument();
   });
   it('leads with the tone and a dated headline, with no chart terms on screen', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     const card = await screen.findByTestId('tone-card');
     expect(card).toHaveAttribute('data-tone', 'open');
     expect(card).toHaveTextContent('A clear stretch for a fresh start. Begin before 31 May 2027.');
@@ -131,7 +135,7 @@ describe('You board', () => {
     expect(youHeadline(youBoard({ tone: 'steady', date: null }))).toBe('A steady stretch. Good for habits and rest.');
   });
   it('asks once what the person is working on, saves it to the companion memory, and stops asking', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     const q = await screen.findByTestId('board-question');
     expect(q).toHaveTextContent('What are you most working on for yourself?');
     fireEvent.click(within(q).getByRole('button', { name: 'Learning' }));
@@ -139,7 +143,7 @@ describe('You board', () => {
     expect(calls.find((c) => c.method === 'PUT' && c.url.endsWith('/api/profile/facts'))!.body).toEqual({ facts: { 'self.focus': 'learning' } });
   });
   it('opens on "Your reading", the first page, under the tone card', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     await screen.findByTestId('tone-card');
     const pages = within(screen.getByRole('tablist', { name: 'You pages' })).getAllByRole('tab');
     expect(pages[0]).toHaveTextContent('Your reading');
@@ -151,7 +155,7 @@ describe('You board', () => {
     expect(screen.queryByTestId('year-card')).not.toBeInTheDocument();
   });
   it('splits into pages instead of a long scroll; supports and pressures with their release dates', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     await screen.findByTestId('tone-card');
     expect(within(screen.getByRole('tablist', { name: 'You pages' })).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Your reading', 'Now', 'What holds you up', 'What presses', 'Ahead', 'Looking back', 'Your questions']);
     fireEvent.click(screen.getByRole('tab', { name: 'Now' }));
@@ -170,7 +174,7 @@ describe('You board', () => {
     expect(presses).toHaveTextContent('A steady weight');
   });
   it('Ahead is one panel per topic: chips, a carousel on the phone and a tab panel on the desktop, the focus first', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Ahead' }));
     const chips = within(screen.getByRole('tablist', { name: 'Ahead by topic' })).getAllByRole('tab');
     expect(chips.map((c) => c.textContent)).toEqual(['Learning and growth', 'Peace of mind', 'Purpose and belief']);
@@ -181,7 +185,7 @@ describe('You board', () => {
     expect(within(screen.getByTestId('ahead-tabpanel')).getByTestId('ahead-mind')).toHaveTextContent('1 Jun 2027 – 31 Oct 2028');
   });
   it('Looking back asks about past moments and counts the confirmations', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Looking back' }));
     const card = screen.getByTestId('back-2026-02');
     expect(card).toHaveTextContent('Around then, a lighter, stronger stretch for you began.');
@@ -190,7 +194,7 @@ describe('You board', () => {
     expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/area/self/checks') && c.body.side === 'support')).toBe(true);
   });
   it('Why lists the signals in plain words', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Why we think so' }));
     const sheet = screen.getByTestId('why-sheet');
     expect(sheet).toHaveTextContent('2 of 3 independent signals have a view.');
@@ -201,7 +205,7 @@ describe('You board', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     state.status = 202;
     state.body = { status: 'preparing' };
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     expect(await screen.findByTestId('board-preparing')).toHaveTextContent('Your chart is still being prepared');
     state.status = 200;
     await act(async () => {
@@ -212,22 +216,22 @@ describe('You board', () => {
   it('no kundli, off, and an error with retry', async () => {
     state.status = 404;
     state.body = { status: 'no_kundli', error: 'no_kundli' };
-    const a = render(<YouPage />);
+    const a = render(<YouLegacyPage />);
     expect(await screen.findByTestId('board-no-kundli')).toHaveTextContent('Add your birth details');
     a.unmount();
     state.body = { error: 'not_found' };
-    const b = render(<YouPage />);
+    const b = render(<YouLegacyPage />);
     expect(await screen.findByText('The You board is coming soon.')).toBeInTheDocument();
     b.unmount();
     state.status = 500;
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     const err = await screen.findByTestId('board-error');
     state.status = 200;
     fireEvent.click(within(err).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByTestId('tone-card')).toBeInTheDocument();
   });
   it('renders Master-Detail findings inspector, Focus/Timeframe dropdowns, Your questions tab, and no technique ids', async () => {
-    render(<YouPage />);
+    render(<YouLegacyPage />);
     await screen.findByTestId('tone-card');
     fireEvent.click(screen.getByRole('tab', { name: 'Now' }));
     // server docs/dashboards/10 W6: no technique badge and no internal id on the page
@@ -250,5 +254,34 @@ describe('You board', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Your questions' }));
     expect(screen.getByTestId('questions-page')).toHaveTextContent('Fresh life chapter');
     expect(screen.getByTestId('questions-page')).toHaveTextContent('Vedic timing clocks align');
+  });
+});
+
+describe('/dashboard/you (retire-v2): the v3 Self board, the legacy page one release behind ?legacy=1', () => {
+  afterEach(() => window.history.replaceState({}, '', '/'));
+
+  it('renders the v3 Self board by default', async () => {
+    state.v3Status = 200;
+    state.v3Body = selfV3Fixture();
+    render(<YouPage />);
+    await screen.findByTestId('v3-card-body');
+    expect(screen.getByTestId('self-v3-page')).toHaveAttribute('data-board', 'self');
+    expect(screen.queryByTestId('you-page')).toBeNull();
+    expect(calls.some((c) => c.url.endsWith('/api/area/self'))).toBe(false);
+  });
+
+  it('a server with the v3 board off (bare 404) shows the legacy page, scrolling inside its own box', async () => {
+    render(<YouPage />);
+    const box = await screen.findByTestId('you-legacy-scroll');
+    expect(await within(box).findByTestId('tone-card')).toBeInTheDocument();
+    expect(box.className).toMatch(/overflow-y-auto/);
+  });
+
+  it('?legacy=1 shows the legacy page and never asks for the v3 board', async () => {
+    window.history.replaceState({}, '', '/dashboard/you?legacy=1');
+    render(<YouPage />);
+    expect(await screen.findByTestId('tone-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('you-legacy-scroll')).toBeNull();
+    expect(calls.some((c) => c.url.endsWith('/api/self/v3'))).toBe(false);
   });
 });
