@@ -10,6 +10,8 @@
  *   failed    "That did not work. Try again" (the post failed; nothing was counted)
  *   build failed  the fresh build failed (server `refresh.failed`): "That did not work; your question was given back."
  *             with a Try again button that opens the consent sheet again
+ *   locked    the reading gate (`pipeline.locked`): disabled "Building your chart data" with the server's step line,
+ *             drawn even before any first reading; a 409 `preparing` or `building` answer is this state, never an error
  *
  * Only a tap on the sheet's confirm button posts; a page load never does.
  */
@@ -19,8 +21,9 @@ import type { PlanStatus } from '../../../lib/billing';
 import { refreshBoard, type RefreshBoard, type RefreshResult } from '../../../lib/boardRefresh';
 import type { SelfV2BuildView, SelfV2Refresh } from '../../../lib/selfV2Api';
 import Sheet from './Sheet';
-import { BUILD_WORDS, V2_WORDS, freshCostLine, freshSheetBody } from './words';
+import { BUILD_WORDS, PIPELINE_WORDS, V2_WORDS, freshCostLine, freshSheetBody, pipelineLine } from './words';
 import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../../../lib/aiStatus';
+import { pipelineLocked, type PipelineView } from '../../../lib/pipelineStatus';
 
 const W = V2_WORDS.fresh;
 const PLAN_PAGE = '/pricing';
@@ -74,6 +77,25 @@ export function FreshSheet({ plan, onClose, onDone, board = 'self' }: { plan: Pl
 }
 
 /**
+ * The reading gate's control (server prep gate): the chart is still being built and prepared, so no reading can be
+ * started. Disabled (never clickable or activated from the keyboard), "Building your chart data", and under it the
+ * server's line with "· n of m"; the retry sentence when the server says some calculations are being tried again.
+ */
+export function LockedControl({ pipeline, btn, line, testId = 'fresh' }: { pipeline: PipelineView; btn: string; line: string; testId?: string }) {
+  const sub = pipelineLine(pipeline);
+  return (
+    <div className="flex min-w-0 shrink-0 flex-col items-start" data-testid={`${testId}-reading`} data-locked="true">
+      <button type="button" disabled aria-disabled="true" className={`${btn} cursor-not-allowed border border-white/15 bg-white/5 text-white/70`} data-testid={`${testId}-button`} data-state="locked">
+        <span className="truncate">{PIPELINE_WORDS.label}</span>
+      </button>
+      <p role="status" aria-live="polite" className={pipeline.stage === 'blocked' ? 'mt-0.5 text-[11px] leading-4 text-amber-200/80' : line} data-testid={`${testId}-locked-line`} data-stage={pipeline.stage}>
+        {sub}
+      </p>
+    </div>
+  );
+}
+
+/**
  * The button and its one line. `building`: a fresh reading is being made (the page owns the poll). `onAsk`: open the
  * consent sheet. `noQuestions` / `failed`: the last answer from the server. `buildFailed`: the fresh build the person
  * asked for failed and its question was given back (the page stopped polling).
@@ -87,6 +109,7 @@ export function FreshControl({
   buildFailed = false,
   onAsk,
   compact = false,
+  pipeline = null,
 }: {
   refresh: SelfV2Refresh | undefined;
   plan: PlanStatus | null | undefined;
@@ -96,11 +119,14 @@ export function FreshControl({
   buildFailed?: boolean;
   onAsk: () => void;
   compact?: boolean;
+  /** the reading gate: while `locked`, the control is always drawn, disabled, with the server's step line */
+  pipeline?: PipelineView | null;
 }) {
   const aiDown = useAiUnavailable();
-  if (!refresh || (!refresh.madeAt && !refresh.due && !building)) return null;
   const btn = `inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold ${compact ? 'max-w-[11.5rem]' : 'max-w-[15rem]'}`;
   const line = 'mt-0.5 truncate text-[11px] leading-4 text-white/55';
+  if (pipelineLocked(pipeline)) return <LockedControl pipeline={pipeline!} btn={btn} line={line} />;
+  if (!refresh || (!refresh.madeAt && !refresh.due && !building)) return null;
 
   let control;
   let sub: string | null = null;

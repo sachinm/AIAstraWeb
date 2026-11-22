@@ -246,3 +246,7 @@ export function buildLuckyRange(picks: Array<{ scenario: string; shown: boolean;
     days,
   };
 }
+
+/** The reading gate (server prep gate): the `pipeline` block on the board GETs. Open is the default for every board. */
+export const OPEN_PIPELINE = { stage: 'ready', done: 5, total: 5, line: 'Ready', locked: false, reason: null } as const;
+export const LOCKED_PIPELINE = { stage: 'preparing', done: 2, total: 5, line: 'Preparing Love', locked: true, reason: 'preparing' } as const;

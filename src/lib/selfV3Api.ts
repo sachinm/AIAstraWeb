@@ -10,6 +10,7 @@
  *                                reading is on) | 400 { error: LayoutError }
  * POST /api/self/v3/confirm   -> 204
  * POST /api/self/v3/cards/:id/read (doc 70 §4.2) -> 202 { state: 'queued' } | 409 already_reading | 429 spend_cap
+ *   | 409 { code: 'preparing', pipeline } (the reading gate: the chart is still being built; also on refresh and layout)
  *                                | 400 unknown_card, card_not_offered | 404 no_kundli | 503 off
  * The clock switch stays PUT /api/self/v2/clock (selfV2Api.changeSelfV2Clock).
  *
@@ -24,6 +25,7 @@
 import { optionsFor, type BoardCardOptions, type BoardOptions, type CardOptions } from './cardOptions';
 import { buildApiHeaders } from './apiHeaders';
 import { getSelfV3Cached, setSelfV3Cached } from './selfV3Cache';
+import { announcePipeline, readPipeline, refusedPipeline, type PipelineView } from './pipelineStatus';
 import { ledgerApiUrl } from './ledgerApi';
 import type {
   CardStatus,
@@ -478,6 +480,11 @@ export interface SelfV3Response {
   activeLens?: BoardLensId | null;
   /** the lens the server routes this person to from their stated facts */
   defaultLens?: BoardLensId | null;
+  /**
+   * The reading gate (server prep gate): where the person's chart build stands. `locked`: no reading may be started on
+   * this board. Absent from an older server: read as not locked.
+   */
+  pipeline?: PipelineView;
 }
 
 /** GET /api/board/:board/v3: the Self response field for field, plus the board and its lenses */
@@ -521,8 +528,8 @@ export interface BoardReadingView {
   preparing: boolean;
 }
 
-/** POST /api/self/v3/cards/:id/read */
-export type CardReadError = 'unknown_card' | 'card_not_offered' | 'already_reading' | 'spend_cap' | 'off' | 'no_kundli';
+/** POST /api/self/v3/cards/:id/read; `preparing`: refused by the reading gate (409 `code: 'preparing'`) */
+export type CardReadError = 'unknown_card' | 'card_not_offered' | 'already_reading' | 'spend_cap' | 'off' | 'no_kundli' | 'preparing';
 
 /** GET /api/self/v3/catalogue: the picker without card bodies */
 export interface SelfV3CatalogueEntry {
@@ -543,7 +550,8 @@ export interface SelfV3CatalogueEntry {
 
 export type SelfV3State =
   | { kind: 'ok'; board: SelfV3Response }
-  | { kind: 'preparing' }
+  /** `pipeline`: the server's build state when the body carried one (its line is preferred over the page's) */
+  | { kind: 'preparing'; pipeline?: PipelineView }
   | { kind: 'no_kundli' }
   /** the server has v3 off (a 404 without a v3 body): the page shows the v2 board unchanged */
   | { kind: 'v2' }
@@ -646,7 +654,9 @@ function withLayoutDefaults(l: SelfBoardLayoutView): SelfBoardLayoutView {
 
 /** a board body from Love or Work, with the Self-only fields filled */
 function withBoardDefaults(raw: SelfV3Response, board: BoardId): SelfV3Response {
-  const b = withFeatureShapes(raw);
+  const shaped = withFeatureShapes(raw);
+  // the gate's block as the page reads it (a malformed one is read as absent: not locked)
+  const b = shaped.pipeline === undefined ? shaped : { ...shaped, pipeline: readPipeline(shaped.pipeline) ?? undefined };
   if (board === 'self') return b;
   return { ...b, board, layout: withLayoutDefaults(b.layout), clock: b.clock ?? ({ system: '', label: '' } as SelfV2Clock) };
 }
@@ -731,12 +741,15 @@ export async function fetchSelfV3State(opts?: { signal?: AbortSignal; board?: Bo
     // a 404 without a v3 body: the route is off on this server; the v2 board (Self) or the legacy board (Love, Work) stands in
     if (r.status === 404) return { state: { kind: 'v2' }, notModified: false };
     if (board !== 'self' && r.status === 400 && j?.error && LEGACY_ERRORS.has(j.error)) return { state: { kind: 'v2' }, notModified: false };
-    if (j?.status === 'preparing' && !isV3Board(j, board)) return { state: { kind: 'preparing' }, notModified: false };
+    const gate = readPipeline(j?.pipeline);
+    const preparing: SelfV3State = gate ? { kind: 'preparing', pipeline: gate } : { kind: 'preparing' };
+    if (j?.status === 'preparing' && !isV3Board(j, board)) return { state: preparing, notModified: false };
     if (!r.ok && r.status !== 202) return { state: { kind: 'error' }, notModified: false };
-    if (!isV3Board(j, board)) return { state: r.status === 202 ? { kind: 'preparing' } : { kind: 'error' }, notModified: false };
+    if (!isV3Board(j, board)) return { state: r.status === 202 ? preparing : { kind: 'error' }, notModified: false };
     const body = withBoardDefaults(j, board);
-    // only a finished board is held: a pending one must not be drawn as the next visit's first frame
-    if (r.status === 200 && body.status === 'ok') setSelfV3Cached(body, r.headers?.get('ETag') ?? null, board);
+    // only a finished board is held: a pending one must not be drawn as the next visit's first frame. A locked one (the
+    // reading gate) is held without its tag, so every poll is read in full and a 304 can never keep a stale lock
+    if (r.status === 200 && body.status === 'ok') setSelfV3Cached(body, body.pipeline?.locked ? null : (r.headers?.get('ETag') ?? null), board);
     return { state: { kind: 'ok', board: body }, notModified: false };
   }
 }
@@ -855,7 +868,8 @@ export type LayoutPatch =
   | { kind: 'board'; boardOptions: Partial<BoardOptions> }
   | { kind: 'deck'; template: SelfTemplateId; cards: SelfCardId[]; sections: SelfBoardLayout['sections'] };
 
-export type LayoutPatchError = LayoutError | 'conflict' | 'unauthorized' | 'unsupported' | 'failed';
+/** `preparing`: refused by the reading gate (409 `code: 'preparing'`); the page shows the locked state, not an error */
+export type LayoutPatchError = LayoutError | 'conflict' | 'unauthorized' | 'unsupported' | 'preparing' | 'failed';
 export type LayoutPatchResult = { ok: true; layout: SelfBoardLayoutView; queued: SelfCardId[] } | { ok: false; error: LayoutPatchError };
 
 function patchRoute(p: LayoutPatch): { path: string; body: Record<string, unknown> } {
@@ -864,15 +878,26 @@ function patchRoute(p: LayoutPatch): { path: string; body: Record<string, unknow
   return { path: '/api/self/v3/layout/deck', body: { template: p.template, cards: p.cards, sections: p.sections } };
 }
 
+/** a stored layout from the server: taken into the held board, with the cards it queued for reading */
+function layoutStored(j: SelfBoardLayoutSaved, board: BoardId): LayoutPatchResult {
+  const { reading, ...raw } = j;
+  const layout = board === 'self' ? raw : withLayoutDefaults(raw);
+  const held = getSelfV3Cached(board);
+  if (held) setSelfV3Cached({ ...held.data, layout }, null, board);
+  return { ok: true, layout, queued: Array.isArray(reading?.queued) ? reading.queued : [] };
+}
+
 function layoutAnswer(r: Response, j: unknown, board: BoardId = 'self'): LayoutPatchResult {
-  if (r.ok && isLayoutView(j, board)) {
-    const { reading, ...raw } = j as SelfBoardLayoutSaved;
-    const layout = board === 'self' ? raw : withLayoutDefaults(raw);
-    const held = getSelfV3Cached(board);
-    if (held) setSelfV3Cached({ ...held.data, layout }, null, board);
-    return { ok: true, layout, queued: Array.isArray(reading?.queued) ? reading.queued : [] };
-  }
+  if (r.ok && isLayoutView(j, board)) return layoutStored(j as SelfBoardLayoutSaved, board);
   if (r.status === 401) return { ok: false, error: 'unauthorized' };
+  // the reading gate refused what the save would start (not a stale layout): never refetched and resent. When the
+  // server stored the pick anyway and says so (`layout` in the body), that is a save
+  const refused = refusedPipeline(r.status, j);
+  if (refused) {
+    announcePipeline(refused);
+    const stored = (j as { layout?: unknown } | null)?.layout;
+    return isLayoutView(stored, board) ? layoutStored(stored as SelfBoardLayoutSaved, board) : { ok: false, error: 'preparing' };
+  }
   if (r.status === 409) return { ok: false, error: 'conflict' };
   if (r.status === 404 || r.status === 405) return { ok: false, error: 'unsupported' };
   const code = (j as { error?: string } | null)?.error;
@@ -938,6 +963,11 @@ export async function readSelfV3Card(id: SelfCardId, board: BoardId = 'self'): P
   }
   const j = (await r.json().catch(() => null)) as { state?: CardReadState; error?: string } | null;
   if (r.ok) return { ok: true, state: j?.state && CARD_READ_STATES.includes(j.state) ? j.state : 'queued' };
+  const refused = refusedPipeline(r.status, j);
+  if (refused) {
+    announcePipeline(refused);
+    return { ok: false, status: r.status, error: 'preparing' };
+  }
   const error = j?.error && CARD_READ_ERRORS.has(j.error as CardReadError) ? (j.error as CardReadError) : 'failed';
   return { ok: false, status: r.status, error };
 }

@@ -13,6 +13,10 @@
  * while it is made the cards are veiled and the page polls until the board's `builtAt` moves, or until a board read
  * after the ask says the build failed (`refresh.failed`): then polling stops and the row says the question was given
  * back, with Try again.
+ *
+ * The reading gate (server prep gate): while the board's `pipeline.locked`, the fresh reading and a clock rebuild cannot
+ * be started (the control says "Building your chart data" with the server's line) and the page polls every 5 s within
+ * the same six-minute cap; once the server unlocks, the control is back as it was. Nothing is started for the person.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { usePlan } from '../../../Auth/ProfileGate';
@@ -32,7 +36,8 @@ import ClockSheet from './ClockSheet';
 import { BuildStatus, FreshControl, FreshSheet } from './FreshReading';
 import Hero, { type HeroLayout } from './Hero';
 import Sheet from './Sheet';
-import { BUILD_STAGE_WORDS, GROUP_LABEL, V2_WORDS } from './words';
+import { BUILD_STAGE_WORDS, GROUP_LABEL, V2_WORDS, pipelineLine } from './words';
+import { PIPELINE_POLL_MS, onPipelineAnnounced, pipelineLocked, type PipelineView } from '../../../lib/pipelineStatus';
 import './selfBoardV2.css';
 
 const SURFACE = 'self_v2';
@@ -187,15 +192,24 @@ export default function SelfBoardV2() {
   /** the fresh build asked for failed (server `refresh.failed`); cleared when the person asks again */
   const [freshFailed, setFreshFailed] = useState(false);
   const waitStart = useRef<number | null>(null);
+  // the reading gate: a start the server refused (409 `preparing`) holds its lock until the board is read again
+  const [gateHeld, setGateHeld] = useState<PipelineView | null>(null);
+  const [reads, setReads] = useState(0);
+  useEffect(() => onPipelineAnnounced(setGateHeld), []);
 
   const load = useCallback(
     () =>
       fetchSelfV2()
         .then((s) => {
           if (s.kind === 'ok' && s.board.usage) announceUsage(s.board.usage);
+          setGateHeld(null);
+          setReads((n) => n + 1);
           setState(s);
         })
-        .catch(() => setState({ kind: 'error' })),
+        .catch(() => {
+          setReads((n) => n + 1);
+          setState({ kind: 'error' });
+        }),
     [],
   );
 
@@ -213,8 +227,13 @@ export default function SelfBoardV2() {
   // a build the server says failed or stalled stops the poll; the header says so and offers Try again
   const stopped = buildStopped(board?.build);
   const building = buildActive(board?.build);
+  // the reading gate: a refused start's lock, else the board's block (absent on an older server: open)
+  const pipeline: PipelineView | null = gateHeld ?? board?.pipeline ?? (state?.kind === 'preparing' ? (state.pipeline ?? null) : null);
+  const locked = pipelineLocked(pipeline);
+  // locked polls (every 5 s) even when a build stopped: the server says it is trying again
   const waiting =
-    state?.kind === 'preparing' || (!stopped && (board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding || building));
+    state?.kind === 'preparing' || locked || (!stopped && (board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding || building));
+  const lockedReads = locked ? reads : 0;
 
   // poll while something is being built, for at most six minutes; then say so and offer Retry
   useEffect(() => {
@@ -236,13 +255,13 @@ export default function SelfBoardV2() {
       setLate(true);
       return;
     }
-    const every = building ? V2_POLL_MS.build : state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
+    const every = building ? V2_POLL_MS.build : locked ? PIPELINE_POLL_MS : state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
     const t = setTimeout(() => {
       if (Date.now() - (waitStart.current ?? Date.now()) >= V2_MAX_WAIT_MS) setLate(true);
       else void load();
     }, Math.min(every, left));
     return () => clearTimeout(t);
-  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, load]);
+  }, [state, lockedReads, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, locked, load]);
 
   const retry = () => {
     setLate(false);
@@ -270,7 +289,7 @@ export default function SelfBoardV2() {
   if (!state) return frame(<LoadingVeil testId="self-v2-loading" note={V2_WORDS.loading}><div className={`${cardShell} h-full`} /></LoadingVeil>, 'self-v2-wait');
   if (state.kind === 'preparing')
     return frame(
-      <LoadingVeil testId="self-v2-preparing" note={V2_WORDS.preparing} foreground={lateLine || undefined}>
+      <LoadingVeil testId="self-v2-preparing" note={pipelineLine(pipeline) || V2_WORDS.preparing} foreground={lateLine || undefined}>
         <div className={`${cardShell} h-full`} />
       </LoadingVeil>,
       'self-v2-wait',
@@ -295,6 +314,7 @@ export default function SelfBoardV2() {
       rebuild={rebuilding ? rebuild : null}
       freshBuilding={freshBuilding}
       freshFailed={freshFailed}
+      pipeline={pipeline}
       lateLine={lateLine || null}
       onRebuild={(system, label) => { setLate(false); waitStart.current = Date.now(); setRebuild({ system, label }); void load(); }}
       onFreshStarted={() => { setLate(false); setFreshFailed(false); waitStart.current = Date.now(); setFresh({ builtAt: board.builtAt, from: board }); }}
@@ -314,8 +334,11 @@ function Board({
   onFreshStarted,
   onReload,
   onRetryBuild,
+  pipeline = null,
 }: {
   board: SelfV2Response;
+  /** the reading gate: while `locked`, the fresh reading and a clock rebuild cannot be started */
+  pipeline?: PipelineView | null;
   rebuild: { system: string; label: string } | null;
   freshBuilding: boolean;
   freshFailed?: boolean;
@@ -403,6 +426,13 @@ function Board({
       setFreshAnswer(null);
       setNotDue({ validUntil: r.validUntil });
       onReload();
+    } else if (r.kind === 'preparing') {
+      // the reading gate: nothing started or counted; the page holds the announced lock and polls. Not an error
+      setFreshAnswer(null);
+    } else if (r.kind === 'busy') {
+      // a build is already running: nothing new started or counted; the board read again shows it
+      setFreshAnswer(null);
+      onReload();
     } else setFreshAnswer('failed');
   };
   const freshControl = (
@@ -415,6 +445,7 @@ function Board({
       buildFailed={freshFailed}
       onAsk={() => setFreshOpen(true)}
       compact={mode === 'duo' || mode === 'phone'}
+      pipeline={pipeline}
     />
   );
 
@@ -485,6 +516,7 @@ function Board({
         <ClockSheet
           clock={board.clock}
           plan={plan ?? board.usage}
+          pipeline={pipeline}
           onClose={() => setClockOpen(false)}
           onChanged={(system, label, r) => {
             track('chip_select', SURFACE, `clock_${system}`);

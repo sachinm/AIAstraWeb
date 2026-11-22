@@ -58,3 +58,46 @@ describe('ReadingStamp (server docs/billing/02 §10, 03)', () => {
     await waitFor(() => expect(screen.getByTestId('refresh-button')).toHaveTextContent('That did not work. Try again'));
   });
 });
+
+describe('ReadingStamp and the reading gate (server prep gate)', () => {
+  const LOCKED = { stage: 'checking' as const, done: 1, total: 3, line: 'Checking your chart', locked: true, reason: 'chart' as const };
+
+  it('locked: the refresh is disabled and says "Building your chart data" with the server line', () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    show(<ReadingStamp madeAt={MADE} validUntil="2026-11-03" board="love" refreshDue pipeline={LOCKED} />);
+    const b = screen.getByTestId('refresh-button');
+    expect(b).toBeDisabled();
+    expect(b).toHaveAttribute('aria-disabled', 'true');
+    expect(b).toHaveTextContent('Building your chart data');
+    expect(screen.getByTestId('refresh-locked-line').textContent).toBe('Checking your chart · 1 of 3');
+    fireEvent.click(b);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('a 409 preparing locks it with the returned line, not "That did not work"', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'x', code: 'preparing', pipeline: LOCKED }), { status: 409 })));
+    const onRefreshed = vi.fn();
+    show(<ReadingStamp madeAt={MADE} validUntil="2026-11-03" board="work" refreshDue onRefreshed={onRefreshed} />);
+    fireEvent.click(screen.getByTestId('refresh-button'));
+    await waitFor(() => expect(screen.getByTestId('refresh-button')).toHaveAttribute('data-state', 'locked'));
+    expect(screen.getByTestId('refresh-locked-line')).toHaveTextContent('Checking your chart');
+    expect(screen.getByTestId('reading-stamp')).not.toHaveTextContent('That did not work');
+    expect(onRefreshed).not.toHaveBeenCalled();
+  });
+
+  it('a 409 building is not an error: the board is read again', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'x', code: 'building' }), { status: 409 })));
+    const onRefreshed = vi.fn();
+    show(<ReadingStamp madeAt={MADE} validUntil="2026-11-03" board="work" refreshDue onRefreshed={onRefreshed} />);
+    fireEvent.click(screen.getByTestId('refresh-button'));
+    await waitFor(() => expect(onRefreshed).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('refresh-button')).toHaveTextContent('Get a fresh reading');
+  });
+
+  it('open: as before', () => {
+    show(<ReadingStamp madeAt={MADE} validUntil="2026-11-03" board="love" refreshDue pipeline={{ ...LOCKED, locked: false, stage: 'ready' }} />);
+    expect(screen.getByTestId('refresh-button')).toBeEnabled();
+    expect(screen.getByTestId('refresh-button')).toHaveTextContent('Get a fresh reading · uses 1 question');
+  });
+});

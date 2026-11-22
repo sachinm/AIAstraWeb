@@ -779,3 +779,58 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
     });
   });
 });
+
+describe('Self board v2 and the reading gate (server prep gate)', () => {
+  const LOCKED = { stage: 'pulling' as const, done: 1, total: 4, line: 'Getting your chart', locked: true, reason: 'chart' as const };
+
+  it('locked: the fresh control is drawn even before any reading, disabled, with the server line; the 409 is not an error', async () => {
+    srv.board = () => selfV2Fixture((b) => {
+      b.refresh = { madeAt: null, validUntil: null, due: false };
+      b.pipeline = LOCKED;
+    });
+    render(<SelfBoardV2 />);
+    const row = await ready();
+    const btn = within(row).getByTestId('fresh-button');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent('Building your chart data');
+    expect(within(row).getByTestId('fresh-locked-line').textContent).toBe('Getting your chart · 1 of 4');
+    fireEvent.click(btn);
+    expect(refreshPosts()).toBe(0);
+  });
+
+  it('a 409 preparing from the fresh reading shows the locked control, never the failure line', async () => {
+    srv.board = () => selfV2Fixture(due);
+    srv.refreshStatus = 409;
+    srv.refreshBody = { error: 'x', code: 'preparing', pipeline: LOCKED };
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    fireEvent.click(await screen.findByTestId('fresh-confirm'));
+    await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveAttribute('data-state', 'locked'));
+    expect(screen.queryByTestId('fresh-sheet-error')).toBeNull();
+    expect(screen.getByTestId('fresh-button')).not.toHaveTextContent(V2_WORDS.fresh.failed);
+  });
+
+  it('polls every 5 s while locked and is back to normal once open, starting nothing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let open = false;
+    srv.board = () => selfV2Fixture((b) => {
+      due(b);
+      b.pipeline = open ? { ...LOCKED, locked: false, stage: 'ready' } : LOCKED;
+    });
+    render(<SelfBoardV2 />);
+    await ready();
+    expect(gets()).toBe(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    await waitFor(() => expect(gets()).toBe(2));
+    open = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveAttribute('data-state', 'due'));
+    expect(screen.getByTestId('fresh-button')).toBeEnabled();
+    expect(refreshPosts()).toBe(0);
+  });
+});

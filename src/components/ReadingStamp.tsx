@@ -8,6 +8,8 @@ import { Link } from 'react-router-dom';
 import { longDate } from '../lib/careerApi';
 import { refreshBoard, type RefreshBoard } from '../lib/boardRefresh';
 import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../lib/aiStatus';
+import { pipelineLocked, type PipelineView } from '../lib/pipelineStatus';
+import { PIPELINE_WORDS, pipelineLine } from '../pages/you/v2/words';
 
 type Ask = 'idle' | 'working' | 'no_questions' | 'failed';
 
@@ -17,6 +19,7 @@ export function ReadingStamp({
   board,
   refreshDue,
   onRefreshed,
+  pipeline = null,
 }: {
   madeAt?: string | null;
   validUntil?: string | null;
@@ -25,31 +28,53 @@ export function ReadingStamp({
   refreshDue?: boolean;
   /** the fresh reading was made (or, for You, is being made): reload the board */
   onRefreshed?: () => void;
+  /**
+   * The reading gate: while `locked`, the control is disabled and says "Building your chart data" with the server's
+   * line. The legacy board GETs carry no block, so this also locks itself on a refused ask (409 `preparing`).
+   */
+  pipeline?: PipelineView | null;
 }) {
   const [ask, setAsk] = useState<Ask>('idle');
+  const [refused, setRefused] = useState<PipelineView | null>(null);
   const aiDown = useAiUnavailable();
   if (!madeAt) return null;
   const made = longDate(madeAt.slice(0, 10));
   const until = validUntil ? longDate(validUntil) : null;
+  const gate = pipelineLocked(pipeline) ? pipeline : refused;
 
   const run = async () => {
-    if (!board) return;
+    if (!board || gate) return;
     setAsk('working');
     const r = await refreshBoard(board);
     if (r.kind === 'made' || r.kind === 'building') {
       setAsk('idle');
       onRefreshed?.();
     } else if (r.kind === 'no_questions') setAsk('no_questions');
-    else if (r.kind === 'not_due') {
+    else if (r.kind === 'not_due' || r.kind === 'busy') {
+      // `busy`: a build is already running; nothing was started or counted, the board read again shows it
       setAsk('idle');
       onRefreshed?.();
+    } else if (r.kind === 'preparing') {
+      setAsk('idle');
+      setRefused(r.pipeline);
     } else setAsk('failed');
   };
 
   const chip = 'ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] leading-4 align-middle';
   let control: ReactNode = null;
   if (board) {
-    if (ask === 'working')
+    if (gate)
+      control = (
+        <span className="ml-1 inline-flex flex-col align-middle" data-testid="refresh-locked">
+          <button type="button" disabled aria-disabled="true" className={`${chip} ml-0 cursor-not-allowed border-white/15 text-white/60`} data-testid="refresh-button" data-state="locked">
+            {PIPELINE_WORDS.label}
+          </button>
+          <span role="status" aria-live="polite" className="mt-0.5 text-[11px] leading-4 text-white/50" data-testid="refresh-locked-line">
+            {pipelineLine(gate)}
+          </span>
+        </span>
+      );
+    else if (ask === 'working')
       control = (
         <span className={`${chip} border-white/15 text-white/60`} data-testid="refresh-working" aria-live="polite">
           Making your fresh reading…
@@ -82,7 +107,7 @@ export function ReadingStamp({
     <p className="mt-1 text-xs text-white/60" data-testid="reading-stamp">
       <span>Made {made}</span>
       {until && <span> · Good until {until}</span>}
-      {!refreshDue && <span className="text-white/45"> · {until ? 'Opening it again before then uses no question' : 'Opening it again uses no question'}</span>}
+      {!refreshDue && !gate && <span className="text-white/45"> · {until ? 'Opening it again before then uses no question' : 'Opening it again uses no question'}</span>}
       {control}
     </p>
   );
