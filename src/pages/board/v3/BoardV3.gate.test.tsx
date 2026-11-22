@@ -11,7 +11,7 @@ import { boardV3Fixture } from './boardV3.fixture';
 import { PIPELINE_LOCKED, PIPELINE_OPEN, selfV3Fixture, selfV3Gated, selfV3Reading } from '../../you/v3/selfV3.fixture';
 import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import { PIPELINE_POLL_MS, type PipelineView } from '../../../lib/pipelineStatus';
-import { PIPELINE_WORDS } from '../../you/v2/words';
+import { PIPELINE_WORDS } from '../../../components/board/words';
 import type { SelfV3Response } from '../../../lib/selfV3Api';
 
 const plan = vi.hoisted(() => ({ setPlan: vi.fn(), refreshPlan: vi.fn(async () => {}) }));

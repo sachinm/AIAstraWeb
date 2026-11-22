@@ -8,7 +8,7 @@
 import BoardCardPicker from '../../../components/boardCards/BoardCardPicker';
 import { MIN_CARDS, MIN_READING_CARDS, SELF_CARD_GROUPS, SUGGESTED_COUNT, type BoardId, type SelfCardId, type SelfV3CardView } from '../../../lib/selfV3Api';
 import { V3_WORDS } from './words';
-import { PIPELINE_WORDS } from '../v2/words';
+import { PIPELINE_WORDS } from '../../../components/board/words';
 
 export default function Picker({
   cards,

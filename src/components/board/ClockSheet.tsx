@@ -4,18 +4,28 @@
  * the reason and not selectable, the note that Love and Work change too, then Not now / Rebuild on <clock> · 1 question.
  * A 400 is shown in the sheet; a 202 hands the plan status back to the page and closes the sheet.
  */
-import { useState } from 'react';
-import type { PlanStatus } from '../../../lib/billing';
-import { changeSelfV2Clock, type ClockChangeResult, type SelfV2Clock } from '../../../lib/selfV2Api';
+import { useEffect, useState } from 'react';
+import { track } from '../../lib/events';
+import type { PlanStatus } from '../../lib/billing';
+import { changeSelfV2Clock } from '../../lib/selfClockApi';
+import type { ClockChangeResult, SelfV2Clock } from '../../lib/boardTypes';
 import Sheet from './Sheet';
 import { PIPELINE_WORDS, V2_WORDS } from './words';
-import { pipelineLocked, type PipelineView } from '../../../lib/pipelineStatus';
+import { pipelineLocked, type PipelineView } from '../../lib/pipelineStatus';
 
 /** "Uses 1 of your 20 questions this month"; an unlimited plan uses none it counts. */
 export function costLine(plan: PlanStatus | null | undefined): string {
-  if (!plan || plan.exempt || plan.limit === null) return 'Included in your plan; no question is counted.';
+  // the plan not known yet: never claim the switch is free
+  if (!plan) return 'Uses 1 question.';
+  if (plan.exempt || plan.limit === null) return 'Included in your plan; no question is counted.';
   const when = plan.window === 'day' ? 'today' : 'this month';
-  return `Uses 1 of your ${plan.limit} questions ${when}`;
+  const left = typeof plan.remaining === 'number' ? ` (${plan.remaining} left)` : '';
+  return `Uses 1 of your ${plan.limit} questions ${when}${left}`;
+}
+
+/** true when a switch counts a question (unknown plans are assumed to count) */
+export function clockCounts(plan: PlanStatus | null | undefined): boolean {
+  return !plan || (!plan.exempt && plan.limit !== null);
 }
 
 export default function ClockSheet({
@@ -39,6 +49,8 @@ export default function ClockSheet({
   const [refused, setRefused] = useState(false);
   const locked = refused || pipelineLocked(pipeline);
   const chosen = clock.applicable.find((c) => c.system === pick) ?? null;
+  // the sheet seen (the switch itself is recorded by the server as `clock_viewed`)
+  useEffect(() => track('chip_select', 'self_clock', 'clock_sheet_open'), [clock.system]);
 
   const confirm = async () => {
     if (!chosen || locked) return;
@@ -53,6 +65,9 @@ export default function ClockSheet({
 
   return (
     <Sheet title={V2_WORDS.clockTitle} onClose={onClose} testId="clock-sheet">
+      <p className="mb-2 text-sm text-white/70" data-testid="clock-lead">
+        {V2_WORDS.clockLead}
+      </p>
       {clock.reasonLine && (
         <p className="text-sm text-white/70" data-testid="clock-reason">
           {clock.reasonLine}
@@ -129,7 +144,7 @@ export default function ClockSheet({
           className="min-h-[44px] flex-1 rounded-xl bg-teal-400 px-3 text-sm font-bold text-[#06051a] disabled:opacity-40"
           data-testid="clock-confirm"
         >
-          {locked ? PIPELINE_WORDS.label : chosen ? V2_WORDS.rebuildOn(chosen.label) : V2_WORDS.pickClock}
+          {locked ? PIPELINE_WORDS.label : chosen ? V2_WORDS.rebuildOn(chosen.label, clockCounts(plan)) : V2_WORDS.pickClock}
         </button>
       </div>
     </Sheet>

@@ -7,7 +7,7 @@
  * no chips. Picking a chip changes the headline and the text. Past periods are greyed.
  */
 import type { CardGroupBy, CardOptions } from '../../../lib/cardOptions';
-import type { LadderSteps } from '../../../lib/selfV2Api';
+import type { LadderSteps } from '../../../lib/boardTypes';
 import type { KeyDate, RailItem, SelfV3CardView, SpanReading, SpanTone } from '../../../lib/selfV3Api';
 import { cardHeadline, cardLadder, cardPatterns, spanToneShown } from './CardParts';
 

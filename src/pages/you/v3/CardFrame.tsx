@@ -2,7 +2,7 @@
  * One Self v3 card (doc 75, "The foundation card"; server docs/dashboards/12). From the top: the header art carrying the
  * card's name and one line saying what it answers, with the chat bubble and "i" for Why at its right; three wide bars,
  * Read · Analysis · Calendar; the named period chips (Read and Analysis); the stale-dates note when the server flags
- * one; on Read the headline; then the body, the card's one vertical scroll (`overscroll-behavior: contain`); "Is this
+ * one; "Good until <date>" when the server sends how long the reading holds; on Read the headline; then the body, the card's one vertical scroll (`overscroll-behavior: contain`); "Is this
  * right?"; and at the foot, always, the card's chat input.
  *
  * A card the person's plan does not cover shows a lock and "Part of Plus", never its content. Nothing here calls the
@@ -14,21 +14,21 @@
  * The periods no longer change on a sideways swipe inside the card: on a phone that swipe moves between cards.
  *
  * `shape` (server docs/dashboards/13): `'phone'` (the default) is the card above, unchanged. `'board'` is the tablet and
- * desktop card: Outlook · Astrology Reading · Calendar, no "i" button (Why is inside the card and the reasoning is its own
- * tab), no 72-character cap (the card's own width lays it out), and "Is this right?" pinned between the view and the
+ * desktop card: Outlook · Astrology Reading · Calendar, the "i" button opening the full reading in a sheet (as on the
+ * phone), the Outlook sections behind a toolbar (the section picked kept per card while it is mounted), no 72-character cap (the card's own width lays it out), and "Is this right?" pinned between the view and the
  * chat input on Outlook.
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowLeft, Info, Lock } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
-import { V2_WORDS } from '../v2/words';
+import { V2_WORDS } from '../../../components/board/words';
 import { CardBanner, cardAccentClass } from './CardBanner';
 import CardFooter from './CardFooter';
 import { SensitiveNote, type CardReading } from './CardParts';
 import AstrologyView from './AstrologyView';
 import { AnalysisView, BOARD_VIEWS, CalendarView, CardViewBars, VIEW_WORDS, type CardViewId } from './CardViews';
-import OutlookView from './OutlookView';
+import OutlookView, { type OutlookSection } from './OutlookView';
 import RangeCalendar from './RangeCalendar';
 import { dayWords, headlineOf, keyDatesOf, todayIso, type PeriodView } from './cardModel';
 import FaceBody from './faces/FaceBody';
@@ -141,11 +141,14 @@ export default function CardFrame({
   // the three bars replace Read / Short (server docs/dashboards/12): a stored Short reads as Read, whose top it now is
   const boardShape = shape === 'board';
   const [shownView, setShownView] = useState<CardViewId>(boardShape ? 'outlook' : 'read');
+  // board shape: the Outlook section picked, kept for this card while it is on the board (never stored)
+  const [outlookSection, setOutlookSection] = useState<OutlookSection>('overview');
   const chips = allowed.periods ? view.chips : [];
   const period = allowed.periods ? view.period : (view.periods.find((p) => p.current && p.own) ?? null);
   const headline = headlineOf(card, period, voice);
   const notReady = lockedPlan ? null : notReadyBody(card, veil, reading);
   const panelId = `card-body-${card.id}`;
+  const goodUntil = /^\d{4}-\d{2}-\d{2}/.test(card.v3?.goodUntil ?? '') ? card.v3!.goodUntil!.slice(0, 10) : null;
   const ready = !lockedPlan && !notReady;
   const chatting = ready && !!chatFace?.open;
   // a card that stops being readable (a new build, a lock) leaves its conversation; the board keeps it
@@ -180,7 +183,7 @@ export default function CardFrame({
         {ready && (
           <div className="flex shrink-0 items-center gap-1" data-testid="card-header-icons">
             {chat?.(card, period)}
-            {!boardShape && allowed.why && onWhy && (
+            {allowed.why && onWhy && (
               <button type="button" onClick={() => onWhy(card, period)} aria-label={`${V3_WORDS.why}: ${title}`} title={V3_WORDS.why} className={iconBtn} data-testid="card-why">
                 <Info className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -210,6 +213,8 @@ export default function CardFrame({
         showWhy={allowed.why}
         showDates={allowed.keyDates}
         onAstrology={() => pickView('astrology')}
+        section={outlookSection}
+        onSection={setOutlookSection}
       />
     ) : shownView === 'astrology' ? (
       <AstrologyView card={card} period={period} showDetails={allowed.why} />
@@ -259,6 +264,12 @@ export default function CardFrame({
         </p>
       ) : null}
       {!chatting && card.status === 'stale' ? <p className="shrink-0 text-center text-[13px] text-white/55" data-testid="card-stale">{V2_WORDS.cardStale}</p> : null}
+      {/* how long this reading holds (docs/techniques/09 §3.2): small, beside the card's other freshness lines */}
+      {!chatting && goodUntil ? (
+        <p className="shrink-0 text-right text-[12px] leading-4 text-white/50" data-testid="card-good-until">
+          {V3_WORDS.goodUntil(dayWords(goodUntil))}
+        </p>
+      ) : null}
       {!chatting && shownView === 'read' ? (
         <p key={`h-${view.selected ?? -1}`} className={`self-v3-fade shrink-0 text-center font-bold leading-snug text-white ${compact ? 'text-lg' : 'text-[22px] sm:text-2xl'}`} data-testid="card-line">
           {headline}

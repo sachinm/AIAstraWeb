@@ -33,7 +33,7 @@ test('real Chromium layout, container queries, tool vetting, single-tab-stop too
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await signIn(page);
 
-  await page.goto('/dashboard/you?v2=1');
+  await page.goto('/dashboard/you');
   const bodyCard = page.getByTestId('v3-card-body');
   await expect(bodyCard).toBeVisible({ timeout: 30_000 });
 

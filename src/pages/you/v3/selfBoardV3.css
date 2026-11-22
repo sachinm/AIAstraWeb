@@ -84,41 +84,25 @@ html.light .self-v3-on {
 }
 
 /*
- * Tablet and desktop cards (server docs/dashboards/13 §4.3): `data-shape='board'` only, never the phone card. The card's
- * own width lays the Outlook tab out: S under 500 px one column; M 500–699 px paired panels (Do | Avoid, Key dates |
- * Systems); L 700 px and up two columns (the reading on the left, Key dates and Systems on the right).
+ * Tablet and desktop cards (server docs/dashboards/13 §4.3): `data-shape='board'` only, never the phone card. The
+ * Outlook tab shows one section at a time under its toolbar; from 500 px Do and Avoid sit side by side.
  */
 .self-v3-card[data-shape='board'] .self-v3-outlook {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'why' 'todo' 'text' 'dates' 'systems' 'ladder' 'pattern';
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: start;
 }
-.self-v3-card[data-shape='board'] .self-v3-outlook-main,
-.self-v3-card[data-shape='board'] .self-v3-outlook-side {
-  display: contents;
+/* the section toolbar stays in reach while its section scrolls */
+.self-v3-card[data-shape='board'] .self-v3-outlook-tools {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.25rem 0;
+  background: rgb(14 22 80 / 0.92);
+  backdrop-filter: blur(6px);
 }
-.self-v3-card[data-shape='board'] .o-why {
-  grid-area: why;
-}
-.self-v3-card[data-shape='board'] .o-todo {
-  grid-area: todo;
-}
-.self-v3-card[data-shape='board'] .o-text {
-  grid-area: text;
-}
-.self-v3-card[data-shape='board'] .o-dates {
-  grid-area: dates;
-}
-.self-v3-card[data-shape='board'] .o-systems {
-  grid-area: systems;
-}
-.self-v3-card[data-shape='board'] .o-ladder {
-  grid-area: ladder;
-}
-.self-v3-card[data-shape='board'] .o-pattern {
-  grid-area: pattern;
+html.light .self-v3-card[data-shape='board'] .self-v3-outlook-tools {
+  background: rgb(255 255 255 / 0.92);
 }
 
 /* "Is this right?" pinned above the chat input: a fade above it so the text scrolls under, room for it in the scroll */
@@ -160,10 +144,6 @@ html.light .self-v3-card[data-shape='board'] .self-v3-pinned::before {
 }
 
 @container (min-width: 500px) {
-  .self-v3-card[data-shape='board'] .self-v3-outlook {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: 'why why' 'todo todo' 'text text' 'dates systems' 'ladder ladder' 'pattern pattern';
-  }
   .self-v3-card[data-shape='board'] .self-v3-todo-list {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -192,25 +172,5 @@ html.light .self-v3-card[data-shape='board'] .self-v3-pinned::before {
   .self-v3-card[data-shape='board'] .self-v3-pinned [data-testid='section-confirm'] > span {
     flex-wrap: nowrap;
     flex-shrink: 0;
-  }
-  .self-v3-card[data-shape='board'] .self-v3-outlook {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    grid-template-areas: none;
-    column-gap: 1.5rem;
-  }
-  .self-v3-card[data-shape='board'] .self-v3-outlook-main,
-  .self-v3-card[data-shape='board'] .self-v3-outlook-side {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    min-width: 0;
-  }
-  .self-v3-card[data-shape='board'] .self-v3-outlook-main > *,
-  .self-v3-card[data-shape='board'] .self-v3-outlook-side > * {
-    grid-area: auto;
-  }
-  /* L keeps Do over Avoid in its narrower main column */
-  .self-v3-card[data-shape='board'] .self-v3-todo-list {
-    grid-template-columns: minmax(0, 1fr);
   }
 }

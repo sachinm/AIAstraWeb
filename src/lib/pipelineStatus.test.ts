@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { onPipelineAnnounced, pipelineLocked, readPipeline, refusedPipeline, type PipelineView } from './pipelineStatus';
 import { refreshBoard } from './boardRefresh';
 import { patchSelfV3Layout, putSelfV3LayoutResult, readSelfV3Card, fetchSelfV3State } from './selfV3Api';
-import { changeSelfV2Clock, fetchSelfV2 } from './selfV2Api';
+import { fetchSelfV2 } from './selfV2Api';
+import { changeSelfV2Clock } from './selfClockApi';
 import { clearSelfV3Cached, getSelfV3Cached } from './selfV3Cache';
 import { selfV3Fixture } from '../pages/you/v3/selfV3.fixture';
 
@@ -55,9 +56,9 @@ describe('refreshBoard', () => {
     expect(seen).toEqual([LOCKED]);
   });
 
-  it('409 building is "busy", not an error', async () => {
+  it('409 building is never an error: "busy" with a locked gate, else the board build the page waits for', async () => {
     answer = () => new Response(JSON.stringify({ error: 'A build is running', code: 'building' }), { status: 409 });
-    expect(await refreshBoard('love')).toEqual({ kind: 'busy', pipeline: null });
+    expect(await refreshBoard('love')).toEqual({ kind: 'building', usage: null });
     answer = () => new Response(JSON.stringify({ error: 'x', code: 'building', pipeline: LOCKED }), { status: 409 });
     expect(await refreshBoard('love')).toEqual({ kind: 'busy', pipeline: LOCKED });
   });

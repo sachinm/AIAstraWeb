@@ -3,9 +3,9 @@
  * mockup). Plain words only: no technique id, internal label, chart term, clock count or engine name on a card face or
  * the hero. Chart details may carry chart terms; those come from the server.
  */
-import { longDate } from '../../../lib/careerApi';
-import type { PlanStatus } from '../../../lib/billing';
-import type { AreaCertainty, SelfV2Area, SelfV2BuildStage, SelfV2Group, Tone } from '../../../lib/selfV2Api';
+import { longDate } from '../../lib/careerApi';
+import type { PlanStatus } from '../../lib/billing';
+import type { AreaCertainty, SelfV2Area, SelfV2BuildStage, SelfV2Group, Tone } from '../../lib/boardTypes';
 
 export const V2_WORDS = {
   title: 'Self',
@@ -47,7 +47,10 @@ export const V2_WORDS = {
   clockCurrent: 'Now',
   clockNotApplies: 'Does not apply to your chart',
   notNow: 'Not now',
-  rebuildOn: (label: string) => `Rebuild on ${label} · 1 question`,
+  /** the confirm button names the cost only when a question is counted */
+  rebuildOn: (label: string, counted = true) => `Rebuild on ${label}${counted ? ' · 1 question' : ''}`,
+  /** what a clock is, before the person picks one */
+  clockLead: 'A clock is one way of timing your chart. Your board is read on one clock at a time; switching reads every card again on the new one.',
   pickClock: 'Pick a clock',
   clockErrors: {
     not_applicable: 'That clock does not apply to your chart.',
@@ -60,6 +63,20 @@ export const V2_WORDS = {
     /** the first day a fresh reading may be asked for: the day after the last good day */
     from: (validUntil: string) => `Fresh reading from ${longDate(dayAfter(validUntil))}`,
     made: (madeAt: string, validUntil: string | null) => `Made ${longDate(madeAt.slice(0, 10))}${validUntil ? ` · Good until ${longDate(validUntil)}` : ''}`,
+    /** the not-due chip leads with how long the reading holds, never with a future start date */
+    goodUntil: (validUntil: string) => `Good until ${longDate(validUntil)}`,
+    madeOn: (madeAt: string) => `Made ${longDate(madeAt.slice(0, 10))}`,
+    /** the not-due chip's tooltip: when a fresh one may be asked for */
+    nextFrom: (validUntil: string) => `A fresh reading can be asked for from ${longDate(dayAfter(validUntil))}`,
+    /** 409 not_ready: the board is still being read, so a refresh cannot start yet */
+    catchingUp: 'Your board is catching up. Try again in a few minutes.',
+    /** Love and Work: a lens never read; its first reading is free (server docs/billing/03 §10) */
+    readFirst: 'Read these cards',
+    free: 'Free: first reading',
+    /** the same lens asked for again today: nothing is read again and nothing counted */
+    repeat: 'Already asked for today. No question used.',
+    included: 'Included in your plan',
+    used: 'Used 1 question',
     working: 'Making your fresh reading…',
     veil: 'Making your fresh reading. This page will update by itself.',
     noQuestions: 'No questions left',

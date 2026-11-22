@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import Sheet from '../../you/v2/Sheet';
+import Sheet from '../../../components/board/Sheet';
 
 export interface LensOption {
   id: string;

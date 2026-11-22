@@ -7,7 +7,6 @@ import { GeneralReadingProvider } from '../components/GeneralReading';
 import SideNav, { SideNavProvider } from '../components/SideNav';
 import NightSky from '../components/NightSky';
 import { boardsEnabled } from '../components/BoardTabBar';
-import { selfV2Enabled } from '../lib/selfV2Api';
 
 interface User {
   name: string;
@@ -24,8 +23,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const location = useLocation();
   const path = location.pathname.replace(/\/+$/, '');
   const onChat = path.endsWith('/chat');
-  // the Self board v2 (server doc 66) never scrolls: the shell is held to the window and the board fills the main area
-  const fixedBoard = path === '/dashboard/you' && selfV2Enabled(location.search);
+  // the Self board never scrolls: the shell is held to the window and the board fills the main area. The legacy You page
+  // (`?legacy=1`, kept one release) scrolls as before.
+  const fixedBoard = path === '/dashboard/you' && new URLSearchParams(location.search).get('legacy') !== '1';
   return (
     <GeneralReadingProvider user={user}>
     <SideNavProvider>

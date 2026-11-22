@@ -10,7 +10,7 @@
  * 4. Pure date arithmetic and string formatting over stored server windows — zero astrological computation in the client.
  */
 import { CARD_GROUP_BYS, CARD_TOOLS, type CardGroupBy, type CardOptions, type CardTool } from '../../../lib/cardOptions';
-import type { LadderSteps } from '../../../lib/selfV2Api';
+import type { LadderSteps } from '../../../lib/boardTypes';
 import { normaliseCardGrant, type SelfV3CardView, type SpanMode, type SpanTone } from '../../../lib/selfV3Api';
 import { cardPatterns } from './CardParts';
 import { firstSentence, groupPeriods, planSteps, type PeriodView } from './cardModel';
