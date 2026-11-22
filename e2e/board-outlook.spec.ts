@@ -141,7 +141,7 @@ async function openBoard(page: Page, opts: { stored?: string | null } = {}): Pro
   await stubBoard(page, opts.stored ?? null, unexpected);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await signIn(page);
-  await page.goto('/dashboard/you?v2=1');
+  await page.goto('/dashboard/you');
   await expect(page.getByTestId('v3-card-body')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('self-v3-carousel')).toBeVisible();
   // the rail's 200 ms transition and the deck's re-measure
@@ -172,7 +172,8 @@ async function outlookChecks(page: Page, tag: string) {
   const body = page.getByTestId('v3-card-body');
   const tabs = await body.getByTestId('card-bars').getByRole('tab').allTextContents();
   expect.soft(tabs.map((t) => t.trim()), `${tag}: tabs`).toEqual(['Outlook', 'Astrology Reading', 'Calendar']);
-  expect.soft(await page.getByTestId('card-why').count(), `${tag}: no card-why button`).toBe(0);
+  // docs/techniques/09 §4.3: the "i" button is back on every card and opens the full reading
+  expect.soft(await page.getByTestId('card-why').count(), `${tag}: card-why button`).toBeGreaterThan(0);
   // the picked tab's label must be readable on its pill (WCAG large-text minimum 3:1)
   const contrast = await body.locator('[data-testid="card-bars"] [aria-selected="true"]').evaluate((el) => {
     const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
@@ -341,13 +342,17 @@ test.describe('board outlook (docs/dashboards/13)', () => {
     await body.getByTestId('card-view-astrology').click();
     await expect(body.getByTestId('astrology-view').or(body.getByTestId('astrology-empty'))).toBeVisible();
     await shot(page, 13, w, h, 'astrology');
-    expect.soft(await body.getByTestId('astrology-view').count(), 'astrology: view (not empty)').toBe(1);
-    const astro = (await body.getByTestId('card-body').textContent()) ?? '';
-    expect.soft(astro, 'astrology: the gift').toContain('The gift');
-    expect.soft(astro, 'astrology: the knot').toContain('The knot');
-    expect.soft(await body.getByTestId('astrology-certainty').count(), 'astrology: certainty word').toBe(1);
-    expect.soft(await body.getByTestId('astrology-clocks').count(), 'astrology: clock chips').toBe(1);
+    // docs/techniques/09 §4.3: the tab holds the card's thread; this fixture has none, so it waits
+    expect.soft(await body.getByTestId('astrology-empty').count(), 'astrology: waiting line (no thread)').toBe(1);
     await body.getByTestId('card-view-outlook').click();
+    // the chart sentences are Outlook's "The gift and the knot" section now
+    await body.getByTestId('outlook-tool-chart').click();
+    const chart = (await body.getByTestId('card-body').textContent()) ?? '';
+    expect.soft(chart, 'outlook chart: the gift').toContain('The gift');
+    expect.soft(chart, 'outlook chart: the knot').toContain('The knot');
+    expect.soft(chart, 'outlook chart: no span id').not.toMatch(/\(s\d+\)/);
+    expect.soft(await body.getByTestId('astrology-certainty').count(), 'outlook chart: certainty word').toBe(1);
+    await body.getByTestId('outlook-tool-overview').click();
 
     await page.getByTestId('board-settings-open').click();
     await expect(page.getByTestId('board-settings-panel')).toBeVisible();

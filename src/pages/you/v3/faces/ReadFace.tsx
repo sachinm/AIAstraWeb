@@ -1,8 +1,10 @@
 /**
- * The Read face (default, doc 75; server docs/dashboards/12): "What to do" first, the one best step and the one thing to
+ * The Read face (default, doc 75; server docs/dashboards/12): the card's plain story when served (or "being written"
+ * while it is), then "What to do", the one best step and the one thing to
  * avoid (the old Short face is now the top of Read), then the picked period's own words, the card's standing lines and
  * "Your pattern" in one line. The card body scrolls; nothing is clamped.
  */
+import { PlainStory, plainPending, storyParagraphs } from '../AstrologyView';
 import { patternLine, whatToDo, type FaceProps } from '../cardModel';
 import { V3_WORDS } from '../words';
 import { body, label } from './parts';
@@ -11,7 +13,9 @@ export default function ReadFace({ card, period, standing }: FaceProps) {
   const paragraphs = [...(period?.text ?? []), ...standing];
   const pattern = patternLine(card);
   const todo = whatToDo(card, period);
-  if (!paragraphs.length && !pattern && !todo.best && !todo.avoid)
+  // the plain story (or its "being written" line) leads, as on the tablet and desktop Outlook tab
+  const plain = storyParagraphs(card.v3?.plain?.story).length > 0 || plainPending(card);
+  if (!plain && !paragraphs.length && !pattern && !todo.best && !todo.avoid)
     return (
       <p className="text-center text-[15px] text-white/60" data-testid="face-body-read">
         {V3_WORDS.noText}
@@ -19,6 +23,7 @@ export default function ReadFace({ card, period, standing }: FaceProps) {
     );
   return (
     <div key={period?.index ?? -1} className="self-v3-fade space-y-3" data-testid="face-body-read">
+      {plain && <PlainStory card={card} />}
       {(todo.best || todo.avoid) && (
         <section data-testid="section-todo">
           <h4 className={label}>{V3_WORDS.whatToDo}</h4>

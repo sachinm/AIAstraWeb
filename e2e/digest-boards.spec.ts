@@ -117,7 +117,8 @@ test('digest boards wave 1-3: you, love, work, lucky times, and life reading tim
   await signIn(page);
 
   // 1. You board (/dashboard/you) + 3-Decade Character Evolution & Moon/Mercury Joy
-  await page.goto('/dashboard/you');
+  // the legacy You page (one release behind ?legacy=1 since the v3 Self board took the route)
+  await page.goto('/dashboard/you?legacy=1');
   await expect(page.getByTestId('tone-card')).toContainText('A clear stretch for a fresh start. Begin before 31 May 2027.');
   await expect(page.getByTestId('self-character-arc')).toBeVisible();
   await expect(page.getByTestId('character-stage-past_10y')).toContainText('Last 10 Years');

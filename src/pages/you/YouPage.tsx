@@ -7,8 +7,8 @@ import AreaBoardView, { type AreaBoardConfig } from '../../components/AreaBoardV
 import { longDate } from '../../lib/careerApi';
 import type { AreaBoard } from '../../lib/areaApi';
 import SelfReading from './SelfReading';
-import SelfBoardV3 from './v3/SelfBoardV3';
-import { selfV2Enabled } from '../../lib/selfV2Api';
+import BoardV3 from '../board/v3/BoardV3';
+import { legacyRequested } from '../../lib/selfV3Api';
 
 export const YOU_SUBAREAS: Record<string, string> = {
   identity: 'Direction',
@@ -68,12 +68,26 @@ export const YOU_CONFIG: AreaBoardConfig = {
   extraFirstTab: { id: 'reading', label: 'Your reading', render: () => <SelfReading /> },
 };
 
+/** The You board before v3: kept one release behind `?legacy=1`, and what shows when the server has the v3 board off. */
+export function YouLegacyPage() {
+  return <AreaBoardView cfg={YOU_CONFIG} />;
+}
+
 /**
- * When VITE_SELF_V2=1 or the address has ?v2=1: the Self board v3 (server doc 68) when GET /api/self/v3 answers with a
- * v3 body, else the v2 board (server doc 66) unchanged; SelfBoardV3 makes that choice. Otherwise this board, so release
- * can be undone.
+ * /dashboard/you (retire-v2 plan): the Self board v3 (pages/board/v3/BoardV3, server doc 68). `?legacy=1` shows the
+ * legacy You page instead; so does a server with the v3 board off (GET /api/self/v3 answers 404 without a v3 body). The
+ * shell holds this route to the window (Dashboard `fixedBoard`), so the legacy page scrolls inside its own box there.
  */
 export default function YouPage() {
-  if (selfV2Enabled()) return <SelfBoardV3 />;
-  return <AreaBoardView cfg={YOU_CONFIG} />;
+  if (legacyRequested()) return <YouLegacyPage />;
+  return (
+    <BoardV3
+      board="self"
+      legacy={
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain" data-testid="you-legacy-scroll">
+          <YouLegacyPage />
+        </div>
+      }
+    />
+  );
 }

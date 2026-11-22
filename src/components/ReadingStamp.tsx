@@ -9,7 +9,7 @@ import { longDate } from '../lib/careerApi';
 import { refreshBoard, type RefreshBoard } from '../lib/boardRefresh';
 import { AI_UNAVAILABLE_MESSAGE, useAiUnavailable } from '../lib/aiStatus';
 import { pipelineLocked, type PipelineView } from '../lib/pipelineStatus';
-import { PIPELINE_WORDS, pipelineLine } from '../pages/you/v2/words';
+import { PIPELINE_WORDS, pipelineLine } from './board/words';
 
 type Ask = 'idle' | 'working' | 'no_questions' | 'failed';
 

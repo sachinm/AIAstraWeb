@@ -8,14 +8,13 @@
  * their clocks, details, ladder) and does date arithmetic for the month grid. No internal id, clock key or evidence key
  * is shown, only the plain labels.
  */
+import { nameOr } from '../../../lib/plainLabel';
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CardOptions } from '../../../lib/cardOptions';
-import type { SelfV2Area } from '../../../lib/selfV2Api';
 import type { SelfV3CardView, SpanReading, SpanTone } from '../../../lib/selfV3Api';
-import { ChartDetails } from '../v2/AreaCard';
+import { ChartDetails, hasChartDetails, type ChartDetailsBody } from '../../../components/board/ChartDetails';
 import { dayWords, datesWords, keyDatesOf, planSteps, todayIso, type PeriodView } from './cardModel';
-import { cardTitle } from './features';
 import { label } from './faces/parts';
 import { SPAN_TONE_DOT, SPAN_TONE_WORD, V3_WORDS } from './words';
 
@@ -33,7 +32,7 @@ export const VIEW_WORDS = {
   outlook: 'Outlook',
   astrology: 'Astrology Reading',
   why: 'Why we think so',
-  systems: 'How the systems read it',
+  systems: 'How AdAstra AI read it',
   agree: (n: number, of: number) => `${n} of ${of} agree`,
   agreeing: 'Agreeing',
   testing: 'Testing it',
@@ -51,17 +50,9 @@ export const VIEW_WORDS = {
 
 export const STEP_WORD: Record<string, string> = { best: 'Best', practical: 'Practical', drift: 'If it drifts', floor: 'The floor' };
 
-/** the v2 Chart details body reads only `details` */
-export function detailsArea(card: SelfV3CardView): SelfV2Area {
-  return {
-    id: 'diagnosis',
-    group: 'you',
-    title: cardTitle(card),
-    status: card.status,
-    card: card.v2?.card ?? null,
-    floor: [],
-    details: { ...(card.v2?.details ?? { evidence: [] }), certainty: card.v2?.details?.certainty as SelfV2Area['details']['certainty'] },
-  };
+/** the card's older long reading (its stored v2 chart details); null when the server sent none (`v2: null`) */
+export function cardDetails(card: SelfV3CardView): ChartDetailsBody | null {
+  return card.v2?.details ?? null;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -137,8 +128,8 @@ export function AnalysisView({ card, period, options, why }: { card: SelfV3CardV
   const agreeing = clocks.filter((c) => c.agrees);
   const testing = clocks.filter((c) => !c.agrees);
   const steps = planSteps(card, options);
-  const details = detailsArea(card).details;
-  const hasDetails = why && (!!details.headline || (details.paragraphs ?? []).some((p) => !!p?.trim()));
+  const details = cardDetails(card);
+  const hasDetails = why && hasChartDetails(details);
   // a card with no v2 details (every Love and Work card) says why from its chart reading (server docs/dashboards/13 §4.1)
   const chart = why && !hasDetails ? (card.v3?.chart ?? null) : null;
   const shows = chart?.spans.find((s) => s.span === (period?.span?.span ?? span?.span))?.shows ?? chart?.spans[0]?.shows ?? null;
@@ -155,7 +146,7 @@ export function AnalysisView({ card, period, options, why }: { card: SelfV3CardV
         <section data-testid="analysis-why">
           <h4 className={label}>{VIEW_WORDS.why}</h4>
           <div className="mt-1.5">
-            <ChartDetails area={detailsArea(card)} showEvidence={false} />
+            <ChartDetails details={details!} showEvidence={false} emptyLine={false} />
           </div>
         </section>
       )}
@@ -190,7 +181,7 @@ export function AnalysisView({ card, period, options, why }: { card: SelfV3CardV
           <ol className="mt-1.5 grid gap-1.5">
             {steps.map((s) => (
               <li key={s.key} className="grid grid-cols-[88px_1fr] gap-2.5 rounded-xl bg-white/5 px-3 py-2 text-[15px]" data-testid={`ladder-${s.key}`}>
-                <b className="self-center text-[13px] font-bold text-teal-200">{STEP_WORD[s.key] ?? s.key}</b>
+                <b className="self-center text-[13px] font-bold text-teal-200">{nameOr(STEP_WORD, s.key)}</b>
                 <span className="text-white/85">{s.text}</span>
               </li>
             ))}

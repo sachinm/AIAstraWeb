@@ -7,8 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { FreshControl } from './FreshReading';
 import { PIPELINE_WORDS, pipelineLine } from './words';
-import type { PipelineView } from '../../../lib/pipelineStatus';
-import type { SelfV2Refresh } from '../../../lib/selfV2Api';
+import type { PipelineView } from '../../lib/pipelineStatus';
+import type { SelfV2Refresh } from '../../lib/boardTypes';
 
 const LOCKED: PipelineView = { stage: 'preparing', done: 3, total: 7, line: 'Preparing Work', locked: true, reason: 'preparing' };
 const NEVER: SelfV2Refresh = { madeAt: null, validUntil: null, due: false };

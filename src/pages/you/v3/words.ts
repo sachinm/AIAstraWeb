@@ -1,7 +1,7 @@
 /**
  * Every word the Self board v3 says that is not from the server (server docs/reading-engine/68 §4.1, §4.4, §4.7).
  * Plain words only: no chart term, clock count or engine name on a card face. The v2 words (header, clock sheet, fresh
- * reading, build progress) are reused from ../v2/words.
+ * reading, build progress) are in components/board/words.ts.
  */
 import type { CardFace } from '../../../lib/cardOptions';
 import type { CardVoice, SelfSectionId, SelfTemplateId, SpanMode, SpanTone } from '../../../lib/selfV3Api';
@@ -73,6 +73,8 @@ export const V3_WORDS = {
   stageClocks: 'Reading your chart',
   stageLedger: 'Putting your reading together',
   stageCards: (done: number, total: number) => `Writing your cards · ${done} of ${total}`,
+  /** the day's build is still running and no card is being written yet: its own stage, in plain words */
+  stagePreparing: (step: string) => `Preparing today's reading · ${step}`,
   chartPreparing: 'Your chart is still being prepared. Back in a few minutes.',
   addFive: 'Add at least five cards to start your reading.',
   comingSoon: 'Coming soon',
@@ -82,6 +84,13 @@ export const V3_WORDS = {
   // tablet and desktop (server docs/dashboards/13): the Edit button opens the card chooser, and the gear's cards across
   cards: 'Cards',
   cardsAcross: 'Cards across',
+  // docs/techniques/09 §6: a card was read before the full-thread reading; a refresh (charged) reads it again
+  deeperReady: 'A deeper reading is ready.',
+  deeperRefresh: 'Refresh',
+  deeperCost: 'uses 1 of your questions.',
+  deeperHide: 'Hide this note',
+  /** a card's reading holds until this day (docs/techniques/09 §3.2) */
+  goodUntil: (date: string) => `Good until ${date}`,
 } as const;
 
 /** the gear's "Cards across" (tablet and desktop, docs/dashboards/13 §4.3): Auto follows the deck's width */
@@ -91,15 +100,15 @@ export const ACROSS_WORD: Record<AcrossChoice, string> = { auto: 'Auto', '1': '1
 
 /**
  * Outlook and Astrology Reading (server docs/dashboards/13 §4.3, §4.4). Outlook speaks plainly: no chart term. The
- * counted Why line says how many timing systems read the stretch one way, from counts the server sent.
+ * counted Why line says how many timing views AdAstra AI read the stretch one way, from counts the server sent.
  */
 export const OUTLOOK_WORDS = {
   why: 'Why we think so',
   seeAstrology: 'See the astrology reading',
-  /** "5 of 7 timing systems read this stretch as mixed" */
-  countedTone: (n: number, of: number, tone: string, own: boolean) => `${n} of ${of} timing systems read ${own ? 'this stretch' : 'this reading'} as ${tone}`,
+  /** "On 5 of 7 timing views, AdAstra AI reads this stretch as mixed" */
+  countedTone: (n: number, of: number, tone: string, own: boolean) => `On ${n} of ${of} timing views, AdAstra AI reads ${own ? 'this stretch' : 'this reading'} as ${tone}`,
   /** a split stretch shows no tone word (doc 68 §4.7) */
-  countedSplit: (n: number, of: number, own: boolean) => `${n} of ${of} timing systems agree on ${own ? 'this stretch' : 'this reading'}`,
+  countedSplit: (n: number, of: number, own: boolean) => `On ${n} of ${of} timing views, AdAstra AI finds ${own ? 'this stretch' : 'this reading'} split`,
   stretchBar: 'The stretch, start to end',
   today: 'Today',
   gift: 'The gift',
@@ -108,6 +117,19 @@ export const OUTLOOK_WORDS = {
   clocks: 'Which clocks agree',
   certainty: 'How sure',
   nothing: 'Nothing more to show for this card yet.',
+  /** the Astrology Reading tab before the server writes the card's story (plan revision 2 §6) */
+  storyPending: 'The full astrology reading is being prepared for this card.',
+  systemsRead: 'AdAstra AI read',
+  /** what a system has running: "until 27 Dec 2027" */
+  until: (date: string) => `until ${date}`,
+  /** the plain story is being written again (server `plain.pending`) */
+  plainPending: 'The plain reading is being written.',
+  /** the Outlook tab's section toolbar */
+  toolbar: 'Sections of this card',
+  whyAndTodo: 'Why we think so, What to do',
+  giftAndKnot: 'The gift and the knot',
+  fullReading: 'Full reading',
+  growth: 'What this builds in you',
 } as const;
 
 export const TEMPLATE_WORD: Record<Extract<SelfTemplateId, 'compact' | 'seasons'>, string> = {

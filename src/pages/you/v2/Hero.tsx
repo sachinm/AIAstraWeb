@@ -11,7 +11,7 @@ import { saveFacts } from '../../../lib/profileApi';
 import { track } from '../../../lib/events';
 import { sendSelfV2Confirm, sendSelfV2Mood, type HeroDoc, type Mood, type SelfConfirmAnswer, type WindowRef } from '../../../lib/selfV2Api';
 import { STEPS } from '../../welcome/WelcomeWizard';
-import { ANSWERS, MOODS, TONE_CLASS, TONE_WORD, V2_WORDS } from './words';
+import { ANSWERS, MOODS, TONE_CLASS, TONE_WORD, V2_WORDS } from '../../../components/board/words';
 import { Illustration } from './AreaCard';
 
 const SURFACE = 'self_v2';
