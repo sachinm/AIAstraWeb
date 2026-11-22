@@ -25,6 +25,11 @@
  * Love and Work open on `?lens=<id>` when the link carries one (a focused dashboard in the side menu, server
  * docs/dashboards/11): the board switches to that lens and saves it as its lens, then the parameter leaves the URL.
  *
+ * The reading gate (server prep gate): while the board's `pipeline.locked` (or a start was just refused with 409
+ * `preparing`), every control that starts a reading (the fresh reading, a card's Try again, a clock rebuild) is disabled
+ * and says "Building your chart data" with the server's line; the page polls every 5 s within the same cap and, once the
+ * server unlocks, the controls are back as they were. Picking cards and saving the layout stay open; nothing is started.
+ *
  * Card chat (server docs/reading-engine/85), when the server grants `feature.card_chat`: each card carries a chat
  * bubble, and its tap turns that card, in place, into its Chat face. One card is in Chat at a time; the carousel is held
  * still while it is; Read or Short on the card, Esc, or the browser's Back return to the card with the conversation kept
@@ -73,7 +78,8 @@ import ClockSheet from '../../you/v2/ClockSheet';
 import { BuildStatus, FreshControl, FreshSheet } from '../../you/v2/FreshReading';
 import SelfBoardV2, { PersonalizeModal, SelfTitle, V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, useBoardMode, veilProgress, type BoardMode } from '../../you/v2/SelfBoardV2';
 import Sheet from '../../you/v2/Sheet';
-import { V2_WORDS } from '../../you/v2/words';
+import { PIPELINE_WORDS, V2_WORDS, pipelineLine } from '../../you/v2/words';
+import { PIPELINE_POLL_MS, onPipelineAnnounced, pipelineLocked, type PipelineView } from '../../../lib/pipelineStatus';
 import CardChips from '../../you/v3/CardChips';
 import { detailsArea } from '../../you/v3/CardViews';
 import type { CardReading } from '../../you/v3/CardParts';
@@ -144,10 +150,13 @@ export function readingPending(board: SelfV3Response | null): boolean {
   return board.layout.cards.some((id) => cardReadPending(byId.get(id)?.state));
 }
 
-/** The board's reading line (doc 70 §4.4); null for idle and done. */
-export function readingLine(reading: BoardReadingView | null | undefined): string | null {
+/**
+ * The board's reading line (doc 70 §4.4); null for idle and done. While the chart is still being prepared, the reading
+ * gate's own line (server `pipeline.line`) is preferred to the page's.
+ */
+export function readingLine(reading: BoardReadingView | null | undefined, pipeline?: PipelineView | null): string | null {
   if (!reading?.enabled) return null;
-  if (reading.preparing) return V3_WORDS.chartPreparing;
+  if (reading.preparing) return pipelineLine(pipeline) || V3_WORDS.chartPreparing;
   if (reading.stage === 'clocks') return V3_WORDS.stageClocks;
   if (reading.stage === 'ledger') return V3_WORDS.stageLedger;
   if (reading.stage === 'cards') return V3_WORDS.stageCards(reading.done, reading.total);
@@ -203,13 +212,21 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
   const [urlLensTaken, setUrlLensTaken] = useState<string | null>(null);
   const dropUrlLens = useCallback(() => setUrlLensTaken(null), []);
 
+  // the reading gate: a start the server refused (409 `preparing`) holds the lock it named until the board is read again
+  const [gateHeld, setGateHeld] = useState<PipelineView | null>(null);
+  // bumped on every read of the board, so the gate's poll runs again even when the body did not change
+  const [reads, setReads] = useState(0);
+
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
+  useEffect(() => onPipelineAnnounced((p) => alive.current && setGateHeld(p)), []);
   const load = useCallback(
     () =>
       fetchSelfV3State({ board: boardId })
         .then(({ state: next, notModified }) => {
           if (!alive.current) return;
+          setGateHeld(null);
+          setReads((n) => n + 1);
           // a board that is on screen stays when the server is briefly unable: no flash of an empty or loading state
           setState((prev) => {
             if (prev?.kind === 'ok' && (next.kind === 'error' || next.kind === 'preparing')) return prev;
@@ -219,7 +236,11 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
           const held = getSelfV3Cached(boardId);
           if (!notModified && next.kind === 'ok' && held && held.data === next.board) void writeSelfV3Persisted({ userId: getUserId() ?? '', kundliId: null, board: boardId }, held.data, held.etag);
         })
-        .catch(() => alive.current && setState((prev) => (prev?.kind === 'ok' ? prev : { kind: 'error' }))),
+        .catch(() => {
+          if (!alive.current) return;
+          setReads((n) => n + 1);
+          setState((prev) => (prev?.kind === 'ok' ? prev : { kind: 'error' }));
+        }),
     [boardId],
   );
 
@@ -258,9 +279,16 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
   const freshBuilding = !!fresh && !freshFailedNow && !(board && board.status === 'ok' && board.builtAt !== fresh.builtAt);
   const stopped = buildStopped(board?.build);
   const building = buildActive(board?.build);
-  const waiting = state?.kind === 'preparing' || (!stopped && (board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding || building));
+  // the reading gate: a refused start's lock, else the board's block (absent on an older server: open)
+  const pipeline: PipelineView | null = gateHeld ?? board?.pipeline ?? (state?.kind === 'preparing' ? (state.pipeline ?? null) : null);
+  const locked = pipelineLocked(pipeline);
+  // locked polls even when a build stopped: the server says it is trying again (`blocked`)
+  const waiting = state?.kind === 'preparing' || locked || (!stopped && (board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding || building));
+  // while locked, each read (even one that changed nothing on screen) schedules the next; otherwise as before
+  const lockedReads = locked ? reads : 0;
 
-  // poll while something is being built, for at most six minutes; then say so and offer Retry (as the v2 board does)
+  // poll while something is being built, for at most six minutes; then say so and offer Retry (as the v2 board does).
+  // While the gate is locked, every 5 s; it stops when the board says it is open (no reading is started then)
   useEffect(() => {
     if (rebuild && !rebuilding) setRebuild(null);
     if (fresh && !freshBuilding) {
@@ -279,13 +307,13 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
       setLate(true);
       return;
     }
-    const every = building ? V2_POLL_MS.build : state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
+    const every = building ? V2_POLL_MS.build : locked ? PIPELINE_POLL_MS : state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
     const t = setTimeout(() => {
       if (Date.now() - (waitStart.current ?? Date.now()) >= V2_MAX_WAIT_MS) setLate(true);
       else void load();
     }, Math.min(every, left));
     return () => clearTimeout(t);
-  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, load]);
+  }, [state, lockedReads, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, locked, load]);
 
   // doc 70: poll every 2 s while a card on the board is queued or reading; stops when none is (and on unmount)
   const cardsPending = readingPending(board);
@@ -326,7 +354,7 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
   if (!state) return frame(<LoadingVeil testId="self-v3-loading" note={V2_WORDS.loading}><div className={`${cardShell} h-full`} /></LoadingVeil>, 'self-v3-wait');
   if (state.kind === 'preparing')
     return frame(
-      <LoadingVeil testId="self-v3-preparing" note={V2_WORDS.preparing} foreground={lateLine || undefined}>
+      <LoadingVeil testId="self-v3-preparing" note={pipelineLine(pipeline) || V2_WORDS.preparing} foreground={lateLine || undefined}>
         <div className={`${cardShell} h-full`} />
       </LoadingVeil>,
       'self-v3-wait',
@@ -355,6 +383,7 @@ export default function BoardV3({ board: boardId = 'self', legacy = null }: { bo
       rebuild={rebuilding ? rebuild : null}
       freshBuilding={freshBuilding}
       freshFailed={freshFailed}
+      pipeline={pipeline}
       lateLine={lateLine || null}
       onRebuild={(system, label) => { setLate(false); waitStart.current = Date.now(); setRebuild({ system, label }); void load(); }}
       onFreshStarted={() => { setLate(false); setFreshFailed(false); waitStart.current = Date.now(); setFresh({ builtAt: board.builtAt, from: board }); }}
@@ -394,9 +423,12 @@ function Board({
   onRetryBuild,
   urlLens = null,
   onUrlLensTaken,
+  pipeline = null,
 }: {
   boardId: BoardId;
   board: SelfV3Response;
+  /** the reading gate: while `locked`, every control that starts a reading is disabled and says why */
+  pipeline?: PipelineView | null;
   /** Love and Work: the lens the link asks for (`?lens=`) */
   urlLens?: string | null;
   onUrlLensTaken?: (id: string) => void;
@@ -414,6 +446,7 @@ function Board({
   const isSelf = boardId === 'self';
   const boardTitle = BOARD_TITLE[boardId];
   const minCards = minCardsFor(boardId);
+  const locked = pipelineLocked(pipeline);
   const { plan, setPlan, refreshPlan } = usePlan();
   const [layout, setLayout] = useState<SelfBoardLayoutView>(board.layout);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -427,7 +460,8 @@ function Board({
       if (p === 'session') {
         setSessionEnded(true);
         setSaveError(V3_WORDS.sessionEnded);
-      } else setSaveError(LAYOUT_ERROR_WORD[p] ?? V3_WORDS.saveFailed);
+      } else if (p === 'preparing') setSaveError(PIPELINE_WORDS.saveLater);
+      else setSaveError(LAYOUT_ERROR_WORD[p] ?? V3_WORDS.saveFailed);
     },
     onSaved: () => {
       setSessionEnded(false);
@@ -590,14 +624,16 @@ function Board({
   const cardReading = useMemo<CardReading>(
     () => ({
       on: readingOn,
+      // a refused read (409 `preparing`) is announced by the call; the page holds the lock until the board is read again
       onReadAgain: async (id) => {
         await readSelfV3Card(id, boardId);
         onReload();
       },
+      pipeline,
     }),
-    [readingOn, onReload, boardId],
+    [readingOn, onReload, boardId, pipeline],
   );
-  const stageLine = readingLine(board.reading);
+  const stageLine = readingLine(board.reading, pipeline);
   const fewForReading = readingOn && layout.chosen && layout.cards.length < minReadingCardsFor(boardId);
 
   const select = useCallback(
@@ -695,10 +731,12 @@ function Board({
       {board.builtAt && <span data-testid="self-built-line"> · built {longDate(board.builtAt.slice(0, 10))}</span>}
     </p>
   );
+  // while locked, the gate's line sits under the fresh-reading control: not said twice in the header
+  const statusLine = locked && stageLine === pipelineLine(pipeline) ? null : stageLine;
   const readingStatus =
-    stageLine || fewForReading ? (
+    statusLine || fewForReading ? (
       <p className="truncate text-[13px] text-white/65" role="status" data-testid="self-reading-line">
-        {stageLine ?? V3_WORDS.addFive}
+        {statusLine ?? V3_WORDS.addFive}
       </p>
     ) : null;
   const refresh = board.refresh && notDue ? { ...board.refresh, due: false, validUntil: notDue.validUntil ?? board.refresh.validUntil } : board.refresh;
@@ -719,6 +757,14 @@ function Board({
       setFreshAnswer(null);
       setNotDue({ validUntil: r.validUntil });
       onReload();
+    } else if (r.kind === 'preparing') {
+      // the reading gate: nothing was started or counted. Not an error; the refused lock was announced to the page,
+      // which shows it and polls until the board says it is open
+      setFreshAnswer(null);
+    } else if (r.kind === 'busy') {
+      // a build is already running: nothing new was started or counted; the board read again shows it
+      setFreshAnswer(null);
+      onReload();
     } else setFreshAnswer('failed');
   };
   const freshControl = (
@@ -731,12 +777,13 @@ function Board({
       buildFailed={freshFailed}
       onAsk={() => setFreshOpen(true)}
       compact={mode === 'phone' || mode === 'duo'}
+      pipeline={pipeline}
     />
   );
   const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
   // a phone (server docs/dashboards/09): the board's title and controls live in the app header; the reading details
   // (clock, status, fresh reading, build, Edit, template) open in one sheet, so the main area holds only the cards
-  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine);
+  const readingNeedsLook = Boolean(refresh?.due) || freshBuilding || freshFailed || freshAnswer !== null || Boolean(stageLine) || locked;
 
   const showPicker = !layout.chosen || pickerOpen;
   const lastTemplate = useRef(template);
@@ -1028,6 +1075,7 @@ function Board({
       onDone={(cards) => void pickerDone(cards)}
       onCancel={layout.chosen ? () => { setPickerOpen(false); setPickLens(null); setSaveError(null); } : undefined}
       readingOn={readingOn}
+      locked={locked}
       // tablet and desktop: the chooser sets the order too, and offers "Reset to suggested"
       {...(mode === 'phone' ? {} : { reorder: true, suggestedIds: suggested })}
       {...(isSelf
@@ -1172,6 +1220,7 @@ function Board({
         <ClockSheet
           clock={board.clock}
           plan={plan}
+          pipeline={pipeline}
           onClose={() => setClockOpen(false)}
           onChanged={(system, label, r) => {
             track('chip_select', SURFACE, `clock_${system}`);

@@ -5,12 +5,14 @@
  *
  * GET /api/self/v2            -> SelfV2Response (`status` ok | pending | preparing | no_kundli)
  * PUT /api/self/v2/clock      -> 202 { usage, status: 'building', alsoChanges } | 400 { error }
+ *                                | 409 { code: 'preparing', pipeline } (the reading gate: the chart is still being built)
  * POST /api/self/v2/confirm   -> 204
  * POST /api/self/v2/mood      -> 204
  */
 import { buildApiHeaders } from './apiHeaders';
 import { ledgerApiUrl } from './ledgerApi';
 import type { PlanStatus } from './billing';
+import { announcePipeline, readPipeline, refusedPipeline, type PipelineView } from './pipelineStatus';
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Copied from the server's src/reading/self/v2types.ts (and AreaDate / AreaCertainty from areaDoc.ts). Keep identical.
@@ -198,6 +200,11 @@ export interface SelfV2Response {
   build?: SelfV2BuildView;
   /** the build's Oracle quality; null when none is stored, absent from an older server */
   quality?: SelfV2Quality | null;
+  /**
+   * The reading gate (server prep gate): where the person's chart build stands. `locked`: no reading may be started.
+   * Absent from an older server: read as not locked.
+   */
+  pipeline?: PipelineView;
 }
 
 export type SelfV2BuildState = 'none' | 'queued' | 'running' | 'ready' | 'failed' | 'stuck';
@@ -234,7 +241,8 @@ export interface SelfV2Refresh {
 
 export type SelfV2State =
   | { kind: 'ok'; board: SelfV2Response }
-  | { kind: 'preparing' }
+  /** `pipeline`: the server's build state when the body carried one (its line is preferred over the page's) */
+  | { kind: 'preparing'; pipeline?: PipelineView }
   | { kind: 'no_kundli' }
   | { kind: 'unavailable' }
   | { kind: 'error' };
@@ -243,7 +251,8 @@ export type SelfConfirmAnswer = 'yes' | 'partly' | 'no' | 'skip';
 
 export type ClockChangeResult =
   | { ok: true; usage: PlanStatus | null; alsoChanges: string[] }
-  | { ok: false; error: 'not_applicable' | 'unknown_system' | 'failed' };
+  /** `preparing`: refused by the reading gate (409 `code: 'preparing'`); nothing was started or counted */
+  | { ok: false; error: 'not_applicable' | 'unknown_system' | 'preparing' | 'failed' };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The flag
@@ -290,10 +299,14 @@ export async function fetchSelfV2(): Promise<SelfV2State> {
   const j = (await r.json().catch(() => null)) as (Partial<SelfV2Response> & { error?: string }) | null;
   if (j?.status === 'no_kundli' || j?.error === 'no_kundli') return { kind: 'no_kundli' };
   if (r.status === 404) return { kind: 'unavailable' };
-  if (j?.status === 'preparing') return { kind: 'preparing' };
+  const pipeline = readPipeline(j?.pipeline);
+  const preparing = (): SelfV2State => (pipeline ? { kind: 'preparing', pipeline } : { kind: 'preparing' });
+  if (j?.status === 'preparing') return preparing();
   if (!r.ok && r.status !== 202) return { kind: 'error' };
   // a 202 with the whole board is a board still being written (pending); a 202 without one is the chart not ready
-  if (!isBoard(j)) return r.status === 202 ? { kind: 'preparing' } : { kind: 'error' };
+  if (!isBoard(j)) return r.status === 202 ? preparing() : { kind: 'error' };
+  // the block as the page reads it (a malformed one is read as absent: not locked)
+  if (j.pipeline !== undefined) return { kind: 'ok', board: { ...j, pipeline: pipeline ?? undefined } };
   return { kind: 'ok', board: j };
 }
 
@@ -307,6 +320,11 @@ export async function changeSelfV2Clock(system: string): Promise<ClockChangeResu
   const j = (await r.json().catch(() => null)) as { usage?: PlanStatus; alsoChanges?: string[]; error?: string } | null;
   if (r.ok) return { ok: true, usage: j?.usage ?? null, alsoChanges: j?.alsoChanges ?? [] };
   if (r.status === 400 && (j?.error === 'not_applicable' || j?.error === 'unknown_system')) return { ok: false, error: j.error };
+  const refused = refusedPipeline(r.status, j);
+  if (refused) {
+    announcePipeline(refused);
+    return { ok: false, error: 'preparing' };
+  }
   return { ok: false, error: 'failed' };
 }
 

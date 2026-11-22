@@ -74,6 +74,31 @@ export const V2_WORDS = {
 } as const;
 
 /**
+ * The reading gate (server prep gate): while the chart is still being built and prepared, every control that starts a
+ * reading is disabled and says so, with the server's own step line under it.
+ */
+export const PIPELINE_WORDS = {
+  label: 'Building your chart data',
+  /** `stage: 'blocked'`: some calculations failed and the server is retrying them */
+  blocked: 'Some of the calculations did not finish. We are trying again.',
+  /** the picker while locked: the pick is saved now, its reading starts once the chart is ready */
+  pickerNote: 'Building your chart data. Your cards are saved now and read once it is ready.',
+  /** the clock sheet while locked, or when the server refused the switch */
+  clock: 'Building your chart data. You can change the clock once it is ready.',
+  /** a layout save the server refused while locked (it should store the pick; this is the fallback) */
+  saveLater: 'Building your chart data. Save again once it is ready.',
+} as const;
+
+/** The line under a locked control: the server's line, then "· n of m" when it counts; the retry sentence when blocked. */
+export function pipelineLine(p: { stage: string; line: string; done: number; total: number } | null | undefined): string {
+  if (!p) return '';
+  if (p.stage === 'blocked') return PIPELINE_WORDS.blocked;
+  const count = p.total > 0 ? `${p.done} of ${p.total}` : '';
+  if (p.line && count) return `${p.line} · ${count}`;
+  return p.line || count;
+}
+
+/**
  * The build's steps in plain words (server docs/loading-overlay/05): what the veil's bar and the header chip say. No
  * chart terms, no engine or technique names.
  */

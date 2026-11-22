@@ -8,6 +8,7 @@
  * carry their clock agreement (the second span is split: no tone word). `selfV3Reading` turns the per-card reading on.
  */
 import type { PersonalCard } from '../../../lib/selfV2Api';
+import type { PipelineView } from '../../../lib/pipelineStatus';
 import type { BoardReadingView, RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardView, SelfV3Response, SpanClockView, SpanReading } from '../../../lib/selfV3Api';
 import { DEFAULT_SECTIONS } from '../../../lib/selfV3Api';
 
@@ -290,6 +291,15 @@ export function selfV3Reading(over: Partial<BoardReadingView> = {}): SelfV3Respo
     ...over,
   };
   return b;
+}
+
+/** the reading gate (server prep gate): a chart still being prepared, and one ready (the default body has no block) */
+export const PIPELINE_LOCKED: PipelineView = { stage: 'preparing', done: 2, total: 5, line: 'Preparing Love', locked: true, reason: 'preparing' };
+export const PIPELINE_OPEN: PipelineView = { stage: 'ready', done: 5, total: 5, line: 'Ready', locked: false, reason: null };
+
+/** the board with a `pipeline` block (`locked` by default) */
+export function selfV3Gated(pipeline: PipelineView = PIPELINE_LOCKED, base: SelfV3Response = selfV3Fixture()): SelfV3Response {
+  return { ...base, pipeline: { ...pipeline } };
 }
 
 /** a first visit: nothing chosen yet, the picker opens */

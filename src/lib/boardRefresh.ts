@@ -8,6 +8,7 @@ import { ledgerApiUrl } from './ledgerApi';
 import type { PlanStatus } from './billing';
 import { announceUsage } from './planUsage';
 import { announceAiUnavailable } from './aiStatus';
+import { announcePipeline, readPipeline, refusedPipeline, type PipelineView } from './pipelineStatus';
 
 export type RefreshBoard = 'self' | 'love' | 'work';
 
@@ -16,6 +17,10 @@ export type RefreshResult =
   | { kind: 'building'; usage?: PlanStatus | null }
   | { kind: 'not_due'; validUntil: string | null }
   | { kind: 'no_questions'; usage: PlanStatus | null }
+  /** 409 `preparing`: the chart is still being built and prepared; nothing was started or counted (the reading gate) */
+  | { kind: 'preparing'; pipeline: PipelineView }
+  /** 409 `building`: a build is already running; nothing new was started or counted. Not an error. */
+  | { kind: 'busy'; pipeline: PipelineView | null }
   | { kind: 'error' };
 
 export const BOARD_REFRESHED_EVENT = 'aiastra:board-refreshed';
@@ -29,7 +34,7 @@ export async function refreshBoard(board: RefreshBoard): Promise<RefreshResult> 
   } catch {
     return { kind: 'error' };
   }
-  const j = (await r.json().catch(() => null)) as { code?: string; valid_until?: string | null; usage?: PlanStatus } | null;
+  const j = (await r.json().catch(() => null)) as { code?: string; valid_until?: string | null; usage?: PlanStatus; pipeline?: unknown } | null;
   if (j?.usage) announceUsage(j.usage);
   if (r.status === 200 || r.status === 202) {
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(BOARD_REFRESHED_EVENT, { detail: board }));
@@ -38,6 +43,16 @@ export async function refreshBoard(board: RefreshBoard): Promise<RefreshResult> 
   if (r.status === 402) return { kind: 'no_questions', usage: j?.usage ?? null };
   if (r.status === 503 && j?.code === 'ai_unavailable') announceAiUnavailable();
   if (r.status === 409 && j?.code === 'not_due') return { kind: 'not_due', validUntil: j.valid_until ?? null };
+  const refused = refusedPipeline(r.status, j);
+  if (refused) {
+    announcePipeline(refused);
+    return { kind: 'preparing', pipeline: refused };
+  }
+  if (r.status === 409 && j?.code === 'building') {
+    const p = readPipeline(j.pipeline);
+    if (p?.locked) announcePipeline(p);
+    return { kind: 'busy', pipeline: p };
+  }
   return { kind: 'error' };
 }
 

@@ -8,6 +8,7 @@
 import BoardCardPicker from '../../../components/boardCards/BoardCardPicker';
 import { MIN_CARDS, MIN_READING_CARDS, SELF_CARD_GROUPS, SUGGESTED_COUNT, type BoardId, type SelfCardId, type SelfV3CardView } from '../../../lib/selfV3Api';
 import { V3_WORDS } from './words';
+import { PIPELINE_WORDS } from '../v2/words';
 
 export default function Picker({
   cards,
@@ -25,7 +26,10 @@ export default function Picker({
   minReadingCards = MIN_READING_CARDS,
   reorder = false,
   suggestedIds,
+  locked = false,
 }: {
+  /** the reading gate: the pick still saves; the note says its reading starts once the chart is ready */
+  locked?: boolean;
   /** Love and Work (server docs/dashboards/10 W4): the board, its lenses as groups, its own words and minimums */
   board?: BoardId;
   groups?: ReadonlyArray<{ id: string; title: string }>;
@@ -53,11 +57,13 @@ export default function Picker({
       ? minCards === MIN_CARDS
         ? V3_WORDS.needThree(picked.length)
         : V3_WORDS.needOne
-      : readingOn && picked.length < minReadingCards
-        ? V3_WORDS.addFive
-        : picked.length > SUGGESTED_COUNT
-          ? V3_WORDS.moreThanEight
-          : '';
+      : locked
+        ? PIPELINE_WORDS.pickerNote
+        : readingOn && picked.length < minReadingCards
+          ? V3_WORDS.addFive
+          : picked.length > SUGGESTED_COUNT
+            ? V3_WORDS.moreThanEight
+            : '';
   return (
     <BoardCardPicker
       board={board}
