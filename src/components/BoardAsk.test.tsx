@@ -13,7 +13,7 @@ vi.mock('../pages/chat-interface/ChatSection', () => ({
 
 import LovePage from '../pages/love/LovePage';
 import WorkPage from '../pages/work/WorkPage';
-import YouPage from '../pages/you/YouPage';
+import { YouLegacyPage } from '../pages/you/YouPage';
 import type { AreaBoard } from '../lib/areaApi';
 import type { CareerMap } from '../lib/careerApi';
 import { selfReadingFixture } from '../pages/you/selfReading.fixture';
@@ -85,7 +85,7 @@ type Board = {
 
 const BOARDS: Board[] = [
   { name: 'Love', page: () => <LovePage />, testId: 'love-page', bubble: 'Ask about Love', tablist: 'Love pages', inner: 'Ahead by topic' },
-  { name: 'You', page: () => <YouPage />, testId: 'you-page', bubble: 'Ask about You', tablist: 'You pages', inner: 'Ahead by topic' },
+  { name: 'You', page: () => <YouLegacyPage />, testId: 'you-page', bubble: 'Ask about You', tablist: 'You pages', inner: 'Ahead by topic' },
   { name: 'Work', page: () => <WorkPage />, testId: 'work-page', bubble: 'Ask about Work', tablist: 'Work pages', inner: 'How far ahead' },
 ];
 

@@ -1,21 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { changeSelfV2Clock, fetchSelfV2, selfV2Enabled, sendSelfV2Confirm, sendSelfV2Mood } from './selfV2Api';
+import { fetchSelfV2, sendSelfV2Confirm, sendSelfV2Mood } from './selfV2Api';
 import { selfV2Fixture } from '../pages/you/v2/selfV2.fixture';
 
 function answer(status: number, body: unknown) {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(body === null ? null : JSON.stringify(body), { status })));
 }
 afterEach(() => vi.unstubAllGlobals());
-
-describe('selfV2Enabled', () => {
-  it('is on with VITE_SELF_V2=1 or ?v2=1, off otherwise', () => {
-    expect(selfV2Enabled('', '1')).toBe(true);
-    expect(selfV2Enabled('?v2=1', undefined)).toBe(true);
-    expect(selfV2Enabled('?x=2&v2=1', '0')).toBe(true);
-    expect(selfV2Enabled('?v2=0', undefined)).toBe(false);
-    expect(selfV2Enabled('', undefined)).toBe(false);
-  });
-});
 
 describe('fetchSelfV2', () => {
   it('reads a board, pending or ok', async () => {
@@ -51,14 +41,6 @@ describe('fetchSelfV2', () => {
 });
 
 describe('the writes', () => {
-  it('clock: 202 carries the usage; 400 names the error', async () => {
-    answer(202, { usage: { used: 4 }, status: 'building', alsoChanges: ['love', 'work'] });
-    expect(await changeSelfV2Clock('yogini')).toEqual({ ok: true, usage: { used: 4 }, alsoChanges: ['love', 'work'] });
-    answer(400, { error: 'unknown_system' });
-    expect(await changeSelfV2Clock('nope')).toEqual({ ok: false, error: 'unknown_system' });
-    answer(500, null);
-    expect(await changeSelfV2Clock('yogini')).toEqual({ ok: false, error: 'failed' });
-  });
   it('confirm and mood are true on 204', async () => {
     answer(204, null);
     expect(await sendSelfV2Confirm('c1', 'yes')).toBe(true);

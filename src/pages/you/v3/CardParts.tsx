@@ -3,10 +3,12 @@
  * lines for a card that is not ready (server docs/reading-engine/68 §4.4, doc 75).
  */
 import { useState } from 'react';
-import type { LadderSteps, PersonalPattern } from '../../../lib/selfV2Api';
+import type { LadderSteps, PersonalPattern } from '../../../lib/boardTypes';
 import { cardReadPending, sendSelfV3Confirm, type SelfCardId, type SelfV3CardView, type SpanReading } from '../../../lib/selfV3Api';
 import { CONFIRM_ANSWERS, V3_WORDS } from './words';
 import { useBoardId } from './boardContext';
+import { pipelineLocked, type PipelineView } from '../../../lib/pipelineStatus';
+import { PIPELINE_WORDS, pipelineLine } from '../../../components/board/words';
 
 /** the card's headline: the v3 line, else the stored v2 headline */
 export function cardHeadline(card: SelfV3CardView): string | null {
@@ -83,6 +85,8 @@ export function SensitiveNote({ card }: { card: SelfV3CardView }) {
 export interface CardReading {
   on: boolean;
   onReadAgain: (id: SelfCardId) => Promise<void> | void;
+  /** the reading gate: while `locked`, Try again is disabled and says the chart is still being built */
+  pipeline?: PipelineView | null;
 }
 
 /** true when the card shows its reading state instead of its body */
@@ -111,7 +115,9 @@ export function ReadStateBody({ card, reading }: { card: SelfV3CardView; reading
     );
   }
   if (card.state === 'failed') {
+    const locked = pipelineLocked(reading.pipeline);
     const again = async () => {
+      if (locked) return;
       setBusy(true);
       try {
         await reading.onReadAgain(card.id);
@@ -124,13 +130,20 @@ export function ReadStateBody({ card, reading }: { card: SelfV3CardView; reading
         <p className="text-[15px] text-white/75">{V3_WORDS.cardNotThrough}</p>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || locked}
+          aria-disabled={locked ? 'true' : undefined}
           onClick={() => void again()}
-          className="mt-3 inline-flex min-h-[44px] items-center rounded-full border border-white/20 bg-white/5 px-4 text-sm font-semibold text-white/85 hover:bg-white/10 disabled:opacity-40"
+          className="mt-3 inline-flex min-h-[44px] items-center rounded-full border border-white/20 bg-white/5 px-4 text-sm font-semibold text-white/85 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           data-testid="card-try-again"
+          data-state={locked ? 'locked' : undefined}
         >
-          {V3_WORDS.tryAgain}
+          {locked ? PIPELINE_WORDS.label : V3_WORDS.tryAgain}
         </button>
+        {locked && (
+          <p role="status" aria-live="polite" className="mt-1 text-[13px] text-white/55" data-testid="card-try-again-locked">
+            {pipelineLine(reading.pipeline)}
+          </p>
+        )}
       </div>
     );
   }

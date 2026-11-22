@@ -211,12 +211,16 @@ describe('Your reading', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const l1 = within(tp).getByTestId('self-line-lagna.1');
     expect(l1).toHaveTextContent('Lagna Leo; lagna lord Su in D1.h10, dignity friendly.');
-    expect(l1).toHaveTextContent('lagna.lord_house');
-    expect(within(tp).getByTestId('self-line-lagna.2')).toHaveTextContent('lagna.dignity');
+    // no claim id, technique id, timing or evidence key under Chart details (TODOS: internal ids on screen)
+    expect(tp).not.toHaveTextContent('lagna.lord_house');
+    expect(tp).not.toHaveTextContent('lagna.dignity');
     const vetoed = within(tp).getByTestId('self-panel-vetoed');
     expect(vetoed).toHaveTextContent('People notice you before you speak.');
-    expect(vetoed).toHaveTextContent('lagna.occupant · purview.combust_occupant');
-    expect(within(tp).getByTestId('self-panel-technique')).toHaveTextContent('self.reading.lagna · 0 ms · cached');
+    expect(vetoed).not.toHaveTextContent('lagna.occupant');
+    expect(vetoed).not.toHaveTextContent('purview.combust_occupant');
+    expect(within(tp).queryByTestId('self-panel-technique')).toBeNull();
+    expect(tp).not.toHaveTextContent('self.reading.lagna');
+    expect(tp).not.toHaveTextContent(/\d+ ms/);
     // the purview entry on this panel shows only as an adjustment note
     expect(within(tp).getByTestId('self-panel-adjusted')).toHaveTextContent('Adjusted by a whole-chart check: a claim about how people first see you was removed.');
     expect(tp).not.toHaveTextContent('PURVIEW-');
@@ -446,11 +450,12 @@ describe('Your reading, each panel is the Oracle area when it is there (server d
     const dates = within(panel).getByTestId('self-area-dates');
     expect(within(dates).getAllByRole('row')).toHaveLength(2);
     expect(within(panel).getByTestId('self-area-actions')).toHaveTextContent('Audit your agreements and outflows.');
-    // the code lines are not the card any more; they are under Chart details, with the evidence keys
+    // the code lines are not the card any more; they are under Chart details, without the evidence keys
     expect(within(panel).queryByTestId('self-lines')).not.toBeInTheDocument();
     fireEvent.click(within(panel).getByRole('button', { name: 'Chart details' }));
     expect(within(panel).getByTestId('self-panel-code-lines')).toBeInTheDocument();
-    expect(within(panel).getByTestId('self-area-evidence')).toHaveTextContent('planet:D1.Ju · claim:lagna.lord_house');
+    expect(within(panel).queryByTestId('self-area-evidence')).toBeNull();
+    expect(panel).not.toHaveTextContent('planet:D1.Ju');
     // another panel whose area was withheld keeps its code lines as the card
     fireEvent.click(within(screen.getByTestId('self-tabs')).getByRole('tab', { name: 'Your mind' }));
     const mind = within(screen.getByTestId('self-tabpanel')).getByTestId('self-panel-mind');

@@ -4,37 +4,70 @@
  * the reason and not selectable, the note that Love and Work change too, then Not now / Rebuild on <clock> · 1 question.
  * A 400 is shown in the sheet; a 202 hands the plan status back to the page and closes the sheet.
  */
-import { useState } from 'react';
-import type { PlanStatus } from '../../../lib/billing';
-import { changeSelfV2Clock, type ClockChangeResult, type SelfV2Clock } from '../../../lib/selfV2Api';
+import { useEffect, useState } from 'react';
+import { track } from '../../lib/events';
+import type { PlanStatus } from '../../lib/billing';
+import { changeSelfV2Clock } from '../../lib/selfClockApi';
+import type { ClockChangeResult, SelfV2Clock } from '../../lib/boardTypes';
 import Sheet from './Sheet';
-import { V2_WORDS } from './words';
+import { PIPELINE_WORDS, V2_WORDS } from './words';
+import { pipelineLocked, type PipelineView } from '../../lib/pipelineStatus';
 
 /** "Uses 1 of your 20 questions this month"; an unlimited plan uses none it counts. */
 export function costLine(plan: PlanStatus | null | undefined): string {
-  if (!plan || plan.exempt || plan.limit === null) return 'Included in your plan; no question is counted.';
+  // the plan not known yet: never claim the switch is free
+  if (!plan) return 'Uses 1 question.';
+  if (plan.exempt || plan.limit === null) return 'Included in your plan; no question is counted.';
   const when = plan.window === 'day' ? 'today' : 'this month';
-  return `Uses 1 of your ${plan.limit} questions ${when}`;
+  const left = typeof plan.remaining === 'number' ? ` (${plan.remaining} left)` : '';
+  return `Uses 1 of your ${plan.limit} questions ${when}${left}`;
 }
 
-export default function ClockSheet({ clock, plan, onClose, onChanged }: { clock: SelfV2Clock; plan: PlanStatus | null | undefined; onClose: () => void; onChanged: (system: string, label: string, r: Extract<ClockChangeResult, { ok: true }>) => void }) {
+/** true when a switch counts a question (unknown plans are assumed to count) */
+export function clockCounts(plan: PlanStatus | null | undefined): boolean {
+  return !plan || (!plan.exempt && plan.limit !== null);
+}
+
+export default function ClockSheet({
+  clock,
+  plan,
+  onClose,
+  onChanged,
+  pipeline = null,
+}: {
+  clock: SelfV2Clock;
+  plan: PlanStatus | null | undefined;
+  onClose: () => void;
+  onChanged: (system: string, label: string, r: Extract<ClockChangeResult, { ok: true }>) => void;
+  /** the reading gate: while locked, a rebuild cannot be started */
+  pipeline?: PipelineView | null;
+}) {
   const [pick, setPick] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // the server refused the switch (409 `preparing`): said calmly, not as an error
+  const [refused, setRefused] = useState(false);
+  const locked = refused || pipelineLocked(pipeline);
   const chosen = clock.applicable.find((c) => c.system === pick) ?? null;
+  // the sheet seen (the switch itself is recorded by the server as `clock_viewed`)
+  useEffect(() => track('chip_select', 'self_clock', 'clock_sheet_open'), [clock.system]);
 
   const confirm = async () => {
-    if (!chosen) return;
+    if (!chosen || locked) return;
     setBusy(true);
     setError(null);
     const r = await changeSelfV2Clock(chosen.system);
     setBusy(false);
     if (r.ok) onChanged(chosen.system, chosen.label, r);
+    else if (r.error === 'preparing') setRefused(true);
     else setError(V2_WORDS.clockErrors[r.error]);
   };
 
   return (
     <Sheet title={V2_WORDS.clockTitle} onClose={onClose} testId="clock-sheet">
+      <p className="mb-2 text-sm text-white/70" data-testid="clock-lead">
+        {V2_WORDS.clockLead}
+      </p>
       {clock.reasonLine && (
         <p className="text-sm text-white/70" data-testid="clock-reason">
           {clock.reasonLine}
@@ -89,7 +122,12 @@ export default function ClockSheet({ clock, plan, onClose, onChanged }: { clock:
       <p className="mt-3 text-xs text-white/60" data-testid="clock-also">
         {V2_WORDS.clockAlsoChanges}
       </p>
-      {error && (
+      {locked && (
+        <p className="mt-2 text-sm text-white/75" role="status" aria-live="polite" data-testid="clock-locked">
+          {PIPELINE_WORDS.clock}
+        </p>
+      )}
+      {error && !locked && (
         <p className="mt-2 text-sm text-rose-300" role="alert" data-testid="clock-error">
           {error}
         </p>
@@ -100,12 +138,13 @@ export default function ClockSheet({ clock, plan, onClose, onChanged }: { clock:
         </button>
         <button
           type="button"
-          disabled={!chosen || busy}
+          disabled={!chosen || busy || locked}
+          aria-disabled={locked ? 'true' : undefined}
           onClick={() => void confirm()}
           className="min-h-[44px] flex-1 rounded-xl bg-teal-400 px-3 text-sm font-bold text-[#06051a] disabled:opacity-40"
           data-testid="clock-confirm"
         >
-          {chosen ? V2_WORDS.rebuildOn(chosen.label) : V2_WORDS.pickClock}
+          {locked ? PIPELINE_WORDS.label : chosen ? V2_WORDS.rebuildOn(chosen.label, clockCounts(plan)) : V2_WORDS.pickClock}
         </button>
       </div>
     </Sheet>

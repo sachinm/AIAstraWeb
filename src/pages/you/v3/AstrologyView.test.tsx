@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import AstrologyView, { certaintyWord, chartShows } from './AstrologyView';
+import { render, screen, within } from '@testing-library/react';
+import AstrologyView, { certaintyWord, chartShows, storyParagraphs, systemRunning, withoutSpanIds } from './AstrologyView';
 import { periodsOf } from './cardModel';
-import { selfV3Fixture, selfV3OutlookCard } from './selfV3.fixture';
-import type { SelfV3CardView } from '../../../lib/selfV3Api';
+import { selfV3Fixture, selfV3OutlookCard, selfV3StoryCard } from './selfV3.fixture';
 
 const TODAY = '2026-11-13';
 
@@ -13,54 +12,54 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-function mount(card: SelfV3CardView, pick = 0, showDetails = true) {
-  const periods = periodsOf(card, TODAY);
-  render(<AstrologyView card={card} period={periods[pick] ?? null} showDetails={showDetails} />);
-}
-
-describe('Astrology Reading', () => {
-  it('shows the gift, the knot, what the chart shows for the picked stretch, the certainty word and the clocks', () => {
-    mount(selfV3OutlookCard());
-    expect(screen.getByTestId('astrology-gift')).toHaveTextContent('The gift');
-    expect(screen.getByTestId('astrology-gift')).toHaveTextContent('sixth lord sits strong');
-    expect(screen.getByTestId('astrology-knot')).toHaveTextContent('The knot');
-    expect(screen.getByTestId('astrology-knot')).toHaveTextContent('Saturn crosses the ascendant');
-    expect(screen.getByTestId('astrology-shows')).toHaveTextContent('What the chart shows');
-    expect(screen.getByTestId('astrology-shows')).toHaveTextContent('Saturn on the ascendant weighs on vitality');
-    expect(screen.getByTestId('astrology-certainty')).toHaveTextContent('Likely');
-    expect(screen.getByTestId('astrology-clocks')).toHaveTextContent('Which clocks agree');
-    expect(screen.getAllByTestId('analysis-system')).toHaveLength(5);
+describe('Astrology Reading (plan revision 2 §6)', () => {
+  it('shows the technical story as paragraphs with no headings, then the systems read; no long reading with `v2: null`', () => {
+    render(<AstrologyView card={selfV3StoryCard()} />);
+    const story = screen.getByTestId('astrology-story');
+    expect(story.querySelectorAll('p')).toHaveLength(3);
+    expect(story.querySelectorAll('h1, h2, h3, h4')).toHaveLength(0);
+    expect(story.className).toMatch(/max-w-\[72ch\]/);
+    expect(story).toHaveTextContent('Saturn runs the main period on the life-chapters clock');
+    const systems = screen.getByTestId('astrology-systems');
+    expect(systems).toHaveTextContent('AdAstra AI read');
+    // the server shape: four systems, the label shown, the internal key never; what runs today with its end date
+    const rows = within(systems).getAllByTestId('astrology-system');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent(/^Life chapters\s*· Saturn · until 27 Dec 2027$/);
+    expect(rows[2]).toHaveTextContent(/^Birthday year\s*· Saturn$/);
+    expect(rows[3]).toHaveTextContent(/^Short chapters$/);
+    expect(systems).not.toHaveTextContent('vimshottari');
+    expect(screen.queryByTestId('astrology-empty')).toBeNull();
+    expect(screen.queryByTestId('astrology-details')).toBeNull();
+    expect(screen.queryByText('Nothing more to show for this card yet.')).toBeNull();
   });
 
-  it('follows the picked stretch by its span id', () => {
-    mount(selfV3OutlookCard(), 2);
-    expect(screen.getByTestId('astrology-shows')).toHaveTextContent('Jupiter aspects the sixth house');
-  });
-
-  it('on Self keeps the chart details body when the card has one', () => {
-    const stuck = selfV3Fixture().cards.find((c) => c.id === 'stuck')!;
-    mount(stuck);
+  it('until the story is served it says so, and the long reading of a v2-filled card still shows under it', () => {
+    const stuck = selfV3Fixture({ v2: true }).cards.find((c) => c.id === 'stuck')!;
+    render(<AstrologyView card={stuck} />);
+    expect(screen.getByTestId('astrology-empty')).toHaveTextContent('The full astrology reading is being prepared for this card.');
     expect(screen.getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");
   });
 
-  it('the Why switch off hides the chart details', () => {
-    const stuck = selfV3Fixture().cards.find((c) => c.id === 'stuck')!;
-    mount(stuck, 0, false);
-    expect(screen.queryByTestId('astrology-details')).toBeNull();
-    expect(screen.getByTestId('astrology-empty')).toHaveTextContent('Nothing more to show for this card yet.');
-  });
-
-  it('renders without `chart` (an older server): the clocks only', () => {
-    mount(selfV3OutlookCard({ withChart: false }));
-    expect(screen.queryByTestId('astrology-gift')).toBeNull();
-    expect(screen.queryByTestId('astrology-shows')).toBeNull();
-    expect(screen.getByTestId('astrology-clocks')).toBeInTheDocument();
-  });
-
-  it('a card with none of it says so', () => {
+  it('a card with neither shows only the waiting line; the Why switch off hides the long reading', () => {
     const mind = selfV3Fixture().cards.find((c) => c.id === 'mind')!;
-    mount({ ...mind, v2: null });
-    expect(screen.getByTestId('astrology-empty')).toHaveTextContent('Nothing more to show for this card yet.');
+    render(<AstrologyView card={{ ...mind, v2: null }} />);
+    expect(screen.getByTestId('astrology-empty')).toBeInTheDocument();
+    expect(screen.queryByTestId('astrology-details')).toBeNull();
+    const stuck = selfV3Fixture({ v2: true }).cards.find((c) => c.id === 'stuck')!;
+    render(<AstrologyView card={stuck} showDetails={false} />);
+    expect(screen.queryByTestId('astrology-details')).toBeNull();
+  });
+});
+
+describe('AdAstra AI read', () => {
+  it('skips a system with no label and says "until" only with an end date', () => {
+    expect(systemRunning({ running: { lord: 'Saturn', from: '2008-12-27', to: '2027-12-27' } })).toBe('Saturn · until 27 Dec 2027');
+    expect(systemRunning({ running: { lord: 'Virgo', from: '2026-01-10', to: null } })).toBe('Virgo');
+    expect(systemRunning({ running: null })).toBe('');
+    const c = selfV3StoryCard();
+    render(<AstrologyView card={{ ...c, v3: { ...c.v3!, systems: [{ system: 'x', label: '  ', running: null }] } }} />);
+    expect(screen.queryByTestId('astrology-systems')).toBeNull();
   });
 });
 
@@ -79,5 +78,20 @@ describe('helpers', () => {
     expect(chartShows(card, periods[1]!)).toMatch(/moon period/);
     expect(chartShows(card, null)).toBeNull();
     expect(chartShows({ ...card, v3: { ...card.v3!, chart: undefined } }, periods[0]!)).toBeNull();
+  });
+
+  it('takes stored span ids out of served text', () => {
+    expect(withoutSpanIds('Mixed periods (s1): the moon period lifts.')).toBe('Mixed periods: the moon period lifts.');
+    expect(withoutSpanIds('In s2 the pace eases (span s3).')).toBe('In the pace eases.');
+    expect(withoutSpanIds('Saturn crosses the ascendant.')).toBe('Saturn crosses the ascendant.');
+    expect(withoutSpanIds(null)).toBe('');
+    const card = selfV3OutlookCard();
+    const withId = { ...card, v3: { ...card.v3!, chart: { ...card.v3!.chart!, spans: [{ span: 's2', shows: 'Mixed periods (s2): the moon lifts.' }] } } };
+    expect(chartShows(withId, periodsOf(card, TODAY)[1]!)).toBe('Mixed periods: the moon lifts.');
+  });
+
+  it('splits a story on blank lines, joins wrapped lines, drops span ids', () => {
+    expect(storyParagraphs('One line\nwrapped (s1).\n\n  Two.  \n\n\n')).toEqual(['One line wrapped.', 'Two.']);
+    expect(storyParagraphs(null)).toEqual([]);
   });
 });

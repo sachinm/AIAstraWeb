@@ -13,158 +13,40 @@
  * while it is made the cards are veiled and the page polls until the board's `builtAt` moves, or until a board read
  * after the ask says the build failed (`refresh.failed`): then polling stops and the row says the question was given
  * back, with Try again.
+ *
+ * The reading gate (server prep gate): while the board's `pipeline.locked`, the fresh reading and a clock rebuild cannot
+ * be started (the control says "Building your chart data" with the server's line) and the page polls every 5 s within
+ * the same six-minute cap; once the server unlocks, the control is back as it was. Nothing is started for the person.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { usePlan } from '../../../Auth/ProfileGate';
 import Carousel, { CarouselArrows, CarouselDots } from '../../../components/carousel/Carousel';
 import Chips, { useSeenCounts, type ChipGroup } from '../../../components/carousel/Chips';
-import LoadingVeil, { type VeilProgress } from '../../../components/LoadingVeil';
-import UserAvatar from '../../../components/UserAvatar';
-import { ShriGaneshAvatar } from '../../../components/ShriGaneshAvatar';
+import LoadingVeil from '../../../components/LoadingVeil';
 import { longDate } from '../../../lib/careerApi';
 import { track } from '../../../lib/events';
 import { announceUsage } from '../../../lib/planUsage';
 import type { RefreshResult } from '../../../lib/boardRefresh';
-import { fetchSelfV2, type SelfV2Area, type SelfV2BuildView, type SelfV2Response, type SelfV2State } from '../../../lib/selfV2Api';
-import WelcomeWizard from '../../welcome/WelcomeWizard';
-import AreaCard, { ChartDetails, cardShell } from './AreaCard';
-import ClockSheet from './ClockSheet';
-import { BuildStatus, FreshControl, FreshSheet } from './FreshReading';
+import { fetchSelfV2, type SelfV2Area, type SelfV2Response, type SelfV2State } from '../../../lib/selfV2Api';
+import { ChartDetails, cardShell } from '../../../components/board/ChartDetails';
+import ClockSheet from '../../../components/board/ClockSheet';
+import { BuildStatus, FreshControl, FreshSheet } from '../../../components/board/FreshReading';
+import Sheet from '../../../components/board/Sheet';
+import { GROUP_LABEL, V2_WORDS, pipelineLine } from '../../../components/board/words';
+import { PER_VIEW, useBoardMode } from '../../../components/board/boardMode';
+import { V2_MAX_WAIT_MS, V2_POLL_MS, buildActive, buildStopped, veilProgress } from '../../../components/board/buildState';
+import { SelfTitle } from '../../../components/board/SelfTitle';
+import PersonalizeModal from '../../../components/board/PersonalizeModal';
+import AreaCard from './AreaCard';
 import Hero, { type HeroLayout } from './Hero';
-import Sheet from './Sheet';
-import { BUILD_STAGE_WORDS, GROUP_LABEL, V2_WORDS } from './words';
+import { PIPELINE_POLL_MS, onPipelineAnnounced, pipelineLocked, type PipelineView } from '../../../lib/pipelineStatus';
 import './selfBoardV2.css';
 
 const SURFACE = 'self_v2';
-/**
- * pending (the board being written) and a clock rebuild: every 10 s; preparing (the chart): every 30 s; a build the
- * server says is queued or running (`board.build`, server docs/loading-overlay/05): every 2 s, so the bar moves
- */
-export const V2_POLL_MS = { pending: 10_000, preparing: 30_000, build: 2_000 } as const;
-/** after this long waiting the board says so and offers Retry */
-export const V2_MAX_WAIT_MS = 6 * 60_000;
 const SEEN_KEY = 'aiastra.self.v2.seen';
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Layout
-// ---------------------------------------------------------------------------------------------------------------------
-
-export type BoardMode = 'phone' | 'portrait' | 'landscape' | 'wide' | 'xwide' | 'ultrawide' | 'duo';
-
-function mq(q: string): boolean {
-  try {
-    return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(q).matches;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The board's shape for this window. A two-fold reports two horizontal viewport segments; where the browser does not,
- * a touch screen at least 1200 wide and at most 740 tall is read as one spanned across its hinge.
- */
-export function boardMode(w: number, h: number, segments = mq('(horizontal-viewport-segments: 2)'), coarse = mq('(pointer: coarse)')): BoardMode {
-  if (segments || (w >= 1200 && h <= 740 && coarse)) return 'duo';
-  if (w >= 2300) return 'ultrawide';
-  if (w >= 1680) return 'xwide';
-  if (w >= 1440) return 'wide';
-  if (w >= 1100) return 'landscape';
-  if (w >= 768) return 'portrait';
-  return 'phone';
-}
-
-export const PER_VIEW: Record<BoardMode, number> = { phone: 1, portrait: 2, landscape: 3, wide: 4, xwide: 4, ultrawide: 5, duo: 1 };
-
-export function useBoardMode(): BoardMode {
-  const read = () => (typeof window === 'undefined' ? 'landscape' : boardMode(window.innerWidth, window.innerHeight));
-  const [mode, setMode] = useState<BoardMode>(read);
-  useEffect(() => {
-    const on = () => setMode(read());
-    window.addEventListener('resize', on);
-    let seg: MediaQueryList | null = null;
-    try {
-      seg = typeof window.matchMedia === 'function' ? window.matchMedia('(horizontal-viewport-segments: 2)') : null;
-      seg?.addEventListener?.('change', on);
-    } catch {
-      seg = null;
-    }
-    return () => {
-      window.removeEventListener('resize', on);
-      seg?.removeEventListener?.('change', on);
-    };
-  }, []);
-  return mode;
-}
-
-/** The server says a build is queued or running now. */
-export function buildActive(build: SelfV2BuildView | undefined): boolean {
-  return build?.state === 'queued' || build?.state === 'running';
-}
-
-/** The server says the build failed or stalled: the page stops polling and the header offers Try again. */
-export function buildStopped(build: SelfV2BuildView | undefined): boolean {
-  return build?.state === 'failed' || build?.state === 'stuck';
-}
-
-/** The veil's bar from the server's build, while one is queued or running; undefined otherwise (no bar). */
-export function veilProgress(build: SelfV2BuildView | undefined): VeilProgress | undefined {
-  if (!build || !buildActive(build)) return undefined;
-  const label = build.state === 'queued' || !build.stage ? BUILD_STAGE_WORDS.queued : BUILD_STAGE_WORDS[build.stage];
-  return {
-    percent: build.percent,
-    nextPercent: build.nextPercent,
-    stageExpectedMs: build.stageExpectedMs,
-    stageAt: build.stageAt,
-    label,
-    step: build.state === 'running' ? build.step : 0,
-    steps: build.steps,
-  };
-}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// The title: the person is the title
-// ---------------------------------------------------------------------------------------------------------------------
-
-export function SelfTitle({ onAddPhoto, small = false }: { onAddPhoto: () => void; small?: boolean }) {
-  const size = small ? 'h-9 w-9' : 'h-11 w-11';
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <UserAvatar
-        className={size}
-        fallback={
-          <button type="button" onClick={onAddPhoto} className="group flex items-center gap-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60" data-testid="self-add-photo" aria-label={V2_WORDS.addPhoto}>
-            {/* the avatar alone is the way in (Sachin 2026-11-09: no "Add your photo" words in the header) */}
-            <ShriGaneshAvatar className={size} />
-          </button>
-        }
-      />
-      <div className="min-w-0">
-        <h1 className={`bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text font-extrabold leading-none tracking-tight text-transparent ${small ? 'text-2xl' : 'text-3xl'}`} data-testid="self-title">
-          {V2_WORDS.title}
-        </h1>
-      </div>
-    </div>
-  );
-}
-
-export function PersonalizeModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Personalize your readings" onClick={onClose} data-testid="self-personalize-modal">
-      <div className="relative flex h-[min(640px,88vh)] w-[min(880px,94vw)] flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0d0c24] p-4 shadow-2xl sm:p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-2 flex shrink-0 items-center justify-between border-b border-white/10 pb-3">
-          <h2 className="text-lg font-semibold text-white">Personalize Your Readings</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white">
-            ✕
-          </button>
-        </div>
-        <WelcomeWizard onFinish={onClose} inModal />
-      </div>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -187,15 +69,24 @@ export default function SelfBoardV2() {
   /** the fresh build asked for failed (server `refresh.failed`); cleared when the person asks again */
   const [freshFailed, setFreshFailed] = useState(false);
   const waitStart = useRef<number | null>(null);
+  // the reading gate: a start the server refused (409 `preparing`) holds its lock until the board is read again
+  const [gateHeld, setGateHeld] = useState<PipelineView | null>(null);
+  const [reads, setReads] = useState(0);
+  useEffect(() => onPipelineAnnounced(setGateHeld), []);
 
   const load = useCallback(
     () =>
       fetchSelfV2()
         .then((s) => {
           if (s.kind === 'ok' && s.board.usage) announceUsage(s.board.usage);
+          setGateHeld(null);
+          setReads((n) => n + 1);
           setState(s);
         })
-        .catch(() => setState({ kind: 'error' })),
+        .catch(() => {
+          setReads((n) => n + 1);
+          setState({ kind: 'error' });
+        }),
     [],
   );
 
@@ -213,8 +104,13 @@ export default function SelfBoardV2() {
   // a build the server says failed or stalled stops the poll; the header says so and offers Try again
   const stopped = buildStopped(board?.build);
   const building = buildActive(board?.build);
+  // the reading gate: a refused start's lock, else the board's block (absent on an older server: open)
+  const pipeline: PipelineView | null = gateHeld ?? board?.pipeline ?? (state?.kind === 'preparing' ? (state.pipeline ?? null) : null);
+  const locked = pipelineLocked(pipeline);
+  // locked polls (every 5 s) even when a build stopped: the server says it is trying again
   const waiting =
-    state?.kind === 'preparing' || (!stopped && (board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding || building));
+    state?.kind === 'preparing' || locked || (!stopped && (board?.status === 'pending' || board?.status === 'preparing' || rebuilding || freshBuilding || building));
+  const lockedReads = locked ? reads : 0;
 
   // poll while something is being built, for at most six minutes; then say so and offer Retry
   useEffect(() => {
@@ -236,13 +132,13 @@ export default function SelfBoardV2() {
       setLate(true);
       return;
     }
-    const every = building ? V2_POLL_MS.build : state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
+    const every = building ? V2_POLL_MS.build : locked ? PIPELINE_POLL_MS : state?.kind === 'preparing' || board?.status === 'preparing' ? V2_POLL_MS.preparing : V2_POLL_MS.pending;
     const t = setTimeout(() => {
       if (Date.now() - (waitStart.current ?? Date.now()) >= V2_MAX_WAIT_MS) setLate(true);
       else void load();
     }, Math.min(every, left));
     return () => clearTimeout(t);
-  }, [state, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, load]);
+  }, [state, lockedReads, waiting, late, rebuild, rebuilding, fresh, freshBuilding, freshFailedNow, board?.status, building, locked, load]);
 
   const retry = () => {
     setLate(false);
@@ -270,7 +166,7 @@ export default function SelfBoardV2() {
   if (!state) return frame(<LoadingVeil testId="self-v2-loading" note={V2_WORDS.loading}><div className={`${cardShell} h-full`} /></LoadingVeil>, 'self-v2-wait');
   if (state.kind === 'preparing')
     return frame(
-      <LoadingVeil testId="self-v2-preparing" note={V2_WORDS.preparing} foreground={lateLine || undefined}>
+      <LoadingVeil testId="self-v2-preparing" note={pipelineLine(pipeline) || V2_WORDS.preparing} foreground={lateLine || undefined}>
         <div className={`${cardShell} h-full`} />
       </LoadingVeil>,
       'self-v2-wait',
@@ -295,6 +191,7 @@ export default function SelfBoardV2() {
       rebuild={rebuilding ? rebuild : null}
       freshBuilding={freshBuilding}
       freshFailed={freshFailed}
+      pipeline={pipeline}
       lateLine={lateLine || null}
       onRebuild={(system, label) => { setLate(false); waitStart.current = Date.now(); setRebuild({ system, label }); void load(); }}
       onFreshStarted={() => { setLate(false); setFreshFailed(false); waitStart.current = Date.now(); setFresh({ builtAt: board.builtAt, from: board }); }}
@@ -314,8 +211,11 @@ function Board({
   onFreshStarted,
   onReload,
   onRetryBuild,
+  pipeline = null,
 }: {
   board: SelfV2Response;
+  /** the reading gate: while `locked`, the fresh reading and a clock rebuild cannot be started */
+  pipeline?: PipelineView | null;
   rebuild: { system: string; label: string } | null;
   freshBuilding: boolean;
   freshFailed?: boolean;
@@ -335,7 +235,7 @@ function Board({
   const [clockOpen, setClockOpen] = useState(false);
   const [wizard, setWizard] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
-  const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | null>(null);
+  const [freshAnswer, setFreshAnswer] = useState<'no_questions' | 'failed' | 'catching_up' | null>(null);
   /** a 409 not_due names the server's last good day; shown until the board is read again */
   const [notDue, setNotDue] = useState<{ validUntil: string | null } | null>(null);
   useEffect(() => setNotDue(null), [board]);
@@ -403,7 +303,15 @@ function Board({
       setFreshAnswer(null);
       setNotDue({ validUntil: r.validUntil });
       onReload();
-    } else setFreshAnswer('failed');
+    } else if (r.kind === 'preparing') {
+      // the reading gate: nothing started or counted; the page holds the announced lock and polls. Not an error
+      setFreshAnswer(null);
+    } else if (r.kind === 'busy') {
+      // the chart's own build is running: nothing new started or counted; the board read again shows it
+      setFreshAnswer(null);
+      onReload();
+    } else if (r.kind === 'not_ready') setFreshAnswer('catching_up');
+    else setFreshAnswer('failed');
   };
   const freshControl = (
     <FreshControl
@@ -413,13 +321,16 @@ function Board({
       noQuestions={freshAnswer === 'no_questions'}
       failed={freshAnswer === 'failed'}
       buildFailed={freshFailed}
+      catchingUp={freshAnswer === 'catching_up'}
       onAsk={() => setFreshOpen(true)}
       compact={mode === 'duo' || mode === 'phone'}
+      pipeline={pipeline}
     />
   );
 
   // a paid fresh build that failed keeps its own Try again (the consent sheet) in the fresh control
-  const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} />;
+  // a served reading with its dates is not contradicted by a failed background build (one state in the header)
+  const buildStatus = freshFailed ? null : <BuildStatus build={board.build} onRetry={onRetryBuild} served={board.status === 'ok' && !!board.refresh?.madeAt} />;
 
   const heroLayout: HeroLayout = mode === 'duo' ? 'pane' : mode === 'xwide' || mode === 'ultrawide' ? 'wide' : mode;
   const ranked = areas.find((a) => a.status === 'ok' && a.card?.ladder);
@@ -485,6 +396,7 @@ function Board({
         <ClockSheet
           clock={board.clock}
           plan={plan ?? board.usage}
+          pipeline={pipeline}
           onClose={() => setClockOpen(false)}
           onChanged={(system, label, r) => {
             track('chip_select', SURFACE, `clock_${system}`);
@@ -510,7 +422,7 @@ function Board({
   const detailsSheet = (inPane: boolean) =>
     details && (
       <Sheet title={`${details.title} · ${V2_WORDS.chartDetails}`} onClose={() => setDetails(null)} testId="details-sheet" inPane={inPane}>
-        <ChartDetails area={details} showEvidence={board.profile?.role === 'practitioner'} />
+        <ChartDetails details={details.details} showEvidence={board.profile?.role === 'practitioner'} />
       </Sheet>
     );
 

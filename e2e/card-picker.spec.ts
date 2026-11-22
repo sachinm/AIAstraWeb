@@ -105,7 +105,7 @@ for (const theme of ['dark', 'light'] as const) {
     const phone = info.project.name === 'phone';
 
     // Self: the first visit opens the picker
-    await page.goto('/dashboard/you?v2=1');
+    await page.goto('/dashboard/you');
     await expect(page.getByTestId('self-v3-picker')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('card-art-body')).toBeVisible();
     if (process.env.E2E_ART_KEY) await expect(page.getByTestId('card-photo-body')).toBeVisible({ timeout: 15_000 });

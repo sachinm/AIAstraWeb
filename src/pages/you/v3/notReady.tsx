@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { selfGroupOf } from '../../../components/boardCards/cardArtRegistry';
 import LoadingVeil from '../../../components/LoadingVeil';
 import { cardReadPending, type SelfV3CardView } from '../../../lib/selfV3Api';
-import { V2_WORDS } from '../v2/words';
+import { V2_WORDS } from '../../../components/board/words';
 import { ReadStateBody, cardHeadline, showsReadState, type CardReading } from './CardParts';
 import { V3_WORDS } from './words';
 

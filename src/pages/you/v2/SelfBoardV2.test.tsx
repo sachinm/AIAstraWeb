@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import SelfBoardV2, { boardMode, V2_MAX_WAIT_MS, V2_POLL_MS } from './SelfBoardV2';
+import SelfBoardV2 from './SelfBoardV2';
+import { V2_MAX_WAIT_MS, V2_POLL_MS } from '../../../components/board/buildState';
 import { V2_AREAS, selfV2Fixture } from './selfV2.fixture';
-import { V2_WORDS } from './words';
+import { V2_WORDS } from '../../../components/board/words';
 import type { SelfV2BuildView, SelfV2Response } from '../../../lib/selfV2Api';
 
 const plan = vi.hoisted(() => ({ setPlan: vi.fn(), refreshPlan: vi.fn(async () => {}) }));
@@ -389,18 +390,6 @@ describe('Self board v2', () => {
     expect(screen.getByTestId('hero-todo')).toBeInTheDocument();
   });
 
-  it('chooses the two-fold layout from viewport segments, or a wide short touch screen', () => {
-    expect(boardMode(1180, 820, true, false)).toBe('duo');
-    expect(boardMode(1280, 720, false, true)).toBe('duo');
-    expect(boardMode(1280, 720, false, false)).toBe('landscape');
-    expect(boardMode(1180, 820, false, false)).toBe('landscape');
-    expect(boardMode(1440, 900, false, false)).toBe('wide');
-    expect(boardMode(1920, 1080, false, false)).toBe('xwide');
-    expect(boardMode(2560, 1440, false, false)).toBe('ultrawide');
-    expect(boardMode(1024, 1366, false, false)).toBe('portrait');
-    expect(boardMode(390, 844, false, false)).toBe('phone');
-  });
-
   it('on a two-fold: the left pane holds the hero and the area list, the right pane one card, Chart details over it', async () => {
     const mm = vi.fn((q: string) => ({ matches: q.includes('horizontal-viewport-segments'), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
     vi.stubGlobal('matchMedia', mm);
@@ -418,7 +407,7 @@ describe('Self board v2', () => {
 });
 
 describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
-  it('not due: disabled "Fresh reading from" the day after Good until, with the Made · Good until line', async () => {
+  it('not due: one state, disabled "Good until" with the Made line; when a fresh one may be asked is the tooltip', async () => {
     srv.board = () => selfV2Fixture((b) => (b.refresh = { madeAt: '2026-11-01T09:00:00Z', validUntil: '2026-12-03', due: false }));
     render(<SelfBoardV2 />);
     await ready();
@@ -426,8 +415,11 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
     const btn = within(row).getByTestId('fresh-button');
     expect(btn).toBeDisabled();
     expect(btn).toHaveAttribute('data-state', 'not_due');
-    expect(btn).toHaveTextContent('Fresh reading from 4 Dec 2026');
-    expect(within(row).getByTestId('fresh-line')).toHaveTextContent('Made 1 Nov 2026 · Good until 3 Dec 2026');
+    expect(btn).toHaveTextContent('Good until 3 Dec 2026');
+    expect(btn).toHaveAttribute('title', 'A fresh reading can be asked for from 4 Dec 2026');
+    expect(within(row).getByTestId('fresh-line')).toHaveTextContent(/^Made 1 Nov 2026$/);
+    // never a start date after the made date or past Good until (TODOS 2026-11-18, future-dated chip)
+    expect(row).not.toHaveTextContent('Fresh reading from');
     fireEvent.click(btn);
     expect(screen.queryByTestId('fresh-sheet')).toBeNull();
   });
@@ -504,7 +496,7 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
       await vi.advanceTimersByTimeAsync(V2_POLL_MS.pending);
     });
     await waitFor(() => expect(screen.queryByTestId('self-fresh-veil')).toBeNull());
-    expect(screen.getByTestId('fresh-button')).toHaveTextContent('Fresh reading from 1 Jan 2027');
+    expect(screen.getByTestId('fresh-button')).toHaveTextContent('Good until 31 Dec 2026');
     expect(refreshPosts()).toBe(1);
   });
 
@@ -599,9 +591,9 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
     const n = gets();
     fireEvent.click(within(await screen.findByTestId('fresh-sheet')).getByTestId('fresh-confirm'));
     await waitFor(() => expect(gets()).toBe(n + 1));
-    await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveTextContent('Fresh reading from 21 Nov 2026'));
+    await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveTextContent('Good until 20 Nov 2026'));
     expect(screen.getByTestId('fresh-button')).toBeDisabled();
-    expect(screen.getByTestId('fresh-line')).toHaveTextContent('Made 2 Nov 2026 · Good until 20 Nov 2026');
+    expect(screen.getByTestId('fresh-line')).toHaveTextContent('Made 2 Nov 2026');
     expect(screen.queryByTestId('self-fresh-veil')).toBeNull();
   });
 
@@ -753,7 +745,8 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
       render(<SelfBoardV2 />);
       await ready();
       expect(screen.queryByTestId('build-status')).toBeNull();
-      expect(screen.getByTestId('fresh-line')).toHaveTextContent('Made 10 Nov 2026 · Good until 12 Dec 2026');
+      expect(screen.getByTestId('fresh-line')).toHaveTextContent('Made 10 Nov 2026');
+      expect(screen.getByTestId('fresh-button')).toHaveTextContent('Good until 12 Dec 2026');
     });
 
     it('no build field (an older server): no chip, per-card veils, the 10 s poll as before', async () => {
@@ -777,5 +770,60 @@ describe('Self board v2: Get a fresh reading (server docs/billing/03)', () => {
       });
       await waitFor(() => expect(gets()).toBe(2));
     });
+  });
+});
+
+describe('Self board v2 and the reading gate (server prep gate)', () => {
+  const LOCKED = { stage: 'pulling' as const, done: 1, total: 4, line: 'Getting your chart', locked: true, reason: 'chart' as const };
+
+  it('locked: the fresh control is drawn even before any reading, disabled, with the server line; the 409 is not an error', async () => {
+    srv.board = () => selfV2Fixture((b) => {
+      b.refresh = { madeAt: null, validUntil: null, due: false };
+      b.pipeline = LOCKED;
+    });
+    render(<SelfBoardV2 />);
+    const row = await ready();
+    const btn = within(row).getByTestId('fresh-button');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent('Building your chart data');
+    expect(within(row).getByTestId('fresh-locked-line').textContent).toBe('Getting your chart · 1 of 4');
+    fireEvent.click(btn);
+    expect(refreshPosts()).toBe(0);
+  });
+
+  it('a 409 preparing from the fresh reading shows the locked control, never the failure line', async () => {
+    srv.board = () => selfV2Fixture(due);
+    srv.refreshStatus = 409;
+    srv.refreshBody = { error: 'x', code: 'preparing', pipeline: LOCKED };
+    render(<SelfBoardV2 />);
+    await ready();
+    fireEvent.click(screen.getByTestId('fresh-button'));
+    fireEvent.click(await screen.findByTestId('fresh-confirm'));
+    await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveAttribute('data-state', 'locked'));
+    expect(screen.queryByTestId('fresh-sheet-error')).toBeNull();
+    expect(screen.getByTestId('fresh-button')).not.toHaveTextContent(V2_WORDS.fresh.failed);
+  });
+
+  it('polls every 5 s while locked and is back to normal once open, starting nothing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let open = false;
+    srv.board = () => selfV2Fixture((b) => {
+      due(b);
+      b.pipeline = open ? { ...LOCKED, locked: false, stage: 'ready' } : LOCKED;
+    });
+    render(<SelfBoardV2 />);
+    await ready();
+    expect(gets()).toBe(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    await waitFor(() => expect(gets()).toBe(2));
+    open = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    await waitFor(() => expect(screen.getByTestId('fresh-button')).toHaveAttribute('data-state', 'due'));
+    expect(screen.getByTestId('fresh-button')).toBeEnabled();
+    expect(refreshPosts()).toBe(0);
   });
 });

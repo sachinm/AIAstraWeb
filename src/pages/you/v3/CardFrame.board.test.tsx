@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import SeasonsCard from './SeasonsCard';
 import CompactCard from './CompactCard';
 import { cardNow } from './boardOptions';
-import { selfV3Fixture, selfV3OutlookCard } from './selfV3.fixture';
+import { GROWTH_LINE, PLAIN_STORY, STORY_TEXT, selfV3Fixture, selfV3OutlookCard, selfV3StoryCard } from './selfV3.fixture';
+import { systemRunning } from './AstrologyView';
+import { dayWords } from './cardModel';
+import type { OutlookSection } from './OutlookView';
 import { clearSelfV3Cached } from '../../../lib/selfV3Cache';
 import type { SelfV3CardView } from '../../../lib/selfV3Api';
 import type { CardChatFace, CardProps } from './CardFrame';
@@ -59,10 +62,11 @@ describe('the board card (tablet and desktop, server docs/dashboards/13)', () =>
     expect(screen.getByTestId('v3-card-body')).toHaveAttribute('data-face', 'calendar');
   });
 
-  it('has no "i" button; the chat bubble stays', () => {
-    mount(selfV3OutlookCard(), { chat: () => <button data-testid="card-chat-bubble">ask</button> });
-    expect(screen.queryByTestId('card-why')).toBeNull();
+  it('carries the "i" button beside the chat bubble; it opens the full reading', () => {
+    const r = mount(selfV3OutlookCard(), { chat: () => <button data-testid="card-chat-bubble">ask</button> });
     expect(screen.getByTestId('card-chat-bubble')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('card-why'));
+    expect(r.onWhy).toHaveBeenCalledTimes(1);
   });
 
   it('drops the 72-character cap', () => {
@@ -71,14 +75,28 @@ describe('the board card (tablet and desktop, server docs/dashboards/13)', () =>
     expect(column.className).not.toMatch(/max-w-\[72ch\]/);
   });
 
-  it('"See the astrology reading" switches to the Astrology Reading tab, which follows the picked stretch', () => {
-    mount();
-    fireEvent.click(screen.getByTestId('period-2'));
+  it('"See the astrology reading" switches to the Astrology Reading tab: its story, or the waiting line', () => {
+    mount(selfV3StoryCard());
     fireEvent.click(screen.getByTestId('outlook-see-astrology'));
     expect(screen.getByTestId('v3-card-body')).toHaveAttribute('data-face', 'astrology');
-    expect(screen.getByTestId('astrology-shows')).toHaveTextContent('Jupiter aspects the sixth house');
+    expect(screen.getByTestId('astrology-story')).toHaveTextContent('Saturn runs the main period');
     // the stretch picker stays over the Astrology tab
     expect(screen.getByTestId('period-0')).toBeInTheDocument();
+    cleanup();
+    mount();
+    fireEvent.click(screen.getByTestId('card-view-astrology'));
+    expect(screen.getByTestId('astrology-empty')).toHaveTextContent('The full astrology reading is being prepared for this card.');
+    expect(screen.queryByTestId('astrology-shows')).toBeNull();
+  });
+
+  it('Outlook keeps its picked section per card across a tab switch; the chart section follows the picked stretch', () => {
+    mount();
+    fireEvent.click(screen.getByTestId('outlook-tool-chart'));
+    fireEvent.click(screen.getByTestId('period-2'));
+    expect(screen.getByTestId('astrology-shows')).toHaveTextContent('Jupiter aspects the sixth house');
+    fireEvent.click(screen.getByTestId('card-view-calendar'));
+    fireEvent.click(screen.getByTestId('card-view-outlook'));
+    expect(screen.getByTestId('outlook-view')).toHaveAttribute('data-section', 'chart');
   });
 
   it('the Calendar tab is the range calendar', () => {
@@ -90,21 +108,99 @@ describe('the board card (tablet and desktop, server docs/dashboards/13)', () =>
 
   it('uses the counted Why line when the card has no Why sentence', () => {
     mount(selfV3OutlookCard({ withWhy: false }));
-    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('4 of 5 timing systems read this stretch as heavy');
+    expect(screen.getByTestId('outlook-why-line')).toHaveTextContent('On 4 of 5 timing views, AdAstra AI reads this stretch as heavy');
   });
 
   it('renders when the server sends neither `chart` nor `why`', () => {
     const body = fx.cards.find((c) => c.id === 'body')!;
     mount(body);
     expect(screen.getByTestId('outlook-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('outlook-tool-chart')).toBeNull();
     fireEvent.click(screen.getByTestId('card-view-astrology'));
-    expect(screen.getByTestId('astrology-view')).toBeInTheDocument();
-    expect(screen.queryByTestId('astrology-gift')).toBeNull();
+    expect(screen.getByTestId('astrology-empty')).toBeInTheDocument();
   });
 
-  it('a v2-filled card shows its chart details on the Astrology tab', () => {
-    mount(fx.cards.find((c) => c.id === 'stuck')!);
+  /**
+   * servedFieldsRendered: no served reading field is ever hidden on the board card. Every text of a card carrying all of
+   * them is findable in some tab or Outlook section, clicking through the tabs and the toolbar.
+   */
+  it('servedFieldsRendered: every served reading field is findable in some tab or section', () => {
+    const card = selfV3StoryCard();
+    mount(card);
+    const seen: string[] = [];
+    const grab = () => seen.push(screen.getByTestId('v3-card-body').textContent ?? '');
+    for (let p = 0; screen.queryByTestId(`period-${p}`); p++) {
+      fireEvent.click(screen.getByTestId(`period-${p}`));
+      fireEvent.click(screen.getByTestId('card-view-outlook'));
+      grab();
+      for (const id of ['overview', 'dates', 'systems', 'ladder', 'chart'] as OutlookSection[]) {
+        const btn = screen.queryByTestId(`outlook-tool-${id}`);
+        if (btn) {
+          fireEvent.click(btn);
+          grab();
+        }
+      }
+      fireEvent.click(screen.getByTestId('card-view-astrology'));
+      grab();
+    }
+    const all = seen.join('\n').replace(/\s+/g, ' ');
+    const v3 = card.v3!;
+    const details = card.v2?.details;
+    const texts: Array<[string, string | null | undefined]> = [
+      ['story', STORY_TEXT.split('\n\n')[1]],
+      ['plain.story', PLAIN_STORY],
+      ['growth', GROWTH_LINE],
+      ['why', v3.why],
+      ['gift', v3.chart?.gift],
+      ['knot', v3.chart?.knot],
+      ...v3.chart!.spans.map((x, i) => [`chart line ${i}`, x.shows] as [string, string]),
+      ['ladder best', v3.ladder?.best],
+      ['ladder floor', v3.ladder?.floor],
+      ...(card.keyDates ?? []).map((k) => [`key date ${k.date}`, k.label] as [string, string]),
+      ...(v3.systems ?? []).map((x) => [`system ${x.system}`, x.label] as [string, string]),
+      ...(v3.systems ?? []).map((x) => [`system ${x.system} running`, systemRunning(x)] as [string, string]),
+      ['goodUntil', v3.goodUntil ? `Good until ${dayWords(v3.goodUntil)}` : null],
+      ...v3.spans.flatMap((x) => (x.clocks ?? []).map((c) => [`clock ${c.label}`, c.label] as [string, string])),
+      ['v2 details headline', details?.headline],
+      ...(details?.paragraphs ?? []).map((t, i) => [`v2 details ${i}`, t] as [string, string]),
+    ];
+    const missing = texts.filter(([, t]) => !!t?.trim() && !all.includes(t.replace(/\s+/g, ' ').trim())).map(([k]) => k);
+    expect(missing).toEqual([]);
+    expect(texts.length).toBeGreaterThan(12);
+    // the server shapes are what is checked: three systems with a period running, one end date, one without
+    expect(v3.systems).toHaveLength(4);
+    expect(all).toContain('Saturn · until 27 Dec 2027');
+    expect(all).toContain('Good until 27 Dec 2027');
+    // the internal system keys never reach the screen
+    for (const x of v3.systems ?? []) expect(all).not.toContain(x.system);
+  });
+
+  it('servedFieldsRendered: `plain.pending` says the plain reading is being written', () => {
+    const c = selfV3StoryCard();
+    mount({ ...c, v3: { ...c.v3!, plain: { story: null, pending: true } } });
+    expect(screen.getByTestId('plain-pending')).toHaveTextContent('The plain reading is being written.');
+    expect(screen.queryByTestId('outlook-plain-story')).toBeNull();
+  });
+
+  it('servedFieldsRendered: a served plain story wins over `pending`', () => {
+    const c = selfV3StoryCard();
+    mount({ ...c, v3: { ...c.v3!, plain: { story: PLAIN_STORY, pending: true } } });
+    expect(screen.getByTestId('outlook-plain-story')).toHaveTextContent(PLAIN_STORY);
+    expect(screen.queryByTestId('plain-pending')).toBeNull();
+  });
+
+  it('servedFieldsRendered: `goodUntil` is a small line in the card; none without it', () => {
+    mount(selfV3StoryCard());
+    expect(screen.getByTestId('card-good-until')).toHaveTextContent('Good until 27 Dec 2027');
+    cleanup();
+    mount(selfV3OutlookCard());
+    expect(screen.queryByTestId('card-good-until')).toBeNull();
+  });
+
+  it('a v2-filled card shows its long reading on the Astrology tab, under the waiting line', () => {
+    mount(selfV3Fixture({ v2: true }).cards.find((c) => c.id === 'stuck')!);
     fireEvent.click(screen.getByTestId('card-view-astrology'));
+    expect(screen.getByTestId('astrology-empty')).toBeInTheDocument();
     expect(screen.getByTestId('astrology-details')).toHaveTextContent("the chart's own reasons");
   });
 });
@@ -149,6 +245,18 @@ describe('the pinned "Is this right?"', () => {
   it('is off when the feature is off', () => {
     mount(selfV3OutlookCard(), { allowed: { short: true, periods: true, keyDates: true, why: true, confirm: false } });
     expect(screen.queryByTestId('card-footer')).toBeNull();
+  });
+});
+
+describe('the phone card shows the served reading fields too', () => {
+  it('Read leads with the plain story, or its "being written" line; "Good until" sits in the card', () => {
+    const c = selfV3StoryCard();
+    render(<CompactCard card={c} options={cardNow(fx.layout, 'body')} onOptions={() => {}} onWhy={() => {}} />);
+    expect(screen.getByTestId('outlook-plain-story')).toHaveTextContent(PLAIN_STORY);
+    expect(screen.getByTestId('card-good-until')).toHaveTextContent('Good until 27 Dec 2027');
+    cleanup();
+    render(<CompactCard card={{ ...c, v3: { ...c.v3!, plain: { story: null, pending: true } } }} options={cardNow(fx.layout, 'body')} onOptions={() => {}} onWhy={() => {}} />);
+    expect(screen.getByTestId('plain-pending')).toBeInTheDocument();
   });
 });
 

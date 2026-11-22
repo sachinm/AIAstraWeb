@@ -1,14 +1,16 @@
 /**
- * A Self board v3 response for tests (server docs/reading-engine/68 §4). Eleven cards in registry order: eight filled
- * from the v2 build with rails from their dates, two filled by v3 with three spans each (Body & energy and How you
+ * A Self board v3 response for tests (server docs/reading-engine/68 §4). Eleven cards in registry order: seven read with
+ * a line, a story and their stored dates (`v2: null`, as the server sends them once v2 is retired; `{ v2: true }` gives
+ * the older shape, filled from the v2 build), two filled by v3 with three spans each (Body & energy and How you
  * think), one pending (Chapters) and one unavailable (How you come across). Eight are suggested, none of them the
  * unavailable one. Plain words on every card face; chart terms only under `details`.
  *
  * Doc 70 Phase 3: every card is `ready`, the board's `reading` is null (the per-card reading off); Body & energy's spans
  * carry their clock agreement (the second span is split: no tone word). `selfV3Reading` turns the per-card reading on.
  */
-import type { PersonalCard } from '../../../lib/selfV2Api';
-import type { BoardReadingView, RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardView, SelfV3Response, SpanClockView, SpanReading } from '../../../lib/selfV3Api';
+import type { PersonalCard } from '../../../lib/boardTypes';
+import type { PipelineView } from '../../../lib/pipelineStatus';
+import type { BoardReadingView, RailItem, SelfCardGroup, SelfCardIdV2, SelfV3CardContent, SelfV3CardView, SelfV3Response, SpanClockView, SpanReading } from '../../../lib/selfV3Api';
 import { DEFAULT_SECTIONS } from '../../../lib/selfV3Api';
 
 export const V3_CARDS: ReadonlyArray<{ id: SelfCardIdV2; group: SelfCardGroup; title: string; description: string; suggested: boolean; sensitive: boolean }> = [
@@ -31,7 +33,7 @@ function v2Card(id: SelfCardIdV2, title: string): PersonalCard {
   return {
     areaId: id,
     headline: `${title}: ideas outrun their footing until 12 Dec 2026.`,
-    body: ['The heaviest pull this stretch is on money and effort; it eases on 12 Dec.', 'Beneath it sits a standing pattern you will recognise.'],
+    body: [...V2_BODY],
     patterns: [
       { text: 'You speculate past the evidence.', kind: 'risk', since: null, until: '2028-02-16', source: `${id}.p1` },
       { text: 'You recover through structure.', kind: 'strength', since: null, until: null, source: `${id}.p2` },
@@ -52,9 +54,12 @@ function v2Card(id: SelfCardIdV2, title: string): PersonalCard {
   };
 }
 
-function v2Rail(): RailItem[] {
+/** the stored v2 body: on a v2-filled card it belongs to the current period; a card read without v2 carries it as that period's own text */
+const V2_BODY = ['The heaviest pull this stretch is on money and effort; it eases on 12 Dec.', 'Beneath it sits a standing pattern you will recognise.'];
+
+function v2Rail(currentText: string[] | null = null): RailItem[] {
   return [
-    { from: '2026-05-05', to: '2026-12-12', label: 'now → 12 Dec 2026', tone: null, note: 'Money and effort press', current: true, span: null },
+    { from: '2026-05-05', to: '2026-12-12', label: 'now → 12 Dec 2026', tone: null, note: 'Money and effort press', current: true, span: null, ...(currentText ? { text: currentText } : {}) },
     // the second period has words of its own and can be picked; the third has none, so it is not offered
     { from: '2026-12-12', to: '2027-06-03', label: '12 Dec → 3 Jun 2027', tone: null, note: 'The pull eases', current: false, span: null, text: ['The pull on money and effort eases once the heavy stretch ends.', 'Take the first free month to tidy what you postponed.'] },
     { from: '2027-06-03', to: '2027-10-04', label: '3 Jun → 4 Oct 2027', tone: null, note: 'A good stretch to build', current: false, span: null, text: null },
@@ -183,7 +188,26 @@ function details(title: string) {
   return { headline: `${title}: the chart's own reasons`, paragraphs: ['Two stored rows press on this part of the chart until 12 Dec 2026.'], evidence: ['row.k1'], certainty: 'strong' };
 }
 
-function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
+/**
+ * A card read without the v2 build (the server after v2 is retired): its line, pattern and ladder as v3 content, the
+ * technical story where the long reading was, and the body as the current period's own text. `v2` is null.
+ */
+function v3Only(id: SelfCardIdV2, title: string): SelfV3CardContent {
+  const v2 = v2Card(id, title);
+  return {
+    line: v2.headline,
+    spans: [],
+    confirm: null,
+    pattern: v2.patterns[0] ?? null,
+    ladder: v2.ladder,
+    agreement: null,
+    story: `${title}: the chart's own reasons.
+
+Two stored rows press on this part of the chart until 12 Dec 2026.`,
+  };
+}
+
+function card(def: (typeof V3_CARDS)[number], withV2: boolean): SelfV3CardView {
   const base: SelfV3CardView = {
     id: def.id,
     group: def.group,
@@ -197,9 +221,9 @@ function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
     state: 'ready',
     firstLine: `${def.title}: ideas outrun their footing until 12 Dec 2026.`,
     defaultSections: [...DEFAULT_SECTIONS],
-    rail: v2Rail(),
-    v3: null,
-    v2: { card: v2Card(def.id, def.title), rangeLabel: 'True until 12 Dec 2026', details: details(def.title) },
+    rail: withV2 ? v2Rail() : v2Rail(V2_BODY),
+    v3: withV2 ? null : v3Only(def.id, def.title),
+    v2: withV2 ? { card: v2Card(def.id, def.title), rangeLabel: 'True until 12 Dec 2026', details: details(def.title) } : null,
   };
   if (def.id === 'body') {
     return {
@@ -232,13 +256,17 @@ function card(def: (typeof V3_CARDS)[number]): SelfV3CardView {
       },
     };
   }
-  if (def.id === 'chapters') return { ...base, status: 'pending', firstLine: null, rail: [], v2: null };
+  if (def.id === 'chapters') return { ...base, status: 'pending', firstLine: null, rail: [], v3: null, v2: null };
   if (def.id === 'presence')
-    return { ...base, available: false, unavailableReason: 'Your chart needs a birth time to read this card.', status: 'pending', firstLine: null, rail: [], v2: null };
+    return { ...base, available: false, unavailableReason: 'Your chart needs a birth time to read this card.', status: 'pending', firstLine: null, rail: [], v3: null, v2: null };
   return base;
 }
 
-export function selfV3Fixture(): SelfV3Response {
+/**
+ * The board as the server sends it. Every card has `v2: null` (v2 is retired); `{ v2: true }` is the board while the
+ * server still fills cards from the v2 build (eight cards with `v2` and no `v3`), for the legacy Chart details path.
+ */
+export function selfV3Fixture(opts: { v2?: boolean } = {}): SelfV3Response {
   return {
     status: 'ok',
     builtAt: '2026-11-09T08:00:00Z',
@@ -265,7 +293,7 @@ export function selfV3Fixture(): SelfV3Response {
       chosen: true,
       updatedAt: '2026-11-09T08:05:00Z',
     },
-    cards: V3_CARDS.map(card),
+    cards: V3_CARDS.map((d) => card(d, opts.v2 === true)),
     reading: null,
   };
 }
@@ -290,6 +318,15 @@ export function selfV3Reading(over: Partial<BoardReadingView> = {}): SelfV3Respo
     ...over,
   };
   return b;
+}
+
+/** the reading gate (server prep gate): a chart still being prepared, and one ready (the default body has no block) */
+export const PIPELINE_LOCKED: PipelineView = { stage: 'preparing', done: 2, total: 5, line: 'Preparing Love', locked: true, reason: 'preparing' };
+export const PIPELINE_OPEN: PipelineView = { stage: 'ready', done: 5, total: 5, line: 'Ready', locked: false, reason: null };
+
+/** the board with a `pipeline` block (`locked` by default) */
+export function selfV3Gated(pipeline: PipelineView = PIPELINE_LOCKED, base: SelfV3Response = selfV3Fixture()): SelfV3Response {
+  return { ...base, pipeline: { ...pipeline } };
 }
 
 /** a first visit: nothing chosen yet, the picker opens */
@@ -330,4 +367,47 @@ export function selfV3OutlookCard(opts: { withWhy?: boolean; withChart?: boolean
         : null,
     },
   } as SelfV3CardView;
+}
+
+/** the Oracle's technical story (plan revision 2 §6): continuous paragraphs, no headings; test and screenshot data only */
+export const STORY_TEXT = [
+  'From the rising sign, the sixth house and its lord carry the body here; the lord is a friend to the rising sign, so effort turns into stamina once it is paced.',
+  'Saturn runs the main period on the life-chapters clock until 27 Dec 2027, with the Moon under it; the sign periods are quieter, and the birthday year asks for habits.',
+  'Saturn crosses the rising degree in early December 2026. The signs lean toward a slow, steady rebuild; a month of early nights would settle it.',
+].join('\n\n');
+
+/** the Personalizer's plain story: what Outlook shows under the headline */
+export const PLAIN_STORY = 'You are rebuilding, not running down. This stretch asks for a slower rhythm, and gives back a steadier body for it.';
+export const GROWTH_LINE = 'It teaches you to keep a pace you can hold.';
+/** how long the story card's reading holds (server `v3.goodUntil`) */
+export const GOOD_UNTIL = '2027-12-27';
+/**
+ * The systems the story read, in the server's shape (server src/reading/self/v3/types.ts `CardSystemView`): the internal
+ * key, the plain label and what runs today. The last one has no end date stored; a fourth has nothing running.
+ */
+export const STORY_SYSTEMS: NonNullable<NonNullable<SelfV3CardView['v3']>['systems']> = [
+  { system: 'vimshottari', label: 'Life chapters', running: { lord: 'Saturn', from: '2008-12-27', to: '2027-12-27' } },
+  { system: 'narayana', label: 'Sign periods', running: { lord: 'Virgo', from: '2026-01-10', to: '2027-01-10' } },
+  { system: 'tp_year', label: 'Birthday year', running: { lord: 'Saturn', from: '2026-08-01', to: null } },
+  { system: 'yogini', label: 'Short chapters', running: null },
+];
+
+/**
+ * The Outlook card with every reading field the server serves or will serve: the technical story, the plain story,
+ * the systems read and a growth line on each stretch, on top of the Outlook card's why, chart lines, ladder, key dates,
+ * agreement counts and its v2 long reading.
+ */
+export function selfV3StoryCard(): SelfV3CardView {
+  const c = selfV3OutlookCard();
+  return {
+    ...c,
+    v3: {
+      ...c.v3!,
+      story: STORY_TEXT,
+      plain: { story: PLAIN_STORY, pending: false },
+      systems: STORY_SYSTEMS,
+      goodUntil: GOOD_UNTIL,
+      spans: c.v3!.spans.map((x) => ({ ...x, growth: GROWTH_LINE })),
+    },
+  };
 }
